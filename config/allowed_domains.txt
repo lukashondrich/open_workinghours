@@ -1,0 +1,4 @@
+# List authorised hospital domains (one per line)
+# Example:
+# klinikum-example.de
+googlemail.com
