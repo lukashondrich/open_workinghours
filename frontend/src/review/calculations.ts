@@ -349,3 +349,32 @@ export function toggleBreakForSegment(
   };
   return [...segment.breaks.map((br) => ({ ...br })), newBreak].sort((a, b) => (a.start < b.start ? -1 : 1));
 }
+
+export function updateShiftTimes(
+  dataset: ReviewDataset,
+  segmentId: string,
+  updates: { start?: Date; end?: Date }
+) {
+  dataset.days.forEach((day) => {
+    let dirty = false;
+    day.actual = day.actual.map((segment) => {
+      if (segment.id !== segmentId) {
+        return segment;
+      }
+      const startDate = updates.start ?? parseDateTime(segment.start);
+      const endDate = updates.end ?? parseDateTime(segment.end);
+      if (endDate.getTime() <= startDate.getTime()) {
+        return segment;
+      }
+      dirty = true;
+      return {
+        ...segment,
+        start: formatLocalDateTime(startDate),
+        end: formatLocalDateTime(endDate)
+      };
+    });
+    if (dirty) {
+      day.actual.sort((a, b) => (a.start < b.start ? -1 : 1));
+    }
+  });
+}

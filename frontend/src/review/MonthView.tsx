@@ -64,33 +64,35 @@ export function MonthView({
         </p>
       </header>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
-          fontSize: "0.8rem",
-          textTransform: "uppercase",
-          color: "#666",
-          letterSpacing: "0.06em"
-        }}
-      >
-        {weekdayLabels.map((label) => (
-          <div key={label} style={{ padding: "0.25rem 0.5rem" }}>
-            {label}
+      <div style={{ overflowX: "auto" }}>
+        <div style={{ minWidth: "360px" }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
+              fontSize: "0.8rem",
+              textTransform: "uppercase",
+              color: "#666",
+              letterSpacing: "0.06em"
+            }}
+          >
+            {weekdayLabels.map((label) => (
+              <div key={label} style={{ padding: "0.25rem 0.5rem" }}>
+                {label}
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
-          border: "1px solid #d0d7de",
-          borderRadius: "12px",
-          overflow: "hidden"
-        }}
-      >
-        {monthCells.map((cell) => {
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
+              border: "1px solid #d0d7de",
+              borderRadius: "12px",
+              overflow: "hidden"
+            }}
+          >
+            {monthCells.map((cell) => {
           const isCurrentMonth = cell.date.getMonth() === cursorDate.getMonth();
           const isSelected = toDateKey(startOfDay(cell.date)) === toDateKey(startOfDay(cursorDate));
           const totals = cell.totals;
@@ -109,7 +111,6 @@ export function MonthView({
                 onOpenWeek(cell.date);
               }}
               onFocus={() => onSelectDate(cell.date)}
-              onMouseEnter={() => onSelectDate(cell.date)}
               className="month-day-cell"
               style={{
                 display: "flex",
@@ -192,7 +193,9 @@ export function MonthView({
               </div>
             </button>
           );
-        })}
+            })}
+          </div>
+        </div>
       </div>
     </section>
   );

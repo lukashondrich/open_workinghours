@@ -54,26 +54,28 @@ export function WeekView({
         </p>
       </header>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "60px repeat(7, minmax(0, 1fr))",
-          gap: "0.75rem",
-          alignItems: "stretch"
-        }}
-      >
+      <div style={{ overflowX: "auto" }}>
         <div
-          aria-hidden="true"
-          style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", fontSize: "0.75rem" }}
+          style={{
+            display: "grid",
+            gridTemplateColumns: "60px repeat(7, minmax(0, 1fr))",
+            gap: "0.75rem",
+            alignItems: "stretch",
+            minWidth: "720px"
+          }}
         >
-          {hourMarks.map((hour) => (
-            <span key={hour} style={{ height: `${TIMELINE_HEIGHT / 24}px`, position: "relative" }}>
-              <span style={{ position: "absolute", top: -6, left: 0 }}>{hour.toString().padStart(2, "0")}</span>
-            </span>
-          ))}
-        </div>
+          <div
+            aria-hidden="true"
+            style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", fontSize: "0.75rem" }}
+          >
+            {hourMarks.map((hour) => (
+              <span key={hour} style={{ height: `${TIMELINE_HEIGHT / 24}px`, position: "relative" }}>
+                <span style={{ position: "absolute", top: -6, left: 0 }}>{hour.toString().padStart(2, "0")}</span>
+              </span>
+            ))}
+          </div>
 
-        {weekDays.map((day) => {
+          {weekDays.map((day) => {
           const date = parseDateTime(`${day.date}T00:00`);
           const isSelected = toDateKey(startOfDay(cursorDate)) === day.date;
           const totals = getDayTotals(day);
@@ -196,7 +198,8 @@ export function WeekView({
               </div>
             </div>
           );
-        })}
+          })}
+        </div>
       </div>
     </section>
   );

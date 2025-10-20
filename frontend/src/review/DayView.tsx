@@ -1,9 +1,10 @@
-import { MouseEvent, useMemo, useRef } from "react";
+import { MouseEvent, useEffect, useMemo, useRef, useState } from "react";
 
 import { DayReviewRecord } from "./fixtures";
 import { buildTimelineSegments } from "./calculations";
 import {
   addMinutes,
+  clamp,
   minutesBetween,
   minutesToHours,
   parseDateTime,
@@ -27,9 +28,11 @@ export interface DayViewProps {
   onCallCreditPct: number;
   connectorThickness: "thin" | "thick";
   onCallDisplay: "shaded" | "badge";
+  onSegmentTimeChange: (options: { segmentId: string; start?: Date; end?: Date }) => void;
 }
 
 const TIMELINE_HEIGHT = 24 * 22;
+const MIN_SHIFT_MINUTES = 10;
 
 export function DayView({
   day,
@@ -39,7 +42,8 @@ export function DayView({
   defaultBreakMinutes,
   onCallCreditPct,
   connectorThickness,
-  onCallDisplay
+  onCallDisplay,
+  onSegmentTimeChange
 }: DayViewProps) {
   const effectiveDay = useMemo<DayReviewRecord>(() => {
     if (day) {
@@ -61,6 +65,8 @@ export function DayView({
   const timelineRef = useRef<HTMLDivElement | null>(null);
   const segments = useMemo(() => buildTimelineSegments(effectiveDay), [effectiveDay]);
   const daySegments = segments.filter((segment) => segment.dayKey === effectiveDay.date);
+  const gestureRef = useRef<GestureState | null>(null);
+  const [gestureActive, setGestureActive] = useState(false);
 
   const hours = useMemo(() => Array.from({ length: 25 }, (_, index) => index), []);
 
@@ -109,6 +115,107 @@ export function DayView({
     onUpdateBreak({ segmentId: target.original.id, timestamp });
   };
 
+  useEffect(() => {
+    if (!gestureActive) {
+      return;
+    }
+    const handlePointerMove = (event: PointerEvent) => {
+      const state = gestureRef.current;
+      if (!state || event.pointerId !== state.pointerId) {
+        return;
+      }
+      event.preventDefault();
+      const minutePosition = minuteFromPointer(event.clientY, timelineRef.current);
+      if (minutePosition == null) {
+        return;
+      }
+      if (state.mode === "move") {
+        const maxStart = 24 * 60 - state.sliceDuration;
+        const newSliceStart = clamp(minutePosition - state.offsetMinutes, 0, maxStart);
+        const delta = newSliceStart - state.initialSliceStartMinutes;
+        if (delta === 0) {
+          return;
+        }
+        const newStart = addMinutes(state.originalStart, delta);
+        const newEnd = addMinutes(state.originalEnd, delta);
+        onSegmentTimeChange({
+          segmentId: state.segmentId,
+          start: newStart,
+          end: newEnd
+        });
+        gestureRef.current = {
+          ...state,
+          originalStart: newStart,
+          originalEnd: newEnd,
+          initialSliceStartMinutes: newSliceStart,
+          initialSliceEndMinutes: newSliceStart + state.sliceDuration
+        };
+      } else if (state.mode === "resize-start") {
+        const maxStart = state.initialSliceEndMinutes - MIN_SHIFT_MINUTES;
+        const clampedStart = clamp(minutePosition, 0, maxStart);
+        const delta = clampedStart - state.initialSliceStartMinutes;
+        if (delta === 0) {
+          return;
+        }
+        const newStart = addMinutes(state.originalStart, delta);
+        if (minutesBetween(newStart, state.originalEnd) < MIN_SHIFT_MINUTES) {
+          return;
+        }
+        onSegmentTimeChange({
+          segmentId: state.segmentId,
+          start: newStart
+        });
+        const newDuration = minutesBetween(newStart, state.originalEnd);
+        gestureRef.current = {
+          ...state,
+          originalStart: newStart,
+          initialSliceStartMinutes: clampedStart,
+          sliceDuration: newDuration
+        };
+      } else if (state.mode === "resize-end") {
+        const minEnd = state.initialSliceStartMinutes + MIN_SHIFT_MINUTES;
+        const clampedEnd = clamp(minutePosition, minEnd, 24 * 60);
+        const delta = clampedEnd - state.initialSliceEndMinutes;
+        if (delta === 0) {
+          return;
+        }
+        const newEnd = addMinutes(state.originalEnd, delta);
+        if (minutesBetween(state.originalStart, newEnd) < MIN_SHIFT_MINUTES) {
+          return;
+        }
+        onSegmentTimeChange({
+          segmentId: state.segmentId,
+          end: newEnd
+        });
+        const newDuration = minutesBetween(state.originalStart, newEnd);
+        gestureRef.current = {
+          ...state,
+          originalEnd: newEnd,
+          initialSliceEndMinutes: clampedEnd,
+          sliceDuration: newDuration
+        };
+      }
+    };
+
+    const handlePointerUp = (event: PointerEvent) => {
+      const state = gestureRef.current;
+      if (!state || event.pointerId !== state.pointerId) {
+        return;
+      }
+      gestureRef.current = null;
+      setGestureActive(false);
+    };
+
+    window.addEventListener("pointermove", handlePointerMove, { passive: false });
+    window.addEventListener("pointerup", handlePointerUp);
+    window.addEventListener("pointercancel", handlePointerUp);
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+      window.removeEventListener("pointercancel", handlePointerUp);
+    };
+  }, [gestureActive, onSegmentTimeChange]);
+
   return (
     <section aria-label={`Day view for ${dayLabel}`} style={{ display: "grid", gap: "1.25rem" }}>
       <header style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
@@ -154,7 +261,8 @@ export function DayView({
           borderRadius: "16px",
           background: "#fbfdff",
           height: `${TIMELINE_HEIGHT}px`,
-          overflow: "hidden"
+          overflow: "hidden",
+          touchAction: "none"
         }}
       >
         {hours.map((hour) => (
@@ -212,6 +320,12 @@ export function DayView({
             onCallCreditPct={onCallCreditPct}
             connectorThickness={connectorThickness}
             onCallDisplay={onCallDisplay}
+            onSegmentTimeChange={onSegmentTimeChange}
+            timelineRef={timelineRef}
+            startGesture={(state) => {
+              gestureRef.current = state;
+              setGestureActive(true);
+            }}
           />
         ))}
       </div>
@@ -302,16 +416,23 @@ function DaySegment({
   segment,
   onCallCreditPct,
   connectorThickness,
-  onCallDisplay
+  onCallDisplay,
+  onSegmentTimeChange,
+  timelineRef,
+  startGesture
 }: {
   segment: ReturnType<typeof buildTimelineSegments>[number];
   onCallCreditPct: number;
   connectorThickness: "thin" | "thick";
   onCallDisplay: "shaded" | "badge";
+  onSegmentTimeChange: (options: { segmentId: string; start?: Date; end?: Date }) => void;
+  timelineRef: React.RefObject<HTMLDivElement>;
+  startGesture: (state: GestureState) => void;
 }) {
   const dayStart = parseDateTime(`${segment.dayKey}T00:00`);
   const startMinutes = minutesBetween(dayStart, segment.start);
   const endMinutes = minutesBetween(dayStart, segment.end);
+  const sliceDuration = Math.max(endMinutes - startMinutes, 1);
   const top = (startMinutes / (24 * 60)) * 100;
   const height = Math.max(4, ((endMinutes - startMinutes) / (24 * 60)) * 100);
   const isOnCall = segment.category === "oncall";
@@ -332,6 +453,30 @@ function DaySegment({
       role="group"
       tabIndex={0}
       aria-label={`${isOnCall ? "On-call" : "Shift"} ${durationLabel}`}
+      onPointerDown={(event) => {
+        if (event.pointerType === "touch") {
+          event.preventDefault();
+        }
+        const minutePosition = minuteFromPointer(event.clientY, timelineRef.current);
+        if (minutePosition == null) {
+          return;
+        }
+        const offsetMinutes = minutePosition - startMinutes;
+        startGesture({
+          mode: "move",
+          pointerId: event.pointerId,
+          segmentId: segment.original.id,
+          dayKey: segment.dayKey,
+          sliceStart: segment.start,
+          sliceEnd: segment.end,
+          originalStart: parseDateTime(segment.original.start),
+          originalEnd: parseDateTime(segment.original.end),
+          sliceDuration,
+          offsetMinutes,
+          initialSliceStartMinutes: startMinutes,
+          initialSliceEndMinutes: endMinutes
+        });
+      }}
       style={{
         position: "absolute",
         top: `${top}%`,
@@ -426,6 +571,74 @@ function DaySegment({
           }}
         />
       )}
+      <span
+        role="presentation"
+        aria-hidden="true"
+        onPointerDown={(event) => {
+          event.stopPropagation();
+          if (event.pointerType === "touch") {
+            event.preventDefault();
+          }
+          startGesture({
+            mode: "resize-start",
+            pointerId: event.pointerId,
+            segmentId: segment.original.id,
+            dayKey: segment.dayKey,
+            sliceStart: segment.start,
+            sliceEnd: segment.end,
+            originalStart: parseDateTime(segment.original.start),
+            originalEnd: parseDateTime(segment.original.end),
+            sliceDuration,
+            offsetMinutes: 0,
+            initialSliceStartMinutes: startMinutes,
+            initialSliceEndMinutes: endMinutes
+          });
+        }}
+        style={{
+          position: "absolute",
+          top: "-6px",
+          left: "20%",
+          right: "20%",
+          height: "12px",
+          borderRadius: "12px",
+          background: "rgba(0,0,0,0.08)",
+          cursor: "ns-resize"
+        }}
+      />
+      <span
+        role="presentation"
+        aria-hidden="true"
+        onPointerDown={(event) => {
+          event.stopPropagation();
+          if (event.pointerType === "touch") {
+            event.preventDefault();
+          }
+          startGesture({
+            mode: "resize-end",
+            pointerId: event.pointerId,
+            segmentId: segment.original.id,
+            dayKey: segment.dayKey,
+            sliceStart: segment.start,
+            sliceEnd: segment.end,
+            originalStart: parseDateTime(segment.original.start),
+            originalEnd: parseDateTime(segment.original.end),
+            sliceDuration,
+            offsetMinutes: 0,
+            initialSliceStartMinutes: startMinutes,
+            initialSliceEndMinutes: endMinutes
+          });
+        }}
+        style={{
+          position: "absolute",
+          bottom: "-6px",
+          left: "20%",
+          right: "20%",
+          height: "12px",
+          borderRadius: "12px",
+          background: "rgba(0,0,0,0.08)",
+          cursor: "ns-resize"
+        }}
+      />
     </div>
   );
 }
@@ -438,4 +651,32 @@ function formatTimeRange(start: Date, end: Date) {
   const startLabel = start.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", hour12: false });
   const endLabel = end.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", hour12: false });
   return `${startLabel} – ${endLabel}`;
+}
+
+type GestureMode = "move" | "resize-start" | "resize-end";
+
+interface GestureStateBase {
+  mode: GestureMode;
+  pointerId: number;
+  segmentId: string;
+  dayKey: string;
+  sliceStart: Date;
+  sliceEnd: Date;
+  originalStart: Date;
+  originalEnd: Date;
+  sliceDuration: number;
+  initialSliceStartMinutes: number;
+  initialSliceEndMinutes: number;
+  offsetMinutes: number;
+}
+
+type GestureState = GestureStateBase;
+
+function minuteFromPointer(clientY: number, timeline: HTMLDivElement | null): number | null {
+  if (!timeline) {
+    return null;
+  }
+  const rect = timeline.getBoundingClientRect();
+  const relative = (clientY - rect.top) / rect.height;
+  return clamp(relative, 0, 1) * 24 * 60;
 }

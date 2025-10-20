@@ -1,5 +1,6 @@
 import Head from "next/head";
 import { useEffect, useMemo, useState } from "react";
+import type { CSSProperties } from "react";
 
 import { DayView } from "../review/DayView";
 import { MonthView } from "../review/MonthView";
@@ -10,6 +11,7 @@ import {
   computeWeekTotals,
   describeTotals,
   findDay,
+  updateShiftTimes,
   toggleBreakForSegment,
   weekForDate
 } from "../review/calculations";
@@ -18,6 +20,7 @@ import { WeekView } from "../review/WeekView";
 import { WeekViewProps } from "../review/WeekView";
 import { MonthViewProps } from "../review/MonthView";
 import { addMinutes, minutesToHours, parseDateTime, roundHours, startOfDay, toDateKey } from "../lib/time";
+import { useMediaQuery } from "../hooks/useMediaQuery";
 
 type ViewMode = "MONTH" | "WEEK" | "DAY";
 type OvertimeIndicator = "dot" | "pill";
@@ -58,6 +61,8 @@ export default function ReviewPrototype() {
     onCallDisplay: "shaded",
     connectorThickness: "thin"
   });
+  const [phonePreview, setPhonePreview] = useState(false);
+  const isCompact = useMediaQuery("(max-width: 768px)");
 
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
@@ -201,6 +206,20 @@ export default function ReviewPrototype() {
     setExperiments((prev) => ({ ...prev, ...partial }));
   };
 
+  const handleSegmentTimeChange: DayViewProps["onSegmentTimeChange"] = ({ segmentId, start, end }) => {
+    if (!start && !end) {
+      return;
+    }
+    setDataset((prev) => {
+      const copy = cloneDataset(prev);
+      updateShiftTimes(copy, segmentId, {
+        start: start ? new Date(start) : undefined,
+        end: end ? new Date(end) : undefined
+      });
+      return copy;
+    });
+  };
+
   const renderView = () => {
     if (viewMode === "MONTH") {
       const monthProps: MonthViewProps = {
@@ -248,9 +267,201 @@ export default function ReviewPrototype() {
       defaultBreakMinutes: settings.defaultBreakMinutes,
       onCallCreditPct: settings.onCallCreditPct,
       connectorThickness: experiments.connectorThickness,
-      onCallDisplay: experiments.onCallDisplay
+      onCallDisplay: experiments.onCallDisplay,
+      onSegmentTimeChange: handleSegmentTimeChange
     };
     return <DayView {...dayProps} />;
+  };
+
+  const useStackLayout = phonePreview || isCompact;
+
+  const content = (
+    <>
+      <header style={{ marginBottom: "1.5rem" }}>
+        <h1 style={{ marginBottom: "0.25rem" }}>Review working hours</h1>
+        <p style={{ margin: 0, color: "#555", fontSize: "0.9rem" }}>
+          Switch datasets to explore fixtures; navigate Month → Week → Day to edit tracked time on touch devices.
+        </p>
+      </header>
+
+      <section
+        aria-label="Prototype controls"
+        style={{
+          display: "flex",
+          flexDirection: useStackLayout ? "column" : "column",
+          gap: "0.9rem",
+          marginBottom: "1.5rem"
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            flexDirection: useStackLayout ? "column" : "row",
+            gap: useStackLayout ? "0.75rem" : "0.75rem 1rem",
+            flexWrap: useStackLayout ? "nowrap" : "wrap",
+            alignItems: useStackLayout ? "stretch" : "center"
+          }}
+        >
+          <label htmlFor="dataset-selector" style={{ display: "flex", flexDirection: "column", fontWeight: 600 }}>
+            Dataset
+            <select
+              id="dataset-selector"
+              value={selectedDatasetId}
+              onChange={(event) => handleDatasetChange(event.target.value)}
+              style={{
+                marginTop: "0.35rem",
+                padding: "0.4rem",
+                borderRadius: "8px",
+                border: "1px solid #cbd5f5"
+              }}
+            >
+              {REVIEW_FIXTURES.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <div
+            role="group"
+            aria-label="View mode"
+            style={{
+              display: "inline-flex",
+              gap: "0.5rem",
+              alignItems: "center",
+              flexWrap: "wrap"
+            }}
+          >
+            {(["MONTH", "WEEK", "DAY"] as ViewMode[]).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => handleViewChange(mode)}
+                aria-pressed={viewMode === mode}
+                style={{
+                  padding: "0.35rem 0.85rem",
+                  borderRadius: "999px",
+                  border: "1px solid #ccc",
+                  background: viewMode === mode ? "#0052cc" : "#f8f8f8",
+                  color: viewMode === mode ? "#fff" : "#222",
+                  fontWeight: 500,
+                  cursor: "pointer"
+                }}
+              >
+                {mode}
+              </button>
+            ))}
+          </div>
+
+          <div
+            role="group"
+            aria-label="Week navigation"
+            style={{
+              display: "inline-flex",
+              gap: "0.5rem",
+              alignItems: "center"
+            }}
+          >
+            <button type="button" onClick={() => stepWeek(-1)}>
+              ← Prev
+            </button>
+            <button type="button" onClick={goToToday}>
+              Today
+            </button>
+            <button type="button" onClick={() => stepWeek(1)}>
+              Next →
+            </button>
+          </div>
+
+          <button type="button" onClick={exportWeek}>
+            Export week CSV
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setPhonePreview((prev) => !prev)}
+            style={{
+              padding: "0.4rem 0.85rem",
+              borderRadius: "8px",
+              border: "1px solid #cbd5f5",
+              background: phonePreview ? "#1e293b" : "#f1f5f9",
+              color: phonePreview ? "#fff" : "#0f172a",
+              fontWeight: 600
+            }}
+          >
+            {phonePreview ? "Exit phone frame" : "Phone frame preview"}
+          </button>
+        </div>
+
+        <details style={{ fontSize: "0.85rem", color: "#555" }} open={!useStackLayout}>
+          <summary style={{ cursor: "pointer", fontWeight: 600 }}>Scenario description</summary>
+          <p style={{ marginTop: "0.5rem" }}>{dataset.description}</p>
+        </details>
+      </section>
+
+      <section
+        style={{
+          display: "grid",
+          gridTemplateColumns: useStackLayout ? "1fr" : "3fr 1fr",
+          gap: "1.5rem",
+          alignItems: "start"
+        }}
+      >
+        <div>{renderView()}</div>
+        <aside
+          style={{
+            display: "grid",
+            gap: "1.5rem",
+            alignContent: "start"
+          }}
+        >
+          <TotalsCard dayTotals={dayTotals} weekTotals={weekTotals} cursorDate={cursorDate} />
+          <SettingsCard settings={settings} onChange={updateSettings} />
+          <ExperimentsCard experiments={experiments} onChange={updateExperiments} />
+        </aside>
+      </section>
+    </>
+  );
+
+  const desktopMainStyle: CSSProperties = {
+    maxWidth: "1200px",
+    margin: "0 auto",
+    padding: "2rem",
+    fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif",
+    lineHeight: 1.5,
+    display: "flex",
+    flexDirection: "column"
+  };
+
+  const phoneFrameShell: CSSProperties = {
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: "1.5rem",
+    background: "#0f172a"
+  };
+
+  const phoneBody: CSSProperties = {
+    width: "390px",
+    minHeight: "844px",
+    borderRadius: "32px",
+    border: "14px solid #020617",
+    boxShadow: "0 25px 55px rgba(15, 23, 42, 0.45)",
+    background: "#fff",
+    display: "flex",
+    flexDirection: "column",
+    overflow: "hidden"
+  };
+
+  const phoneMainStyle: CSSProperties = {
+    flex: 1,
+    overflowY: "auto",
+    padding: "1.25rem 1.35rem",
+    fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif",
+    lineHeight: 1.4,
+    display: "flex",
+    flexDirection: "column"
   };
 
   return (
@@ -262,124 +473,15 @@ export default function ReviewPrototype() {
           content="Prototype for reviewing tracked working hours with month/week/day flows."
         />
       </Head>
-      <main
-        style={{
-          maxWidth: "1200px",
-          margin: "0 auto",
-          padding: "2rem",
-          fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
-        }}
-      >
-        <header style={{ marginBottom: "1.5rem" }}>
-          <h1 style={{ marginBottom: "0.25rem" }}>Review working hours</h1>
-          <p style={{ margin: 0, color: "#555" }}>
-            Switch datasets to explore fixtures, then navigate Month → Week → Day to sanity-check tracked time.
-          </p>
-        </header>
-
-        <section
-          aria-label="Prototype controls"
-          style={{
-            display: "grid",
-            gap: "1rem",
-            gridTemplateColumns: "minmax(0, 1fr)",
-            marginBottom: "1.5rem"
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: "0.75rem",
-              alignItems: "center"
-            }}
-          >
-            <label htmlFor="dataset-selector">
-              Dataset:
-              <select
-                id="dataset-selector"
-                value={selectedDatasetId}
-                onChange={(event) => handleDatasetChange(event.target.value)}
-                style={{ marginLeft: "0.5rem" }}
-              >
-                {REVIEW_FIXTURES.map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <div role="group" aria-label="View mode" style={{ display: "inline-flex", gap: "0.5rem" }}>
-              {(["MONTH", "WEEK", "DAY"] as ViewMode[]).map((mode) => (
-                <button
-                  key={mode}
-                  type="button"
-                  onClick={() => handleViewChange(mode)}
-                  aria-pressed={viewMode === mode}
-                  style={{
-                    padding: "0.35rem 0.85rem",
-                    borderRadius: "999px",
-                    border: "1px solid #ccc",
-                    background: viewMode === mode ? "#0052cc" : "#f8f8f8",
-                    color: viewMode === mode ? "#fff" : "#222",
-                    fontWeight: 500,
-                    cursor: "pointer"
-                  }}
-                >
-                  {mode}
-                </button>
-              ))}
-            </div>
-
-            <div
-              role="group"
-              aria-label="Week navigation"
-              style={{ display: "inline-flex", gap: "0.5rem", alignItems: "center" }}
-            >
-              <button type="button" onClick={() => stepWeek(-1)}>
-                ← Prev
-              </button>
-              <button type="button" onClick={goToToday}>
-                Today
-              </button>
-              <button type="button" onClick={() => stepWeek(1)}>
-                Next →
-              </button>
-            </div>
-
-            <button type="button" onClick={exportWeek}>
-              Export week CSV
-            </button>
+      {phonePreview ? (
+        <div style={phoneFrameShell}>
+          <div style={phoneBody}>
+            <main style={phoneMainStyle}>{content}</main>
           </div>
-
-          <p style={{ margin: 0, color: "#666", fontSize: "0.9rem" }}>
-            {dataset.description}
-          </p>
-        </section>
-
-        <section style={{ display: "grid", gridTemplateColumns: "3fr 1fr", gap: "1.5rem" }}>
-          <div>{renderView()}</div>
-          <aside
-            style={{
-              display: "grid",
-              gap: "1.5rem",
-              alignContent: "start"
-            }}
-          >
-            <TotalsCard
-              dayTotals={dayTotals}
-              weekTotals={weekTotals}
-              cursorDate={cursorDate}
-            />
-            <SettingsCard
-              settings={settings}
-              onChange={updateSettings}
-            />
-            <ExperimentsCard experiments={experiments} onChange={updateExperiments} />
-          </aside>
-        </section>
-      </main>
+        </div>
+      ) : (
+        <main style={desktopMainStyle}>{content}</main>
+      )}
     </>
   );
 }
