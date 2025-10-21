@@ -1,6 +1,6 @@
 import { MouseEvent, useEffect, useMemo, useRef, useState } from "react";
 
-import { DayReviewRecord } from "./fixtures";
+import { DayReviewRecord, ShiftSegment } from "./fixtures";
 import { buildTimelineSegments } from "./calculations";
 import {
   addMinutes,
@@ -29,6 +29,10 @@ export interface DayViewProps {
   connectorThickness: "thin" | "thick";
   onCallDisplay: "shaded" | "badge";
   onSegmentTimeChange: (options: { segmentId: string; start?: Date; end?: Date }) => void;
+  defaultShiftDurationMinutes: number;
+  onInsertShift: (options: { timestamp: Date; durationMinutes: number }) => ShiftSegment | null;
+  onDeleteSegment: (segmentId: string) => boolean;
+  onConfirmDay: () => void;
 }
 
 const TIMELINE_HEIGHT = 24 * 22;
@@ -43,7 +47,11 @@ export function DayView({
   onCallCreditPct,
   connectorThickness,
   onCallDisplay,
-  onSegmentTimeChange
+  onSegmentTimeChange,
+  defaultShiftDurationMinutes,
+  onInsertShift,
+  onDeleteSegment,
+  onConfirmDay
 }: DayViewProps) {
   const effectiveDay = useMemo<DayReviewRecord>(() => {
     if (day) {
@@ -67,6 +75,17 @@ export function DayView({
   const daySegments = segments.filter((segment) => segment.dayKey === effectiveDay.date);
   const gestureRef = useRef<GestureState | null>(null);
   const [gestureActive, setGestureActive] = useState(false);
+  const [activeSegmentId, setActiveSegmentId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!activeSegmentId) {
+      return;
+    }
+    const exists = daySegments.some((segment) => segment.original.id === activeSegmentId);
+    if (!exists) {
+      setActiveSegmentId(null);
+    }
+  }, [daySegments, activeSegmentId]);
 
   const hours = useMemo(() => Array.from({ length: 25 }, (_, index) => index), []);
 
@@ -103,13 +122,21 @@ export function DayView({
       return;
     }
     const minutesFromMidnight = Math.min(Math.max(ratio * 24 * 60, 0), 24 * 60);
+    const snappedMinutes = Math.round(minutesFromMidnight / 5) * 5;
     const dayStart = parseDateTime(`${effectiveDay.date}T00:00`);
-    const timestamp = addMinutes(dayStart, minutesFromMidnight);
+    const timestamp = addMinutes(dayStart, snappedMinutes);
 
     const target = daySegments.find(
       (segment) => timestamp >= segment.start && timestamp <= segment.end
     );
     if (!target) {
+      const created = onInsertShift({
+        timestamp,
+        durationMinutes: defaultShiftDurationMinutes
+      });
+      if (created) {
+        setActiveSegmentId(created.id);
+      }
       return;
     }
     onUpdateBreak({ segmentId: target.original.id, timestamp });
@@ -125,6 +152,22 @@ export function DayView({
         return;
       }
       event.preventDefault();
+      const horizontalDelta = event.clientX - state.startX;
+      const verticalDelta = event.clientY - state.startY;
+      if (
+        state.mode === "move" &&
+        !state.swipeHandled &&
+        horizontalDelta > 80 &&
+        Math.abs(verticalDelta) < 40
+      ) {
+        const removed = onDeleteSegment(state.segmentId);
+        if (removed) {
+          setActiveSegmentId((prev) => (prev === state.segmentId ? null : prev));
+        }
+        gestureRef.current = null;
+        setGestureActive(false);
+        return;
+      }
       const minutePosition = minuteFromPointer(event.clientY, timelineRef.current);
       if (minutePosition == null) {
         return;
@@ -148,7 +191,8 @@ export function DayView({
           originalStart: newStart,
           originalEnd: newEnd,
           initialSliceStartMinutes: newSliceStart,
-          initialSliceEndMinutes: newSliceStart + state.sliceDuration
+          initialSliceEndMinutes: newSliceStart + state.sliceDuration,
+          swipeHandled: state.swipeHandled || Math.abs(horizontalDelta) > 10
         };
       } else if (state.mode === "resize-start") {
         const maxStart = state.initialSliceEndMinutes - MIN_SHIFT_MINUTES;
@@ -170,7 +214,8 @@ export function DayView({
           ...state,
           originalStart: newStart,
           initialSliceStartMinutes: clampedStart,
-          sliceDuration: newDuration
+          sliceDuration: newDuration,
+          swipeHandled: state.swipeHandled
         };
       } else if (state.mode === "resize-end") {
         const minEnd = state.initialSliceStartMinutes + MIN_SHIFT_MINUTES;
@@ -192,7 +237,8 @@ export function DayView({
           ...state,
           originalEnd: newEnd,
           initialSliceEndMinutes: clampedEnd,
-          sliceDuration: newDuration
+          sliceDuration: newDuration,
+          swipeHandled: state.swipeHandled
         };
       }
     };
@@ -214,7 +260,7 @@ export function DayView({
       window.removeEventListener("pointerup", handlePointerUp);
       window.removeEventListener("pointercancel", handlePointerUp);
     };
-  }, [gestureActive, onSegmentTimeChange]);
+  }, [gestureActive, onSegmentTimeChange, onDeleteSegment]);
 
   return (
     <section aria-label={`Day view for ${dayLabel}`} style={{ display: "grid", gap: "1.25rem" }}>
@@ -326,6 +372,9 @@ export function DayView({
               gestureRef.current = state;
               setGestureActive(true);
             }}
+            isActive={segment.original.id === activeSegmentId}
+            setActive={(segmentId) => setActiveSegmentId(segmentId)}
+            onDelete={(segmentId) => onDeleteSegment(segmentId)}
           />
         ))}
       </div>
@@ -408,6 +457,51 @@ export function DayView({
           Otherwise a break of {defaultBreakMinutes} minutes is inserted. Totals refresh immediately.
         </div>
       </section>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          marginTop: "0.75rem"
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => {
+            if (effectiveDay.reviewed) {
+              return;
+            }
+            onConfirmDay();
+            setActiveSegmentId(null);
+          }}
+          disabled={effectiveDay.actual.length === 0 || effectiveDay.reviewed}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "0.4rem",
+            padding: "0.5rem 1rem",
+            borderRadius: "999px",
+            border: "none",
+            background: effectiveDay.reviewed
+              ? "#10b981"
+              : effectiveDay.actual.length === 0
+              ? "#cbd5f5"
+              : "#16a34a",
+            color: effectiveDay.reviewed
+              ? "#ecfdf5"
+              : effectiveDay.actual.length === 0
+              ? "#475569"
+              : "#fff",
+            fontWeight: 600,
+            cursor:
+              effectiveDay.actual.length === 0 || effectiveDay.reviewed ? "not-allowed" : "pointer",
+            opacity: effectiveDay.reviewed ? 1 : 0.98,
+            boxShadow: effectiveDay.reviewed ? "0 0 0 1px #0f766e" : "none"
+          }}
+        >
+          <span aria-hidden="true">✓</span>
+          {effectiveDay.reviewed ? "Confirmed" : "Confirm day"}
+        </button>
+      </div>
     </section>
   );
 }
@@ -419,7 +513,10 @@ function DaySegment({
   onCallDisplay,
   onSegmentTimeChange,
   timelineRef,
-  startGesture
+  startGesture,
+  isActive,
+  setActive,
+  onDelete
 }: {
   segment: ReturnType<typeof buildTimelineSegments>[number];
   onCallCreditPct: number;
@@ -428,6 +525,9 @@ function DaySegment({
   onSegmentTimeChange: (options: { segmentId: string; start?: Date; end?: Date }) => void;
   timelineRef: React.RefObject<HTMLDivElement>;
   startGesture: (state: GestureState) => void;
+  isActive: boolean;
+  setActive: (segmentId: string | null) => void;
+  onDelete: (segmentId: string) => boolean;
 }) {
   const dayStart = parseDateTime(`${segment.dayKey}T00:00`);
   const startMinutes = minutesBetween(dayStart, segment.start);
@@ -436,6 +536,20 @@ function DaySegment({
   const top = (startMinutes / (24 * 60)) * 100;
   const height = Math.max(4, ((endMinutes - startMinutes) / (24 * 60)) * 100);
   const isOnCall = segment.category === "oncall";
+  const activeBackgroundWork = "rgba(212, 63, 91, 1)";
+  const idleBackgroundWork = "rgba(212, 63, 91, 0.88)";
+  const activeBackgroundOnCall =
+    onCallDisplay === "shaded" ? "rgba(124, 58, 237, 0.4)" : "rgba(225, 215, 255, 1)";
+  const idleBackgroundOnCall =
+    onCallDisplay === "shaded" ? "rgba(124, 58, 237, 0.25)" : "rgba(246, 244, 255, 0.95)";
+  const backgroundColor = isOnCall ? (isActive ? activeBackgroundOnCall : idleBackgroundOnCall) : isActive ? activeBackgroundWork : idleBackgroundWork;
+  const boxShadow = isOnCall
+    ? isActive
+      ? "0 0 0 1px rgba(124,58,237,0.55)"
+      : "0 0 0 1px rgba(124,58,237,0.3)"
+    : isActive
+    ? "0 6px 14px rgba(212, 63, 91, 0.35)"
+    : "0 4px 10px rgba(212, 63, 91, 0.2)";
   const durationLabel = `${segment.start.toLocaleTimeString(undefined, {
     hour: "2-digit",
     minute: "2-digit",
@@ -457,6 +571,7 @@ function DaySegment({
         if (event.pointerType === "touch") {
           event.preventDefault();
         }
+        setActive(segment.original.id);
         const minutePosition = minuteFromPointer(event.clientY, timelineRef.current);
         if (minutePosition == null) {
           return;
@@ -474,7 +589,10 @@ function DaySegment({
           sliceDuration,
           offsetMinutes,
           initialSliceStartMinutes: startMinutes,
-          initialSliceEndMinutes: endMinutes
+          initialSliceEndMinutes: endMinutes,
+          startX: event.clientX,
+          startY: event.clientY,
+          swipeHandled: false
         });
       }}
       style={{
@@ -484,20 +602,43 @@ function DaySegment({
         right: isOnCall ? "16%" : "10%",
         height: `${height}%`,
         borderRadius: "12px",
-        background: isOnCall
-          ? onCallDisplay === "shaded"
-            ? "rgba(124, 58, 237, 0.25)"
-            : "rgba(246, 244, 255, 0.95)"
-          : "rgba(212, 63, 91, 0.88)",
+        background: backgroundColor,
         color: isOnCall ? "#3c218e" : "#fff",
         padding: "0.5rem",
         display: "flex",
         flexDirection: "column",
         gap: "0.35rem",
         fontSize: "0.8rem",
-        boxShadow: isOnCall ? "0 0 0 1px rgba(124,58,237,0.3)" : "0 4px 10px rgba(212,63,91,0.2)"
+        boxShadow,
+        border: isActive ? "2px solid rgba(15, 118, 110, 0.4)" : "1px solid rgba(0,0,0,0.05)",
+        transition: "background 0.2s ease, box-shadow 0.2s ease, border 0.2s ease"
       }}
     >
+      {isActive && (
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            const removed = onDelete(segment.original.id);
+            if (removed) {
+              setActive(null);
+            }
+          }}
+          style={{
+            alignSelf: "flex-end",
+            background: "#f87171",
+            color: "#fff",
+            border: "none",
+            borderRadius: "999px",
+            padding: "0.15rem 0.5rem",
+            fontSize: "0.7rem",
+            fontWeight: 600,
+            cursor: "pointer"
+          }}
+        >
+          Delete
+        </button>
+      )}
       <span style={{ fontWeight: 600 }}>{durationLabel}</span>
       {segment.original.label && <span>{segment.original.label}</span>}
       {segment.breaks.map((pause, index) => {
@@ -579,6 +720,7 @@ function DaySegment({
           if (event.pointerType === "touch") {
             event.preventDefault();
           }
+          setActive(segment.original.id);
           startGesture({
             mode: "resize-start",
             pointerId: event.pointerId,
@@ -591,7 +733,10 @@ function DaySegment({
             sliceDuration,
             offsetMinutes: 0,
             initialSliceStartMinutes: startMinutes,
-            initialSliceEndMinutes: endMinutes
+            initialSliceEndMinutes: endMinutes,
+            startX: event.clientX,
+            startY: event.clientY,
+            swipeHandled: true
           });
         }}
         style={{
@@ -613,6 +758,7 @@ function DaySegment({
           if (event.pointerType === "touch") {
             event.preventDefault();
           }
+          setActive(segment.original.id);
           startGesture({
             mode: "resize-end",
             pointerId: event.pointerId,
@@ -625,7 +771,10 @@ function DaySegment({
             sliceDuration,
             offsetMinutes: 0,
             initialSliceStartMinutes: startMinutes,
-            initialSliceEndMinutes: endMinutes
+            initialSliceEndMinutes: endMinutes,
+            startX: event.clientX,
+            startY: event.clientY,
+            swipeHandled: true
           });
         }}
         style={{
@@ -668,6 +817,9 @@ interface GestureStateBase {
   initialSliceStartMinutes: number;
   initialSliceEndMinutes: number;
   offsetMinutes: number;
+  startX: number;
+  startY: number;
+  swipeHandled: boolean;
 }
 
 type GestureState = GestureStateBase;

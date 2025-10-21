@@ -4,14 +4,16 @@ import type { CSSProperties } from "react";
 
 import { DayView } from "../review/DayView";
 import { MonthView } from "../review/MonthView";
-import { DayReviewRecord, ReviewDataset, REVIEW_FIXTURES } from "../review/fixtures";
+import { DayReviewRecord, ReviewDataset, REVIEW_FIXTURES, ShiftSegment } from "../review/fixtures";
 import {
   cloneDataset,
   computeDayTotals,
   computeWeekTotals,
   describeTotals,
   findDay,
+  addShiftAtTimestamp,
   updateShiftTimes,
+  removeShift,
   toggleBreakForSegment,
   weekForDate
 } from "../review/calculations";
@@ -19,7 +21,7 @@ import { DayViewProps } from "../review/DayView";
 import { WeekView } from "../review/WeekView";
 import { WeekViewProps } from "../review/WeekView";
 import { MonthViewProps } from "../review/MonthView";
-import { addMinutes, minutesToHours, parseDateTime, roundHours, startOfDay, toDateKey } from "../lib/time";
+import { addMinutes, minutesToHours, parseDateTime, roundHours, startOfDay, toDateKey, timeStringToMinutes } from "../lib/time";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 
 type ViewMode = "MONTH" | "WEEK" | "DAY";
@@ -63,6 +65,13 @@ export default function ReviewPrototype() {
   });
   const [phonePreview, setPhonePreview] = useState(false);
   const isCompact = useMediaQuery("(max-width: 768px)");
+  const defaultShiftDurationMinutes = useMemo(() => {
+    const start = timeStringToMinutes(settings.defaultShiftStart);
+    const end = timeStringToMinutes(settings.defaultShiftEnd);
+    const raw = end > start ? end - start : end + 24 * 60 - start;
+    const duration = Number.isFinite(raw) && raw > 0 ? raw : 8 * 60;
+    return Math.max(duration, 30);
+  }, [settings.defaultShiftStart, settings.defaultShiftEnd]);
 
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
@@ -220,6 +229,53 @@ export default function ReviewPrototype() {
     });
   };
 
+  const handleInsertShift: DayViewProps["onInsertShift"] = ({ timestamp, durationMinutes }) => {
+    let created: ShiftSegment | null = null;
+    setDataset((prev) => {
+      const copy = cloneDataset(prev);
+      const candidate = addShiftAtTimestamp(copy, timestamp, durationMinutes > 0 ? durationMinutes : defaultShiftDurationMinutes);
+      if (!candidate) {
+        return prev;
+      }
+      created = candidate;
+      return copy;
+    });
+    return created;
+  };
+
+  const handleDeleteShift = (segmentId: string) => {
+    let removed = false;
+    setDataset((prev) => {
+      const copy = cloneDataset(prev);
+      removed = removeShift(copy, segmentId);
+      if (!removed) {
+        return prev;
+      }
+      return copy;
+    });
+    return removed;
+  };
+
+  const handleConfirmDay = () => {
+    let updated = false;
+    setDataset((prev) => {
+      const copy = cloneDataset(prev);
+      const target = findDay(copy, cursorDate);
+      if (!target) {
+        return prev;
+      }
+      if (target.reviewed) {
+        return prev;
+      }
+      target.reviewed = true;
+      updated = true;
+      return copy;
+    });
+    if (updated) {
+      setViewMode("WEEK");
+    }
+  };
+
   const renderView = () => {
     if (viewMode === "MONTH") {
       const monthProps: MonthViewProps = {
@@ -268,7 +324,11 @@ export default function ReviewPrototype() {
       onCallCreditPct: settings.onCallCreditPct,
       connectorThickness: experiments.connectorThickness,
       onCallDisplay: experiments.onCallDisplay,
-      onSegmentTimeChange: handleSegmentTimeChange
+      onSegmentTimeChange: handleSegmentTimeChange,
+      defaultShiftDurationMinutes,
+      onInsertShift: handleInsertShift,
+      onDeleteSegment: handleDeleteShift,
+      onConfirmDay: handleConfirmDay
     };
     return <DayView {...dayProps} />;
   };

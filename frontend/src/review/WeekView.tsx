@@ -76,64 +76,89 @@ export function WeekView({
           </div>
 
           {weekDays.map((day) => {
-          const date = parseDateTime(`${day.date}T00:00`);
-          const isSelected = toDateKey(startOfDay(cursorDate)) === day.date;
-          const totals = getDayTotals(day);
-          const daySegments = segments.filter((segment) => segment.dayKey === day.date);
-          const scheduledBands = buildScheduledBands(day);
-          const conflict = hasOverlap(day);
-          const emptyState = day.actual.length === 0 && day.scheduled.length === 0;
+            const date = parseDateTime(`${day.date}T00:00`);
+            const isSelected = toDateKey(startOfDay(cursorDate)) === day.date;
+            const totals = getDayTotals(day);
+            const daySegments = segments.filter((segment) => segment.dayKey === day.date);
+            const scheduledBands = buildScheduledBands(day);
+            const conflict = hasOverlap(day);
+            const emptyState = day.actual.length === 0 && day.scheduled.length === 0;
 
-          return (
-            <div key={day.date} style={{ display: "grid", gridTemplateRows: "auto 1fr", gap: "0.5rem" }}>
-              <button
-                type="button"
-                onClick={() => {
-                  onSelectDate(date);
-                  onOpenDay(date);
-                }}
-                onFocus={() => onSelectDate(date)}
-                style={{
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  textAlign: "left",
-                  padding: 0,
-                  display: "grid",
-                  gap: "0.15rem"
-                }}
-                aria-pressed={isSelected}
-                aria-label={`Open day view for ${date.toLocaleDateString(undefined, {
-                  weekday: "long",
-                  month: "long",
-                  day: "numeric"
-                })}`}
-              >
-                <span style={{ fontWeight: 600, fontSize: "0.95rem", color: isSelected ? "#0052cc" : "#1f2328" }}>
-                  {date.toLocaleDateString(undefined, { weekday: "short" })}
-                </span>
-                <span style={{ fontSize: "0.85rem", color: "#4f5661" }}>
-                  {date.getDate()}.{date.getMonth() + 1}.
-                </span>
-                <span style={{ fontSize: "0.7rem", color: "#6e7781" }}>
-                  {formatHours(totals.actualMinutes)} actual
-                </span>
-                {conflict && (
-                  <span style={{ fontSize: "0.65rem", color: "#b54708", fontWeight: 600 }}>Conflict</span>
-                )}
-                {day.reviewed ? null : (
-                  <span style={{ fontSize: "0.65rem", color: "#8a5800", fontWeight: 600 }}>review</span>
-                )}
-              </button>
+            return (
+              <div key={day.date} style={{ display: "grid", gridTemplateRows: "auto 1fr", gap: "0.5rem" }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onSelectDate(date);
+                    onOpenDay(date);
+                  }}
+                  onDoubleClick={() => {
+                    onSelectDate(date);
+                    onOpenDay(date);
+                  }}
+                  onFocus={() => onSelectDate(date)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    textAlign: "left",
+                    padding: 0,
+                    display: "grid",
+                    gap: "0.15rem",
+                    minHeight: "92px"
+                  }}
+                  aria-pressed={isSelected}
+                  aria-label={`Open day view for ${date.toLocaleDateString(undefined, {
+                    weekday: "long",
+                    month: "long",
+                    day: "numeric"
+                  })}`}
+                >
+                  <span style={{ fontWeight: 600, fontSize: "0.95rem", color: isSelected ? "#0052cc" : "#1f2328" }}>
+                    {date.toLocaleDateString(undefined, { weekday: "short" })}
+                  </span>
+                  <span style={{ fontSize: "0.85rem", color: "#4f5661" }}>
+                    {date.getDate()}.{date.getMonth() + 1}.
+                  </span>
+                  <span style={{ fontSize: "0.7rem", color: "#6e7781" }}>
+                    {formatHours(totals.actualMinutes)} actual
+                  </span>
+                  <span
+                    style={{
+                      fontSize: "0.65rem",
+                      color: "#b54708",
+                      fontWeight: 600,
+                      visibility: conflict ? "visible" : "hidden"
+                    }}
+                    aria-hidden={!conflict}
+                  >
+                    Conflict
+                  </span>
+                  <span
+                    style={{
+                      fontSize: "0.65rem",
+                      color: "#8a5800",
+                      fontWeight: 600,
+                      visibility: day.reviewed ? "hidden" : "visible"
+                    }}
+                    aria-hidden={day.reviewed}
+                  >
+                    review
+                  </span>
+                </button>
 
-              <div
-                role="grid"
-                aria-label="24 hour timeline"
-                style={{
-                  position: "relative",
-                  height: `${TIMELINE_HEIGHT}px`,
-                  background: "#fbfdff",
-                  border: isSelected ? "2px solid #0052cc" : "1px solid #d0d7de",
+                <div
+                  role="grid"
+                  aria-label="24 hour timeline"
+                  onDoubleClick={() => {
+                    onSelectDate(date);
+                    onOpenDay(date);
+                  }}
+                  style={{
+                    position: "relative",
+                    height: `${TIMELINE_HEIGHT}px`,
+                    background: "#fbfdff",
+                    border: isSelected ? "2px solid #0052cc" : "1px solid #d0d7de",
                   borderRadius: "12px",
                   overflow: "hidden"
                 }}

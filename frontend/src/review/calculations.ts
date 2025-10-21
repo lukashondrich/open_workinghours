@@ -37,6 +37,8 @@ export interface TimelineSegment {
   connectsFromPreviousDay: boolean;
 }
 
+const MIN_SEGMENT_MINUTES = 10;
+
 export function computeScheduledMinutes(segment: { start: string; end: string }): number {
   const start = parseDateTime(segment.start);
   const end = parseDateTime(segment.end);
@@ -361,12 +363,50 @@ export function updateShiftTimes(
       if (segment.id !== segmentId) {
         return segment;
       }
-      const startDate = updates.start ?? parseDateTime(segment.start);
-      const endDate = updates.end ?? parseDateTime(segment.end);
+      const originalStart = parseDateTime(segment.start);
+      const originalEnd = parseDateTime(segment.end);
+      let startDate = updates.start ?? originalStart;
+      let endDate = updates.end ?? originalEnd;
       if (endDate.getTime() <= startDate.getTime()) {
         return segment;
       }
+      const otherSegments = day.actual
+        .filter((other) => other.id !== segmentId)
+        .map((other) => ({
+          id: other.id,
+          start: parseDateTime(other.start),
+          end: parseDateTime(other.end)
+        }))
+        .sort((a, b) => a.start.getTime() - b.start.getTime());
+
+      const previous = [...otherSegments]
+        .reverse()
+        .find((other) => other.end.getTime() <= startDate.getTime());
+      const next = otherSegments.find((other) => other.start.getTime() >= endDate.getTime());
+
+      if (previous && startDate.getTime() < previous.end.getTime()) {
+        startDate = new Date(previous.end);
+      }
+      if (next && endDate.getTime() > next.start.getTime()) {
+        endDate = new Date(next.start);
+      }
+      if (endDate.getTime() <= startDate.getTime()) {
+        return segment;
+      }
+      const overlaps = otherSegments.some(
+        (other) => startDate.getTime() < other.end.getTime() && endDate.getTime() > other.start.getTime()
+      );
+      if (overlaps) {
+        return segment;
+      }
+      if (minutesBetween(startDate, endDate) < MIN_SEGMENT_MINUTES) {
+        return segment;
+      }
+      if (startDate.getTime() === originalStart.getTime() && endDate.getTime() === originalEnd.getTime()) {
+        return segment;
+      }
       dirty = true;
+      day.reviewed = false;
       return {
         ...segment,
         start: formatLocalDateTime(startDate),
@@ -377,4 +417,93 @@ export function updateShiftTimes(
       day.actual.sort((a, b) => (a.start < b.start ? -1 : 1));
     }
   });
+}
+
+export function addShiftAtTimestamp(
+  dataset: ReviewDataset,
+  timestamp: Date,
+  durationMinutes: number,
+  category: ShiftCategory = "work"
+): ShiftSegment | null {
+  const day = ensureDay(dataset, timestamp);
+  const minDuration = Math.max(durationMinutes, MIN_SEGMENT_MINUTES);
+  const dayStart = parseDateTime(`${day.date}T00:00`);
+  const dayEnd = addMinutes(dayStart, 24 * 60);
+  const segments = day.actual
+    .map((segment) => ({
+      id: segment.id,
+      start: parseDateTime(segment.start),
+      end: parseDateTime(segment.end)
+    }))
+    .sort((a, b) => a.start.getTime() - b.start.getTime());
+
+  type Gap = { start: Date; end: Date };
+  const gaps: Gap[] = [];
+  let cursor = dayStart;
+  segments.forEach((segment) => {
+    if (segment.start.getTime() > cursor.getTime()) {
+      gaps.push({ start: cursor, end: segment.start });
+    }
+    if (segment.end.getTime() > cursor.getTime()) {
+      cursor = segment.end;
+    }
+  });
+  if (cursor.getTime() < dayEnd.getTime()) {
+    gaps.push({ start: cursor, end: dayEnd });
+  }
+
+  const desiredStart = timestamp;
+
+  const findGapForStart = () => {
+    for (const gap of gaps) {
+      if (desiredStart.getTime() >= gap.start.getTime() && desiredStart.getTime() < gap.end.getTime()) {
+        return gap;
+      }
+    }
+    return null;
+  };
+
+  let targetGap = findGapForStart();
+  if (!targetGap) {
+    targetGap = gaps.find((gap) => minutesBetween(gap.start, gap.end) >= minDuration) ?? null;
+  }
+  if (!targetGap) {
+    return null;
+  }
+
+  const startMs = Math.max(desiredStart.getTime(), targetGap.start.getTime());
+  let slotStart = new Date(startMs);
+  let slotEnd = addMinutes(slotStart, minDuration);
+  if (slotEnd.getTime() > targetGap.end.getTime()) {
+    slotEnd = new Date(targetGap.end.getTime());
+  }
+  if (minutesBetween(slotStart, slotEnd) < MIN_SEGMENT_MINUTES) {
+    return null;
+  }
+
+  const id = `shift-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+  const newSegment: ShiftSegment = {
+    id,
+    category,
+    start: formatLocalDateTime(slotStart),
+    end: formatLocalDateTime(slotEnd),
+    breaks: []
+  };
+  day.actual.push(newSegment);
+  day.actual.sort((a, b) => (a.start < b.start ? -1 : 1));
+  day.reviewed = false;
+  return newSegment;
+}
+
+export function removeShift(dataset: ReviewDataset, segmentId: string): boolean {
+  let removed = false;
+  dataset.days.forEach((day) => {
+    const before = day.actual.length;
+    day.actual = day.actual.filter((segment) => segment.id !== segmentId);
+    if (day.actual.length !== before) {
+      day.reviewed = false;
+      removed = true;
+    }
+  });
+  return removed;
 }
