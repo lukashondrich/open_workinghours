@@ -23,6 +23,7 @@ import { WeekViewProps } from "../review/WeekView";
 import { MonthViewProps } from "../review/MonthView";
 import { addMinutes, minutesToHours, parseDateTime, roundHours, startOfDay, toDateKey, timeStringToMinutes } from "../lib/time";
 import { useMediaQuery } from "../hooks/useMediaQuery";
+import { NavigationBar } from "../review/NavigationBar";
 
 type ViewMode = "MONTH" | "WEEK" | "DAY";
 type OvertimeIndicator = "dot" | "pill";
@@ -345,122 +346,6 @@ export default function ReviewPrototype() {
       </header>
 
       <section
-        aria-label="Prototype controls"
-        style={{
-          display: "flex",
-          flexDirection: useStackLayout ? "column" : "column",
-          gap: "0.9rem",
-          marginBottom: "1.5rem"
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            flexDirection: useStackLayout ? "column" : "row",
-            gap: useStackLayout ? "0.75rem" : "0.75rem 1rem",
-            flexWrap: useStackLayout ? "nowrap" : "wrap",
-            alignItems: useStackLayout ? "stretch" : "center"
-          }}
-        >
-          <label htmlFor="dataset-selector" style={{ display: "flex", flexDirection: "column", fontWeight: 600 }}>
-            Dataset
-            <select
-              id="dataset-selector"
-              value={selectedDatasetId}
-              onChange={(event) => handleDatasetChange(event.target.value)}
-              style={{
-                marginTop: "0.35rem",
-                padding: "0.4rem",
-                borderRadius: "8px",
-                border: "1px solid #cbd5f5"
-              }}
-            >
-              {REVIEW_FIXTURES.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <div
-            role="group"
-            aria-label="View mode"
-            style={{
-              display: "inline-flex",
-              gap: "0.5rem",
-              alignItems: "center",
-              flexWrap: "wrap"
-            }}
-          >
-            {(["MONTH", "WEEK", "DAY"] as ViewMode[]).map((mode) => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => handleViewChange(mode)}
-                aria-pressed={viewMode === mode}
-                style={{
-                  padding: "0.35rem 0.85rem",
-                  borderRadius: "999px",
-                  border: "1px solid #ccc",
-                  background: viewMode === mode ? "#0052cc" : "#f8f8f8",
-                  color: viewMode === mode ? "#fff" : "#222",
-                  fontWeight: 500,
-                  cursor: "pointer"
-                }}
-              >
-                {mode}
-              </button>
-            ))}
-          </div>
-
-          <div
-            role="group"
-            aria-label="Week navigation"
-            style={{
-              display: "inline-flex",
-              gap: "0.5rem",
-              alignItems: "center"
-            }}
-          >
-            <button type="button" onClick={() => stepWeek(-1)}>
-              ← Prev
-            </button>
-            <button type="button" onClick={goToToday}>
-              Today
-            </button>
-            <button type="button" onClick={() => stepWeek(1)}>
-              Next →
-            </button>
-          </div>
-
-          <button type="button" onClick={exportWeek}>
-            Export week CSV
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setPhonePreview((prev) => !prev)}
-            style={{
-              padding: "0.4rem 0.85rem",
-              borderRadius: "8px",
-              border: "1px solid #cbd5f5",
-              background: phonePreview ? "#1e293b" : "#f1f5f9",
-              color: phonePreview ? "#fff" : "#0f172a",
-              fontWeight: 600
-            }}
-          >
-            {phonePreview ? "Exit phone frame" : "Phone frame preview"}
-          </button>
-        </div>
-
-        <details style={{ fontSize: "0.85rem", color: "#555" }} open={!useStackLayout}>
-          <summary style={{ cursor: "pointer", fontWeight: 600 }}>Scenario description</summary>
-          <p style={{ marginTop: "0.5rem" }}>{dataset.description}</p>
-        </details>
-      </section>
-
-      <section
         style={{
           display: "grid",
           gridTemplateColumns: useStackLayout ? "1fr" : "3fr 1fr",
@@ -468,7 +353,16 @@ export default function ReviewPrototype() {
           alignItems: "start"
         }}
       >
-        <div>{renderView()}</div>
+        <div>
+          <NavigationBar
+            viewMode={viewMode}
+            handleViewChange={handleViewChange}
+            stepWeek={stepWeek}
+            goToToday={goToToday}
+            compact={useStackLayout}
+          />
+          {renderView()}
+        </div>
         <aside
           style={{
             display: "grid",
@@ -537,10 +431,38 @@ export default function ReviewPrototype() {
         <div style={phoneFrameShell}>
           <div style={phoneBody}>
             <main style={phoneMainStyle}>{content}</main>
+            <ControlsPanel
+              phonePreview={phonePreview}
+              setPhonePreview={setPhonePreview}
+              selectedDatasetId={selectedDatasetId}
+              handleDatasetChange={handleDatasetChange}
+              stepWeek={stepWeek}
+              goToToday={goToToday}
+              exportWeek={exportWeek}
+              datasetDescription={dataset.description}
+              useStackLayout
+              viewMode={viewMode}
+              handleViewChange={handleViewChange}
+            />
           </div>
         </div>
       ) : (
-        <main style={desktopMainStyle}>{content}</main>
+        <main style={desktopMainStyle}>
+          {content}
+          <ControlsPanel
+            phonePreview={phonePreview}
+            setPhonePreview={setPhonePreview}
+            selectedDatasetId={selectedDatasetId}
+            handleDatasetChange={handleDatasetChange}
+            stepWeek={stepWeek}
+            goToToday={goToToday}
+            exportWeek={exportWeek}
+            datasetDescription={dataset.description}
+            useStackLayout={useStackLayout}
+            viewMode={viewMode}
+            handleViewChange={handleViewChange}
+          />
+        </main>
       )}
     </>
   );
@@ -614,6 +536,156 @@ function Definition({ label, value }: { label: string; value: string }) {
       <dt style={{ fontSize: "0.8rem", textTransform: "uppercase", color: "#777" }}>{label}</dt>
       <dd style={{ margin: 0, fontWeight: 600 }}>{value}</dd>
     </div>
+  );
+}
+
+interface ControlsPanelProps {
+  phonePreview: boolean;
+  setPhonePreview: (value: (prev: boolean) => boolean) => void;
+  selectedDatasetId: string;
+  handleDatasetChange: (id: string) => void;
+  stepWeek: (delta: number) => void;
+  goToToday: () => void;
+  exportWeek: () => void;
+  datasetDescription: string;
+  useStackLayout: boolean;
+  viewMode: ViewMode;
+  handleViewChange: (mode: ViewMode) => void;
+}
+
+function ControlsPanel({
+  phonePreview,
+  setPhonePreview,
+  selectedDatasetId,
+  handleDatasetChange,
+  stepWeek,
+  goToToday,
+  exportWeek,
+  datasetDescription,
+  useStackLayout,
+  viewMode,
+  handleViewChange
+}: ControlsPanelProps) {
+  return (
+    <footer
+      style={{
+        marginTop: "1.75rem",
+        padding: "1.5rem 0",
+        borderTop: "1px solid #e0e7ff",
+        display: "grid",
+        gap: "1.25rem"
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          flexDirection: useStackLayout ? "column" : "row",
+          gap: useStackLayout ? "0.75rem" : "0.75rem 1.5rem",
+          flexWrap: useStackLayout ? "nowrap" : "wrap",
+          alignItems: useStackLayout ? "stretch" : "center"
+        }}
+      >
+        <label htmlFor="dataset-selector" style={{ display: "flex", flexDirection: "column", fontWeight: 600 }}>
+          Dataset (testing)
+          <select
+            id="dataset-selector"
+            value={selectedDatasetId}
+            onChange={(event) => handleDatasetChange(event.target.value)}
+            style={{
+              marginTop: "0.35rem",
+              padding: "0.4rem",
+              borderRadius: "8px",
+              border: "1px solid #cbd5f5"
+            }}
+          >
+            {REVIEW_FIXTURES.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <div
+          role="group"
+          aria-label="View mode"
+          style={{
+            display: "inline-flex",
+            gap: "0.5rem",
+            alignItems: "center",
+            flexWrap: "wrap"
+          }}
+        >
+          {(["MONTH", "WEEK", "DAY"] as ViewMode[]).map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => handleViewChange(mode)}
+              aria-pressed={viewMode === mode}
+              style={{
+                padding: "0.35rem 0.85rem",
+                borderRadius: "999px",
+                border: "1px solid #ccc",
+                background: viewMode === mode ? "#0052cc" : "#f8f8f8",
+                color: viewMode === mode ? "#fff" : "#222",
+                fontWeight: 500,
+                cursor: "pointer"
+              }}
+            >
+              {mode}
+            </button>
+          ))}
+        </div>
+
+        <div
+          role="group"
+          aria-label="Week navigation"
+          style={{
+            display: "inline-flex",
+            gap: "0.5rem",
+            alignItems: "center"
+          }}
+        >
+          <button type="button" onClick={() => stepWeek(-1)}>
+            ← Prev
+          </button>
+          <button type="button" onClick={goToToday}>
+            Today
+          </button>
+          <button type="button" onClick={() => stepWeek(1)}>
+            Next →
+          </button>
+        </div>
+
+        <button type="button" onClick={exportWeek}>
+          Export week CSV
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setPhonePreview((prev) => !prev)}
+          style={{
+            padding: "0.4rem 0.85rem",
+            borderRadius: "8px",
+            border: "1px solid #cbd5f5",
+            background: phonePreview ? "#1e293b" : "#f1f5f9",
+            color: phonePreview ? "#fff" : "#0f172a",
+            fontWeight: 600
+          }}
+        >
+          {phonePreview ? "Exit phone frame" : "Phone frame preview"}
+        </button>
+      </div>
+
+      <details style={{ fontSize: "0.85rem", color: "#555" }}>
+        <summary style={{ cursor: "pointer", fontWeight: 600 }}>Scenario description</summary>
+        <p style={{ marginTop: "0.5rem" }}>{datasetDescription}</p>
+      </details>
+
+      <p style={{ margin: 0, color: "#64748b", fontSize: "0.8rem" }}>
+        Testing helpers only – real users would not see these controls.
+      </p>
+    </footer>
   );
 }
 
@@ -692,54 +764,5 @@ function ExperimentsCard({
   experiments: ExperimentToggles;
   onChange: (partial: Partial<ExperimentToggles>) => void;
 }) {
-  return (
-    <section
-      aria-label="Experiment toggles"
-      style={{
-        border: "1px solid #d8dee4",
-        borderRadius: "12px",
-        padding: "1rem",
-        display: "grid",
-        gap: "0.5rem"
-      }}
-    >
-      <h2 style={{ fontSize: "1rem", margin: 0 }}>Experiment toggles</h2>
-
-      <label>
-        Overtime indicator
-        <select
-          value={experiments.overtimeIndicator}
-          onChange={(event) => onChange({ overtimeIndicator: event.target.value as ExperimentToggles["overtimeIndicator"] })}
-          style={{ width: "100%", marginTop: "0.25rem" }}
-        >
-          <option value="pill">Pill</option>
-          <option value="dot">Dot</option>
-        </select>
-      </label>
-
-      <label>
-        On-call display
-        <select
-          value={experiments.onCallDisplay}
-          onChange={(event) => onChange({ onCallDisplay: event.target.value as ExperimentToggles["onCallDisplay"] })}
-          style={{ width: "100%", marginTop: "0.25rem" }}
-        >
-          <option value="shaded">Shaded bar</option>
-          <option value="badge">Percent badge</option>
-        </select>
-      </label>
-
-      <label>
-        Midnight connector thickness
-        <select
-          value={experiments.connectorThickness}
-          onChange={(event) => onChange({ connectorThickness: event.target.value as ExperimentToggles["connectorThickness"] })}
-          style={{ width: "100%", marginTop: "0.25rem" }}
-        >
-          <option value="thin">Thin</option>
-          <option value="thick">Thick</option>
-        </select>
-      </label>
-    </section>
-  );
+  return null;
 }
