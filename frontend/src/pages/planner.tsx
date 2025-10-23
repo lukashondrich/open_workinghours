@@ -16,6 +16,7 @@ import {
   updateShiftDuration,
 } from "../review/calculations";
 import { DayIndex, ShiftInstance, ShiftType, ShiftSegment } from "../review/types";
+import { useMediaQuery } from "../hooks/useMediaQuery";
 
 type ViewMode = "week" | "day" | "month";
 
@@ -1572,6 +1573,7 @@ export default function PlannerPage() {
   const [activeDay, setActiveDay] = useState<DayIndex>(0);
   const [message, setMessage] = useState<string | null>(null);
   const [dragPreview, setDragPreview] = useState<DragPreviewState | null>(null);
+  const isCompact = useMediaQuery("(max-width: 860px)");
   const [currentWeekStart, setCurrentWeekStart] = useState<Date>(() => startOfISOWeek(new Date()));
   const [currentMonthDate, setCurrentMonthDate] = useState<Date>(() => startOfMonth(new Date()));
 
@@ -1933,7 +1935,13 @@ export default function PlannerPage() {
         </div>
       )}
 
-      <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "1.5rem" }}>
+      <section
+        style={{
+          display: "grid",
+          gridTemplateColumns: isCompact ? "minmax(0, 1fr)" : "repeat(auto-fit, minmax(260px, 1fr))",
+          gap: "1.5rem",
+        }}
+      >
         <ShiftPalette
           shiftTypes={shiftTypes}
           selectedId={selectedShiftTypeId}
@@ -1946,7 +1954,14 @@ export default function PlannerPage() {
         />
       </section>
 
-      <section style={{ border: "1px solid #ddd", borderRadius: "1rem", padding: "1rem", background: "#fafafa" }}>
+      <section
+        style={{
+          border: "1px solid #ddd",
+          borderRadius: "1rem",
+          padding: isCompact ? "0.75rem" : "1rem",
+          background: "#fafafa",
+        }}
+      >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.5rem" }}>
           <h2 style={{ margin: 0 }}>
             Kalender
@@ -1958,7 +1973,14 @@ export default function PlannerPage() {
           </h2>
         </div>
         {viewMode === "week" && (
-          <div style={{ display: "flex", gap: "0.5rem", overflowX: "auto" }}>
+          <div
+            style={{
+              display: "flex",
+              gap: "0.75rem",
+              overflowX: "auto",
+              paddingBottom: isCompact ? "0.5rem" : 0,
+            }}
+          >
             {DAY_ORDER.map((day, index) => (
               <DayColumn
                 key={day}
