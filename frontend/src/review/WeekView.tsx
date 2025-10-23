@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 
-import { DayReviewRecord } from "./fixtures";
+import { BreakSegment, DayReviewRecord, ScheduledSegment } from "./fixtures";
 import { buildTimelineSegments, hasOverlap, TimelineSegment } from "./calculations";
 import {
   addMinutes,
@@ -68,14 +68,14 @@ export function WeekView({
             aria-hidden="true"
             style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", fontSize: "0.75rem" }}
           >
-            {hourMarks.map((hour) => (
+            {hourMarks.map((hour: number) => (
               <span key={hour} style={{ height: `${TIMELINE_HEIGHT / 24}px`, position: "relative" }}>
                 <span style={{ position: "absolute", top: -6, left: 0 }}>{hour.toString().padStart(2, "0")}</span>
               </span>
             ))}
           </div>
 
-          {weekDays.map((day) => {
+          {weekDays.map((day: DayReviewRecord) => {
             const date = parseDateTime(`${day.date}T00:00`);
             const isSelected = toDateKey(startOfDay(cursorDate)) === day.date;
             const totals = getDayTotals(day);
@@ -163,7 +163,7 @@ export function WeekView({
                   overflow: "hidden"
                 }}
               >
-                {hourMarks.map((hour) => (
+                {hourMarks.map((hour: number) => (
                   <div
                     key={`${day.date}-hour-${hour}`}
                     aria-hidden="true"
@@ -178,7 +178,7 @@ export function WeekView({
                   />
                 ))}
 
-                {scheduledBands.map((band) => (
+                {scheduledBands.map((band: { id: string; top: number; height: number }) => (
                   <div
                     key={band.id}
                     aria-hidden="true"
@@ -211,7 +211,7 @@ export function WeekView({
                   </div>
                 )}
 
-                {daySegments.map((segment) => (
+                {daySegments.map((segment: TimelineSegment) => (
                   <WeekSegment
                     key={segment.id}
                     segment={segment}
@@ -233,7 +233,7 @@ export function WeekView({
 function buildScheduledBands(day: DayReviewRecord) {
   const dayStart = parseDateTime(`${day.date}T00:00`);
   return day.scheduled
-    .map((segment, index) => {
+    .map((segment: ScheduledSegment, index: number) => {
       const start = parseDateTime(segment.start);
       const end = parseDateTime(segment.end);
       const clippedStart = start < dayStart ? dayStart : start;
@@ -328,10 +328,10 @@ function WeekSegment({
         </span>
       )}
 
-      {segment.breaks.map((pause, index) => {
+      {segment.breaks.map((pause: BreakSegment, index: number) => {
         const totalSpan = Math.max(minutesBetween(segment.start, segment.end), 1);
-        const pauseStart = minutesBetween(segment.start, pause.start);
-        const pauseEnd = minutesBetween(segment.start, pause.end);
+        const pauseStart = minutesBetween(segment.start, parseDateTime(pause.start));
+        const pauseEnd = minutesBetween(segment.start, parseDateTime(pause.end));
         const breakMinutes = Math.max(pauseEnd - pauseStart, 0);
         const relativeTop = (pauseStart / totalSpan) * 100;
         const shiftPixelHeight = (height / 100) * TIMELINE_HEIGHT;

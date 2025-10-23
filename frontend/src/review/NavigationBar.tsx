@@ -25,7 +25,7 @@ export function NavigationBar({ viewMode, handleViewChange, stepWeek, goToToday,
       }}
     >
       <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-        {(["MONTH", "WEEK", "DAY"] as ViewModeOption[]).map((mode) => (
+        {(["MONTH", "WEEK", "DAY"] as ViewModeOption[]).map((mode: ViewModeOption) => (
           <button
             key={mode}
             type="button"

@@ -1,7 +1,7 @@
 import { MouseEvent, useEffect, useMemo, useRef, useState } from "react";
 
-import { BreakSegment, DayReviewRecord, ShiftSegment } from "./fixtures";
-import { buildTimelineSegments } from "./calculations";
+import { BreakSegment, DayReviewRecord, ShiftSegment, ScheduledSegment } from "./fixtures";
+import { buildTimelineSegments, TimelineSegment } from "./calculations";
 import {
   addMinutes,
   clamp,
@@ -71,8 +71,11 @@ export function DayView({
     day: "numeric"
   });
   const timelineRef = useRef<HTMLDivElement | null>(null);
-  const segments = useMemo(() => buildTimelineSegments(effectiveDay), [effectiveDay]);
-  const daySegments = segments.filter((segment) => segment.dayKey === effectiveDay.date);
+  const segments = useMemo<TimelineSegment[]>(() => buildTimelineSegments(effectiveDay), [effectiveDay]);
+  const daySegments = useMemo(
+    () => segments.filter((segment: TimelineSegment) => segment.dayKey === effectiveDay.date),
+    [segments, effectiveDay],
+  );
   const gestureRef = useRef<GestureState | null>(null);
   const [gestureActive, setGestureActive] = useState(false);
   const [activeSegmentId, setActiveSegmentId] = useState<string | null>(null);
@@ -81,7 +84,7 @@ export function DayView({
     if (!activeSegmentId) {
       return;
     }
-    const exists = daySegments.some((segment) => segment.original.id === activeSegmentId);
+    const exists = daySegments.some((segment: TimelineSegment) => segment.original.id === activeSegmentId);
     if (!exists) {
       setActiveSegmentId(null);
     }
@@ -92,7 +95,7 @@ export function DayView({
   const scheduledBands = useMemo(() => {
     const dayStart = parseDateTime(`${effectiveDay.date}T00:00`);
     return effectiveDay.scheduled
-      .map((segment, index) => {
+      .map((segment: ScheduledSegment, index: number) => {
         const start = parseDateTime(segment.start);
         const end = parseDateTime(segment.end);
         const clippedStart = start < dayStart ? dayStart : start;
@@ -311,7 +314,7 @@ export function DayView({
           touchAction: "none"
         }}
       >
-        {hours.map((hour) => (
+        {hours.map((hour: number) => (
           <div
             key={`hour-${hour}`}
             aria-hidden="true"
@@ -326,7 +329,7 @@ export function DayView({
           />
         ))}
 
-        {scheduledBands.map((band) => (
+        {scheduledBands.map((band: { id: string; top: number; height: number }) => (
           <div
             key={band.id}
             aria-hidden="true"
@@ -359,7 +362,7 @@ export function DayView({
           </div>
         )}
 
-        {daySegments.map((segment) => (
+        {daySegments.map((segment: TimelineSegment) => (
           <DaySegment
             key={segment.id}
             segment={segment}
@@ -385,10 +388,10 @@ export function DayView({
           <p style={{ margin: 0, color: "#6e7781", fontStyle: "italic" }}>No actual shifts recorded.</p>
         ) : (
           <div style={{ display: "grid", gap: "0.75rem" }}>
-            {effectiveDay.actual.map((segment) => {
+            {effectiveDay.actual.map((segment: ShiftSegment) => {
               const start = parseDateTime(segment.start);
               const end = parseDateTime(segment.end);
-              const breaks = segment.breaks.map((pause) => ({
+              const breaks = segment.breaks.map((pause: BreakSegment) => ({
                 start: parseDateTime(pause.start),
                 end: parseDateTime(pause.end)
               }));
@@ -424,7 +427,7 @@ export function DayView({
                     <div>Total span: {formatHours(durationMinutes)}</div>
                     {segment.breaks.length > 0 ? (
                       <ul style={{ margin: "0.35rem 0 0 1rem", padding: 0 }}>
-                        {segment.breaks.map((pause) => {
+                        {segment.breaks.map((pause: BreakSegment) => {
                           const bStart = parseDateTime(pause.start);
                           const bEnd = parseDateTime(pause.end);
                           return (

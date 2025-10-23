@@ -76,7 +76,7 @@ export function MonthView({
               letterSpacing: "0.06em"
             }}
           >
-            {weekdayLabels.map((label) => (
+            {weekdayLabels.map((label: string) => (
               <div key={label} style={{ padding: "0.25rem 0.5rem" }}>
                 {label}
               </div>
@@ -92,7 +92,7 @@ export function MonthView({
               overflow: "hidden"
             }}
           >
-            {monthCells.map((cell) => {
+            {monthCells.map((cell: CalendarCell) => {
           const isCurrentMonth = cell.date.getMonth() === cursorDate.getMonth();
           const isSelected = toDateKey(startOfDay(cell.date)) === toDateKey(startOfDay(cursorDate));
           const totals = cell.totals;
