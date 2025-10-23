@@ -1883,7 +1883,7 @@ export default function PlannerPage() {
   return (
     <div
       style={{
-        width: "100vw",
+        width: "100%",
         minHeight: "100vh",
         boxSizing: "border-box",
         display: "flex",
@@ -1897,22 +1897,37 @@ export default function PlannerPage() {
           display: "flex",
           flexDirection: "column",
           gap: isCompact ? "1.5rem" : "2rem",
-          width: "100%",
-          maxWidth: isCompact ? "100%" : "1080px",
-          margin: isCompact ? "0" : "0 auto",
+          width: "min(100%, 1080px)",
+          margin: "0 auto",
           alignSelf: "stretch",
           boxSizing: "border-box",
         }}
       >
-      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-        <div>
-          <h1>Schichtplanung (Preview)</h1>
-          <p style={{ maxWidth: "720px" }}>
+      <header
+        style={{
+          display: "flex",
+          flexDirection: isCompact ? "column" : "row",
+          justifyContent: "space-between",
+          alignItems: isCompact ? "flex-start" : "baseline",
+          gap: isCompact ? "1rem" : "0.5rem",
+        }}
+      >
+        <div style={{ width: "100%" }}>
+          <h1 style={{ marginBottom: "0.5rem" }}>Schichtplanung (Preview)</h1>
+          <p style={{ maxWidth: isCompact ? "100%" : "720px" }}>
             Legen Sie Dienstarten fest, platzieren Sie sie in der Wochenübersicht und korrigieren Sie Start- und Endzeiten.
             Alle Daten werden nur lokal im Browser gespeichert.
           </p>
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", alignItems: "flex-end" }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "0.5rem",
+            alignItems: isCompact ? "flex-start" : "flex-end",
+            width: isCompact ? "100%" : "auto",
+          }}
+        >
           <label style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
             Ansicht:
             <select value={viewMode} onChange={(event) => setViewMode(event.target.value as ViewMode)}>
