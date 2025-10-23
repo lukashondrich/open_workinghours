@@ -40,7 +40,7 @@ Prototype stack for an anonymised physician working-hours reporting platform.
 - Define custom shift types with fixed durations, optional pauses, and midnight-crossing rules.
 - Klicken Sie in das Wochenraster (oder nutzen Sie das barrierearme Formular), um Schichten zu platzieren; Start-/Endzeiten werden auf das Raster geschnappt und Überschneidungen verhindert.
 - Edit placed shifts inline: adjust start, duration, assigned type, or delete; cross-midnight limits and default break clean-up are enforced.
-- Calendar offers week/day views with break markers and per-day scheduled vs. overtime totals. All data persists only in browser memory for now.
+- Calendar bietet Wochen-, Tages- und Monatsübersichten: Woche zeigt KW + Zeitraster, Monat fasst Schichten als farbige Punkte je Tag zusammen. All data persists only in browser memory for now.
 
 ## Backend configuration
 
