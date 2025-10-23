@@ -1,6 +1,6 @@
 import { MouseEvent, useEffect, useMemo, useRef, useState } from "react";
 
-import { DayReviewRecord, ShiftSegment } from "./fixtures";
+import { BreakSegment, DayReviewRecord, ShiftSegment } from "./fixtures";
 import { buildTimelineSegments } from "./calculations";
 import {
   addMinutes,
@@ -641,10 +641,10 @@ function DaySegment({
       )}
       <span style={{ fontWeight: 600 }}>{durationLabel}</span>
       {segment.original.label && <span>{segment.original.label}</span>}
-      {segment.breaks.map((pause, index) => {
+      {segment.breaks.map((pause: BreakSegment, index) => {
         const totalSpan = Math.max(minutesBetween(segment.start, segment.end), 1);
-        const pauseStart = minutesBetween(segment.start, pause.start);
-        const pauseEnd = minutesBetween(segment.start, pause.end);
+        const pauseStart = minutesBetween(segment.start, parseDateTime(pause.start));
+        const pauseEnd = minutesBetween(segment.start, parseDateTime(pause.end));
         const breakMinutes = Math.max(pauseEnd - pauseStart, 0);
         const relativeTop = (pauseStart / totalSpan) * 100;
         const segmentPixelHeight = (height / 100) * TIMELINE_HEIGHT;
