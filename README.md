@@ -30,9 +30,17 @@ Prototype stack for an anonymised physician working-hours reporting platform.
 
 4. Verification flow (prototype):
 
-   - Submit a hospital email. Backend stores only a hashed email and sends (or logs) a one-time code.
-   - Confirm the code to receive a long-lived affiliation token (stored in the browser).
-   - Use the token to submit reports (date, hours, role, optional notes). Notes are lightly scrubbed for obvious PII.
+- Submit a hospital email. Backend stores only a hashed email and sends (or logs) a one-time code.
+- Confirm the code to receive a long-lived affiliation token (stored in the browser).
+- Use the token to submit reports (date, hours, role, optional notes). Notes are lightly scrubbed for obvious PII.
+
+## Planner preview (frontend)
+
+- Visit <http://localhost:3000/planner> for the interactive shift-planning prototype geared towards rapid tester feedback.
+- Define custom shift types with fixed durations, optional pauses, and midnight-crossing rules.
+- Klicken Sie in das Wochenraster (oder nutzen Sie das barrierearme Formular), um Schichten zu platzieren; Start-/Endzeiten werden auf das Raster geschnappt und Überschneidungen verhindert.
+- Edit placed shifts inline: adjust start, duration, assigned type, or delete; cross-midnight limits and default break clean-up are enforced.
+- Calendar offers week/day views with break markers and per-day scheduled vs. overtime totals. All data persists only in browser memory for now.
 
 ## Backend configuration
 
