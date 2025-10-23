@@ -318,6 +318,8 @@ export interface TimelineSegment {
   durationMinutes: number;
   breaks: BreakSegment[];
   original: ShiftSegment;
+  connectsFromPreviousDay: boolean;
+  connectsToNextDay: boolean;
 }
 
 export interface DayTotals {
@@ -459,6 +461,8 @@ export function buildTimelineSegments(day: DayReviewRecord): TimelineSegment[] {
     ranges.forEach((range, index) => {
       const dayKey = toDateKey(range.start);
       const durationMinutesValue = durationMinutes(range.start, range.end);
+      const connectsFromPreviousDay = index > 0;
+      const connectsToNextDay = index < ranges.length - 1;
 
       const relevantBreaks = segment.breaks
         .map((brk) => {
@@ -486,6 +490,8 @@ export function buildTimelineSegments(day: DayReviewRecord): TimelineSegment[] {
         durationMinutes: durationMinutesValue,
         breaks: relevantBreaks,
         original: segment,
+        connectsFromPreviousDay,
+        connectsToNextDay,
       });
     });
   });
