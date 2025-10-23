@@ -1,509 +1,275 @@
-import {
-  addMinutes,
-  minutesBetween,
-  parseDateTime,
-  roundHours,
-  splitRangeByMidnight,
-  startOfDay,
-  startOfWeek,
-  toDateKey,
-  formatLocalDateTime
-} from "../lib/time";
+import { ShiftInstance, ShiftSegment, ShiftBreakInstance, ShiftType, ShiftPlacementRequest, DayIndex, ShiftConflict } from "./types";
 
-import { BreakSegment, DayReviewRecord, ReviewDataset, ShiftSegment, ShiftCategory } from "./fixtures";
+const MINUTES_PER_DAY = 24 * 60;
 
-export interface DayTotals {
-  date: string;
-  scheduledMinutes: number;
-  actualMinutes: number;
-  breakMinutes: number;
-  overtimeMinutes: number;
-  onCallCreditMinutes: number;
-}
-
-export interface WeekTotals extends DayTotals {
-  weekStart: string;
-}
-
-export interface TimelineSegment {
-  id: string;
-  dayKey: string;
-  category: ShiftCategory;
-  start: Date;
-  end: Date;
-  original: ShiftSegment;
-  breaks: Array<{ start: Date; end: Date }>;
-  connectsToNextDay: boolean;
-  connectsFromPreviousDay: boolean;
-}
-
-const MIN_SEGMENT_MINUTES = 10;
-
-export function computeScheduledMinutes(segment: { start: string; end: string }): number {
-  const start = parseDateTime(segment.start);
-  const end = parseDateTime(segment.end);
-  return Math.max(0, minutesBetween(start, end));
-}
-
-export function computeBreakMinutes(segment: ShiftSegment): number {
-  if (!segment.breaks.length) {
-    return 0;
+export function cloneDataset<T>(dataset: T): T {
+  if (typeof structuredClone === "function") {
+    return structuredClone(dataset);
   }
-  return segment.breaks.reduce((total, current) => {
-    const start = parseDateTime(current.start);
-    const end = parseDateTime(current.end);
-    return total + Math.max(0, minutesBetween(start, end));
-  }, 0);
+  return JSON.parse(JSON.stringify(dataset));
 }
 
-export function computeActualMinutes(segment: ShiftSegment): number {
-  const start = parseDateTime(segment.start);
-  const end = parseDateTime(segment.end);
-  const total = Math.max(0, minutesBetween(start, end));
-  return Math.max(0, total - computeBreakMinutes(segment));
+export function minutesToHm(minutes: number): string {
+  const normalized = ((minutes % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
+  const hours = Math.floor(normalized / 60);
+  const mins = normalized % 60;
+  return `${hours.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}`;
 }
 
-export function computeShiftTotals(
-  segment: ShiftSegment,
-  onCallCreditPct: number
-): {
-  workMinutes: number;
-  creditMinutes: number;
-  breakMinutes: number;
-} {
-  const workMinutes = computeActualMinutes(segment);
-  const breakMinutes = computeBreakMinutes(segment);
-  const appliedPct = segment.category === "oncall" ? onCallCreditPct : 0;
-  const creditMinutes = segment.category === "oncall" ? Math.round((workMinutes * appliedPct) / 100) : 0;
-  return { workMinutes, creditMinutes, breakMinutes };
-}
+export function snapToGrid(minutes: number): number {
+  const inDay = ((minutes % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
+  const hourRemainder = inDay % 60;
 
-export function computeDayTotals(day: DayReviewRecord, onCallCreditPct: number): DayTotals {
-  const scheduledMinutes = day.scheduled.reduce((total, segment) => total + computeScheduledMinutes(segment), 0);
-  let actualMinutes = 0;
-  let breakMinutes = 0;
-  let creditMinutes = 0;
-  day.actual.forEach((segment) => {
-    const totals = computeShiftTotals(segment, onCallCreditPct);
-    actualMinutes += totals.workMinutes;
-    breakMinutes += totals.breakMinutes;
-    creditMinutes += totals.creditMinutes;
-  });
-  const overtimeMinutes = Math.max(actualMinutes - scheduledMinutes, 0);
-  return {
-    date: day.date,
-    scheduledMinutes,
-    actualMinutes,
-    breakMinutes,
-    overtimeMinutes,
-    onCallCreditMinutes: creditMinutes
-  };
-}
-
-export function computeWeekTotals(
-  weekDays: DayReviewRecord[],
-  onCallCreditPct: number
-): WeekTotals {
-  if (weekDays.length === 0) {
-    throw new Error("Cannot compute totals for empty week");
+  if (hourRemainder <= 4) {
+    return minutes - hourRemainder;
   }
-  const totals = weekDays.map((day) => computeDayTotals(day, onCallCreditPct));
-  const aggregate = totals.reduce(
-    (acc, current) => {
-      acc.scheduledMinutes += current.scheduledMinutes;
-      acc.actualMinutes += current.actualMinutes;
-      acc.breakMinutes += current.breakMinutes;
-      acc.overtimeMinutes += current.overtimeMinutes;
-      acc.onCallCreditMinutes += current.onCallCreditMinutes;
-      return acc;
-    },
-    {
-      scheduledMinutes: 0,
-      actualMinutes: 0,
-      breakMinutes: 0,
-      overtimeMinutes: 0,
-      onCallCreditMinutes: 0
-    }
+
+  if (hourRemainder >= 56) {
+    return minutes + (60 - hourRemainder);
+  }
+
+  const fiveRemainder = hourRemainder % 5;
+  if (fiveRemainder <= 2) {
+    return minutes - fiveRemainder;
+  }
+
+  return minutes + (5 - fiveRemainder);
+}
+
+export function computeAbsoluteMinutes(day: DayIndex, minute: number): number {
+  return day * MINUTES_PER_DAY + minute;
+}
+
+export function computeShiftRange(shift: ShiftInstance): { start: number; end: number } {
+  const start = computeAbsoluteMinutes(shift.startDay, shift.startMinute);
+  return { start, end: start + shift.durationMinutes };
+}
+
+export function computeSegments(shift: ShiftInstance): ShiftSegment[] {
+  const { start, end } = computeShiftRange(shift);
+  const firstDay = Math.floor(start / MINUTES_PER_DAY);
+  const lastDay = Math.floor((end - 1) / MINUTES_PER_DAY);
+  const segments: ShiftSegment[] = [];
+
+  for (let absoluteDay = firstDay; absoluteDay <= lastDay; absoluteDay += 1) {
+    const dayStart = absoluteDay * MINUTES_PER_DAY;
+    const segmentStart = Math.max(dayStart, start);
+    const segmentEnd = Math.min(dayStart + MINUTES_PER_DAY, end);
+    const day: DayIndex = ((absoluteDay % 7) + 7) % 7 as DayIndex;
+
+    segments.push({
+      day,
+      startMinute: segmentStart - dayStart,
+      endMinute: segmentEnd - dayStart,
+      isContinuation: absoluteDay !== firstDay,
+      absoluteDayIndex: absoluteDay,
+      absoluteStart: segmentStart,
+      absoluteEnd: segmentEnd,
+    });
+  }
+
+  return segments;
+}
+
+export function instantiateBreaks(type: ShiftType): ShiftBreakInstance[] {
+  return type.defaultBreaks
+    .map((definition) => ({
+      id: `${definition.id}-${Math.random().toString(36).slice(2, 8)}`,
+      offsetMinutes: definition.offsetMinutes,
+      durationMinutes: definition.durationMinutes,
+    }))
+    .filter((brk) => brk.offsetMinutes >= 0 && brk.offsetMinutes + brk.durationMinutes <= type.durationMinutes);
+}
+
+export function sanitizeBreaks(shift: ShiftInstance): ShiftBreakInstance[] {
+  return shift.breaks.filter(
+    (brk) => brk.offsetMinutes >= 0 && brk.offsetMinutes + brk.durationMinutes <= shift.durationMinutes,
   );
-  const firstDate = parseDateTime(`${weekDays[0].date}T00:00`);
-  const weekStart = toDateKey(startOfWeek(firstDate));
+}
+
+function generateBreakId(templateId: string) {
+  return `${templateId}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+export function ensureDefaultBreaks(shift: ShiftInstance, type: ShiftType): ShiftInstance {
+  const sanitizedBreaks = sanitizeBreaks(shift);
+  const requiredTemplates = type.defaultBreaks.filter(
+    (tpl) => tpl.offsetMinutes >= 0 && tpl.offsetMinutes + tpl.durationMinutes <= shift.durationMinutes,
+  );
+  const additions = requiredTemplates
+    .filter(
+      (tpl) =>
+        !sanitizedBreaks.some(
+          (brk) => brk.offsetMinutes === tpl.offsetMinutes && brk.durationMinutes === tpl.durationMinutes,
+        ),
+    )
+    .map((tpl) => ({
+      id: generateBreakId(tpl.id),
+      offsetMinutes: tpl.offsetMinutes,
+      durationMinutes: tpl.durationMinutes,
+    }));
+
+  if (additions.length === 0 && sanitizedBreaks.length === shift.breaks.length) {
+    return shift;
+  }
+
   return {
-    date: weekDays[0].date,
-    weekStart,
-    scheduledMinutes: aggregate.scheduledMinutes,
-    actualMinutes: aggregate.actualMinutes,
-    breakMinutes: aggregate.breakMinutes,
-    overtimeMinutes: aggregate.overtimeMinutes,
-    onCallCreditMinutes: aggregate.onCallCreditMinutes
+    ...shift,
+    breaks: sanitizeBreaks({
+      ...shift,
+      breaks: [...sanitizedBreaks, ...additions],
+    }),
   };
 }
 
-export function buildTimelineSegments(day: DayReviewRecord): TimelineSegment[] {
-  return day.actual.flatMap((segment) => {
-    const start = parseDateTime(segment.start);
-    const end = parseDateTime(segment.end);
-    const slices = splitRangeByMidnight({ start, end });
-    return slices.map((slice, index) => {
-      const dayKey = toDateKey(slice.start);
-      const breaks = segment.breaks
-        .map((b) => {
-          const bStart = parseDateTime(b.start);
-          const bEnd = parseDateTime(b.end);
-          if (bEnd <= slice.start || bStart >= slice.end) {
-            return null;
-          }
-          const clippedStart = bStart < slice.start ? slice.start : bStart;
-          const clippedEnd = bEnd > slice.end ? slice.end : bEnd;
-          return { start: clippedStart, end: clippedEnd };
-        })
-        .filter(Boolean) as Array<{ start: Date; end: Date }>;
-      return {
-        id: `${segment.id}-slice-${index}`,
-        dayKey,
-        category: segment.category,
-        start: slice.start,
-        end: slice.end,
-        breaks,
-        original: segment,
-        connectsFromPreviousDay: index === 0 ? false : true,
-        connectsToNextDay: index === slices.length - 1 ? false : true
-      };
-    });
-  });
-}
-
-export function hasOverlap(day: DayReviewRecord): boolean {
-  const segments = day.actual
-    .map((segment) => ({
-      start: parseDateTime(segment.start).getTime(),
-      end: parseDateTime(segment.end).getTime()
-    }))
-    .sort((a, b) => a.start - b.start);
-  for (let i = 1; i < segments.length; i += 1) {
-    if (segments[i].start < segments[i - 1].end) {
-      return true;
-    }
-  }
-  return false;
-}
-
-export function isEmptyDay(day: DayReviewRecord): boolean {
-  return day.actual.length === 0 && day.scheduled.length === 0;
-}
-
-export function cloneDataset(dataset: ReviewDataset): ReviewDataset {
+export function projectBreaksToAbsolute(shift: ShiftInstance, breakInstance: ShiftBreakInstance) {
+  const { start } = computeShiftRange(shift);
+  const breakStart = start + breakInstance.offsetMinutes;
+  const breakEnd = breakStart + breakInstance.durationMinutes;
+  const breakDayStart = Math.floor(breakStart / MINUTES_PER_DAY);
   return {
-    ...dataset,
-    days: dataset.days.map((day) => ({
-      ...day,
-      scheduled: day.scheduled.map((segment) => ({ ...segment })),
-      actual: day.actual.map((segment) => ({
-        ...segment,
-        breaks: segment.breaks.map((b) => ({ ...b }))
-      }))
-    }))
+    startDay: ((breakDayStart % 7) + 7) % 7 as DayIndex,
+    startMinute: breakStart - breakDayStart * MINUTES_PER_DAY,
+    endMinute: breakEnd - breakDayStart * MINUTES_PER_DAY,
   };
 }
 
-export function describeTotals(totals: DayTotals): {
-  scheduled: string;
-  actual: string;
-  break: string;
-  overtime: string;
-  onCall: string;
-} {
+export function createShiftInstance(
+  type: ShiftType,
+  placement: ShiftPlacementRequest,
+  id: string,
+): ShiftInstance | Error {
+  const snappedStart = snapToGrid(placement.startMinute);
+  const normalizedStart = ((snappedStart % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
+  const startDayDelta = Math.floor(snappedStart / MINUTES_PER_DAY);
+  const startDayIndex = (placement.startDay + startDayDelta + 7) % 7 as DayIndex;
+
   return {
-    scheduled: formatMinutes(totals.scheduledMinutes),
-    actual: formatMinutes(totals.actualMinutes),
-    break: formatMinutes(totals.breakMinutes),
-    overtime: formatMinutes(totals.overtimeMinutes),
-    onCall: formatMinutes(totals.onCallCreditMinutes)
-  };
-}
-
-export function formatMinutes(minutes: number): string {
-  const hours = minutes / 60;
-  return `${roundHours(hours).toFixed(1)}h`;
-}
-
-export function weekForDate(dataset: ReviewDataset, date: Date): DayReviewRecord[] {
-  const weekStart = startOfWeek(date);
-  const days = [];
-  for (let offset = 0; offset < 7; offset += 1) {
-    const currentDate = addMinutes(weekStart, offset * 24 * 60);
-    const key = toDateKey(currentDate);
-    const match = dataset.days.find((day) => day.date === key);
-    if (match) {
-      days.push(match);
-    } else {
-      days.push({
-        date: key,
-        scheduled: [],
-        actual: [],
-        reviewed: false
-      });
-    }
-  }
-  return days;
-}
-
-export function findDay(dataset: ReviewDataset, date: Date): DayReviewRecord | undefined {
-  const key = toDateKey(date);
-  return dataset.days.find((day) => day.date === key);
-}
-
-export function ensureDay(dataset: ReviewDataset, date: Date): DayReviewRecord {
-  const existing = findDay(dataset, date);
-  if (existing) {
-    return existing;
-  }
-  const newDay: DayReviewRecord = {
-    date: toDateKey(date),
-    scheduled: [],
-    actual: [],
-    reviewed: false
-  };
-  dataset.days.push(newDay);
-  dataset.days.sort((a, b) => (a.date < b.date ? -1 : 1));
-  return newDay;
-}
-
-export function updateBreaks(
-  dataset: ReviewDataset,
-  segmentId: string,
-  replacer: (breaks: BreakSegment[]) => BreakSegment[]
-) {
-  dataset.days.forEach((day) => {
-    day.actual = day.actual.map((segment) => {
-      if (segment.id !== segmentId) {
-        return segment;
-      }
-      return {
-        ...segment,
-        breaks: replacer(segment.breaks.map((br) => ({ ...br })))
-      };
-    });
-  });
-}
-
-export function toggleBreakForSegment(
-  segment: ShiftSegment,
-  timestamp: Date,
-  defaultBreakMinutes: number
-): BreakSegment[] {
-  const segmentStart = parseDateTime(segment.start);
-  const segmentEnd = parseDateTime(segment.end);
-  if (timestamp < segmentStart || timestamp > segmentEnd) {
-    return segment.breaks.map((br) => ({ ...br }));
-  }
-  const available = Math.max(minutesBetween(segmentStart, segmentEnd), 0);
-  if (available < 5) {
-    return segment.breaks.map((br) => ({ ...br }));
-  }
-  const tolerance = Math.max(5, Math.round(defaultBreakMinutes / 2));
-  const existingIndex = segment.breaks.findIndex((candidate) => {
-    const breakStart = parseDateTime(candidate.start);
-    const breakEnd = parseDateTime(candidate.end);
-    return timestamp >= addMinutes(breakStart, -tolerance) && timestamp <= addMinutes(breakEnd, tolerance);
-  });
-  if (existingIndex >= 0) {
-    const remaining = segment.breaks.slice();
-    remaining.splice(existingIndex, 1);
-    return remaining;
-  }
-  const length = Math.max(defaultBreakMinutes, 5);
-  const half = Math.round(length / 2);
-  let breakStart = addMinutes(timestamp, -half);
-  let breakEnd = addMinutes(timestamp, half);
-  if (breakStart < segmentStart) {
-    breakStart = segmentStart;
-    breakEnd = addMinutes(breakStart, length);
-  }
-  if (breakEnd > segmentEnd) {
-    breakEnd = segmentEnd;
-    breakStart = addMinutes(breakEnd, -length);
-  }
-  if (breakStart < segmentStart) {
-    breakStart = segmentStart;
-  }
-  if (breakEnd > segmentEnd) {
-    breakEnd = segmentEnd;
-  }
-  if (breakEnd <= breakStart) {
-    breakEnd = addMinutes(breakStart, Math.min(length, available));
-  }
-  const duration = Math.max(minutesBetween(breakStart, breakEnd), 0);
-  if (duration < 5) {
-    breakEnd = addMinutes(breakStart, Math.min(5, available));
-  }
-  const overlaps = segment.breaks.some((candidate) => {
-    const existingStart = parseDateTime(candidate.start);
-    const existingEnd = parseDateTime(candidate.end);
-    return breakStart < existingEnd && breakEnd > existingStart;
-  });
-  if (overlaps) {
-    return segment.breaks.map((br) => ({ ...br }));
-  }
-  const newBreak: BreakSegment = {
-    id: `${segment.id}-break-${Date.now()}`,
-    start: formatLocalDateTime(breakStart),
-    end: formatLocalDateTime(breakEnd)
-  };
-  return [...segment.breaks.map((br) => ({ ...br })), newBreak].sort((a, b) => (a.start < b.start ? -1 : 1));
-}
-
-export function updateShiftTimes(
-  dataset: ReviewDataset,
-  segmentId: string,
-  updates: { start?: Date; end?: Date }
-) {
-  dataset.days.forEach((day) => {
-    let dirty = false;
-    day.actual = day.actual.map((segment) => {
-      if (segment.id !== segmentId) {
-        return segment;
-      }
-      const originalStart = parseDateTime(segment.start);
-      const originalEnd = parseDateTime(segment.end);
-      let startDate = updates.start ?? originalStart;
-      let endDate = updates.end ?? originalEnd;
-      if (endDate.getTime() <= startDate.getTime()) {
-        return segment;
-      }
-      const otherSegments = day.actual
-        .filter((other) => other.id !== segmentId)
-        .map((other) => ({
-          id: other.id,
-          start: parseDateTime(other.start),
-          end: parseDateTime(other.end)
-        }))
-        .sort((a, b) => a.start.getTime() - b.start.getTime());
-
-      const previous = [...otherSegments]
-        .reverse()
-        .find((other) => other.end.getTime() <= startDate.getTime());
-      const next = otherSegments.find((other) => other.start.getTime() >= endDate.getTime());
-
-      if (previous && startDate.getTime() < previous.end.getTime()) {
-        startDate = new Date(previous.end);
-      }
-      if (next && endDate.getTime() > next.start.getTime()) {
-        endDate = new Date(next.start);
-      }
-      if (endDate.getTime() <= startDate.getTime()) {
-        return segment;
-      }
-      const overlaps = otherSegments.some(
-        (other) => startDate.getTime() < other.end.getTime() && endDate.getTime() > other.start.getTime()
-      );
-      if (overlaps) {
-        return segment;
-      }
-      if (minutesBetween(startDate, endDate) < MIN_SEGMENT_MINUTES) {
-        return segment;
-      }
-      if (startDate.getTime() === originalStart.getTime() && endDate.getTime() === originalEnd.getTime()) {
-        return segment;
-      }
-      dirty = true;
-      day.reviewed = false;
-      return {
-        ...segment,
-        start: formatLocalDateTime(startDate),
-        end: formatLocalDateTime(endDate)
-      };
-    });
-    if (dirty) {
-      day.actual.sort((a, b) => (a.start < b.start ? -1 : 1));
-    }
-  });
-}
-
-export function addShiftAtTimestamp(
-  dataset: ReviewDataset,
-  timestamp: Date,
-  durationMinutes: number,
-  category: ShiftCategory = "work"
-): ShiftSegment | null {
-  const day = ensureDay(dataset, timestamp);
-  const minDuration = Math.max(durationMinutes, MIN_SEGMENT_MINUTES);
-  const dayStart = parseDateTime(`${day.date}T00:00`);
-  const dayEnd = addMinutes(dayStart, 24 * 60);
-  const segments = day.actual
-    .map((segment) => ({
-      id: segment.id,
-      start: parseDateTime(segment.start),
-      end: parseDateTime(segment.end)
-    }))
-    .sort((a, b) => a.start.getTime() - b.start.getTime());
-
-  type Gap = { start: Date; end: Date };
-  const gaps: Gap[] = [];
-  let cursor = dayStart;
-  segments.forEach((segment) => {
-    if (segment.start.getTime() > cursor.getTime()) {
-      gaps.push({ start: cursor, end: segment.start });
-    }
-    if (segment.end.getTime() > cursor.getTime()) {
-      cursor = segment.end;
-    }
-  });
-  if (cursor.getTime() < dayEnd.getTime()) {
-    gaps.push({ start: cursor, end: dayEnd });
-  }
-
-  const desiredStart = timestamp;
-
-  const findGapForStart = () => {
-    for (const gap of gaps) {
-      if (desiredStart.getTime() >= gap.start.getTime() && desiredStart.getTime() < gap.end.getTime()) {
-        return gap;
-      }
-    }
-    return null;
-  };
-
-  let targetGap = findGapForStart();
-  if (!targetGap) {
-    targetGap = gaps.find((gap) => minutesBetween(gap.start, gap.end) >= minDuration) ?? null;
-  }
-  if (!targetGap) {
-    return null;
-  }
-
-  const startMs = Math.max(desiredStart.getTime(), targetGap.start.getTime());
-  let slotStart = new Date(startMs);
-  let slotEnd = addMinutes(slotStart, minDuration);
-  if (slotEnd.getTime() > targetGap.end.getTime()) {
-    slotEnd = new Date(targetGap.end.getTime());
-  }
-  if (minutesBetween(slotStart, slotEnd) < MIN_SEGMENT_MINUTES) {
-    return null;
-  }
-
-  const id = `shift-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
-  const newSegment: ShiftSegment = {
     id,
-    category,
-    start: formatLocalDateTime(slotStart),
-    end: formatLocalDateTime(slotEnd),
-    breaks: []
+    shiftTypeId: type.id,
+    startDay: startDayIndex,
+    startMinute: normalizedStart,
+    durationMinutes: type.durationMinutes,
+    originalDurationMinutes: type.durationMinutes,
+    breaks: instantiateBreaks(type),
+    edited: false,
+    startDateISO: "",
   };
-  day.actual.push(newSegment);
-  day.actual.sort((a, b) => (a.start < b.start ? -1 : 1));
-  day.reviewed = false;
-  return newSegment;
 }
 
-export function removeShift(dataset: ReviewDataset, segmentId: string): boolean {
-  let removed = false;
-  dataset.days.forEach((day) => {
-    const before = day.actual.length;
-    day.actual = day.actual.filter((segment) => segment.id !== segmentId);
-    if (day.actual.length !== before) {
-      day.reviewed = false;
-      removed = true;
+export function updateShiftDuration(shift: ShiftInstance, durationMinutes: number): ShiftInstance {
+  const updatedDuration = Math.max(5, durationMinutes);
+  const edited = updatedDuration !== shift.originalDurationMinutes;
+
+  return {
+    ...shift,
+    durationMinutes: updatedDuration,
+    breaks: sanitizeBreaks({
+      ...shift,
+      durationMinutes: updatedDuration,
+    }),
+    edited,
+  };
+}
+
+export function moveShiftStart(
+  shift: ShiftInstance,
+  newDay: DayIndex,
+  newStartMinute: number,
+): ShiftInstance {
+  const snapped = snapToGrid(newStartMinute);
+  const normalizedStart = ((snapped % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
+  const dayDelta = Math.floor(snapped / MINUTES_PER_DAY);
+  const startDayIndex = ((newDay + dayDelta) % 7 + 7) % 7 as DayIndex;
+
+  return {
+    ...shift,
+    startDay: startDayIndex,
+    startMinute: normalizedStart,
+  };
+}
+
+function isoDateToTimestamp(iso: string, minute: number): number {
+  const [year, month, day] = iso.split("-").map(Number);
+  const base = new Date(year, month - 1, day).getTime();
+  return base + minute * 60000;
+}
+
+export function findOverlap(
+  shifts: ShiftInstance[],
+  candidate: {
+    id?: string;
+    startDay: DayIndex;
+    startMinute: number;
+    durationMinutes: number;
+    startDateISO?: string;
+  },
+): ShiftConflict | null {
+  const candidateStartMs = candidate.startDateISO
+    ? isoDateToTimestamp(candidate.startDateISO, candidate.startMinute)
+    : null;
+  const candidateEndMs = candidateStartMs !== null ? candidateStartMs + candidate.durationMinutes * 60000 : null;
+  const candidateStartMinutes = computeAbsoluteMinutes(candidate.startDay, candidate.startMinute);
+  const candidateEndMinutes = candidateStartMinutes + candidate.durationMinutes;
+
+  for (const shift of shifts) {
+    if (candidate.id && shift.id === candidate.id) {
+      continue;
     }
-  });
-  return removed;
+
+    const shiftHasDate = Boolean(shift.startDateISO);
+    const { start, end } = computeShiftRange(shift);
+
+    if (candidateStartMs !== null && shiftHasDate) {
+      const shiftStartMs = isoDateToTimestamp(shift.startDateISO, shift.startMinute);
+      const shiftEndMs = shiftStartMs + shift.durationMinutes * 60000;
+      const overlapMs = Math.min(candidateEndMs!, shiftEndMs) - Math.max(candidateStartMs, shiftStartMs);
+      if (overlapMs >= 60000) {
+        return {
+          conflictingShiftId: shift.id,
+          conflictingStartMinutes: start,
+          conflictingEndMinutes: end,
+        };
+      }
+      continue;
+    }
+
+    const overlapStart = Math.max(start, candidateStartMinutes);
+    const overlapEnd = Math.min(end, candidateEndMinutes);
+
+    if (overlapEnd - overlapStart >= 1) {
+      return {
+        conflictingShiftId: shift.id,
+        conflictingStartMinutes: start,
+        conflictingEndMinutes: end,
+      };
+    }
+  }
+
+  return null;
+}
+
+export function formatConflict(conflict: ShiftConflict): string {
+  const startHm = minutesToHm(conflict.conflictingStartMinutes);
+  const endHm = minutesToHm(conflict.conflictingEndMinutes);
+  return `Kollidiert mit bestehender Schicht (${startHm}–${endHm}). Bitte Zeit anpassen.`;
+}
+
+export function addMinutes(day: DayIndex, minute: number, delta: number): { day: DayIndex; minute: number } {
+  const absolute = computeAbsoluteMinutes(day, minute) + delta;
+  const newDay = Math.floor(absolute / MINUTES_PER_DAY);
+  const normalizedDay = ((newDay % 7) + 7) % 7 as DayIndex;
+  const newMinute = absolute - newDay * MINUTES_PER_DAY;
+  return {
+    day: normalizedDay,
+    minute: newMinute,
+  };
+}
+
+export function minuteStep(minute: number, delta: number): number {
+  return ((minute + delta) % MINUTES_PER_DAY + MINUTES_PER_DAY) % MINUTES_PER_DAY;
+}
+
+export function defaultShiftColors(): string[] {
+  return ["#3f51b5", "#009688", "#ff7043", "#8e24aa", "#00796b", "#795548"];
 }
