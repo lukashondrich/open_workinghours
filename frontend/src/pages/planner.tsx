@@ -304,7 +304,7 @@ function NewShiftTypeForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} style={{ display: "grid", gap: "0.5rem" }}>
+    <form onSubmit={handleSubmit} style={{ display: "grid", gap: "0.5rem", width: "100%" }}>
       <h3>Neue Dienstart</h3>
       <label>
         Name
@@ -506,6 +506,7 @@ function ShiftTypeCard({ type, selected, expanded, onSelect, onToggleExpand, onU
         borderRadius: "0.75rem",
         background: "#fff",
         overflow: "hidden",
+        width: "100%",
       }}
     >
       <div
@@ -548,7 +549,10 @@ function ShiftTypeCard({ type, selected, expanded, onSelect, onToggleExpand, onU
         </div>
       </div>
       {expanded && (
-        <form onSubmit={handleSave} style={{ padding: "1rem", display: "grid", gap: "0.75rem" }}>
+        <form
+          onSubmit={handleSave}
+          style={{ padding: "1rem", display: "grid", gap: "0.75rem", width: "100%", boxSizing: "border-box" }}
+        >
           <label style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
             Name
             <input value={name} onChange={(event) => setName(event.target.value)} required />
@@ -661,7 +665,7 @@ function ShiftPalette({
   };
 
   return (
-    <div style={{ display: "grid", gap: "0.75rem" }}>
+    <div style={{ display: "grid", gap: "0.75rem", width: "100%" }}>
       <h3>Schichtpalette</h3>
       {shiftTypes.length === 0 && <p>Noch keine Dienstarten definiert.</p>}
       {shiftTypes.map((type) => (
@@ -681,6 +685,7 @@ function ShiftPalette({
           borderRadius: "0.75rem",
           padding: "0.75rem",
           background: "#fff",
+          width: "100%",
         }}
       >
         {!showCreateForm ? (
@@ -957,8 +962,8 @@ function DayColumn({
     return Math.min(Math.max(rawMinutes, 0), MINUTES_PER_DAY);
   }, []);
 
-  const handleMouseMove = useCallback(
-    (event: MouseEvent) => {
+  const handlePointerMove = useCallback(
+    (event: PointerEvent) => {
       const drag = dragStateRef.current;
       if (!drag) {
         return;
@@ -1042,11 +1047,11 @@ function DayColumn({
     [minuteFromClientY, onPreviewChange],
   );
 
-  const handleMouseUp = useCallback(() => {
+  const handlePointerUp = useCallback(() => {
     const drag = dragStateRef.current;
     dragStateRef.current = null;
-    window.removeEventListener("mousemove", handleMouseMove);
-    window.removeEventListener("mouseup", handleMouseUp);
+    window.removeEventListener("pointermove", handlePointerMove);
+    window.removeEventListener("pointerup", handlePointerUp);
     if (!drag) {
       return;
     }
@@ -1063,18 +1068,18 @@ function DayColumn({
     }
 
     onPreviewChange(null);
-  }, [dayDate, handleMouseMove, onCommitMove, onCommitResizeStart, onCommitResizeEnd, onPreviewChange]);
+  }, [dayDate, handlePointerMove, onCommitMove, onCommitResizeStart, onCommitResizeEnd, onPreviewChange]);
 
   useEffect(() => {
     return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
     };
-  }, [handleMouseMove, handleMouseUp]);
+  }, [handlePointerMove, handlePointerUp]);
 
   const beginMoveDrag = useCallback(
-    (shift: ShiftInstance, event: React.MouseEvent<HTMLDivElement>) => {
-      if (event.button !== 0) {
+    (shift: ShiftInstance, event: React.PointerEvent<HTMLDivElement>) => {
+      if (event.button !== 0 && event.pointerType !== "touch") {
         return;
       }
       event.preventDefault();
@@ -1091,15 +1096,15 @@ function DayColumn({
         lastApplied: null,
       };
       onPreviewChange({ shiftId: shift.id, startMinute: shift.startMinute, durationMinutes: shift.durationMinutes });
-      window.addEventListener("mousemove", handleMouseMove);
-      window.addEventListener("mouseup", handleMouseUp);
+      window.addEventListener("pointermove", handlePointerMove, { passive: false });
+      window.addEventListener("pointerup", handlePointerUp, { passive: false });
     },
-    [day, handleMouseMove, handleMouseUp, minuteFromClientY, onPreviewChange],
+    [day, handlePointerMove, handlePointerUp, minuteFromClientY, onPreviewChange],
   );
 
   const beginResizeStart = useCallback(
-    (shift: ShiftInstance, event: React.MouseEvent<HTMLDivElement>) => {
-      if (event.button !== 0) {
+    (shift: ShiftInstance, event: React.PointerEvent<HTMLDivElement>) => {
+      if (event.button !== 0 && event.pointerType !== "touch") {
         return;
       }
       event.preventDefault();
@@ -1117,15 +1122,15 @@ function DayColumn({
         lastApplied: null,
       };
       onPreviewChange({ shiftId: shift.id, startMinute: shift.startMinute, durationMinutes: shift.durationMinutes });
-      window.addEventListener("mousemove", handleMouseMove);
-      window.addEventListener("mouseup", handleMouseUp);
+      window.addEventListener("pointermove", handlePointerMove, { passive: false });
+      window.addEventListener("pointerup", handlePointerUp, { passive: false });
     },
-    [day, handleMouseMove, handleMouseUp, minuteFromClientY, onPreviewChange],
+    [day, handlePointerMove, handlePointerUp, minuteFromClientY, onPreviewChange],
   );
 
   const beginResizeEnd = useCallback(
-    (shift: ShiftInstance, segment: ShiftSegment, event: React.MouseEvent<HTMLDivElement>) => {
-      if (event.button !== 0) {
+    (shift: ShiftInstance, segment: ShiftSegment, event: React.PointerEvent<HTMLDivElement>) => {
+      if (event.button !== 0 && event.pointerType !== "touch") {
         return;
       }
       event.preventDefault();
@@ -1146,10 +1151,10 @@ function DayColumn({
         segmentAbsoluteDay: segment.absoluteDayIndex,
       };
       onPreviewChange({ shiftId: shift.id, startMinute: shift.startMinute, durationMinutes: shift.durationMinutes });
-      window.addEventListener("mousemove", handleMouseMove);
-      window.addEventListener("mouseup", handleMouseUp);
+      window.addEventListener("pointermove", handlePointerMove, { passive: false });
+      window.addEventListener("pointerup", handlePointerUp, { passive: false });
     },
-    [day, handleMouseMove, handleMouseUp, minuteFromClientY, onPreviewChange],
+    [day, handlePointerMove, handlePointerUp, minuteFromClientY, onPreviewChange],
   );
 
   const handleClick = (event: React.MouseEvent<HTMLDivElement>) => {
@@ -1191,6 +1196,7 @@ function DayColumn({
           borderBottom: "1px solid #eee",
           background: "#fff",
           height,
+          touchAction: "none",
         }}
         onClick={handleClick}
         onDragOver={handleDragOver}
@@ -1273,7 +1279,7 @@ function DayColumn({
                   onSelectShift(shift.id);
                 }
               }}
-              onMouseDown={(event) => {
+              onPointerDown={(event) => {
                 if (event.button !== 0) {
                   return;
                 }
@@ -1300,7 +1306,7 @@ function DayColumn({
             >
               {isStartSegment && (
                 <div
-                  onMouseDown={(event) => beginResizeStart(shift, event)}
+                  onPointerDown={(event) => beginResizeStart(shift, event)}
                   role="presentation"
                   style={{
                     position: "absolute",
@@ -1315,7 +1321,7 @@ function DayColumn({
               )}
               {isEndSegment && (
                 <div
-                  onMouseDown={(event) => beginResizeEnd(shift, segment, event)}
+                  onPointerDown={(event) => beginResizeEnd(shift, segment, event)}
                   role="presentation"
                   style={{
                     position: "absolute",
@@ -1378,7 +1384,7 @@ function DayColumn({
                     event.stopPropagation();
                     onDeleteShift(shift.id);
                   }}
-                  onMouseDown={(event) => event.stopPropagation()}
+                  onPointerDown={(event) => event.stopPropagation()}
                   style={{
                     position: "absolute",
                     top: 4,
@@ -1573,7 +1579,7 @@ export default function PlannerPage() {
   const [activeDay, setActiveDay] = useState<DayIndex>(0);
   const [message, setMessage] = useState<string | null>(null);
   const [dragPreview, setDragPreview] = useState<DragPreviewState | null>(null);
-  const isCompact = useMediaQuery("(max-width: 860px)");
+  const isCompact = useMediaQuery("(max-width: 920px)");
   const [currentWeekStart, setCurrentWeekStart] = useState<Date>(() => startOfISOWeek(new Date()));
   const [currentMonthDate, setCurrentMonthDate] = useState<Date>(() => startOfMonth(new Date()));
 
@@ -1875,7 +1881,29 @@ export default function PlannerPage() {
   }, []);
 
   return (
-    <main style={{ padding: "2rem", display: "flex", flexDirection: "column", gap: "2rem" }}>
+    <div
+      style={{
+        width: "100vw",
+        minHeight: "100vh",
+        boxSizing: "border-box",
+        display: "flex",
+        justifyContent: "center",
+        background: isCompact ? "#f5f5f5" : "transparent",
+      }}
+    >
+      <main
+        style={{
+          padding: isCompact ? "1rem" : "2rem",
+          display: "flex",
+          flexDirection: "column",
+          gap: isCompact ? "1.5rem" : "2rem",
+          width: "100%",
+          maxWidth: isCompact ? "100%" : "1080px",
+          margin: isCompact ? "0" : "0 auto",
+          alignSelf: "stretch",
+          boxSizing: "border-box",
+        }}
+      >
       <header style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
         <div>
           <h1>Schichtplanung (Preview)</h1>
@@ -1938,8 +1966,10 @@ export default function PlannerPage() {
       <section
         style={{
           display: "grid",
-          gridTemplateColumns: isCompact ? "minmax(0, 1fr)" : "repeat(auto-fit, minmax(260px, 1fr))",
+          gridTemplateColumns: isCompact ? "1fr" : "repeat(auto-fit, minmax(260px, 1fr))",
           gap: "1.5rem",
+          width: "100%",
+          justifyItems: "stretch",
         }}
       >
         <ShiftPalette
@@ -1960,6 +1990,8 @@ export default function PlannerPage() {
           borderRadius: "1rem",
           padding: isCompact ? "0.75rem" : "1rem",
           background: "#fafafa",
+          width: "100%",
+          boxSizing: "border-box",
         }}
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.5rem" }}>
@@ -1979,6 +2011,7 @@ export default function PlannerPage() {
               gap: "0.75rem",
               overflowX: "auto",
               paddingBottom: isCompact ? "0.5rem" : 0,
+              width: "100%",
             }}
           >
             {DAY_ORDER.map((day, index) => (
@@ -2007,7 +2040,7 @@ export default function PlannerPage() {
         )}
 
         {viewMode === "day" && (
-          <div style={{ display: "flex", gap: "1rem" }}>
+          <div style={{ display: "flex", gap: "1rem", width: "100%" }}>
             <DayColumn
               day={activeDay}
               dayDate={weekDayDates[activeDay]}
@@ -2046,17 +2079,18 @@ export default function PlannerPage() {
         )}
       </section>
 
-      {activeShift && (
-        <ShiftDetails
-          shift={activeShift}
-          type={shiftTypes.find((candidate) => candidate.id === activeShift.shiftTypeId)}
-          availableTypes={shiftTypes}
-          onChange={handleChangeShift}
-          onDelete={handleDeleteShift}
-          onClose={() => setSelectedShiftId(null)}
-          onError={(msg) => setMessage(msg)}
-        />
-      )}
-    </main>
+        {activeShift && (
+          <ShiftDetails
+            shift={activeShift}
+            type={shiftTypes.find((candidate) => candidate.id === activeShift.shiftTypeId)}
+            availableTypes={shiftTypes}
+            onChange={handleChangeShift}
+            onDelete={handleDeleteShift}
+            onClose={() => setSelectedShiftId(null)}
+            onError={(msg) => setMessage(msg)}
+          />
+        )}
+      </main>
+    </div>
   );
 }
