@@ -1,6 +1,37 @@
-import { ShiftInstance, ShiftSegment, ShiftBreakInstance, ShiftType, ShiftPlacementRequest, DayIndex, ShiftConflict } from "./types";
+import {
+  ShiftInstance,
+  ShiftSegment as PlannerShiftSegment,
+  ShiftBreakInstance,
+  ShiftType,
+  ShiftPlacementRequest,
+  DayIndex,
+  ShiftConflict,
+} from "./types";
+import {
+  DayReviewRecord,
+  ReviewDataset,
+  ShiftSegment,
+  BreakSegment,
+  ShiftCategory,
+} from "./fixtures";
+import {
+  addMinutes as addMinutesToDate,
+  minutesBetween,
+  minutesToHours,
+  parseDateTime,
+  roundHours,
+  splitRangeByMidnight,
+  startOfDay,
+  startOfWeek,
+  toDateKey,
+  formatLocalDateTime,
+} from "../lib/time";
 
 const MINUTES_PER_DAY = 24 * 60;
+
+/* -------------------------------------------------------------------------- */
+/* Planner helpers (shared with /planner)                                     */
+/* -------------------------------------------------------------------------- */
 
 export function cloneDataset<T>(dataset: T): T {
   if (typeof structuredClone === "function") {
@@ -45,11 +76,11 @@ export function computeShiftRange(shift: ShiftInstance): { start: number; end: n
   return { start, end: start + shift.durationMinutes };
 }
 
-export function computeSegments(shift: ShiftInstance): ShiftSegment[] {
+export function computeSegments(shift: ShiftInstance): PlannerShiftSegment[] {
   const { start, end } = computeShiftRange(shift);
   const firstDay = Math.floor(start / MINUTES_PER_DAY);
   const lastDay = Math.floor((end - 1) / MINUTES_PER_DAY);
-  const segments: ShiftSegment[] = [];
+  const segments: PlannerShiftSegment[] = [];
 
   for (let absoluteDay = firstDay; absoluteDay <= lastDay; absoluteDay += 1) {
     const dayStart = absoluteDay * MINUTES_PER_DAY;
@@ -205,22 +236,22 @@ export function findOverlap(
     startDateISO?: string;
   },
 ): ShiftConflict | null {
-  const candidateStartMs = candidate.startDateISO
-    ? isoDateToTimestamp(candidate.startDateISO, candidate.startMinute)
-    : null;
-  const candidateEndMs = candidateStartMs !== null ? candidateStartMs + candidate.durationMinutes * 60000 : null;
-  const candidateStartMinutes = computeAbsoluteMinutes(candidate.startDay, candidate.startMinute);
+  const candidateStartMinutes = computeAbsoluteMinutes(candidate.startDay, snapToGrid(candidate.startMinute));
   const candidateEndMinutes = candidateStartMinutes + candidate.durationMinutes;
+  const candidateStartMs =
+    candidate.startDateISO != null
+      ? isoDateToTimestamp(candidate.startDateISO, snapToGrid(candidate.startMinute))
+      : null;
+  const candidateEndMs = candidateStartMs != null ? candidateStartMs + candidate.durationMinutes * 60000 : null;
 
   for (const shift of shifts) {
     if (candidate.id && shift.id === candidate.id) {
       continue;
     }
 
-    const shiftHasDate = Boolean(shift.startDateISO);
     const { start, end } = computeShiftRange(shift);
 
-    if (candidateStartMs !== null && shiftHasDate) {
+    if (candidateStartMs != null && shift.startDateISO) {
       const shiftStartMs = isoDateToTimestamp(shift.startDateISO, shift.startMinute);
       const shiftEndMs = shiftStartMs + shift.durationMinutes * 60000;
       const overlapMs = Math.min(candidateEndMs!, shiftEndMs) - Math.max(candidateStartMs, shiftStartMs);
@@ -273,3 +304,320 @@ export function minuteStep(minute: number, delta: number): number {
 export function defaultShiftColors(): string[] {
   return ["#3f51b5", "#009688", "#ff7043", "#8e24aa", "#00796b", "#795548"];
 }
+
+/* -------------------------------------------------------------------------- */
+/* Review prototype helpers                                                   */
+/* -------------------------------------------------------------------------- */
+
+export interface DayTotals {
+  scheduledMinutes: number;
+  actualMinutes: number;
+  breakMinutes: number;
+  overtimeMinutes: number;
+  onCallCreditMinutes: number;
+}
+
+export interface WeekTotals extends DayTotals {
+  weekStart: string;
+}
+
+function durationMinutes(rangeStart: Date, rangeEnd: Date): number {
+  return Math.max(minutesBetween(rangeStart, rangeEnd), 0);
+}
+
+function sumShiftMinutes(segments: ShiftSegment[]): number {
+  return segments.reduce((acc, segment) => {
+    const start = parseDateTime(segment.start);
+    const end = parseDateTime(segment.end);
+    return acc + durationMinutes(start, end);
+  }, 0);
+}
+
+function sumBreakMinutes(segments: ShiftSegment[]): number {
+  return segments.reduce((acc, segment) => {
+    const start = parseDateTime(segment.start);
+    const end = parseDateTime(segment.end);
+    const shiftDuration = durationMinutes(start, end);
+    const breakTotal = segment.breaks.reduce((inner, brk) => {
+      const bStart = parseDateTime(brk.start);
+      const bEnd = parseDateTime(brk.end);
+      return inner + durationMinutes(bStart, bEnd);
+    }, 0);
+    return acc + Math.min(breakTotal, shiftDuration);
+  }, 0);
+}
+
+export function computeDayTotals(day: DayReviewRecord, defaultOnCallCreditPct: number): DayTotals {
+  const scheduledMinutes = sumShiftMinutes(day.scheduled as unknown as ShiftSegment[]);
+  const actualMinutes = sumShiftMinutes(day.actual);
+  const breakMinutes = sumBreakMinutes(day.actual);
+  const onCallCreditMinutes = day.actual.reduce((acc, segment) => {
+    if (segment.category !== "oncall") {
+      return acc;
+    }
+    const duration = durationMinutes(parseDateTime(segment.start), parseDateTime(segment.end));
+    const creditPct = segment.creditPct ?? defaultOnCallCreditPct;
+    return acc + Math.round((duration * creditPct) / 100);
+  }, 0);
+  const overtimeMinutes = Math.max(actualMinutes + onCallCreditMinutes - scheduledMinutes, 0);
+
+  return {
+    scheduledMinutes,
+    actualMinutes,
+    breakMinutes,
+    overtimeMinutes,
+    onCallCreditMinutes,
+  };
+}
+
+export function computeWeekTotals(weekDays: DayReviewRecord[], defaultOnCallCreditPct: number): WeekTotals {
+  const totals = weekDays.reduce(
+    (acc, day) => {
+      const dayTotals = computeDayTotals(day, defaultOnCallCreditPct);
+      return {
+        scheduledMinutes: acc.scheduledMinutes + dayTotals.scheduledMinutes,
+        actualMinutes: acc.actualMinutes + dayTotals.actualMinutes,
+        breakMinutes: acc.breakMinutes + dayTotals.breakMinutes,
+        overtimeMinutes: acc.overtimeMinutes + dayTotals.overtimeMinutes,
+        onCallCreditMinutes: acc.onCallCreditMinutes + dayTotals.onCallCreditMinutes,
+      };
+    },
+    { scheduledMinutes: 0, actualMinutes: 0, breakMinutes: 0, overtimeMinutes: 0, onCallCreditMinutes: 0 },
+  );
+
+  const weekStartDate =
+    weekDays.length > 0 ? startOfWeek(parseDateTime(`${weekDays[0].date}T00:00`)) : startOfWeek(new Date());
+
+  return {
+    ...totals,
+    weekStart: toDateKey(weekStartDate),
+  };
+}
+
+function formatMinutes(minutes: number): string {
+  const hours = roundHours(minutesToHours(minutes));
+  return `${hours.toFixed(1)} h`;
+}
+
+export function describeTotals(totals: DayTotals | WeekTotals) {
+  return {
+    scheduled: formatMinutes(totals.scheduledMinutes),
+    actual: formatMinutes(totals.actualMinutes),
+    overtime: formatMinutes(totals.overtimeMinutes),
+    break: formatMinutes(totals.breakMinutes),
+    onCall: formatMinutes(totals.onCallCreditMinutes),
+  };
+}
+
+export function findDay(dataset: ReviewDataset, cursorDate: Date): DayReviewRecord | undefined {
+  const key = toDateKey(startOfDay(cursorDate));
+  return dataset.days.find((day) => day.date === key);
+}
+
+export function weekForDate(dataset: ReviewDataset, cursorDate: Date): DayReviewRecord[] {
+  const start = startOfWeek(cursorDate);
+  const result: DayReviewRecord[] = [];
+
+  for (let index = 0; index < 7; index += 1) {
+    const date = addMinutesToDate(start, index * MINUTES_PER_DAY);
+    const key = toDateKey(date);
+    const existing = dataset.days.find((day) => day.date === key);
+    if (existing) {
+      result.push(existing);
+    } else {
+      result.push({
+        date: key,
+        scheduled: [],
+        actual: [],
+        reviewed: false,
+      });
+    }
+  }
+
+  return result;
+}
+
+export function buildTimelineSegments(day: DayReviewRecord): TimelineSegment[] {
+  const segments: TimelineSegment[] = [];
+
+  day.actual.forEach((segment) => {
+    const start = parseDateTime(segment.start);
+    const end = parseDateTime(segment.end);
+    const ranges = splitRangeByMidnight({ start, end });
+
+    ranges.forEach((range, index) => {
+      const dayKey = toDateKey(range.start);
+      const durationMinutesValue = durationMinutes(range.start, range.end);
+
+      const relevantBreaks = segment.breaks
+        .map((brk) => {
+          const brkStart = parseDateTime(brk.start);
+          const brkEnd = parseDateTime(brk.end);
+          const clippedStart = brkStart < range.start ? range.start : brkStart;
+          const clippedEnd = brkEnd > range.end ? range.end : brkEnd;
+          if (clippedEnd <= clippedStart) {
+            return null;
+          }
+          return {
+            id: brk.id,
+            start: clippedStart.toISOString(),
+            end: clippedEnd.toISOString(),
+          };
+        })
+        .filter((value): value is BreakSegment => value !== null);
+
+      segments.push({
+        id: `${segment.id}::${index}`,
+        dayKey,
+        category: segment.category,
+        start: range.start,
+        end: range.end,
+        durationMinutes: durationMinutesValue,
+        breaks: relevantBreaks,
+        original: segment,
+      });
+    });
+  });
+
+  return segments;
+}
+
+export function hasOverlap(day: DayReviewRecord): boolean {
+  const segments = buildTimelineSegments(day);
+  const grouped = new Map<string, TimelineSegment[]>();
+
+  segments.forEach((segment) => {
+    const list = grouped.get(segment.dayKey) ?? [];
+    list.push(segment);
+    grouped.set(segment.dayKey, list);
+  });
+
+  for (const list of grouped.values()) {
+    list.sort((a, b) => a.start.getTime() - b.start.getTime());
+    for (let i = 1; i < list.length; i += 1) {
+      const prev = list[i - 1];
+      const current = list[i];
+      if (current.start.getTime() < prev.end.getTime() - 60000) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+function ensureDayRecord(dataset: ReviewDataset, key: string): DayReviewRecord {
+  let record = dataset.days.find((day) => day.date === key);
+  if (!record) {
+    record = {
+      date: key,
+      scheduled: [],
+      actual: [],
+      reviewed: false,
+    };
+    dataset.days.push(record);
+    dataset.days.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  }
+  return record;
+}
+
+export function addShiftAtTimestamp(
+  dataset: ReviewDataset,
+  timestamp: Date,
+  durationMinutes: number,
+): ShiftSegment | null {
+  const dayKey = toDateKey(startOfDay(timestamp));
+  const day = ensureDayRecord(dataset, dayKey);
+  const id = `shift-${Math.random().toString(36).slice(2, 9)}`;
+  const startIso = formatLocalDateTime(timestamp);
+  const endIso = formatLocalDateTime(addMinutesToDate(timestamp, durationMinutes));
+  const shift: ShiftSegment = {
+    id,
+    category: "work",
+    start: startIso,
+    end: endIso,
+    breaks: [],
+  };
+  day.actual = [...day.actual, shift].sort(
+    (a, b) => parseDateTime(a.start).getTime() - parseDateTime(b.start).getTime(),
+  );
+  return shift;
+}
+
+export function updateShiftTimes(
+  dataset: ReviewDataset,
+  segmentId: string,
+  options: { start?: Date; end?: Date },
+): boolean {
+  for (const day of dataset.days) {
+    const segment = day.actual.find((item) => item.id === segmentId);
+    if (!segment) {
+      continue;
+    }
+    if (options.start) {
+      segment.start = formatLocalDateTime(options.start);
+    }
+    if (options.end) {
+      segment.end = formatLocalDateTime(options.end);
+    }
+    return true;
+  }
+  return false;
+}
+
+export function removeShift(dataset: ReviewDataset, segmentId: string): boolean {
+  let removed = false;
+  dataset.days = dataset.days.map((day) => {
+    if (removed) {
+      return day;
+    }
+    const filtered = day.actual.filter((segment) => segment.id !== segmentId);
+    if (filtered.length !== day.actual.length) {
+      removed = true;
+    }
+    return {
+      ...day,
+      actual: filtered,
+    };
+  });
+  return removed;
+}
+
+export function toggleBreakForSegment(
+  segment: ShiftSegment,
+  timestamp: Date,
+  defaultBreakMinutes: number,
+): BreakSegment[] {
+  const shiftStart = parseDateTime(segment.start);
+  const shiftEnd = parseDateTime(segment.end);
+  const existing = segment.breaks.find((brk) => {
+    const start = parseDateTime(brk.start);
+    const end = parseDateTime(brk.end);
+    return timestamp >= start && timestamp <= end;
+  });
+  if (existing) {
+    return segment.breaks.filter((brk) => brk.id !== existing.id);
+  }
+
+  const breakStart = timestamp < shiftStart ? shiftStart : timestamp;
+  const desiredEnd = addMinutesToDate(timestamp, defaultBreakMinutes);
+  const breakEnd = desiredEnd > shiftEnd ? shiftEnd : desiredEnd;
+  if (breakEnd <= breakStart) {
+    return segment.breaks;
+  }
+
+  const newBreak: BreakSegment = {
+    id: `break-${Math.random().toString(36).slice(2, 8)}`,
+    start: formatLocalDateTime(breakStart),
+    end: formatLocalDateTime(breakEnd),
+  };
+
+  return [...segment.breaks, newBreak].sort(
+    (a, b) => parseDateTime(a.start).getTime() - parseDateTime(b.start).getTime(),
+  );
+}
+
+export function weekForDateGrouped(dataset: ReviewDataset, cursorDate: Date): DayReviewRecord[] {
+  return weekForDate(dataset, cursorDate);
+}
+
