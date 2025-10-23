@@ -641,7 +641,7 @@ function DaySegment({
       )}
       <span style={{ fontWeight: 600 }}>{durationLabel}</span>
       {segment.original.label && <span>{segment.original.label}</span>}
-      {segment.breaks.map((pause: BreakSegment, index) => {
+      {segment.breaks.map((pause: BreakSegment, index: number) => {
         const totalSpan = Math.max(minutesBetween(segment.start, segment.end), 1);
         const pauseStart = minutesBetween(segment.start, parseDateTime(pause.start));
         const pauseEnd = minutesBetween(segment.start, parseDateTime(pause.end));
