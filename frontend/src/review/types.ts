@@ -10,7 +10,6 @@ export interface ShiftType {
   id: string;
   name: string;
   durationMinutes: number;
-  allowCrossMidnight: boolean;
   defaultBreaks: BreakTemplate[];
   color: string;
 }
@@ -30,6 +29,7 @@ export interface ShiftInstance {
   originalDurationMinutes: number;
   breaks: ShiftBreakInstance[];
   edited: boolean;
+  startDateISO: string;
 }
 
 export interface ShiftPlacementRequest {
@@ -49,6 +49,9 @@ export interface ShiftSegment {
   startMinute: number;
   endMinute: number;
   isContinuation: boolean;
+  absoluteDayIndex: number;
+  absoluteStart: number;
+  absoluteEnd: number;
 }
 
 export interface TimelineSelection {

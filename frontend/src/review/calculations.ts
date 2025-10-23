@@ -2,6 +2,13 @@ import { ShiftInstance, ShiftSegment, ShiftBreakInstance, ShiftType, ShiftPlacem
 
 const MINUTES_PER_DAY = 24 * 60;
 
+export function cloneDataset<T>(dataset: T): T {
+  if (typeof structuredClone === "function") {
+    return structuredClone(dataset);
+  }
+  return JSON.parse(JSON.stringify(dataset));
+}
+
 export function minutesToHm(minutes: number): string {
   const normalized = ((minutes % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
   const hours = Math.floor(normalized / 60);
@@ -55,6 +62,9 @@ export function computeSegments(shift: ShiftInstance): ShiftSegment[] {
       startMinute: segmentStart - dayStart,
       endMinute: segmentEnd - dayStart,
       isContinuation: absoluteDay !== firstDay,
+      absoluteDayIndex: absoluteDay,
+      absoluteStart: segmentStart,
+      absoluteEnd: segmentEnd,
     });
   }
 
@@ -75,6 +85,41 @@ export function sanitizeBreaks(shift: ShiftInstance): ShiftBreakInstance[] {
   return shift.breaks.filter(
     (brk) => brk.offsetMinutes >= 0 && brk.offsetMinutes + brk.durationMinutes <= shift.durationMinutes,
   );
+}
+
+function generateBreakId(templateId: string) {
+  return `${templateId}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+export function ensureDefaultBreaks(shift: ShiftInstance, type: ShiftType): ShiftInstance {
+  const sanitizedBreaks = sanitizeBreaks(shift);
+  const requiredTemplates = type.defaultBreaks.filter(
+    (tpl) => tpl.offsetMinutes >= 0 && tpl.offsetMinutes + tpl.durationMinutes <= shift.durationMinutes,
+  );
+  const additions = requiredTemplates
+    .filter(
+      (tpl) =>
+        !sanitizedBreaks.some(
+          (brk) => brk.offsetMinutes === tpl.offsetMinutes && brk.durationMinutes === tpl.durationMinutes,
+        ),
+    )
+    .map((tpl) => ({
+      id: generateBreakId(tpl.id),
+      offsetMinutes: tpl.offsetMinutes,
+      durationMinutes: tpl.durationMinutes,
+    }));
+
+  if (additions.length === 0 && sanitizedBreaks.length === shift.breaks.length) {
+    return shift;
+  }
+
+  return {
+    ...shift,
+    breaks: sanitizeBreaks({
+      ...shift,
+      breaks: [...sanitizedBreaks, ...additions],
+    }),
+  };
 }
 
 export function projectBreaksToAbsolute(shift: ShiftInstance, breakInstance: ShiftBreakInstance) {
@@ -99,10 +144,6 @@ export function createShiftInstance(
   const startDayDelta = Math.floor(snappedStart / MINUTES_PER_DAY);
   const startDayIndex = (placement.startDay + startDayDelta + 7) % 7 as DayIndex;
 
-  if (!type.allowCrossMidnight && normalizedStart + type.durationMinutes > MINUTES_PER_DAY) {
-    return new Error("Schichttyp erlaubt kein Überschreiten von Mitternacht.");
-  }
-
   return {
     id,
     shiftTypeId: type.id,
@@ -112,6 +153,7 @@ export function createShiftInstance(
     originalDurationMinutes: type.durationMinutes,
     breaks: instantiateBreaks(type),
     edited: false,
+    startDateISO: "",
   };
 }
 
@@ -147,6 +189,12 @@ export function moveShiftStart(
   };
 }
 
+function isoDateToTimestamp(iso: string, minute: number): number {
+  const [year, month, day] = iso.split("-").map(Number);
+  const base = new Date(year, month - 1, day).getTime();
+  return base + minute * 60000;
+}
+
 export function findOverlap(
   shifts: ShiftInstance[],
   candidate: {
@@ -154,19 +202,40 @@ export function findOverlap(
     startDay: DayIndex;
     startMinute: number;
     durationMinutes: number;
+    startDateISO?: string;
   },
 ): ShiftConflict | null {
-  const candidateStart = computeAbsoluteMinutes(candidate.startDay, candidate.startMinute);
-  const candidateEnd = candidateStart + candidate.durationMinutes;
+  const candidateStartMs = candidate.startDateISO
+    ? isoDateToTimestamp(candidate.startDateISO, candidate.startMinute)
+    : null;
+  const candidateEndMs = candidateStartMs !== null ? candidateStartMs + candidate.durationMinutes * 60000 : null;
+  const candidateStartMinutes = computeAbsoluteMinutes(candidate.startDay, candidate.startMinute);
+  const candidateEndMinutes = candidateStartMinutes + candidate.durationMinutes;
 
   for (const shift of shifts) {
     if (candidate.id && shift.id === candidate.id) {
       continue;
     }
 
+    const shiftHasDate = Boolean(shift.startDateISO);
     const { start, end } = computeShiftRange(shift);
-    const overlapStart = Math.max(start, candidateStart);
-    const overlapEnd = Math.min(end, candidateEnd);
+
+    if (candidateStartMs !== null && shiftHasDate) {
+      const shiftStartMs = isoDateToTimestamp(shift.startDateISO, shift.startMinute);
+      const shiftEndMs = shiftStartMs + shift.durationMinutes * 60000;
+      const overlapMs = Math.min(candidateEndMs!, shiftEndMs) - Math.max(candidateStartMs, shiftStartMs);
+      if (overlapMs >= 60000) {
+        return {
+          conflictingShiftId: shift.id,
+          conflictingStartMinutes: start,
+          conflictingEndMinutes: end,
+        };
+      }
+      continue;
+    }
+
+    const overlapStart = Math.max(start, candidateStartMinutes);
+    const overlapEnd = Math.min(end, candidateEndMinutes);
 
     if (overlapEnd - overlapStart >= 1) {
       return {
