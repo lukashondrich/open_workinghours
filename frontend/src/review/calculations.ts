@@ -309,6 +309,17 @@ export function defaultShiftColors(): string[] {
 /* Review prototype helpers                                                   */
 /* -------------------------------------------------------------------------- */
 
+export interface TimelineSegment {
+  id: string;
+  dayKey: string;
+  category: ShiftCategory;
+  start: Date;
+  end: Date;
+  durationMinutes: number;
+  breaks: BreakSegment[];
+  original: ShiftSegment;
+}
+
 export interface DayTotals {
   scheduledMinutes: number;
   actualMinutes: number;
@@ -620,4 +631,3 @@ export function toggleBreakForSegment(
 export function weekForDateGrouped(dataset: ReviewDataset, cursorDate: Date): DayReviewRecord[] {
   return weekForDate(dataset, cursorDate);
 }
-
