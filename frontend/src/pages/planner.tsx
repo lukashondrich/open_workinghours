@@ -396,9 +396,22 @@ interface ShiftTypeCardProps {
   onSelect: (id: string) => void;
   onToggleExpand: (id: string) => void;
   onUpdate: (type: ShiftType) => void;
+  onTouchDragStart: (id: string) => void;
+  isTouchDragging: boolean;
+  isCompact: boolean;
 }
 
-function ShiftTypeCard({ type, selected, expanded, onSelect, onToggleExpand, onUpdate }: ShiftTypeCardProps) {
+function ShiftTypeCard({
+  type,
+  selected,
+  expanded,
+  onSelect,
+  onToggleExpand,
+  onUpdate,
+  onTouchDragStart,
+  isTouchDragging,
+  isCompact,
+}: ShiftTypeCardProps) {
   const [name, setName] = useState(type.name);
   const [durationHours, setDurationHours] = useState(Math.floor(type.durationMinutes / 60));
   const [durationMinutes, setDurationMinutes] = useState(type.durationMinutes % 60);
@@ -507,6 +520,7 @@ function ShiftTypeCard({ type, selected, expanded, onSelect, onToggleExpand, onU
         background: "#fff",
         overflow: "hidden",
         width: "100%",
+        boxShadow: isTouchDragging ? `0 0 0 3px ${color}40` : "none",
       }}
     >
       <div
@@ -521,6 +535,13 @@ function ShiftTypeCard({ type, selected, expanded, onSelect, onToggleExpand, onU
         }}
         draggable
         onDragStart={handleDragStart}
+        onPointerDown={(event) => {
+          if (isCompact && event.pointerType === "touch") {
+            event.preventDefault();
+            onSelect(type.id);
+            onTouchDragStart(type.id);
+          }
+        }}
         style={{
           display: "flex",
           alignItems: "center",
@@ -528,6 +549,7 @@ function ShiftTypeCard({ type, selected, expanded, onSelect, onToggleExpand, onU
           padding: "0.75rem 1rem",
           background: selected ? `${color}20` : "#fdfdfd",
           cursor: "pointer",
+          touchAction: "manipulation",
         }}
       >
         <div style={{ display: "flex", flexDirection: "column" }}>
@@ -649,6 +671,9 @@ function ShiftPalette({
   onUpdate,
   onCreate,
   nextColor,
+  onTouchDragStart,
+  touchDragTypeId,
+  isCompact,
 }: {
   shiftTypes: ShiftType[];
   selectedId: string | null;
@@ -656,6 +681,9 @@ function ShiftPalette({
   onUpdate: (type: ShiftType) => void;
   onCreate: (type: ShiftType) => void;
   nextColor: string;
+  onTouchDragStart: (id: string) => void;
+  touchDragTypeId: string | null;
+  isCompact: boolean;
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -667,6 +695,11 @@ function ShiftPalette({
   return (
     <div style={{ display: "grid", gap: "0.75rem", width: "100%" }}>
       <h3>Schichtpalette</h3>
+      {isCompact && touchDragTypeId && (
+        <p style={{ margin: 0, fontSize: "0.85rem", color: "#444" }}>
+          Schichttyp ausgewählt – tippen Sie im Kalender, um ihn zu platzieren.
+        </p>
+      )}
       {shiftTypes.length === 0 && <p>Noch keine Dienstarten definiert.</p>}
       {shiftTypes.map((type) => (
         <ShiftTypeCard
@@ -677,6 +710,9 @@ function ShiftPalette({
           onSelect={onSelect}
           onToggleExpand={handleToggleExpand}
           onUpdate={onUpdate}
+          onTouchDragStart={onTouchDragStart}
+          isTouchDragging={touchDragTypeId === type.id}
+          isCompact={isCompact}
         />
       ))}
       <div
@@ -871,6 +907,9 @@ interface DayColumnProps {
   dragPreview: DragPreviewState | null;
   selectedShiftId: string | null;
   onDeleteShift: (id: string) => void;
+  touchDragTypeId: string | null;
+  onTouchDrop: (typeId: string, day: DayIndex, minute: number, date: Date) => void;
+  onCancelTouchDrag: () => void;
 }
 
 function DayColumn({
@@ -889,6 +928,9 @@ function DayColumn({
   dragPreview,
   selectedShiftId,
   onDeleteShift,
+  touchDragTypeId,
+  onTouchDrop,
+  onCancelTouchDrag,
 }: DayColumnProps) {
   type DragState =
     | {
@@ -1158,12 +1200,24 @@ function DayColumn({
   );
 
   const handleClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (touchDragTypeId) {
+      return;
+    }
     if (suppressClickRef.current) {
       suppressClickRef.current = false;
       return;
     }
     const minute = snapToGrid(Math.round(minuteFromClientY(event.clientY)));
     onAddByClick(day, minute, dayDate);
+  };
+
+  const handlePointerUpSurface = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (touchDragTypeId && event.pointerType === "touch") {
+      suppressClickRef.current = true;
+      const minute = snapToGrid(Math.round(minuteFromClientY(event.clientY)));
+      onTouchDrop(touchDragTypeId, day, minute, dayDate);
+      onCancelTouchDrag();
+    }
   };
 
   const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
@@ -1201,6 +1255,7 @@ function DayColumn({
         onClick={handleClick}
         onDragOver={handleDragOver}
         onDrop={handleDrop}
+        onPointerUp={handlePointerUpSurface}
         ref={columnRef}
         role="presentation"
       >
@@ -1410,67 +1465,6 @@ function DayColumn({
   );
 }
 
-function OverviewTotals({ shifts }: { shifts: ShiftInstance[] }) {
-  const totals = useMemo(() => {
-    const scheduledPerDay: Record<DayIndex, number> = {
-      0: 0,
-      1: 0,
-      2: 0,
-      3: 0,
-      4: 0,
-      5: 0,
-      6: 0,
-    };
-    const overtimePerDay: Record<DayIndex, number> = {
-      0: 0,
-      1: 0,
-      2: 0,
-      3: 0,
-      4: 0,
-      5: 0,
-      6: 0,
-    };
-
-    shifts.forEach((shift) => {
-      let remainingScheduled = shift.originalDurationMinutes;
-      computeSegments(shift).forEach((segment) => {
-        const duration = Math.max(0, segment.endMinute - segment.startMinute);
-        if (duration === 0) {
-          return;
-        }
-        const scheduledShare = Math.max(0, Math.min(duration, remainingScheduled));
-        const overtimeShare = Math.max(0, duration - scheduledShare);
-        remainingScheduled -= scheduledShare;
-        scheduledPerDay[segment.day] += scheduledShare;
-        if (overtimeShare > 0) {
-          overtimePerDay[segment.day] += overtimeShare;
-        }
-      });
-    });
-
-    return { scheduledPerDay, overtimePerDay };
-  }, [shifts]);
-
-  return (
-    <div style={{ display: "flex", gap: "1rem" }}>
-      {DAY_ORDER.map((day) => {
-        const label = DAY_LABELS[day];
-        const scheduled = totals.scheduledPerDay[day];
-        const overtime = totals.overtimePerDay[day];
-        return (
-          <div key={day} style={{ flex: 1 }}>
-            <strong>{label}</strong>
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-              <span>Geplant: {formatDuration(scheduled)}</span>
-              <span>Überzeit: {formatDuration(overtime)}</span>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 interface MonthViewProps {
   monthDate: Date;
   shifts: ShiftInstance[];
@@ -1580,6 +1574,7 @@ export default function PlannerPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [dragPreview, setDragPreview] = useState<DragPreviewState | null>(null);
   const isCompact = useMediaQuery("(max-width: 920px)");
+  const [touchDragTypeId, setTouchDragTypeId] = useState<string | null>(null);
   const [currentWeekStart, setCurrentWeekStart] = useState<Date>(() => startOfISOWeek(new Date()));
   const [currentMonthDate, setCurrentMonthDate] = useState<Date>(() => startOfMonth(new Date()));
 
@@ -1872,6 +1867,37 @@ export default function PlannerPage() {
     setSelectedShiftId(null);
   }, []);
 
+  const handleTouchDragStart = useCallback(
+    (shiftTypeId: string) => {
+      setSelectedShiftTypeId(shiftTypeId);
+      setTouchDragTypeId((prev) => (prev === shiftTypeId ? null : shiftTypeId));
+    },
+    [],
+  );
+
+  const handleTouchDragCancel = useCallback(() => {
+    setTouchDragTypeId(null);
+  }, []);
+
+  const handleTouchDrop = useCallback(
+    (shiftTypeId: string, day: DayIndex, minute: number, date: Date) => {
+      handleAddShift(day, minute, { shiftTypeId, date });
+      setTouchDragTypeId(null);
+    },
+    [handleAddShift],
+  );
+
+  useEffect(() => {
+    if (!touchDragTypeId) {
+      return;
+    }
+    const cancel = () => setTouchDragTypeId(null);
+    window.addEventListener("pointercancel", cancel);
+    return () => {
+      window.removeEventListener("pointercancel", cancel);
+    };
+  }, [touchDragTypeId]);
+
   const handleSelectDateFromMonth = useCallback((date: Date) => {
     const normalized = startOfDay(date);
     setCurrentWeekStart(startOfISOWeek(normalized));
@@ -1996,6 +2022,9 @@ export default function PlannerPage() {
           }
           onCreate={handleCreateShiftType}
           nextColor={nextColor}
+          onTouchDragStart={handleTouchDragStart}
+          touchDragTypeId={touchDragTypeId}
+          isCompact={isCompact}
         />
       </section>
 
@@ -2049,6 +2078,9 @@ export default function PlannerPage() {
                 dragPreview={dragPreview}
                 selectedShiftId={selectedShiftId}
                 onDeleteShift={handleDeleteShift}
+                touchDragTypeId={touchDragTypeId}
+                onTouchDrop={handleTouchDrop}
+                onCancelTouchDrag={handleTouchDragCancel}
               />
             ))}
           </div>
@@ -2074,6 +2106,9 @@ export default function PlannerPage() {
               dragPreview={dragPreview}
               selectedShiftId={selectedShiftId}
               onDeleteShift={handleDeleteShift}
+              touchDragTypeId={touchDragTypeId}
+              onTouchDrop={handleTouchDrop}
+              onCancelTouchDrag={handleTouchDragCancel}
             />
           </div>
         )}
@@ -2085,11 +2120,6 @@ export default function PlannerPage() {
               shiftTypes={shiftTypes}
               onSelectDate={handleSelectDateFromMonth}
             />
-          </div>
-        )}
-        {viewMode !== "month" && (
-          <div style={{ marginTop: "1rem" }}>
-            <OverviewTotals shifts={weekShifts} />
           </div>
         )}
       </section>
