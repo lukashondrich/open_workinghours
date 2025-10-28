@@ -2,8 +2,9 @@
 
 import { useCalendar } from "./calendar-context"
 import { Button } from "./ui/button"
-import { ChevronLeft, ChevronRight, Calendar, Grid3x3 } from "lucide-react"
+import { ChevronLeft, ChevronRight, Calendar, Grid3x3, MapPin } from "lucide-react"
 import { addWeeks, subWeeks, addMonths, subMonths, format } from "date-fns"
+import { cn } from "@/lib/utils"
 
 export function CalendarHeader() {
   const { state, dispatch } = useCalendar()
@@ -37,6 +38,10 @@ export function CalendarHeader() {
     dispatch({ type: "SET_VIEW", view: state.view === "week" ? "month" : "week" })
   }
 
+  const toggleReviewMode = () => {
+    dispatch({ type: "TOGGLE_REVIEW_MODE" })
+  }
+
   const currentDate = state.view === "week" ? state.currentWeekStart : state.currentMonth
 
   return (
@@ -57,19 +62,31 @@ export function CalendarHeader() {
           </div>
         </div>
 
-        <Button size="sm" variant="outline" onClick={toggleView}>
-          {state.view === "week" ? (
-            <>
-              <Grid3x3 className="h-4 w-4 mr-2" />
-              Month
-            </>
-          ) : (
-            <>
-              <Calendar className="h-4 w-4 mr-2" />
-              Week
-            </>
-          )}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant={state.reviewMode ? "default" : "outline"}
+            onClick={toggleReviewMode}
+            className={cn(state.reviewMode && "bg-orange-500 hover:bg-orange-600")}
+          >
+            <MapPin className="h-4 w-4 mr-2" />
+            {state.reviewMode ? "Exit Review" : "Review"}
+          </Button>
+
+          <Button size="sm" variant="outline" onClick={toggleView}>
+            {state.view === "week" ? (
+              <>
+                <Grid3x3 className="h-4 w-4 mr-2" />
+                Month
+              </>
+            ) : (
+              <>
+                <Calendar className="h-4 w-4 mr-2" />
+                Week
+              </>
+            )}
+          </Button>
+        </div>
       </div>
     </div>
   )

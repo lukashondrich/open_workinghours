@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import { format, startOfWeek, subDays } from "date-fns"
 import { useCalendar } from "./calendar-context"
 import {
@@ -9,26 +11,28 @@ import {
   getColorClasses,
   calculateShiftDisplay,
   getInstancesForDate,
-  formatDuration, // Import formatDuration utility
+  formatDuration,
+  timeToMinutes,
 } from "@/lib/calendar-utils"
-import type { ShiftInstance } from "@/lib/types"
-import { ChevronUp, ChevronDown, Trash2 } from "lucide-react"
+import type { ShiftInstance, TrackingRecord } from "@/lib/types"
+import { ChevronUp, ChevronDown, Trash2, Check, AlertTriangle } from "lucide-react"
 import { Button } from "./ui/button"
 import { cn } from "@/lib/utils"
+import { useState } from "react"
 
 export function WeekView() {
   const { state, dispatch } = useCalendar()
   const weekStart = startOfWeek(state.currentWeekStart, { weekStartsOn: 1 })
   const weekDays = getWeekDays(weekStart)
   const hourMarkers = generateHourMarkers()
+  const [draggingTrackingId, setDraggingTrackingId] = useState<string | null>(null)
+  const [dragType, setDragType] = useState<"start" | "end" | null>(null)
 
   const getChronologicalZIndex = (instance: ShiftInstance, allInstances: ShiftInstance[]) => {
-    // Parse date and time to create a comparable timestamp
     const [year, month, day] = instance.date.split("-").map(Number)
     const [hours, minutes] = instance.startTime.split(":").map(Number)
     const timestamp = new Date(year, month - 1, day, hours, minutes).getTime()
 
-    // Sort all instances by their timestamp and find this instance's position
     const sortedByTime = [...allInstances].sort((a, b) => {
       const [yearA, monthA, dayA] = a.date.split("-").map(Number)
       const [hoursA, minutesA] = a.startTime.split(":").map(Number)
@@ -67,6 +71,46 @@ export function WeekView() {
     }
   }
 
+  const handleTrackingDragStart = (trackingId: string, type: "start" | "end") => {
+    setDraggingTrackingId(trackingId)
+    setDragType(type)
+  }
+
+  const handleTrackingDrag = (e: React.MouseEvent, dateKey: string) => {
+    if (!draggingTrackingId || !dragType) return
+
+    const rect = e.currentTarget.getBoundingClientRect()
+    const y = e.clientY - rect.top
+    const totalMinutes = Math.round((y / 40) * 60)
+    const roundedMinutes = Math.floor(totalMinutes / 5) * 5
+    const hours = Math.floor(roundedMinutes / 60)
+    const minutes = roundedMinutes % 60
+    const timeString = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`
+
+    if (dragType === "start") {
+      dispatch({ type: "UPDATE_TRACKING_START", id: draggingTrackingId, startTime: timeString })
+    } else {
+      dispatch({ type: "UPDATE_TRACKING_END", id: draggingTrackingId, endTime: timeString })
+    }
+  }
+
+  const handleTrackingDragEnd = () => {
+    setDraggingTrackingId(null)
+    setDragType(null)
+  }
+
+  const getTrackingForDate = (dateKey: string): TrackingRecord[] => {
+    return Object.values(state.trackingRecords).filter((record) => record.date === dateKey)
+  }
+
+  const isDayConfirmed = (dateKey: string): boolean => {
+    return state.confirmedDates.has(dateKey)
+  }
+
+  const hasDayTracking = (dateKey: string): boolean => {
+    return getTrackingForDate(dateKey).length > 0
+  }
+
   return (
     <div className="flex-1 overflow-auto">
       <div className="min-w-[640px] relative">
@@ -74,15 +118,34 @@ export function WeekView() {
         <div className="sticky top-0 z-50 bg-background border-b border-border shadow-md">
           <div className="flex">
             <div className="w-12 flex-shrink-0 border-r border-border bg-muted sticky left-0 z-[60]" />
-            {weekDays.map((day) => (
-              <div
-                key={day.toISOString()}
-                className="flex-1 min-w-0 py-1 px-1 text-center border-r border-border last:border-r-0 bg-background"
-              >
-                <div className="text-[10px] text-muted-foreground font-medium">{format(day, "EEE")}</div>
-                <div className="text-xs font-semibold">{format(day, "d")}</div>
-              </div>
-            ))}
+            {weekDays.map((day) => {
+              const dateKey = formatDateKey(day)
+              const isConfirmed = isDayConfirmed(dateKey)
+              const hasTracking = hasDayTracking(dateKey)
+              const needsReview = state.reviewMode && hasTracking && !isConfirmed
+
+              return (
+                <div
+                  key={day.toISOString()}
+                  className={cn(
+                    "flex-1 min-w-0 py-1 px-1 text-center border-r border-border last:border-r-0 relative",
+                    isConfirmed && "bg-green-50 dark:bg-green-950/20",
+                  )}
+                >
+                  <div className="text-[10px] text-muted-foreground font-medium">{format(day, "EEE")}</div>
+                  <div className="text-xs font-semibold">{format(day, "d")}</div>
+                  {state.reviewMode && (
+                    <div className="absolute top-0.5 right-0.5">
+                      {isConfirmed ? (
+                        <Check className="h-3 w-3 text-green-600" />
+                      ) : needsReview ? (
+                        <AlertTriangle className="h-3 w-3 text-orange-500" />
+                      ) : null}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
           </div>
         </div>
 
@@ -102,6 +165,8 @@ export function WeekView() {
                   dayIndex > 0 ? formatDateKey(weekDays[dayIndex - 1]) : formatDateKey(subDays(day, 1))
 
                 const { current, fromPrevious } = getInstancesForDate(state.instances, dateKey, previousDateKey)
+                const trackingRecords = getTrackingForDate(dateKey)
+                const isConfirmed = isDayConfirmed(dateKey)
 
                 return (
                   <div
@@ -109,11 +174,14 @@ export function WeekView() {
                     className={cn(
                       "flex-1 min-w-0 h-[40px] border-r border-border last:border-r-0 relative cursor-pointer transition-colors",
                       isArmed && "hover:bg-accent/50",
+                      isConfirmed && "bg-green-50/50 dark:bg-green-950/10",
                     )}
                     onClick={(e) => {
                       e.stopPropagation()
                       handleDayClick(day)
                     }}
+                    onMouseMove={(e) => handleTrackingDrag(e, dateKey)}
+                    onMouseUp={handleTrackingDragEnd}
                   >
                     {/* Render shifts that start on this day */}
                     {hourIndex === 0 &&
@@ -121,7 +189,6 @@ export function WeekView() {
                         const colors = getColorClasses(instance.color)
                         const isEditing = state.editingInstanceId === instance.id
                         const display = calculateShiftDisplay(instance.startTime, instance.duration, dateKey)
-
                         const zIndex = getChronologicalZIndex(instance, Object.values(state.instances))
 
                         return (
@@ -141,7 +208,9 @@ export function WeekView() {
                             }}
                             onClick={(e) => {
                               e.stopPropagation()
-                              dispatch({ type: "START_EDIT_INSTANCE", id: instance.id })
+                              if (!state.reviewMode) {
+                                dispatch({ type: "START_EDIT_INSTANCE", id: instance.id })
+                              }
                             }}
                           >
                             <div className="text-xs font-medium truncate">{instance.name}</div>
@@ -149,7 +218,7 @@ export function WeekView() {
                               {instance.startTime} ({formatDuration(instance.duration)})
                             </div>
 
-                            {isEditing && (
+                            {isEditing && !state.reviewMode && (
                               <div className="absolute top-1 right-1 flex gap-1 bg-background/90 rounded p-0.5">
                                 <Button
                                   size="icon"
@@ -216,6 +285,68 @@ export function WeekView() {
                             }}
                           >
                             <div className="text-xs font-medium truncate">{instance.name} (cont.)</div>
+                          </div>
+                        )
+                      })}
+
+                    {state.reviewMode &&
+                      hourIndex === 0 &&
+                      trackingRecords.map((tracking: TrackingRecord) => {
+                        const display = calculateShiftDisplay(tracking.startTime, tracking.duration, dateKey)
+                        const endMinutes = timeToMinutes(tracking.startTime) + tracking.duration
+
+                        return (
+                          <div key={tracking.id} className="absolute left-2 right-auto w-1 z-[100]">
+                            {/* Red tracking line */}
+                            <div
+                              className="absolute w-1 bg-red-500/70 hover:bg-red-500"
+                              style={{
+                                top: `${display.topOffset}px`,
+                                height: `${display.height}px`,
+                              }}
+                            />
+
+                            {/* Draggable start handle */}
+                            <div
+                              className="absolute w-3 h-3 bg-red-600 rounded-full cursor-ns-resize -translate-x-1 hover:scale-125 transition-transform"
+                              style={{
+                                top: `${display.topOffset - 6}px`,
+                              }}
+                              onMouseDown={(e) => {
+                                e.stopPropagation()
+                                handleTrackingDragStart(tracking.id, "start")
+                              }}
+                            />
+
+                            {/* Draggable end handle */}
+                            <div
+                              className="absolute w-3 h-3 bg-red-600 rounded-full cursor-ns-resize -translate-x-1 hover:scale-125 transition-transform"
+                              style={{
+                                top: `${display.topOffset + display.height - 6}px`,
+                              }}
+                              onMouseDown={(e) => {
+                                e.stopPropagation()
+                                handleTrackingDragStart(tracking.id, "end")
+                              }}
+                            />
+
+                            {/* Confirm button */}
+                            {!isConfirmed && (
+                              <Button
+                                size="icon"
+                                variant="default"
+                                className="absolute w-6 h-6 bg-green-600 hover:bg-green-700 left-4"
+                                style={{
+                                  top: `${display.topOffset + display.height + 4}px`,
+                                }}
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  dispatch({ type: "CONFIRM_DAY", date: dateKey })
+                                }}
+                              >
+                                <Check className="h-4 w-4" />
+                              </Button>
+                            )}
                           </div>
                         )
                       })}

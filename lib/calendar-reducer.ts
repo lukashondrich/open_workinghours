@@ -1,4 +1,5 @@
 import type { CalendarState, CalendarAction, ShiftInstance } from "./types"
+import { generateSimulatedTracking } from "./calendar-utils"
 
 export const initialState: CalendarState = {
   mode: "viewing",
@@ -11,6 +12,9 @@ export const initialState: CalendarState = {
   currentWeekStart: new Date(),
   currentMonth: new Date(),
   templatePanelOpen: false,
+  reviewMode: false,
+  trackingRecords: {},
+  confirmedDates: new Set(),
 }
 
 export function calendarReducer(state: CalendarState, action: CalendarAction): CalendarState {
@@ -202,6 +206,82 @@ export function calendarReducer(state: CalendarState, action: CalendarAction): C
         ...state,
         templatePanelOpen: !state.templatePanelOpen,
       }
+
+    case "TOGGLE_REVIEW_MODE": {
+      if (!state.reviewMode) {
+        // Entering review mode - generate simulated tracking data
+        const trackingRecords = generateSimulatedTracking(state.instances)
+        return {
+          ...state,
+          reviewMode: true,
+          trackingRecords,
+          mode: "viewing",
+          armedTemplateId: null,
+        }
+      } else {
+        // Exiting review mode
+        return {
+          ...state,
+          reviewMode: false,
+        }
+      }
+    }
+
+    case "UPDATE_TRACKING_START": {
+      const record = state.trackingRecords[action.id]
+      if (!record) return state
+
+      const [oldHours, oldMinutes] = record.startTime.split(":").map(Number)
+      const [newHours, newMinutes] = action.startTime.split(":").map(Number)
+
+      const oldStartMinutes = oldHours * 60 + oldMinutes
+      const newStartMinutes = newHours * 60 + newMinutes
+      const timeDiff = newStartMinutes - oldStartMinutes
+
+      return {
+        ...state,
+        trackingRecords: {
+          ...state.trackingRecords,
+          [action.id]: {
+            ...record,
+            startTime: action.startTime,
+            duration: record.duration - timeDiff,
+          },
+        },
+      }
+    }
+
+    case "UPDATE_TRACKING_END": {
+      const record = state.trackingRecords[action.id]
+      if (!record) return state
+
+      const [startHours, startMinutes] = record.startTime.split(":").map(Number)
+      const [endHours, endMinutes] = action.endTime.split(":").map(Number)
+
+      const startTotalMinutes = startHours * 60 + startMinutes
+      const endTotalMinutes = endHours * 60 + endMinutes
+      const newDuration = endTotalMinutes - startTotalMinutes
+
+      return {
+        ...state,
+        trackingRecords: {
+          ...state.trackingRecords,
+          [action.id]: {
+            ...record,
+            duration: Math.max(5, newDuration),
+          },
+        },
+      }
+    }
+
+    case "CONFIRM_DAY": {
+      const newConfirmedDates = new Set(state.confirmedDates)
+      newConfirmedDates.add(action.date)
+      return {
+        ...state,
+        confirmedDates: newConfirmedDates,
+      }
+    }
 
     default:
       return state

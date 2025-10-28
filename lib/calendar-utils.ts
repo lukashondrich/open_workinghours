@@ -92,6 +92,72 @@ export function formatDuration(minutes: number): string {
   }
 }
 
+export function generateSimulatedTracking(instances: Record<string, any>): Record<string, any> {
+  const trackingRecords: Record<string, any> = {}
+
+  // Group instances by date
+  const instancesByDate: Record<string, any[]> = {}
+  Object.values(instances).forEach((instance: any) => {
+    if (!instancesByDate[instance.date]) {
+      instancesByDate[instance.date] = []
+    }
+    instancesByDate[instance.date].push(instance)
+  })
+
+  // Generate tracking for each date with shifts
+  Object.entries(instancesByDate).forEach(([date, dateInstances]) => {
+    dateInstances.forEach((instance: any) => {
+      const variance = Math.random()
+      let startTime = instance.startTime
+      let duration = instance.duration
+
+      // Add realistic variance
+      if (variance < 0.3) {
+        // 30% chance: arrived 5-20 minutes late
+        const lateMinutes = Math.floor(Math.random() * 4) * 5 + 5 // 5, 10, 15, or 20
+        const [hours, minutes] = startTime.split(":").map(Number)
+        const totalMinutes = hours * 60 + minutes + lateMinutes
+        const newHours = Math.floor(totalMinutes / 60) % 24
+        const newMinutes = totalMinutes % 60
+        startTime = `${String(newHours).padStart(2, "0")}:${String(newMinutes).padStart(2, "0")}`
+        duration = Math.max(5, duration - lateMinutes)
+      } else if (variance < 0.5) {
+        // 20% chance: left 5-15 minutes early
+        const earlyMinutes = Math.floor(Math.random() * 3) * 5 + 5 // 5, 10, or 15
+        duration = Math.max(5, duration - earlyMinutes)
+      } else if (variance < 0.65) {
+        // 15% chance: worked 10-30 minutes extra
+        const extraMinutes = Math.floor(Math.random() * 5) * 5 + 10 // 10, 15, 20, 25, or 30
+        duration = duration + extraMinutes
+      }
+      // 35% chance: exact match (no change)
+
+      const trackingId = `tracking-${date}-${instance.id}`
+      trackingRecords[trackingId] = {
+        id: trackingId,
+        date,
+        startTime,
+        duration,
+      }
+    })
+  })
+
+  // 10% chance to add unexpected tracking (day without scheduled shift)
+  if (Math.random() < 0.1 && Object.keys(instancesByDate).length > 0) {
+    const dates = Object.keys(instancesByDate)
+    const randomDate = dates[Math.floor(Math.random() * dates.length)]
+    const unexpectedId = `tracking-unexpected-${randomDate}`
+    trackingRecords[unexpectedId] = {
+      id: unexpectedId,
+      date: randomDate,
+      startTime: "14:00",
+      duration: 120, // 2 hours
+    }
+  }
+
+  return trackingRecords
+}
+
 export function generateHourMarkers(): string[] {
   const hours: string[] = []
   for (let hour = 0; hour < 24; hour++) {

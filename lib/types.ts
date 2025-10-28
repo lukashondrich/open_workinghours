@@ -18,6 +18,13 @@ export interface ShiftInstance {
   name: string
 }
 
+export interface TrackingRecord {
+  id: string
+  date: string // YYYY-MM-DD format
+  startTime: string // HH:mm format
+  duration: number // in minutes
+}
+
 export type AppMode = "viewing" | "template-editing" | "shift-armed" | "instance-editing"
 
 export type CalendarView = "week" | "month"
@@ -33,6 +40,9 @@ export interface CalendarState {
   currentWeekStart: Date
   currentMonth: Date
   templatePanelOpen: boolean
+  reviewMode: boolean
+  trackingRecords: Record<string, TrackingRecord>
+  confirmedDates: Set<string> // dates that have been reviewed and confirmed
 }
 
 export type CalendarAction =
@@ -55,3 +65,7 @@ export type CalendarAction =
   | { type: "SET_WEEK"; date: Date }
   | { type: "SET_MONTH"; date: Date }
   | { type: "TOGGLE_TEMPLATE_PANEL" }
+  | { type: "TOGGLE_REVIEW_MODE" }
+  | { type: "UPDATE_TRACKING_START"; id: string; startTime: string }
+  | { type: "UPDATE_TRACKING_END"; id: string; endTime: string }
+  | { type: "CONFIRM_DAY"; date: string }

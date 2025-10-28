@@ -4,6 +4,7 @@ import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInte
 import { useCalendar } from "./calendar-context"
 import { formatDateKey, getColorClasses, timeToMinutes } from "@/lib/calendar-utils"
 import { cn } from "@/lib/utils"
+import { Check, AlertTriangle } from "lucide-react"
 
 export function MonthView() {
   const { state, dispatch } = useCalendar()
@@ -26,7 +27,7 @@ export function MonthView() {
       if (instance.date !== previousDateKey) return false
       const startMinutes = timeToMinutes(instance.startTime)
       const endMinutes = startMinutes + instance.duration
-      return endMinutes > 24 * 60 // Spans past midnight into this day
+      return endMinutes > 24 * 60
     })
 
     return [...currentDayShifts, ...previousDaySpanningShifts]
@@ -43,6 +44,14 @@ export function MonthView() {
         })
       }
     }
+  }
+
+  const isDayConfirmed = (dateKey: string): boolean => {
+    return state.confirmedDates.has(dateKey)
+  }
+
+  const hasDayTracking = (dateKey: string): boolean => {
+    return Object.values(state.trackingRecords).some((record) => record.date === dateKey)
   }
 
   return (
@@ -65,23 +74,40 @@ export function MonthView() {
         {/* Calendar grid */}
         <div className="grid grid-cols-7 gap-1">
           {days.map((day) => {
+            const dateKey = formatDateKey(day)
             const instances = getInstancesForDate(day)
             const isCurrentMonth = isSameMonth(day, monthStart)
             const isArmed = state.mode === "shift-armed"
             const uniqueColors = [...new Set(instances.map((i) => i.color))]
 
+            const isConfirmed = isDayConfirmed(dateKey)
+            const hasTracking = hasDayTracking(dateKey)
+            const needsReview = state.reviewMode && hasTracking && !isConfirmed
+
             return (
               <div
                 key={day.toISOString()}
                 className={cn(
-                  "aspect-square border border-border rounded-lg p-2 cursor-pointer transition-colors",
+                  "aspect-square border border-border rounded-lg p-2 cursor-pointer transition-colors relative",
                   !isCurrentMonth && "opacity-40",
                   isCurrentMonth && "bg-card hover:bg-accent",
                   isArmed && isCurrentMonth && "hover:ring-2 hover:ring-primary",
+                  isConfirmed && "bg-green-50 dark:bg-green-950/20",
                 )}
                 onClick={() => handleDayClick(day)}
               >
                 <div className="text-sm font-medium mb-1">{format(day, "d")}</div>
+
+                {state.reviewMode && (
+                  <div className="absolute top-1 right-1">
+                    {isConfirmed ? (
+                      <Check className="h-4 w-4 text-green-600" />
+                    ) : needsReview ? (
+                      <AlertTriangle className="h-4 w-4 text-orange-500" />
+                    ) : null}
+                  </div>
+                )}
+
                 {instances.length > 0 && (
                   <div className="flex flex-wrap gap-1">
                     {uniqueColors.map((color) => {
