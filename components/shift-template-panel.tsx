@@ -18,6 +18,9 @@ export function ShiftTemplatePanel() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [formData, setFormData] = useState<Partial<ShiftTemplate>>({})
 
+  const [durationHours, setDurationHours] = useState(0)
+  const [durationMinutes, setDurationMinutes] = useState(0)
+
   const handleCreateTemplate = () => {
     const newTemplate: ShiftTemplate = {
       id: `template-${Date.now()}`,
@@ -29,23 +32,30 @@ export function ShiftTemplatePanel() {
     dispatch({ type: "ADD_TEMPLATE", template: newTemplate })
     setEditingId(newTemplate.id)
     setFormData(newTemplate)
+    setDurationHours(8)
+    setDurationMinutes(0)
   }
 
   const handleSaveTemplate = () => {
     if (editingId && formData) {
+      const totalDuration = durationHours * 60 + durationMinutes
       dispatch({
         type: "UPDATE_TEMPLATE",
         id: editingId,
-        template: formData,
+        template: { ...formData, duration: totalDuration },
       })
       setEditingId(null)
       setFormData({})
+      setDurationHours(0)
+      setDurationMinutes(0)
     }
   }
 
   const handleCancelEdit = () => {
     setEditingId(null)
     setFormData({})
+    setDurationHours(0)
+    setDurationMinutes(0)
   }
 
   const handleArmShift = (templateId: string) => {
@@ -117,17 +127,32 @@ export function ShiftTemplatePanel() {
                         />
                       </div>
                       <div>
-                        <Label htmlFor="duration" className="text-xs">
-                          Duration (min)
-                        </Label>
-                        <Input
-                          id="duration"
-                          type="number"
-                          step="5"
-                          value={formData.duration || ""}
-                          onChange={(e) => setFormData({ ...formData, duration: Number.parseInt(e.target.value) || 0 })}
-                          className="h-8"
-                        />
+                        <Label className="text-xs">Duration</Label>
+                        <div className="flex gap-1">
+                          <div className="flex-1">
+                            <Input
+                              type="number"
+                              min="0"
+                              max="23"
+                              value={durationHours}
+                              onChange={(e) => setDurationHours(Number.parseInt(e.target.value) || 0)}
+                              className="h-8"
+                              placeholder="h"
+                            />
+                          </div>
+                          <div className="flex-1">
+                            <Input
+                              type="number"
+                              min="0"
+                              max="55"
+                              step="5"
+                              value={durationMinutes}
+                              onChange={(e) => setDurationMinutes(Number.parseInt(e.target.value) || 0)}
+                              className="h-8"
+                              placeholder="m"
+                            />
+                          </div>
+                        </div>
                       </div>
                     </div>
 
@@ -175,13 +200,15 @@ export function ShiftTemplatePanel() {
                         onClick={() => {
                           setEditingId(template.id)
                           setFormData(template)
+                          setDurationHours(Math.floor(template.duration / 60))
+                          setDurationMinutes(template.duration % 60)
                         }}
                       >
                         <Edit2 className="h-3 w-3" />
                       </Button>
                     </div>
                     <div className="text-xs text-muted-foreground mb-3">
-                      {template.startTime} • {template.duration} min
+                      {template.startTime} • {Math.floor(template.duration / 60)}h {template.duration % 60}m
                     </div>
                     <Button
                       size="sm"

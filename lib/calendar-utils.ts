@@ -79,6 +79,19 @@ export function timeToMinutes(time: string): number {
   return hours * 60 + minutes
 }
 
+export function formatDuration(minutes: number): string {
+  const hours = Math.floor(minutes / 60)
+  const mins = minutes % 60
+
+  if (hours === 0) {
+    return `${mins}min`
+  } else if (mins === 0) {
+    return `${hours}h`
+  } else {
+    return `${hours}h ${mins}min`
+  }
+}
+
 export function generateHourMarkers(): string[] {
   const hours: string[] = []
   for (let hour = 0; hour < 24; hour++) {

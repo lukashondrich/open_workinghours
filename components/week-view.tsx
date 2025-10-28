@@ -9,6 +9,7 @@ import {
   getColorClasses,
   calculateShiftDisplay,
   getInstancesForDate,
+  formatDuration, // Import formatDuration utility
 } from "@/lib/calendar-utils"
 import type { ShiftInstance } from "@/lib/types"
 import { ChevronUp, ChevronDown, Trash2 } from "lucide-react"
@@ -20,6 +21,29 @@ export function WeekView() {
   const weekStart = startOfWeek(state.currentWeekStart, { weekStartsOn: 1 })
   const weekDays = getWeekDays(weekStart)
   const hourMarkers = generateHourMarkers()
+
+  const getChronologicalZIndex = (instance: ShiftInstance, allInstances: ShiftInstance[]) => {
+    // Parse date and time to create a comparable timestamp
+    const [year, month, day] = instance.date.split("-").map(Number)
+    const [hours, minutes] = instance.startTime.split(":").map(Number)
+    const timestamp = new Date(year, month - 1, day, hours, minutes).getTime()
+
+    // Sort all instances by their timestamp and find this instance's position
+    const sortedByTime = [...allInstances].sort((a, b) => {
+      const [yearA, monthA, dayA] = a.date.split("-").map(Number)
+      const [hoursA, minutesA] = a.startTime.split(":").map(Number)
+      const timestampA = new Date(yearA, monthA - 1, dayA, hoursA, minutesA).getTime()
+
+      const [yearB, monthB, dayB] = b.date.split("-").map(Number)
+      const [hoursB, minutesB] = b.startTime.split(":").map(Number)
+      const timestampB = new Date(yearB, monthB - 1, dayB, hoursB, minutesB).getTime()
+
+      return timestampA - timestampB
+    })
+
+    const position = sortedByTime.findIndex((inst) => inst.id === instance.id)
+    return 10 + position
+  }
 
   const handleCellClick = (date: Date, hour: number, minute: number) => {
     if (state.mode === "shift-armed" && state.armedTemplateId) {
@@ -98,11 +122,13 @@ export function WeekView() {
                         const isEditing = state.editingInstanceId === instance.id
                         const display = calculateShiftDisplay(instance.startTime, instance.duration, dateKey)
 
+                        const zIndex = getChronologicalZIndex(instance, Object.values(state.instances))
+
                         return (
                           <div
                             key={instance.id}
                             className={cn(
-                              "absolute inset-x-0 border-l-2 px-1 overflow-hidden z-10",
+                              "absolute inset-x-0 border-l-2 px-1 overflow-hidden",
                               colors.bg,
                               colors.border,
                               colors.text,
@@ -111,6 +137,7 @@ export function WeekView() {
                             style={{
                               top: `${display.topOffset}px`,
                               height: `${display.height}px`,
+                              zIndex: zIndex,
                             }}
                             onClick={(e) => {
                               e.stopPropagation()
@@ -119,7 +146,7 @@ export function WeekView() {
                           >
                             <div className="text-xs font-medium truncate">{instance.name}</div>
                             <div className="text-xs opacity-75">
-                              {instance.startTime} ({instance.duration}m)
+                              {instance.startTime} ({formatDuration(instance.duration)})
                             </div>
 
                             {isEditing && (
@@ -171,11 +198,13 @@ export function WeekView() {
 
                         if (!display.spansNextDay) return null
 
+                        const zIndex = getChronologicalZIndex(instance, Object.values(state.instances))
+
                         return (
                           <div
                             key={`${instance.id}-continuation`}
                             className={cn(
-                              "absolute inset-x-0 border-l-2 px-1 overflow-hidden z-10 opacity-75",
+                              "absolute inset-x-0 border-l-2 px-1 overflow-hidden opacity-75",
                               colors.bg,
                               colors.border,
                               colors.text,
@@ -183,6 +212,7 @@ export function WeekView() {
                             style={{
                               top: 0,
                               height: `${display.nextDayHeight}px`,
+                              zIndex: zIndex,
                             }}
                           >
                             <div className="text-xs font-medium truncate">{instance.name} (cont.)</div>
