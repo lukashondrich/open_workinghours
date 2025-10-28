@@ -52,7 +52,7 @@ export function CalendarHeader() {
           <Button size="sm" variant="outline" onClick={handleToday}>
             Today
           </Button>
-          <div className="ml-4 font-semibold">
+          <div className="ml-2 font-semibold">
             {state.view === "week" ? format(currentDate, "MMM d, yyyy") : format(currentDate, "MMMM yyyy")}
           </div>
         </div>
