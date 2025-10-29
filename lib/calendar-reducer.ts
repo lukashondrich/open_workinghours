@@ -15,6 +15,7 @@ export const initialState: CalendarState = {
   reviewMode: false,
   trackingRecords: {},
   confirmedDates: new Set(),
+  editingTrackingId: null,
 }
 
 export function calendarReducer(state: CalendarState, action: CalendarAction): CalendarState {
@@ -280,8 +281,21 @@ export function calendarReducer(state: CalendarState, action: CalendarAction): C
       return {
         ...state,
         confirmedDates: newConfirmedDates,
+        editingTrackingId: null,
       }
     }
+
+    case "START_EDIT_TRACKING":
+      return {
+        ...state,
+        editingTrackingId: action.id,
+      }
+
+    case "CANCEL_EDIT_TRACKING":
+      return {
+        ...state,
+        editingTrackingId: null,
+      }
 
     default:
       return state

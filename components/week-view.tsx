@@ -12,13 +12,12 @@ import {
   calculateShiftDisplay,
   getInstancesForDate,
   formatDuration,
-  timeToMinutes,
 } from "@/lib/calendar-utils"
 import type { ShiftInstance, TrackingRecord } from "@/lib/types"
-import { ChevronUp, ChevronDown, Trash2, Check, AlertTriangle } from "lucide-react"
+import { ChevronUp, ChevronDown, Trash2, Check, AlertTriangle, Edit2, X } from "lucide-react"
 import { Button } from "./ui/button"
 import { cn } from "@/lib/utils"
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
 
 export function WeekView() {
   const { state, dispatch } = useCalendar()
@@ -27,6 +26,54 @@ export function WeekView() {
   const hourMarkers = generateHourMarkers()
   const [draggingTrackingId, setDraggingTrackingId] = useState<string | null>(null)
   const [dragType, setDragType] = useState<"start" | "end" | null>(null)
+  const [dragDateKey, setDragDateKey] = useState<string | null>(null)
+  const dayColumnRefs = useRef<{ [key: string]: HTMLDivElement | null }>({})
+
+  useEffect(() => {
+    if (!draggingTrackingId || !dragType || !dragDateKey) return
+
+    const handleGlobalMove = (e: MouseEvent | TouchEvent) => {
+      e.preventDefault()
+
+      const columnRef = dayColumnRefs.current[dragDateKey]
+      if (!columnRef) return
+
+      const rect = columnRef.getBoundingClientRect()
+      const clientY = "touches" in e ? e.touches[0].clientY : e.clientY
+      const y = clientY - rect.top
+
+      // Calculate time based on position in full day column (24 hours * 40px = 960px)
+      const totalMinutes = Math.max(0, Math.min(1440, Math.round((y / 960) * 1440)))
+      const roundedMinutes = Math.floor(totalMinutes / 5) * 5
+      const hours = Math.floor(roundedMinutes / 60)
+      const minutes = roundedMinutes % 60
+      const timeString = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`
+
+      if (dragType === "start") {
+        dispatch({ type: "UPDATE_TRACKING_START", id: draggingTrackingId, startTime: timeString })
+      } else {
+        dispatch({ type: "UPDATE_TRACKING_END", id: draggingTrackingId, endTime: timeString })
+      }
+    }
+
+    const handleGlobalEnd = () => {
+      setDraggingTrackingId(null)
+      setDragType(null)
+      setDragDateKey(null)
+    }
+
+    document.addEventListener("mousemove", handleGlobalMove)
+    document.addEventListener("mouseup", handleGlobalEnd)
+    document.addEventListener("touchmove", handleGlobalMove, { passive: false })
+    document.addEventListener("touchend", handleGlobalEnd)
+
+    return () => {
+      document.removeEventListener("mousemove", handleGlobalMove)
+      document.removeEventListener("mouseup", handleGlobalEnd)
+      document.removeEventListener("touchmove", handleGlobalMove)
+      document.removeEventListener("touchend", handleGlobalEnd)
+    }
+  }, [draggingTrackingId, dragType, dragDateKey, dispatch])
 
   const getChronologicalZIndex = (instance: ShiftInstance, allInstances: ShiftInstance[]) => {
     const [year, month, day] = instance.date.split("-").map(Number)
@@ -39,7 +86,7 @@ export function WeekView() {
       const timestampA = new Date(yearA, monthA - 1, dayA, hoursA, minutesA).getTime()
 
       const [yearB, monthB, dayB] = b.date.split("-").map(Number)
-      const [hoursB, minutesB] = b.startTime.split(":").map(Number)
+      const [hoursB, minutesB] = b.endTime.split(":").map(Number)
       const timestampB = new Date(yearB, monthB - 1, dayB, hoursB, minutesB).getTime()
 
       return timestampA - timestampB
@@ -71,32 +118,17 @@ export function WeekView() {
     }
   }
 
-  const handleTrackingDragStart = (trackingId: string, type: "start" | "end") => {
+  const handleTrackingDragStart = (
+    e: React.MouseEvent | React.TouchEvent,
+    trackingId: string,
+    type: "start" | "end",
+    dateKey: string,
+  ) => {
+    e.preventDefault()
+    e.stopPropagation()
     setDraggingTrackingId(trackingId)
     setDragType(type)
-  }
-
-  const handleTrackingDrag = (e: React.MouseEvent, dateKey: string) => {
-    if (!draggingTrackingId || !dragType) return
-
-    const rect = e.currentTarget.getBoundingClientRect()
-    const y = e.clientY - rect.top
-    const totalMinutes = Math.round((y / 40) * 60)
-    const roundedMinutes = Math.floor(totalMinutes / 5) * 5
-    const hours = Math.floor(roundedMinutes / 60)
-    const minutes = roundedMinutes % 60
-    const timeString = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`
-
-    if (dragType === "start") {
-      dispatch({ type: "UPDATE_TRACKING_START", id: draggingTrackingId, startTime: timeString })
-    } else {
-      dispatch({ type: "UPDATE_TRACKING_END", id: draggingTrackingId, endTime: timeString })
-    }
-  }
-
-  const handleTrackingDragEnd = () => {
-    setDraggingTrackingId(null)
-    setDragType(null)
+    setDragDateKey(dateKey)
   }
 
   const getTrackingForDate = (dateKey: string): TrackingRecord[] => {
@@ -171,6 +203,11 @@ export function WeekView() {
                 return (
                   <div
                     key={`${day.toISOString()}-${hour}`}
+                    ref={(el) => {
+                      if (hourIndex === 0) {
+                        dayColumnRefs.current[dateKey] = el
+                      }
+                    }}
                     className={cn(
                       "flex-1 min-w-0 h-[40px] border-r border-border last:border-r-0 relative cursor-pointer transition-colors",
                       isArmed && "hover:bg-accent/50",
@@ -180,8 +217,6 @@ export function WeekView() {
                       e.stopPropagation()
                       handleDayClick(day)
                     }}
-                    onMouseMove={(e) => handleTrackingDrag(e, dateKey)}
-                    onMouseUp={handleTrackingDragEnd}
                   >
                     {/* Render shifts that start on this day */}
                     {hourIndex === 0 &&
@@ -293,59 +328,130 @@ export function WeekView() {
                       hourIndex === 0 &&
                       trackingRecords.map((tracking: TrackingRecord) => {
                         const display = calculateShiftDisplay(tracking.startTime, tracking.duration, dateKey)
-                        const endMinutes = timeToMinutes(tracking.startTime) + tracking.duration
+                        const isEditing = state.editingTrackingId === tracking.id
 
                         return (
                           <div key={tracking.id} className="absolute left-2 right-auto w-1 z-[100]">
                             {/* Red tracking line */}
                             <div
-                              className="absolute w-1 bg-red-500/70 hover:bg-red-500"
+                              className="absolute w-1 bg-red-500/70"
                               style={{
                                 top: `${display.topOffset}px`,
                                 height: `${display.height}px`,
                               }}
                             />
 
-                            {/* Draggable start handle */}
-                            <div
-                              className="absolute w-3 h-3 bg-red-600 rounded-full cursor-ns-resize -translate-x-1 hover:scale-125 transition-transform"
-                              style={{
-                                top: `${display.topOffset - 6}px`,
-                              }}
-                              onMouseDown={(e) => {
-                                e.stopPropagation()
-                                handleTrackingDragStart(tracking.id, "start")
-                              }}
-                            />
+                            {!isEditing ? (
+                              /* Read-only mode - show edit button */
+                              <>
+                                <Button
+                                  size="icon"
+                                  variant="outline"
+                                  className="absolute w-6 h-6 bg-background left-4 shadow-md"
+                                  style={{
+                                    top: `${display.topOffset + display.height / 2 - 12}px`,
+                                  }}
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    dispatch({ type: "START_EDIT_TRACKING", id: tracking.id })
+                                  }}
+                                >
+                                  <Edit2 className="h-3 w-3" />
+                                </Button>
 
-                            {/* Draggable end handle */}
-                            <div
-                              className="absolute w-3 h-3 bg-red-600 rounded-full cursor-ns-resize -translate-x-1 hover:scale-125 transition-transform"
-                              style={{
-                                top: `${display.topOffset + display.height - 6}px`,
-                              }}
-                              onMouseDown={(e) => {
-                                e.stopPropagation()
-                                handleTrackingDragStart(tracking.id, "end")
-                              }}
-                            />
+                                {!isConfirmed && (
+                                  <Button
+                                    size="icon"
+                                    variant="default"
+                                    className="absolute w-6 h-6 bg-green-600 hover:bg-green-700 left-4"
+                                    style={{
+                                      top: `${display.topOffset + display.height + 4}px`,
+                                    }}
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      dispatch({ type: "CONFIRM_DAY", date: dateKey })
+                                    }}
+                                  >
+                                    <Check className="h-4 w-4" />
+                                  </Button>
+                                )}
+                              </>
+                            ) : (
+                              /* Edit mode - show large draggable zones */
+                              <>
+                                {/* Large draggable start zone with touch-action: none */}
+                                <div
+                                  className="absolute left-0 w-8 bg-red-600/20 border-2 border-red-600 rounded cursor-ns-resize hover:bg-red-600/40 transition-colors"
+                                  style={{
+                                    top: `${display.topOffset - 20}px`,
+                                    height: "40px",
+                                    touchAction: "none",
+                                  }}
+                                  onMouseDown={(e) => handleTrackingDragStart(e, tracking.id, "start", dateKey)}
+                                  onTouchStart={(e) => handleTrackingDragStart(e, tracking.id, "start", dateKey)}
+                                >
+                                  <div className="flex items-center justify-center h-full">
+                                    <div className="flex flex-col gap-0.5">
+                                      <div className="h-0.5 w-4 bg-red-600 rounded" />
+                                      <div className="h-0.5 w-4 bg-red-600 rounded" />
+                                      <div className="h-0.5 w-4 bg-red-600 rounded" />
+                                    </div>
+                                  </div>
+                                </div>
 
-                            {/* Confirm button */}
-                            {!isConfirmed && (
-                              <Button
-                                size="icon"
-                                variant="default"
-                                className="absolute w-6 h-6 bg-green-600 hover:bg-green-700 left-4"
-                                style={{
-                                  top: `${display.topOffset + display.height + 4}px`,
-                                }}
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  dispatch({ type: "CONFIRM_DAY", date: dateKey })
-                                }}
-                              >
-                                <Check className="h-4 w-4" />
-                              </Button>
+                                {/* Large draggable end zone with touch-action: none */}
+                                <div
+                                  className="absolute left-0 w-8 bg-red-600/20 border-2 border-red-600 rounded cursor-ns-resize hover:bg-red-600/40 transition-colors"
+                                  style={{
+                                    top: `${display.topOffset + display.height - 20}px`,
+                                    height: "40px",
+                                    touchAction: "none",
+                                  }}
+                                  onMouseDown={(e) => handleTrackingDragStart(e, tracking.id, "end", dateKey)}
+                                  onTouchStart={(e) => handleTrackingDragStart(e, tracking.id, "end", dateKey)}
+                                >
+                                  <div className="flex items-center justify-center h-full">
+                                    <div className="flex flex-col gap-0.5">
+                                      <div className="h-0.5 w-4 bg-red-600 rounded" />
+                                      <div className="h-0.5 w-4 bg-red-600 rounded" />
+                                      <div className="h-0.5 w-4 bg-red-600 rounded" />
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Action buttons in edit mode */}
+                                <div
+                                  className="absolute left-4 flex gap-1"
+                                  style={{
+                                    top: `${display.topOffset + display.height + 4}px`,
+                                  }}
+                                >
+                                  {!isConfirmed && (
+                                    <Button
+                                      size="icon"
+                                      variant="default"
+                                      className="w-6 h-6 bg-green-600 hover:bg-green-700"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        dispatch({ type: "CONFIRM_DAY", date: dateKey })
+                                      }}
+                                    >
+                                      <Check className="h-4 w-4" />
+                                    </Button>
+                                  )}
+                                  <Button
+                                    size="icon"
+                                    variant="outline"
+                                    className="w-6 h-6 bg-background"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      dispatch({ type: "CANCEL_EDIT_TRACKING" })
+                                    }}
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </>
                             )}
                           </div>
                         )

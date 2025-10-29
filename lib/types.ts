@@ -43,6 +43,7 @@ export interface CalendarState {
   reviewMode: boolean
   trackingRecords: Record<string, TrackingRecord>
   confirmedDates: Set<string> // dates that have been reviewed and confirmed
+  editingTrackingId: string | null // Add state to track which tracking record is being edited
 }
 
 export type CalendarAction =
@@ -69,3 +70,5 @@ export type CalendarAction =
   | { type: "UPDATE_TRACKING_START"; id: string; startTime: string }
   | { type: "UPDATE_TRACKING_END"; id: string; endTime: string }
   | { type: "CONFIRM_DAY"; date: string }
+  | { type: "START_EDIT_TRACKING"; id: string } // Add actions for tracking edit mode
+  | { type: "CANCEL_EDIT_TRACKING" }
