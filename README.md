@@ -1,59 +1,30 @@
-# Open Working Hours Prototype
+# Calendar app architectures
 
-Prototype stack for an anonymised physician working-hours reporting platform.
+*Automatically synced with your [v0.app](https://v0.app) deployments*
 
-## Services
+[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/lukashs-projects-44625406/v0-hospital-shift-calendar)
+[![Built with v0](https://img.shields.io/badge/Built%20with-v0.app-black?style=for-the-badge)](https://v0.app/chat/projects/XnqWvYGOaas)
 
-- **frontend** – Next.js React client for email verification and report submission.
-- **backend** – FastAPI service providing verification and reporting endpoints.
-- **postgres** – Primary data store.
+## Overview
 
-## Quick start
+This repository will stay in sync with your deployed chats on [v0.app](https://v0.app).
+Any changes you make to your deployed app will be automatically pushed to this repository from [v0.app](https://v0.app).
 
-1. Copy `.env` template and customise secrets:
+## Deployment
 
-   ```bash
-   cp backend/.env.example backend/.env
-   # edit backend/.env with strong secrets
-   ```
+Your project is live at:
 
-2. Add authorised hospital domains to `config/allowed_domains.txt` (one per line).
+**[https://vercel.com/lukashs-projects-44625406/v0-hospital-shift-calendar](https://vercel.com/lukashs-projects-44625406/v0-hospital-shift-calendar)**
 
-3. Launch the stack:
+## Build your app
 
-   ```bash
-   docker compose up --build
-   ```
+Continue building your app on:
 
-   - API available at <http://localhost:8000/docs>
-   - Frontend available at <http://localhost:3000> (`/dashboard` exposes aggregated analytics)
+**[https://v0.app/chat/projects/XnqWvYGOaas](https://v0.app/chat/projects/XnqWvYGOaas)**
 
-4. Verification flow (prototype):
+## How It Works
 
-   - Submit a hospital email. Backend stores only a hashed email and sends (or logs) a one-time code.
-   - Confirm the code to receive a long-lived affiliation token (stored in the browser).
-   - Use the token to submit reports (date, hours, role, optional notes). Notes are lightly scrubbed for obvious PII.
-
-## Backend configuration
-
-Environment variables (see `backend/.env.example`):
-
-- `DATABASE__URL` – SQLAlchemy DSN.
-- `SECURITY__SECRET_KEY` – 32+ char secret for JWT tokens.
-- `SECURITY__EMAIL_HASH_SECRET` – 32+ char secret for hashing emails/codes.
-- `ALLOWED_EMAIL_DOMAINS_FILE` – path to file with permitted hospital domains.
-- Optional SMTP settings under `EMAIL__*` to send real verification emails. Without SMTP, verification codes are logged to stdout.
-
-## Development notes
-
-- Database tables auto-create on application start (`app/database.py`). Add Alembic migrations before production use.
-- Reports now capture hospital domain, staff group (three bands), tatsächliche Stunden, Überstunden, Datum und optionale Hinweise – es werden keine personenbezogenen Felder wie E-Mail oder IP gespeichert.
-- Notes field has a simple regex scrubber; extend with NLP/PII detection for production.
-- `/analytics` provides hospital/staff-group level monthly aggregates with bootstrap CIs plus differential-privacy noise and automatic small-n suppression.
-
-## Next steps
-
-1. Add rate limiting (e.g. Redis) for `/verification/request`.
-2. Implement materialised views + dashboard consumption of aggregated data.
-3. Harden verification emails (signed links, throttling, HTML template).
-4. Complete DPIA & legal review before handling real data.
+1. Create and modify your project using [v0.app](https://v0.app)
+2. Deploy your chats from the v0 interface
+3. Changes are automatically pushed to this repository
+4. Vercel deploys the latest version from this repository
