@@ -14,9 +14,7 @@ import {
   YAxis,
   Legend as RechartsLegend,
 } from "recharts"
-
-const monthFormatter = new Intl.DateTimeFormat("de-DE", { month: "short", year: "numeric" })
-const numberFormatter = new Intl.NumberFormat("de-DE", { minimumFractionDigits: 0, maximumFractionDigits: 1 })
+import { useLocale, useTranslations } from "next-intl"
 
 export default function PublicDashboardPage() {
   const [data, setData] = useState<AnalyticsResponse | null>(null)
@@ -25,6 +23,17 @@ export default function PublicDashboardPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [tableOpen, setTableOpen] = useState(false)
+  const t = useTranslations('dashboard')
+  const locale = useLocale()
+  const monthFormatter = useMemo(
+    () => new Intl.DateTimeFormat(locale, { month: "short", year: "numeric" }),
+    [locale],
+  )
+  const numberFormatter = useMemo(
+    () => new Intl.NumberFormat(locale, { minimumFractionDigits: 0, maximumFractionDigits: 1 }),
+    [locale],
+  )
+  const fallbackError = t('error')
 
   useEffect(() => {
     let active = true
@@ -33,15 +42,14 @@ export default function PublicDashboardPage() {
       .then((response) => {
         if (active) {
           setData(response)
+          setError(null)
           const hospitals = Array.from(new Set(response.hospital_monthly.map((row) => row.hospital_domain))).sort()
-          if (!selectedHospital && hospitals.length) {
-            setSelectedHospital(hospitals[0])
-          }
+          setSelectedHospital((current) => current ?? hospitals[0] ?? null)
         }
       })
       .catch((err) => {
         if (active) {
-          setError(err instanceof Error ? err.message : "Could not load analytics")
+          setError(err instanceof Error ? err.message : fallbackError)
         }
       })
       .finally(() => {
@@ -52,7 +60,7 @@ export default function PublicDashboardPage() {
     return () => {
       active = false
     }
-  }, [selectedGroup])
+  }, [selectedGroup, fallbackError])
 
   const hospitalOptions = useMemo(() => {
     if (!data) return []
@@ -73,28 +81,49 @@ export default function PublicDashboardPage() {
     return data.hospital_monthly
       .filter((row) => row.hospital_domain === selectedHospital && !row.suppressed)
       .map((row) => {
-        const avgActual =
-          row.avgActualHours ?? row.average_actual_hours ?? row.total_actual_hours ?? 0
         const avgOvertime =
           row.avgOvertimeHours ?? row.average_overtime_hours ?? row.total_overtime_hours ?? 0
+        const avgActual =
+          row.avgActualHours ?? row.average_actual_hours ?? row.total_actual_hours ?? 0
+        const base = Math.max(avgActual - avgOvertime, 0)
+        const totalActual = avgActual > 0 ? avgActual : base + avgOvertime
         return {
           label: monthFormatter.format(new Date(row.month_start)),
-          avgActual,
+          avgActual: totalActual,
           avgOvertime,
-          base: Math.max(avgActual - avgOvertime, 0),
+          base,
         }
       })
-  }, [data, selectedHospital])
+  }, [data, selectedHospital, monthFormatter])
+
+  const filterLabels = {
+    all: t('filters.allGroups'),
+    group_a: t('filters.groupA'),
+    group_b: t('filters.groupB'),
+    group_c: t('filters.groupC'),
+  }
+
+  const chartLabels = {
+    base: t('chart.basePlan'),
+    overtime: t('chart.overtime'),
+    total: t('chart.totalActual'),
+  }
+
+  const tooltipLabels = {
+    totalActual: t('tooltip.totalActual'),
+    overtime: t('tooltip.overtime'),
+    overtimeNote: t('tooltip.overtimeNote'),
+    base: t('tooltip.base'),
+    explanation: t('tooltip.explanation'),
+  }
 
   return (
-    <main className="px-6 py-10">
+    <main className="px-6 py-16">
       <div className="mx-auto flex max-w-6xl flex-col gap-8">
-        <header className="space-y-2">
-          <p className="text-sm uppercase tracking-[0.2em] text-slate-500">Public dashboard</p>
-          <h1 className="text-3xl font-semibold text-slate-900">Aggregated working-hours analytics</h1>
-          <p className="text-slate-600">
-            We only publish de-identified, aggregated metrics. Small-n buckets are suppressed automatically.
-          </p>
+        <header className="space-y-3">
+          <p className="text-xs uppercase tracking-[0.3em] text-slate-400 font-medium">{t('label')}</p>
+          <h1 className="text-4xl font-light text-slate-900">{t('title')}</h1>
+          <p className="text-slate-500 font-light leading-relaxed">{t('description')}</p>
         </header>
 
         <div className="flex flex-wrap gap-4">
@@ -103,10 +132,10 @@ export default function PublicDashboardPage() {
             value={selectedGroup}
             onChange={(event) => setSelectedGroup(event.target.value as StaffGroup | "all")}
           >
-            <option value="all">Alle Gruppen</option>
-            <option value="group_a">Assistenz- & Fachärzt:innen</option>
-            <option value="group_b">Ober- & Chefärzt:innen</option>
-            <option value="group_c">Pflegepersonal</option>
+            <option value="all">{filterLabels.all}</option>
+            <option value="group_a">{filterLabels.group_a}</option>
+            <option value="group_b">{filterLabels.group_b}</option>
+            <option value="group_c">{filterLabels.group_c}</option>
           </select>
 
           <select
@@ -114,6 +143,7 @@ export default function PublicDashboardPage() {
             value={selectedHospital ?? ""}
             onChange={(event) => setSelectedHospital(event.target.value || null)}
           >
+            <option value="">{t('selectHospital')}</option>
             {hospitalOptions.map((hospital) => (
               <option key={hospital} value={hospital}>
                 {hospital}
@@ -122,19 +152,24 @@ export default function PublicDashboardPage() {
           </select>
         </div>
 
-        {loading && <p className="text-sm text-slate-500">Loading analytics…</p>}
+        {loading && <p className="text-sm text-slate-500">{t('loading')}</p>}
         {error && <p className="text-sm text-rose-600">{error}</p>}
 
         {data && (
           <section className="space-y-4">
             <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
               <h2 className="mb-4 text-lg font-semibold text-slate-900">
-                {selectedHospital || "Select a hospital"} · Verlauf
+                {selectedHospital || t('selectHospital')} {t('verlauf')}
               </h2>
               {hospitalSeries.length === 0 ? (
-                <p className="text-sm text-slate-500">No data available.</p>
+                <p className="text-sm text-slate-500">{t('noData')}</p>
               ) : (
-                <HospitalRechartsChart series={hospitalSeries} />
+                <HospitalRechartsChart
+                  series={hospitalSeries}
+                  chartLabels={chartLabels}
+                  tooltipLabels={tooltipLabels}
+                  numberFormatter={numberFormatter}
+                />
               )}
             </div>
 
@@ -144,16 +179,16 @@ export default function PublicDashboardPage() {
               onToggle={(event) => setTableOpen(event.currentTarget.open)}
             >
               <summary className="cursor-pointer select-none px-6 py-4 text-sm font-medium text-slate-900">
-                Reports per hospital
+                {t('reportsPerHospital')}
               </summary>
               <div className="max-h-[420px] overflow-auto px-6 pb-6 text-sm text-slate-600">
                 <table className="w-full">
                   <thead className="text-left text-xs uppercase text-slate-400">
                     <tr>
-                      <th className="pb-2">Hospital</th>
-                      <th className="pb-2">Reports</th>
-                      <th className="pb-2">Ø Hours</th>
-                      <th className="pb-2">Ø Overtime</th>
+                      <th className="pb-2">{t('table.hospital')}</th>
+                      <th className="pb-2">{t('table.reports')}</th>
+                      <th className="pb-2">{t('table.avgHours')}</th>
+                      <th className="pb-2">{t('table.avgOvertime')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -183,7 +218,36 @@ interface ChartPoint {
   base: number
 }
 
-function HospitalRechartsChart({ series }: { series: ChartPoint[] }) {
+interface ChartLabels {
+  base: string
+  overtime: string
+  total: string
+}
+
+interface TooltipLabels {
+  totalActual: string
+  overtime: string
+  overtimeNote: string
+  base: string
+  explanation: string
+}
+
+interface TooltipDatum {
+  dataKey?: string
+  value?: number
+}
+
+function HospitalRechartsChart({
+  series,
+  chartLabels,
+  tooltipLabels,
+  numberFormatter,
+}: {
+  series: ChartPoint[]
+  chartLabels: ChartLabels
+  tooltipLabels: TooltipLabels
+  numberFormatter: Intl.NumberFormat
+}) {
   return (
     <div className="w-full pr-4">
       <ResponsiveContainer width="100%" height={320}>
@@ -191,12 +255,12 @@ function HospitalRechartsChart({ series }: { series: ChartPoint[] }) {
           <CartesianGrid strokeDasharray="4 4" stroke="#e2e8f0" vertical={false} />
           <XAxis dataKey="label" tick={{ fontSize: 12 }} />
           <YAxis tick={{ fontSize: 12 }} width={48} />
-          <RechartsTooltip content={<ChartTooltip />} />
+          <RechartsTooltip content={<ChartTooltip numberFormatter={numberFormatter} labels={tooltipLabels} />} />
           <RechartsLegend
             payload={[
-              { value: "Basis (Plan/Normalstunden)", type: "square", color: "rgba(31,119,180,0.35)" },
-              { value: "Überstunden", type: "square", color: "rgba(214,39,40,0.4)" },
-              { value: "Summe tatsächliche Stunden", type: "line", color: "#1f77b4" },
+              { value: chartLabels.base, type: "square", color: "rgba(31,119,180,0.35)" },
+              { value: chartLabels.overtime, type: "square", color: "rgba(214,39,40,0.4)" },
+              { value: chartLabels.total, type: "line", color: "#1f77b4" },
             ]}
           />
           <Area
@@ -205,7 +269,7 @@ function HospitalRechartsChart({ series }: { series: ChartPoint[] }) {
             stackId="1"
             stroke="rgba(31,119,180,0.6)"
             fill="rgba(31,119,180,0.35)"
-            name="Basis"
+            name={chartLabels.base}
           />
           <Area
             type="monotone"
@@ -213,7 +277,7 @@ function HospitalRechartsChart({ series }: { series: ChartPoint[] }) {
             stackId="1"
             stroke="rgba(214,39,40,0.6)"
             fill="rgba(214,39,40,0.4)"
-            name="Überstunden"
+            name={chartLabels.overtime}
           />
           <Line
             type="monotone"
@@ -221,7 +285,7 @@ function HospitalRechartsChart({ series }: { series: ChartPoint[] }) {
             stroke="#1f77b4"
             strokeWidth={2}
             dot={{ r: 3 }}
-            name="Summe tatsächliche Stunden"
+            name={chartLabels.total}
           />
         </AreaChart>
       </ResponsiveContainer>
@@ -229,31 +293,42 @@ function HospitalRechartsChart({ series }: { series: ChartPoint[] }) {
   )
 }
 
-function ChartTooltip({ active, payload, label }: any) {
+interface CustomTooltipProps {
+  active?: boolean
+  payload?: TooltipDatum[]
+  label?: string
+  numberFormatter: Intl.NumberFormat
+  labels: TooltipLabels
+}
+
+function ChartTooltip({ active, payload, label, numberFormatter, labels }: CustomTooltipProps) {
   if (!active || !payload?.length) return null
-  const actual = payload.find((p: any) => p.dataKey === "avgActual")
-  const overtime = payload.find((p: any) => p.dataKey === "avgOvertime")
-  const base = payload.find((p: any) => p.dataKey === "base")
+  const actual = payload.find((p) => p.dataKey === "avgActual")
+  const overtime = payload.find((p) => p.dataKey === "avgOvertime")
+  const base = payload.find((p) => p.dataKey === "base")
+
+  // Calculate total actual hours as sum of base + overtime
+  const totalActual = (base?.value || 0) + (overtime?.value || 0)
+  const displayActual = actual?.value || totalActual
+
   return (
     <div className="rounded-lg border border-slate-200 bg-white/95 p-3 text-sm shadow">
       <p className="font-medium text-slate-900">{label}</p>
       <ul className="mt-2 space-y-1 text-slate-600">
         <li>
-          <span className="font-medium text-slate-900">Summe tatsächliche Stunden:</span>{" "}
-          {actual ? numberFormatter.format(actual.value) : "–"}h
+          <span className="font-medium text-slate-900">{labels.totalActual} </span>
+          {displayActual > 0 ? numberFormatter.format(displayActual) : "–"}h
         </li>
         <li>
-          <span className="font-medium text-slate-900">Überstunden:</span>{" "}
-          {overtime ? `+${numberFormatter.format(overtime.value)}h` : "–"} (Anteile über Planstunden)
+          <span className="font-medium text-slate-900">{labels.overtime} </span>
+          {overtime ? `+${numberFormatter.format(overtime.value)}h` : "–"} {labels.overtimeNote}
         </li>
         <li>
-          <span className="font-medium text-slate-900">Basis / Planstunden:</span>{" "}
+          <span className="font-medium text-slate-900">{labels.base} </span>
           {base ? numberFormatter.format(base.value) : "–"}h
         </li>
       </ul>
-      <p className="mt-2 text-xs text-slate-400">
-        Basis sind geplante Stunden, Überstunden liegen darüber. Summe = Basis + Überstunden.
-      </p>
+      <p className="mt-2 text-xs text-slate-400">{labels.explanation}</p>
     </div>
   )
 }

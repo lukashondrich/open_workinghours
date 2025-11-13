@@ -56,12 +56,14 @@ export function calendarReducer(state: CalendarState, action: CalendarAction): C
         },
       }
 
-    case "DELETE_TEMPLATE":
-      const { [action.id]: _, ...remainingTemplates } = state.templates
+    case "DELETE_TEMPLATE": {
+      const remainingTemplates = { ...state.templates }
+      delete remainingTemplates[action.id]
       return {
         ...state,
         templates: remainingTemplates,
       }
+    }
 
     case "ARM_SHIFT":
       return {
@@ -136,14 +138,16 @@ export function calendarReducer(state: CalendarState, action: CalendarAction): C
       }
     }
 
-    case "DELETE_INSTANCE":
-      const { [action.id]: __, ...remainingInstances } = state.instances
+    case "DELETE_INSTANCE": {
+      const remainingInstances = { ...state.instances }
+      delete remainingInstances[action.id]
       return {
         ...state,
         instances: remainingInstances,
         mode: "viewing",
         editingInstanceId: null,
       }
+    }
 
     case "START_EDIT_TEMPLATE":
       return {

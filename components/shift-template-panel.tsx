@@ -10,6 +10,7 @@ import { Card } from "./ui/card"
 import { Plus, Edit2, Check, X } from "lucide-react"
 import { getColorClasses } from "@/lib/calendar-utils"
 import { cn } from "@/lib/utils"
+import { useTranslations } from "next-intl"
 
 const SHIFT_COLORS: ShiftColor[] = ["blue", "green", "amber", "rose", "purple", "cyan"]
 
@@ -20,11 +21,12 @@ export function ShiftTemplatePanel() {
 
   const [durationHours, setDurationHours] = useState(0)
   const [durationMinutes, setDurationMinutes] = useState(0)
+  const t = useTranslations('calendar.shiftTemplates')
 
   const handleCreateTemplate = () => {
     const newTemplate: ShiftTemplate = {
       id: `template-${Date.now()}`,
-      name: "New Shift",
+      name: t('defaultName'),
       duration: 480, // 8 hours default
       startTime: "08:00",
       color: "blue",
@@ -78,17 +80,17 @@ export function ShiftTemplatePanel() {
     >
       <div className="flex flex-col h-full">
         <div className="p-4 border-b border-border flex items-center justify-between">
-          <h3 className="font-semibold">Shift Templates</h3>
+          <h3 className="font-semibold">{t('title')}</h3>
           <Button size="sm" onClick={handleCreateTemplate}>
             <Plus className="h-4 w-4 mr-1" />
-            New
+            {t('new')}
           </Button>
         </div>
 
         <div className="flex-1 overflow-auto p-4 space-y-3">
           {templates.length === 0 && (
             <p className="text-sm text-muted-foreground text-center py-8">
-              No shift templates yet. Create one to get started.
+              {t('empty')}
             </p>
           )}
 
@@ -103,7 +105,7 @@ export function ShiftTemplatePanel() {
                   <div className="space-y-3">
                     <div>
                       <Label htmlFor="name" className="text-xs">
-                        Name
+                        {t('fields.name')}
                       </Label>
                       <Input
                         id="name"
@@ -116,7 +118,7 @@ export function ShiftTemplatePanel() {
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <Label htmlFor="startTime" className="text-xs">
-                          Start Time
+                          {t('fields.startTime')}
                         </Label>
                         <Input
                           id="startTime"
@@ -127,7 +129,7 @@ export function ShiftTemplatePanel() {
                         />
                       </div>
                       <div>
-                        <Label className="text-xs">Duration</Label>
+                        <Label className="text-xs">{t('fields.duration')}</Label>
                         <div className="flex gap-1">
                           <div className="flex-1">
                             <Input
@@ -157,7 +159,7 @@ export function ShiftTemplatePanel() {
                     </div>
 
                     <div>
-                      <Label className="text-xs">Color</Label>
+                      <Label className="text-xs">{t('fields.color')}</Label>
                       <div className="flex gap-2 mt-1">
                         {SHIFT_COLORS.map((color) => {
                           const colorClasses = getColorClasses(color)
@@ -179,7 +181,7 @@ export function ShiftTemplatePanel() {
                     <div className="flex gap-2">
                       <Button size="sm" onClick={handleSaveTemplate} className="flex-1">
                         <Check className="h-4 w-4 mr-1" />
-                        Save
+                        {t('buttons.save')}
                       </Button>
                       <Button size="sm" variant="outline" onClick={handleCancelEdit}>
                         <X className="h-4 w-4" />
@@ -216,7 +218,7 @@ export function ShiftTemplatePanel() {
                       className="w-full"
                       onClick={() => handleArmShift(template.id)}
                     >
-                      {isArmed ? "Armed" : "Arm Shift"}
+                      {isArmed ? t('buttons.armed') : t('buttons.arm')}
                     </Button>
                   </div>
                 )}

@@ -1,0 +1,190 @@
+{
+  "navigation": {
+    "home": "Startseite",
+    "about": "Über uns",
+    "verify": "Verifizieren",
+    "dataIngestion": "Datenerfassung",
+    "dashboard": "Dashboard"
+  },
+  "home": {
+    "title": "open working hours",
+    "subtitle": "Eine Open-Source-Initiative zur Erfassung, Validierung und Aggregierung tatsächlicher Arbeitszeiten im Gesundheitswesen, mit vollständiger Anonymität und Datenschutz für das Personal.",
+    "cards": {
+      "verify": {
+        "title": "Verifizieren",
+        "subtitle": "E-Mail-Verifizierung öffnen"
+      },
+      "dataIngestion": {
+        "title": "Datenerfassung",
+        "subtitle": "Datenerfassung öffnen"
+      },
+      "dashboard": {
+        "title": "Dashboard",
+        "subtitle": "Öffentliches Dashboard öffnen"
+      }
+    }
+  },
+  "about": {
+    "problem": {
+      "title": "Das Problem",
+      "intro": "Krankenhauspersonal arbeitet lange und intensive Schichten. Geplante Schichten entsprechen selten der Realität: Notfälle verlängern die Arbeitszeit, Übergaben dauern länger und administrative Tools erfassen diese Abweichungen oft nicht.",
+      "withoutData": "Ohne zuverlässige Arbeitszeitdaten:",
+      "issues": {
+        "fatigue": "Das Personal erfährt unbemerkte Überstunden und Erschöpfung.",
+        "compliance": "Institutionen kämpfen mit Compliance, Berichterstattung und Personalplanung.",
+        "research": "Der Forschung zu Arbeitsbelastung und Wohlbefinden fehlen solide Beweise.",
+        "patients": "Patienten sind einem erhöhten Risiko von Komplikationen ausgesetzt, wenn überarbeitetes Personal erschöpft ist oder Personalstände nicht korrekt abgebildet werden."
+      },
+      "conclusion": "Es gibt derzeit kein standardisiertes, datenschutzbewusstes System zur Überprüfung tatsächlicher Arbeitszeiten in klinischen Umgebungen."
+    },
+    "solution": {
+      "title": "Die Lösung",
+      "intro": "openworkinghours bietet eine offene, überprüfbare Möglichkeit, tatsächliche Arbeitszeiten zu erfassen und zu überprüfen.",
+      "steps": {
+        "verification": "Verifizierung",
+        "verificationDesc": "Bestätigung der beruflichen Identität.",
+        "shiftEntry": "Schichteintrag",
+        "shiftEntryDesc": "Das Personal protokolliert seine geplanten Schichten über eine mobile Oberfläche.",
+        "tracking": "Tracking",
+        "trackingDesc": "Optional: datenschutzfreundliche Standort- und Aktivitätsdaten schätzen die tatsächliche Anwesenheit.",
+        "review": "Überprüfung & Bestätigung",
+        "reviewDesc": "Das Personal überprüft und korrigiert die erfassten Zeiten vor der Übermittlung."
+      },
+      "result": "Das Ergebnis: ein vertrauenswürdiger Datensatz, der echte Arbeitsmuster widerspiegelt; er ist im Besitz des Personals und wird von diesem überprüft."
+    },
+    "howItWorks": {
+      "title": "Wie es funktioniert",
+      "intro": "Entwickelt für Flexibilität und Transparenz:",
+      "features": {
+        "architecture": "Modulare Webarchitektur mit offenen Technologien (React, TUI Calendar, moderne APIs).",
+        "mobile": "Entwickelt für mobile Nutzung in klinischen Kontexten.",
+        "privacy": "Datenschutz und Anonymität von Grund auf: Alle Tracking- und Überprüfungsvorgänge erfolgen lokal, bevor Daten geteilt werden. Einreichungen können anonym bleiben, um das Personal vor rechtlichen oder vertraglichen Risiken zu schützen.",
+        "api": "Offene API zur Integration in bestehende HR-, Planungs- oder Forschungssysteme.",
+        "contributions": "Entwickler können zu unabhängigen Modulen beitragen: Datenerfassung, Überprüfungsschnittstelle oder institutionelles Dashboard."
+      }
+    },
+    "whyItMatters": {
+      "title": "Warum es wichtig ist",
+      "intro": "Zuverlässige Arbeitszeitdaten nutzen allen:",
+      "benefits": {
+        "staff": "Das Personal erhält Einblick in seine Arbeitsbelastung und Anerkennung für seine Leistung, ohne Datenschutz zu gefährden oder rechtliche Risiken einzugehen.",
+        "hospitals": "Krankenhäuser können die Personalplanung optimieren, Compliance sicherstellen und effektiver planen.",
+        "researchers": "Forscher und politische Entscheidungsträger erhalten Belege zur Verbesserung der Arbeitsbedingungen und Patientensicherheit.",
+        "patients": "Patienten erhalten Transparenz darüber, wo das Personal innerhalb gesunder Grenzen arbeitet; das hilft, Krankenhäuser mit sichereren Arbeitsbelastungen und besseren Versorgungsumgebungen zu identifizieren."
+      },
+      "conclusion": "Transparenz bei Arbeitszeiten schafft Vertrauen, unterstützt Fairness und erhöht die Nachhaltigkeit und Sicherheit der Gesundheitsarbeit."
+    },
+    "status": {
+      "title": "Aktueller Status",
+      "intro": "Der MVP-Prototyp ist mit simulierten Daten live:",
+      "features": {
+        "verification": "Verifizierungsprozess implementiert.",
+        "dashboard": "Öffentliches Dashboard verfügbar.",
+        "workflows": "Kern-Schichtmanagement- und Überprüfungsworkflows funktional.",
+        "mobile": "Mobile Optimierung in aktiver Entwicklung."
+      },
+      "seeking": "Wir suchen derzeit:",
+      "needs": {
+        "developers": "Entwickler zur Verfeinerung von Modulen und Architektur.",
+        "partners": "Partnerinstitutionen für Feedback und Absichtserklärungen für Pilottests."
+      }
+    },
+    "getInvolved": {
+      "title": "Mitmachen",
+      "developers": "Für Entwickler:",
+      "contribute": "Beitragen auf",
+      "github": "GitHub"
+    }
+  },
+  "verify": {
+    "label": "Zugehörigkeit",
+    "title": "Verifizieren Sie Ihre Krankenhaus-E-Mail",
+    "description": "Verifizieren Sie Ihre Krankenhaus-E-Mail-Adresse, um Zugang zur Plattform zu erhalten. Sie erhalten einen Verifizierungscode zur Bestätigung Ihrer Zugehörigkeit.",
+    "form": {
+      "step": "Schritt 1",
+      "headline": "Krankenhaus-E-Mail verifizieren",
+      "privacy": "Wir speichern die E-Mail-Adresse niemals; nur den gehashten Zugehörigkeits-Token.",
+      "emailLabel": "Krankenhaus-E-Mail",
+      "emailPlaceholder": "name@krankenhaus.de",
+      "sendButton": "Verifizierungs-E-Mail senden",
+      "sending": "Senden…",
+      "codeLabel": "Verifizierungscode",
+      "codePlaceholder": "Code aus der E-Mail eingeben",
+      "verifyButton": "Verifizieren",
+      "verifying": "Verifizieren…",
+      "complete": "Verifizierung abgeschlossen. Fahre unten mit der Datenerfassung fort.",
+      "requested": "Verifizierungs-E-Mail gesendet. Bitte Postfach prüfen.",
+      "verified": "Verifiziert. Du kannst jetzt Berichte übermitteln.",
+      "requestError": "Verifizierung konnte nicht angefordert werden.",
+      "invalidCode": "Ungültiger Code"
+    }
+  },
+  "dataIngestion": {
+    "label": "Datenerfassung",
+    "title": "Offener Überprüfungskalender"
+  },
+  "dashboard": {
+    "label": "Öffentliches Dashboard",
+    "title": "Aggregierte Arbeitsstunden-Analysen",
+    "description": "Wir veröffentlichen nur de-identifizierte, aggregierte Metriken. Kleine n-Gruppen werden automatisch unterdrückt.",
+    "error": "Analysen konnten nicht geladen werden.",
+    "loading": "Lade Analysen…",
+    "selectHospital": "Krankenhaus auswählen",
+    "verlauf": "· Verlauf",
+    "noData": "Keine Daten verfügbar.",
+    "reportsPerHospital": "Berichte pro Krankenhaus",
+    "chart": {
+      "basePlan": "Basis (Plan/Normalstunden)",
+      "overtime": "Überstunden",
+      "totalActual": "Summe tatsächliche Stunden"
+    },
+    "tooltip": {
+      "totalActual": "Summe tatsächliche Stunden:",
+      "overtime": "Überstunden:",
+      "overtimeNote": "(Anteile über Planstunden)",
+      "base": "Basis / Planstunden:",
+      "explanation": "Basis sind geplante Stunden, Überstunden liegen darüber. Summe = Basis + Überstunden."
+    },
+    "table": {
+      "hospital": "Krankenhaus",
+      "reports": "Berichte",
+      "avgHours": "Ø Stunden",
+      "avgOvertime": "Ø Überstunden"
+    },
+    "filters": {
+      "allGroups": "Alle Gruppen",
+      "groupA": "Assistenz- & Fachärzt:innen",
+      "groupB": "Ober- & Chefärzt:innen",
+      "groupC": "Pflegepersonal"
+    }
+  },
+  "calendar": {
+    "header": {
+      "today": "Heute",
+      "review": "Review",
+      "exitReview": "Review verlassen",
+      "month": "Monat",
+      "week": "Woche"
+    },
+    "shiftTemplates": {
+      "title": "Schichtvorlagen",
+      "new": "Neu",
+      "defaultName": "Neue Schicht",
+      "empty": "Noch keine Schichtvorlagen. Erstelle eine, um zu starten.",
+      "fields": {
+        "name": "Name",
+        "startTime": "Startzeit",
+        "duration": "Dauer",
+        "color": "Farbe"
+      },
+      "buttons": {
+        "save": "Speichern",
+        "arm": "Schicht platzieren",
+        "armed": "Bereit"
+      }
+    },
+    "week": {
+      "continued": "(forts.)"
+    }
+  }
+}

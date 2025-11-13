@@ -1,13 +1,36 @@
 "use client"
 
-import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth } from "date-fns"
+import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth } from "date-fns"
 import { useCalendar } from "./calendar-context"
 import { formatDateKey, getColorClasses, timeToMinutes } from "@/lib/calendar-utils"
 import { cn } from "@/lib/utils"
 import { Check, AlertTriangle } from "lucide-react"
+import { useLocale } from "next-intl"
+import { useMemo } from "react"
 
 export function MonthView() {
   const { state, dispatch } = useCalendar()
+  const locale = useLocale()
+  const monthFormatter = useMemo(
+    () => new Intl.DateTimeFormat(locale, { month: "long", year: "numeric" }),
+    [locale],
+  )
+  const dayFormatter = useMemo(
+    () => new Intl.DateTimeFormat(locale, { day: "numeric" }),
+    [locale],
+  )
+  const weekdayFormatter = useMemo(
+    () => new Intl.DateTimeFormat(locale, { weekday: "short" }),
+    [locale],
+  )
+  const weekdayLabels = useMemo(() => {
+    const start = new Date(Date.UTC(2024, 0, 1)) // Monday
+    return Array.from({ length: 7 }, (_, index) => {
+      const date = new Date(start)
+      date.setDate(start.getDate() + index)
+      return weekdayFormatter.format(date)
+    })
+  }, [weekdayFormatter])
   const monthStart = startOfMonth(state.currentMonth)
   const monthEnd = endOfMonth(state.currentMonth)
   const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 })
@@ -59,12 +82,12 @@ export function MonthView() {
       <div className="max-w-4xl mx-auto">
         {/* Month header */}
         <div className="mb-4 text-center">
-          <h2 className="text-2xl font-semibold">{format(monthStart, "MMMM yyyy")}</h2>
+          <h2 className="text-2xl font-semibold">{monthFormatter.format(monthStart)}</h2>
         </div>
 
         {/* Day headers */}
         <div className="grid grid-cols-7 gap-1 mb-1">
-          {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
+          {weekdayLabels.map((day) => (
             <div key={day} className="text-center text-xs font-medium text-muted-foreground p-2">
               {day}
             </div>
@@ -96,7 +119,7 @@ export function MonthView() {
                 )}
                 onClick={() => handleDayClick(day)}
               >
-                <div className="text-sm font-medium mb-1">{format(day, "d")}</div>
+                <div className="text-sm font-medium mb-1">{dayFormatter.format(day)}</div>
 
                 {state.reviewMode && (
                   <div className="absolute top-1 right-1">

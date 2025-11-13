@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { format, startOfWeek, subDays } from "date-fns"
+import { startOfWeek, subDays } from "date-fns"
 import { useCalendar } from "./calendar-context"
 import {
   getWeekDays,
@@ -17,10 +17,21 @@ import type { ShiftInstance, TrackingRecord } from "@/lib/types"
 import { ChevronUp, ChevronDown, Trash2, Check, AlertTriangle, Edit2, X } from "lucide-react"
 import { Button } from "./ui/button"
 import { cn } from "@/lib/utils"
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useMemo } from "react"
+import { useLocale, useTranslations } from "next-intl"
 
 export function WeekView() {
   const { state, dispatch } = useCalendar()
+  const t = useTranslations('calendar.week')
+  const locale = useLocale()
+  const weekdayFormatter = useMemo(
+    () => new Intl.DateTimeFormat(locale, { weekday: "short" }),
+    [locale],
+  )
+  const dayFormatter = useMemo(
+    () => new Intl.DateTimeFormat(locale, { day: "numeric" }),
+    [locale],
+  )
   const weekStart = startOfWeek(state.currentWeekStart, { weekStartsOn: 1 })
   const weekDays = getWeekDays(weekStart)
   const hourMarkers = generateHourMarkers()
@@ -76,10 +87,6 @@ export function WeekView() {
   }, [draggingTrackingId, dragType, dragDateKey, dispatch])
 
   const getChronologicalZIndex = (instance: ShiftInstance, allInstances: ShiftInstance[]) => {
-    const [year, month, day] = instance.date.split("-").map(Number)
-    const [hours, minutes] = instance.startTime.split(":").map(Number)
-    const timestamp = new Date(year, month - 1, day, hours, minutes).getTime()
-
     const sortedByTime = [...allInstances].sort((a, b) => {
       const [yearA, monthA, dayA] = a.date.split("-").map(Number)
       const [hoursA, minutesA] = a.startTime.split(":").map(Number)
@@ -94,19 +101,6 @@ export function WeekView() {
 
     const position = sortedByTime.findIndex((inst) => inst.id === instance.id)
     return 10 + position
-  }
-
-  const handleCellClick = (date: Date, hour: number, minute: number) => {
-    if (state.mode === "shift-armed" && state.armedTemplateId) {
-      const roundedMinute = Math.floor(minute / 5) * 5
-      const timeSlot = `${String(hour).padStart(2, "0")}:${String(roundedMinute).padStart(2, "0")}`
-
-      dispatch({
-        type: "PLACE_SHIFT",
-        date: formatDateKey(date),
-        timeSlot,
-      })
-    }
   }
 
   const handleDayClick = (date: Date) => {
@@ -164,8 +158,10 @@ export function WeekView() {
                     isConfirmed && "bg-green-50 dark:bg-green-950/20",
                   )}
                 >
-                  <div className="text-[10px] text-muted-foreground font-medium">{format(day, "EEE")}</div>
-                  <div className="text-xs font-semibold">{format(day, "d")}</div>
+                  <div className="text-[10px] text-muted-foreground font-medium">
+                    {weekdayFormatter.format(day)}
+                  </div>
+                  <div className="text-xs font-semibold">{dayFormatter.format(day)}</div>
                   {state.reviewMode && (
                     <div className="absolute top-0.5 right-0.5">
                       {isConfirmed ? (
@@ -223,7 +219,7 @@ export function WeekView() {
                       current.map((instance: ShiftInstance) => {
                         const colors = getColorClasses(instance.color)
                         const isEditing = state.editingInstanceId === instance.id
-                        const display = calculateShiftDisplay(instance.startTime, instance.duration, dateKey)
+                        const display = calculateShiftDisplay(instance.startTime, instance.duration)
                         const zIndex = getChronologicalZIndex(instance, Object.values(state.instances))
 
                         return (
@@ -298,7 +294,7 @@ export function WeekView() {
                     {hourIndex === 0 &&
                       fromPrevious.map((instance: ShiftInstance) => {
                         const colors = getColorClasses(instance.color)
-                        const display = calculateShiftDisplay(instance.startTime, instance.duration, instance.date)
+                        const display = calculateShiftDisplay(instance.startTime, instance.duration)
 
                         if (!display.spansNextDay) return null
 
@@ -319,7 +315,9 @@ export function WeekView() {
                               zIndex: zIndex,
                             }}
                           >
-                            <div className="text-xs font-medium truncate">{instance.name} (cont.)</div>
+                            <div className="text-xs font-medium truncate">
+                              {instance.name} {t('continued')}
+                            </div>
                           </div>
                         )
                       })}
@@ -327,7 +325,7 @@ export function WeekView() {
                     {state.reviewMode &&
                       hourIndex === 0 &&
                       trackingRecords.map((tracking: TrackingRecord) => {
-                        const display = calculateShiftDisplay(tracking.startTime, tracking.duration, dateKey)
+                        const display = calculateShiftDisplay(tracking.startTime, tracking.duration)
                         const isEditing = state.editingTrackingId === tracking.id
 
                         return (

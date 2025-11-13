@@ -1,5 +1,5 @@
 import { format, addDays, startOfMonth, endOfMonth, eachDayOfInterval } from "date-fns"
-import type { ShiftColor } from "./types"
+import type { ShiftColor, ShiftInstance, TrackingRecord } from "./types"
 
 export function getWeekDays(weekStart: Date): Date[] {
   return Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
@@ -92,12 +92,12 @@ export function formatDuration(minutes: number): string {
   }
 }
 
-export function generateSimulatedTracking(instances: Record<string, any>): Record<string, any> {
-  const trackingRecords: Record<string, any> = {}
+export function generateSimulatedTracking(instances: Record<string, ShiftInstance>): Record<string, TrackingRecord> {
+  const trackingRecords: Record<string, TrackingRecord> = {}
 
   // Group instances by date
-  const instancesByDate: Record<string, any[]> = {}
-  Object.values(instances).forEach((instance: any) => {
+  const instancesByDate: Record<string, ShiftInstance[]> = {}
+  Object.values(instances).forEach((instance) => {
     if (!instancesByDate[instance.date]) {
       instancesByDate[instance.date] = []
     }
@@ -106,7 +106,7 @@ export function generateSimulatedTracking(instances: Record<string, any>): Recor
 
   // Generate tracking for each date with shifts
   Object.entries(instancesByDate).forEach(([date, dateInstances]) => {
-    dateInstances.forEach((instance: any) => {
+    dateInstances.forEach((instance) => {
       const variance = Math.random()
       let startTime = instance.startTime
       let duration = instance.duration
@@ -169,7 +169,6 @@ export function generateHourMarkers(): string[] {
 export function calculateShiftDisplay(
   startTime: string,
   duration: number,
-  date: string,
 ): {
   topOffset: number
   height: number
@@ -205,10 +204,10 @@ export function calculateShiftDisplay(
 }
 
 export function getInstancesForDate(
-  instances: Record<string, any>,
+  instances: Record<string, ShiftInstance>,
   date: string,
   previousDate: string | null,
-): { current: any[]; fromPrevious: any[] } {
+): { current: ShiftInstance[]; fromPrevious: ShiftInstance[] } {
   const current = Object.values(instances).filter((instance) => instance.date === date)
 
   const fromPrevious = previousDate

@@ -1,0 +1,190 @@
+{
+  "navigation": {
+    "home": "Início",
+    "about": "Sobre",
+    "verify": "Verificar",
+    "dataIngestion": "Registro de Dados",
+    "dashboard": "Painel"
+  },
+  "home": {
+    "title": "open working hours",
+    "subtitle": "Uma iniciativa de código aberto para rastrear, validar e agregar horas de trabalho reais na área da saúde, com total anonimato e proteção de privacidade para a equipe.",
+    "cards": {
+      "verify": {
+        "title": "Verificar",
+        "subtitle": "Abrir verificação de e-mail"
+      },
+      "dataIngestion": {
+        "title": "Registro de Dados",
+        "subtitle": "Abrir registro de dados"
+      },
+      "dashboard": {
+        "title": "Painel",
+        "subtitle": "Abrir painel público"
+      }
+    }
+  },
+  "about": {
+    "problem": {
+      "title": "O problema",
+      "intro": "A equipe hospitalar trabalha em turnos longos e intensos. Os turnos planejados raramente correspondem à realidade: emergências prolongam as horas, as passagens de turno levam mais tempo e as ferramentas administrativas frequentemente não registram esses desvios.",
+      "withoutData": "Sem dados confiáveis de tempo de trabalho:",
+      "issues": {
+        "fatigue": "A equipe experimenta horas extras não percebidas e fadiga.",
+        "compliance": "As instituições têm dificuldade com conformidade, relatórios e planejamento de força de trabalho.",
+        "research": "Pesquisas sobre carga de trabalho e bem-estar carecem de evidências sólidas.",
+        "patients": "Os pacientes enfrentam um risco aumentado de complicações quando a equipe sobrecarregada está fatigada ou os níveis de pessoal não são refletidos com precisão."
+      },
+      "conclusion": "Atualmente não existe um sistema padronizado e consciente da privacidade para verificar as horas reais de trabalho em ambientes clínicos."
+    },
+    "solution": {
+      "title": "A solução",
+      "intro": "openworkinghours fornece uma maneira aberta e verificável de registrar e revisar o tempo de trabalho real.",
+      "steps": {
+        "verification": "Verificação",
+        "verificationDesc": "Confirmar identidade profissional.",
+        "shiftEntry": "Registro de turno",
+        "shiftEntryDesc": "A equipe registra seus turnos planejados por meio de uma interface móvel.",
+        "tracking": "Rastreamento",
+        "trackingDesc": "Opcionalmente, dados de localização e atividade com privacidade em primeiro lugar estimam a presença real.",
+        "review": "Revisão e confirmação",
+        "reviewDesc": "A equipe verifica e corrige os tempos rastreados antes do envio."
+      },
+      "result": "O resultado: um conjunto de dados confiável que reflete padrões de trabalho reais, de propriedade da própria equipe e revisado por ela."
+    },
+    "howItWorks": {
+      "title": "Como funciona",
+      "intro": "Construído para flexibilidade e transparência:",
+      "features": {
+        "architecture": "Arquitetura web modular usando tecnologias abertas (React, TUI Calendar, APIs modernas).",
+        "mobile": "Projetado para uso mobile-first em contextos clínicos.",
+        "privacy": "Privacidade e anonimato por design: todo rastreamento e revisão acontecem localmente antes de qualquer dado ser compartilhado. Os envios podem permanecer anônimos para proteger a equipe de riscos legais ou contratuais.",
+        "api": "API aberta para integração com sistemas existentes de RH, agendamento ou pesquisa.",
+        "contributions": "Desenvolvedores podem contribuir para módulos independentes: coleta de dados, interface de revisão ou painel institucional."
+      }
+    },
+    "whyItMatters": {
+      "title": "Por que é importante",
+      "intro": "Dados confiáveis de tempo de trabalho beneficiam a todos:",
+      "benefits": {
+        "staff": "A equipe ganha visibilidade sobre sua carga de trabalho e reconhecimento por seu esforço, sem comprometer a privacidade ou enfrentar riscos legais.",
+        "hospitals": "Os hospitais podem otimizar o pessoal, garantir a conformidade e planejar com mais eficácia.",
+        "researchers": "Pesquisadores e formuladores de políticas obtêm evidências para melhorar as condições de trabalho e a segurança do paciente.",
+        "patients": "Os pacientes ganham transparência sobre onde a equipe está trabalhando dentro de limites saudáveis; isso ajuda a identificar hospitais que mantêm cargas de trabalho mais seguras e melhores ambientes de cuidados."
+      },
+      "conclusion": "A transparência nas horas de trabalho constrói confiança, apoia a justiça e melhora a sustentabilidade e segurança do trabalho em saúde."
+    },
+    "status": {
+      "title": "Status atual",
+      "intro": "O protótipo MVP está ativo com dados simulados:",
+      "features": {
+        "verification": "Processo de verificação implementado.",
+        "dashboard": "Painel público disponível.",
+        "workflows": "Fluxos de trabalho principais de gerenciamento e revisão de turnos funcionais.",
+        "mobile": "Otimização para dispositivos móveis em desenvolvimento ativo."
+      },
+      "seeking": "Estamos buscando:",
+      "needs": {
+        "developers": "Desenvolvedores para ajudar a refinar módulos e arquitetura.",
+        "partners": "Instituições parceiras para fornecer feedback e cartas de intenção para testes piloto."
+      }
+    },
+    "getInvolved": {
+      "title": "Participe",
+      "developers": "Para desenvolvedores:",
+      "contribute": "Contribua no",
+      "github": "GitHub"
+    }
+  },
+  "verify": {
+    "label": "Afiliação",
+    "title": "Verifique seu e-mail do hospital",
+    "description": "Verifique seu endereço de e-mail do hospital para acessar a plataforma. Você receberá um código de verificação para confirmar sua afiliação.",
+    "form": {
+      "step": "Etapa 1",
+      "headline": "Verificar e-mail do hospital",
+      "privacy": "Nunca armazenamos o endereço de e-mail; apenas o token de afiliação com hash.",
+      "emailLabel": "E-mail do hospital",
+      "emailPlaceholder": "nome@hospital.br",
+      "sendButton": "Enviar e-mail de verificação",
+      "sending": "Enviando…",
+      "codeLabel": "Código de verificação",
+      "codePlaceholder": "Digite o código enviado por e-mail",
+      "verifyButton": "Verificar",
+      "verifying": "Verificando…",
+      "complete": "Verificação concluída. Continue com o registro de dados abaixo.",
+      "requested": "E-mail de verificação enviado. Verifique sua caixa de entrada.",
+      "verified": "Verificado. Você já pode enviar relatórios.",
+      "requestError": "Não foi possível solicitar a verificação.",
+      "invalidCode": "Código inválido"
+    }
+  },
+  "dataIngestion": {
+    "label": "Registro de Dados",
+    "title": "Abrir calendário de revisão"
+  },
+  "dashboard": {
+    "label": "Painel público",
+    "title": "Análises agregadas de horas de trabalho",
+    "description": "Publicamos apenas métricas agregadas e não identificadas. Grupos pequenos são suprimidos automaticamente.",
+    "error": "Não foi possível carregar as análises.",
+    "loading": "Carregando análises…",
+    "selectHospital": "Selecione um hospital",
+    "verlauf": "· Histórico",
+    "noData": "Nenhum dado disponível.",
+    "reportsPerHospital": "Relatórios por hospital",
+    "chart": {
+      "basePlan": "Base (Planejado/Horas normais)",
+      "overtime": "Horas extras",
+      "totalActual": "Total de horas reais"
+    },
+    "tooltip": {
+      "totalActual": "Total de horas reais:",
+      "overtime": "Horas extras:",
+      "overtimeNote": "(Parcelas além das horas planejadas)",
+      "base": "Base / Horas planejadas:",
+      "explanation": "Base são horas planejadas, horas extras estão acima disso. Total = Base + Horas extras."
+    },
+    "table": {
+      "hospital": "Hospital",
+      "reports": "Relatórios",
+      "avgHours": "Média de Horas",
+      "avgOvertime": "Média de Horas Extras"
+    },
+    "filters": {
+      "allGroups": "Todos os grupos",
+      "groupA": "Médicos assistentes e especialistas",
+      "groupB": "Médicos seniores e chefes",
+      "groupC": "Equipe de enfermagem"
+    }
+  },
+  "calendar": {
+    "header": {
+      "today": "Hoje",
+      "review": "Revisão",
+      "exitReview": "Sair da revisão",
+      "month": "Mês",
+      "week": "Semana"
+    },
+    "shiftTemplates": {
+      "title": "Modelos de turno",
+      "new": "Novo",
+      "defaultName": "Novo turno",
+      "empty": "Ainda não há modelos de turno. Crie um para começar.",
+      "fields": {
+        "name": "Nome",
+        "startTime": "Hora de início",
+        "duration": "Duração",
+        "color": "Cor"
+      },
+      "buttons": {
+        "save": "Salvar",
+        "arm": "Preparar turno",
+        "armed": "Preparado"
+      }
+    },
+    "week": {
+      "continued": "(cont.)"
+    }
+  }
+}

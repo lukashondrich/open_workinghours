@@ -1,0 +1,190 @@
+{
+  "navigation": {
+    "home": "Home",
+    "about": "About",
+    "verify": "Verify",
+    "dataIngestion": "Data Ingestion",
+    "dashboard": "Dashboard"
+  },
+  "home": {
+    "title": "open working hours",
+    "subtitle": "An open-source initiative to track, validate, and aggregate real working hours in healthcare, with full anonymity and privacy protection for staff.",
+    "cards": {
+      "verify": {
+        "title": "Verify",
+        "subtitle": "Open email verification"
+      },
+      "dataIngestion": {
+        "title": "Data Ingestion",
+        "subtitle": "Open data ingestion"
+      },
+      "dashboard": {
+        "title": "Dashboard",
+        "subtitle": "Open public dashboard"
+      }
+    }
+  },
+  "about": {
+    "problem": {
+      "title": "The problem",
+      "intro": "Hospital staff work long and intense schedules. Planned shifts rarely match reality: emergencies extend hours, handovers take longer, and administrative tools often miss these deviations.",
+      "withoutData": "Without reliable working time data:",
+      "issues": {
+        "fatigue": "Staff experience unnoticed overtime and fatigue.",
+        "compliance": "Institutions struggle with compliance, reporting, and workforce planning.",
+        "research": "Research on workload and well-being lacks solid evidence.",
+        "patients": "Patients face a heightened risk of complications when overworked staff are fatigued or staffing levels are not accurately reflected."
+      },
+      "conclusion": "There is currently no standardized, privacy-conscious system to verify real working hours in clinical environments."
+    },
+    "solution": {
+      "title": "The solution",
+      "intro": "openworkinghours provides an open, verifiable way to record and review actual working time.",
+      "steps": {
+        "verification": "Verification",
+        "verificationDesc": "Confirm professional identity.",
+        "shiftEntry": "Shift entry",
+        "shiftEntryDesc": "Staff log their planned shifts via a mobile interface.",
+        "tracking": "Tracking",
+        "trackingDesc": "Optional, privacy-first location and activity data estimate real attendance.",
+        "review": "Review & confirm",
+        "reviewDesc": "Staff verify and correct tracked times before submission."
+      },
+      "result": "The result: a trusted dataset that reflects real work patterns, owned and reviewed by the staff themselves."
+    },
+    "howItWorks": {
+      "title": "How it works",
+      "intro": "Built for flexibility and transparency:",
+      "features": {
+        "architecture": "Modular web architecture using open technologies (React, TUI Calendar, modern APIs).",
+        "mobile": "Designed for mobile-first use in clinical contexts.",
+        "privacy": "Privacy and anonymity by design: all tracking and review happen locally before any data is shared. Submissions can remain anonymous to protect staff from legal or contractual risk.",
+        "api": "Open API for integration with existing HR, scheduling, or research systems.",
+        "contributions": "Developers can contribute to independent modules: data collection, review interface, or institutional dashboard."
+      }
+    },
+    "whyItMatters": {
+      "title": "Why it matters",
+      "intro": "Reliable working time data benefits everyone:",
+      "benefits": {
+        "staff": "Staff gain visibility into their workload and recognition for their effort, without compromising privacy or facing legal risk.",
+        "hospitals": "Hospitals can optimize staffing, ensure compliance, and plan more effectively.",
+        "researchers": "Researchers and policymakers gain evidence for improving work conditions and patient safety.",
+        "patients": "Patients gain transparency on where staff are working within healthy limits, helping identify hospitals that maintain safer workloads and better care environments."
+      },
+      "conclusion": "Transparency in working hours builds trust, supports fairness, and enhances the sustainability and safety of healthcare work."
+    },
+    "status": {
+      "title": "Current status",
+      "intro": "The MVP prototype is live with simulated data:",
+      "features": {
+        "verification": "Verification process implemented.",
+        "dashboard": "Public dashboard available.",
+        "workflows": "Core shift management and review workflows functional.",
+        "mobile": "Mobile optimization under active development."
+      },
+      "seeking": "We are now seeking:",
+      "needs": {
+        "developers": "Developers to help refine modules and architecture.",
+        "partners": "Partner institutions to provide feedback and letters of intent for pilot testing."
+      }
+    },
+    "getInvolved": {
+      "title": "Get involved",
+      "developers": "For developers:",
+      "contribute": "Contribute on",
+      "github": "GitHub"
+    }
+  },
+  "verify": {
+    "label": "Affiliation",
+    "title": "Verify your hospital email",
+    "description": "Verify your hospital email address to access the platform. You'll receive a verification code to confirm your affiliation.",
+    "form": {
+      "step": "Step 1",
+      "headline": "Verify hospital email",
+      "privacy": "We never store the email address; only the hashed affiliation token.",
+      "emailLabel": "Hospital email",
+      "emailPlaceholder": "name@hospital.de",
+      "sendButton": "Send verification email",
+      "sending": "Sending…",
+      "codeLabel": "Verification code",
+      "codePlaceholder": "Enter the code from your email",
+      "verifyButton": "Verify",
+      "verifying": "Verifying…",
+      "complete": "Verification complete. Continue with data ingestion below.",
+      "requested": "Verification email sent. Check your inbox.",
+      "verified": "Verified. You can now submit reports.",
+      "requestError": "Could not request verification.",
+      "invalidCode": "Invalid code"
+    }
+  },
+  "dataIngestion": {
+    "label": "Data Ingestion",
+    "title": "Open review calendar"
+  },
+  "dashboard": {
+    "label": "Public dashboard",
+    "title": "Aggregated working-hours analytics",
+    "description": "We only publish de-identified, aggregated metrics. Small-n buckets are suppressed automatically.",
+    "error": "Could not load analytics.",
+    "loading": "Loading analytics…",
+    "selectHospital": "Select a hospital",
+    "verlauf": "· Verlauf",
+    "noData": "No data available.",
+    "reportsPerHospital": "Reports per hospital",
+    "chart": {
+      "basePlan": "Base (planned hours)",
+      "overtime": "Overtime",
+      "totalActual": "Total actual hours"
+    },
+    "tooltip": {
+      "totalActual": "Total actual hours:",
+      "overtime": "Overtime:",
+      "overtimeNote": "(Portion above planned hours)",
+      "base": "Base / planned hours:",
+      "explanation": "Base represents planned hours; overtime is everything above. Total = base + overtime."
+    },
+    "table": {
+      "hospital": "Hospital",
+      "reports": "Reports",
+      "avgHours": "Avg hours",
+      "avgOvertime": "Avg overtime"
+    },
+    "filters": {
+      "allGroups": "All groups",
+      "groupA": "Residents & specialists",
+      "groupB": "Senior consultants",
+      "groupC": "Nursing staff"
+    }
+  },
+  "calendar": {
+    "header": {
+      "today": "Today",
+      "review": "Review",
+      "exitReview": "Exit review",
+      "month": "Month",
+      "week": "Week"
+    },
+    "shiftTemplates": {
+      "title": "Shift templates",
+      "new": "New",
+      "defaultName": "New shift",
+      "empty": "No shift templates yet. Create one to get started.",
+      "fields": {
+        "name": "Name",
+        "startTime": "Start time",
+        "duration": "Duration",
+        "color": "Color"
+      },
+      "buttons": {
+        "save": "Save",
+        "arm": "Arm shift",
+        "armed": "Armed"
+      }
+    },
+    "week": {
+      "continued": "(cont.)"
+    }
+  }
+}

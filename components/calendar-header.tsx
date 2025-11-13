@@ -3,11 +3,23 @@
 import { useCalendar } from "./calendar-context"
 import { Button } from "./ui/button"
 import { ChevronLeft, ChevronRight, Calendar, Grid3x3, MapPin } from "lucide-react"
-import { addWeeks, subWeeks, addMonths, subMonths, format } from "date-fns"
+import { addWeeks, subWeeks, addMonths, subMonths } from "date-fns"
 import { cn } from "@/lib/utils"
+import { useLocale, useTranslations } from "next-intl"
+import { useMemo } from "react"
 
 export function CalendarHeader() {
   const { state, dispatch } = useCalendar()
+  const t = useTranslations('calendar.header')
+  const locale = useLocale()
+  const weekFormatter = useMemo(
+    () => new Intl.DateTimeFormat(locale, { month: "short", day: "numeric", year: "numeric" }),
+    [locale],
+  )
+  const monthFormatter = useMemo(
+    () => new Intl.DateTimeFormat(locale, { month: "long", year: "numeric" }),
+    [locale],
+  )
 
   const handlePrevious = () => {
     if (state.view === "week") {
@@ -43,6 +55,7 @@ export function CalendarHeader() {
   }
 
   const currentDate = state.view === "week" ? state.currentWeekStart : state.currentMonth
+  const formattedDate = state.view === "week" ? weekFormatter.format(currentDate) : monthFormatter.format(currentDate)
 
   return (
     <div className="border-b border-border bg-card px-4 py-3">
@@ -55,10 +68,10 @@ export function CalendarHeader() {
             <ChevronRight className="h-4 w-4" />
           </Button>
           <Button size="sm" variant="outline" onClick={handleToday}>
-            Today
+            {t('today')}
           </Button>
           <div className="ml-2 font-semibold">
-            {state.view === "week" ? format(currentDate, "MMM d, yyyy") : format(currentDate, "MMMM yyyy")}
+            {formattedDate}
           </div>
         </div>
 
@@ -70,19 +83,19 @@ export function CalendarHeader() {
             className={cn(state.reviewMode && "bg-orange-500 hover:bg-orange-600")}
           >
             <MapPin className="h-4 w-4 mr-2" />
-            {state.reviewMode ? "Exit Review" : "Review"}
+            {state.reviewMode ? t('exitReview') : t('review')}
           </Button>
 
           <Button size="sm" variant="outline" onClick={toggleView}>
             {state.view === "week" ? (
               <>
                 <Grid3x3 className="h-4 w-4 mr-2" />
-                Month
+                {t('month')}
               </>
             ) : (
               <>
                 <Calendar className="h-4 w-4 mr-2" />
-                Week
+                {t('week')}
               </>
             )}
           </Button>
