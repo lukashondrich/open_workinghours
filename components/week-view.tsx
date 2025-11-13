@@ -86,7 +86,7 @@ export function WeekView() {
       const timestampA = new Date(yearA, monthA - 1, dayA, hoursA, minutesA).getTime()
 
       const [yearB, monthB, dayB] = b.date.split("-").map(Number)
-      const [hoursB, minutesB] = b.endTime.split(":").map(Number)
+      const [hoursB, minutesB] = deriveEndTime(b).split(":").map(Number)
       const timestampB = new Date(yearB, monthB - 1, dayB, hoursB, minutesB).getTime()
 
       return timestampA - timestampB
@@ -466,3 +466,13 @@ export function WeekView() {
     </div>
   )
 }
+  const deriveEndTime = (instance: ShiftInstance) => {
+    if (instance.endTime) {
+      return instance.endTime
+    }
+    const [hours, minutes] = instance.startTime.split(":").map(Number)
+    const total = (hours * 60 + minutes + instance.duration) % (24 * 60)
+    const endHours = Math.floor(total / 60)
+    const endMinutes = total % 60
+    return `${String(endHours).padStart(2, "0")}:${String(endMinutes).padStart(2, "0")}`
+  }

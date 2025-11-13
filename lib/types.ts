@@ -14,6 +14,7 @@ export interface ShiftInstance {
   date: string // YYYY-MM-DD format
   startTime: string // HH:mm format
   duration: number // in minutes
+  endTime: string // HH:mm format
   color: ShiftColor
   name: string
 }
@@ -54,7 +55,7 @@ export type CalendarAction =
   | { type: "DELETE_TEMPLATE"; id: string }
   | { type: "ARM_SHIFT"; templateId: string }
   | { type: "DISARM_SHIFT" }
-  | { type: "PLACE_SHIFT"; date: string }
+  | { type: "PLACE_SHIFT"; date: string; timeSlot?: string }
   | { type: "ADD_INSTANCE"; instance: ShiftInstance }
   | { type: "UPDATE_INSTANCE"; id: string; instance: Partial<ShiftInstance> }
   | { type: "DELETE_INSTANCE"; id: string }

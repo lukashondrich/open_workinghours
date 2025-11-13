@@ -1,6 +1,15 @@
 import type { CalendarState, CalendarAction, ShiftInstance } from "./types"
 import { generateSimulatedTracking } from "./calendar-utils"
 
+function computeEndTime(startTime: string, duration: number): string {
+  const [hours, minutes] = startTime.split(":").map(Number)
+  const startMinutes = hours * 60 + minutes
+  const totalMinutes = (startMinutes + Math.max(0, duration)) % (24 * 60)
+  const endHours = Math.floor(totalMinutes / 60)
+  const endMinutes = totalMinutes % 60
+  return `${String(endHours).padStart(2, "0")}:${String(endMinutes).padStart(2, "0")}`
+}
+
 export const initialState: CalendarState = {
   mode: "viewing",
   view: "week",
@@ -68,14 +77,18 @@ export function calendarReducer(state: CalendarState, action: CalendarAction): C
         armedTemplateId: null,
       }
 
-    case "ADD_INSTANCE":
+    case "ADD_INSTANCE": {
+      const ensuredEndTime =
+        action.instance.endTime ?? computeEndTime(action.instance.startTime, action.instance.duration)
+      const nextInstance: ShiftInstance = { ...action.instance, endTime: ensuredEndTime }
       return {
         ...state,
         instances: {
           ...state.instances,
-          [action.instance.id]: action.instance,
+          [action.instance.id]: nextInstance,
         },
       }
+    }
 
     case "PLACE_SHIFT":
       if (!state.armedTemplateId) return state
@@ -83,12 +96,16 @@ export function calendarReducer(state: CalendarState, action: CalendarAction): C
       const template = state.templates[state.armedTemplateId]
       if (!template) return state
 
+      const startTime = action.timeSlot ?? template.startTime
+      const duration = template.duration
+
       const newInstance: ShiftInstance = {
         id: `instance-${Date.now()}-${Math.random()}`,
         templateId: template.id,
         date: action.date,
-        startTime: template.startTime, // Use template's defined start time
-        duration: template.duration,
+        startTime,
+        duration,
+        endTime: computeEndTime(startTime, duration),
         color: template.color,
         name: template.name,
       }
@@ -101,17 +118,23 @@ export function calendarReducer(state: CalendarState, action: CalendarAction): C
         },
       }
 
-    case "UPDATE_INSTANCE":
+    case "UPDATE_INSTANCE": {
+      const existing = state.instances[action.id]
+      if (!existing) {
+        return state
+      }
+      const merged = { ...existing, ...action.instance }
+      if (action.instance.startTime !== undefined || action.instance.duration !== undefined) {
+        merged.endTime = computeEndTime(merged.startTime, merged.duration)
+      }
       return {
         ...state,
         instances: {
           ...state.instances,
-          [action.id]: {
-            ...state.instances[action.id],
-            ...action.instance,
-          },
+          [action.id]: merged,
         },
       }
+    }
 
     case "DELETE_INSTANCE":
       const { [action.id]: __, ...remainingInstances } = state.instances
@@ -162,6 +185,7 @@ export function calendarReducer(state: CalendarState, action: CalendarAction): C
           [action.id]: {
             ...instance,
             startTime: newStartTime,
+            endTime: computeEndTime(newStartTime, instance.duration),
           },
         },
       }
@@ -185,6 +209,7 @@ export function calendarReducer(state: CalendarState, action: CalendarAction): C
           [action.id]: {
             ...instance,
             startTime: newStartTime,
+            endTime: computeEndTime(newStartTime, instance.duration),
           },
         },
       }
