@@ -1,80 +1,925 @@
-# Open Working Hours – System Blueprint
+w# Open Working Hours – System Blueprint v2.0
 
 ## 1. Purpose & Scope
-The repo combines a **Next.js 14 App Router frontend** (React 19, pnpm, Tailwind/shadcn) with the legacy **FastAPI backend** found in `backend/`. It delivers a neutral, desktop-first experience that walks a hospital partner through:
-- landing on the home/about entry point (`app/page.tsx`);
-- verifying an email + affiliation (`app/verify/page.tsx`, `components/verification-form.tsx`);
-- ingesting staffing reports once verified (`app/data-ingestion/page.tsx`, `components/report-form.tsx`);
-- exploring aggregated reports on the public dashboard (`app/public-dashboard/page.tsx`);
-- planning typical shifts in the calendar (`app/calendar/page.tsx` plus calendar components).
 
-The blueprint explains how these flows fit together, which files own the responsibility, and how to continue iterating without re-reading the entire repository.
+The Open Working Hours platform enables healthcare workers to track and report their working hours transparently while maintaining strong privacy guarantees. The system consists of three main components:
 
-## 2. High-level Architecture
-| Layer | Purpose | Key files |
-| --- | --- | --- |
-| Routing & Layout | Next.js App Router, shared metadata, font/theme providers. | `app/layout.tsx`, `components/theme-provider.tsx`, `app/globals.css` |
-| Navigation Shell | Home/about hub with links to verify, ingest, dashboard, calendar. | `app/page.tsx` |
-| Verification Flow | Request + confirm codes, capture affiliation token. | `app/verify/page.tsx`, `components/verification-form.tsx`, `hooks/useAffiliationToken.ts` |
-| Data Ingestion Flow | Submit shift reports with token-backed API calls. | `app/data-ingestion/page.tsx`, `components/report-form.tsx` |
-| Public Dashboard | Recharts-based line+area chart, collapsible “Reports per hospital” table. | `app/public-dashboard/page.tsx` |
-| Calendar Planner | Template bar, week grid, context/reducer for shift instances. | `app/calendar/page.tsx`, `components/calendar-context.tsx`, `components/week-view.tsx`, `components/shift-template-panel.tsx`, `lib/calendar-reducer.ts` |
-| API Client | Shared fetch wrapper, analytics + verification/report helpers. | `lib/backend-api.ts` |
-| Styling | Tailwind config via `globals.css`, shadcn primitives, neutral palette tokens. | `app/globals.css`, `components/ui/*` |
-| Backend (FastAPI) | Verification/reports/analytics endpoints. | `backend/` (see `backend/README.md`) |
+### 1.1 React Native Mobile App (iOS/Android) **[Primary Interface]**
+Healthcare workers use this app to:
+- Verify their hospital email affiliation
+- Set up geofencing around their workplace(s)
+- Plan shifts using a calendar with reusable templates
+- Automatically track working hours via background geofencing
+- Review tracked time against planned shifts and make corrections
+- Submit weekly hours with built-in differential privacy protections (ε=1.0)
 
-## 3. User Flows & Data
-### 3.1 Verification → Data Ingestion
-1. **Request**: `VerificationForm` posts to `/verification/request` via `requestVerification()` (`lib/backend-api.ts`). Success echoes a toast and hints at email delivery.
-2. **Confirm**: Same component handles code submission using `confirmVerification()`, storing `affiliation_token` in `useAffiliationToken`.
-3. **Reporting**: `ReportForm` (data-ingestion page) loads the stored token, validates required fields (date, actual hours, overtime, staff group, notes), and calls `submitReport()` with the token header. Validation hints and success toasts guide the user.
-4. **Dependencies**: Requires `NEXT_PUBLIC_API_BASE_URL` or `NEXT_PUBLIC_API_PORT` for the backend origin. Default fallback is `http://localhost:8000`, so run `uvicorn main:app --reload` inside `backend/` while developing.
+**Key characteristic**: **All raw data stays on the user's device.** GPS coordinates, daily shift times, and personal work patterns never leave the phone.
 
-### 3.2 Public Dashboard
-- Fetches analytics through `fetchAnalytics({ months, staffGroup })` (default 6 months).
-- Uses Recharts (LineChart/AreaChart) for the neutral palette visualization, stretching full width (`app/public-dashboard/page.tsx#L18` onward).
-- Tooltips define each metric; legend and axis labels follow the same copy as the backend data dictionary.
-- “Reports per hospital” table uses a native `<details>` disclosure to stay collapsed by default while the chart occupies full width. Table rows key on `domain-month-group-index` to prevent duplicate React keys.
+### 1.2 Next.js Web Dashboard **[Public Analytics]**
+Public-facing dashboard that displays:
+- Aggregated working hours by staff group (nurses, Fachärzte, Oberärzte)
+- Trends over time (monthly averages)
+- Reports per hospital (with N≥5 suppression for privacy)
 
-### 3.3 Calendar Planner
-- **State container**: `CalendarProvider` (`components/calendar-context.tsx`) wires a reducer defined in `lib/calendar-reducer.ts`. State slices:
-  - `templates`: reusable shifts with `id`, `label`, `startTime`, `durationMinutes`, and `color`.
-  - `armedTemplateId`: selecting a template puts the UI into placement mode; editing widgets stay hidden when armed.
-  - `instances`: placed shifts store `date`, `startTime`, computed `endTime`, color, template metadata, drag offsets, and move buttons for precise 5‑minute adjustments.
-  - `trackingRecords`: mock compliance entries for review mode in `week-view.tsx`.
-- **Interactions**:
-  - Floating “+” button reveals template slots with two zones: edit (pencil icon) vs arm (crosshair icon). Editing opens a side sheet with name, color, start time, and hour/minute duration controls. Arming hides the editor and enables placement on the x (day) / y (time) grid.
-  - Instances snap to 5-minute increments; reducer prevents overlaps.
-  - Multi-day support: `placeShift` splits across midnight when `startTime + duration` exceeds 24h but maintains a single logical instance tracked by `date` + `endTime`.
-  - Week view calculates chronological z-index using both `startTime` and `endTime` so stacked overlaps are deterministic.
-- **Files to inspect**: `components/week-view.tsx`, `components/shift-template-panel.tsx`, `lib/calendar-utils.ts`, `lib/types.ts`.
+**Accessible to**: Anyone who has submitted data via the mobile app.
 
-## 4. Backend & Environment
-- Backend stack remains in `/backend` (FastAPI, SQLModel). Use `backend/README.md` for setup, environment variables, and Docker instructions.
-- `.env` samples live under `/backend/.env` and root `.env` (front-end). The frontend expects:
-  - `NEXT_PUBLIC_API_BASE_URL` (or `NEXT_PUBLIC_API_PORT`) for the API origin;
-  - optional `NEXT_PUBLIC_APP_NAME`, palette overrides, etc., if defined in `app/layout.tsx`.
-- Allowed domains used by analytics are stored under `config/allowed_domains.txt`; ingestion/verification rely on the backend to enforce these.
+### 1.3 FastAPI Backend **[Minimal Storage]**
+Minimal API server that:
+- Handles email verification (6-digit codes)
+- Receives privacy-protected weekly submissions (already noisy!)
+- Serves aggregated analytics for the dashboard
+- Stores **only** anonymized, noisy data
 
-## 5. Developer Workflow
-1. **Install deps**: `pnpm install` (preferred). If npm is required, use `npm install --legacy-peer-deps` because `vaul@0.9.9` expects React ≤18.
-2. **Run frontend**: `pnpm dev` (or `npm run dev`) from repo root; serves on `http://localhost:3000`.
-3. **Run backend**: `cd backend && uvicorn main:app --reload` (make sure poetry/pip deps are installed). Align CORS + origin env vars.
-4. **Lint/Test**: `pnpm lint`. Calendar reducer has unit-ready helpers in `lib/calendar-utils.ts` if future tests are added.
-5. **Data**: Static seeds for the dashboard live in `data/` and `datasets/`; update backend analytics to change chart content.
+**Does NOT store**: GPS coordinates, daily shift times, templates, individual clock-in/out events.
 
-## 6. References & Further Reading
-- Frontend entry points: `app/page.tsx`, `app/verify/page.tsx`, `app/data-ingestion/page.tsx`, `app/public-dashboard/page.tsx`, `app/calendar/page.tsx`.
-- Shared components: `components/verification-form.tsx`, `components/report-form.tsx`, `components/week-view.tsx`, `components/shift-template-panel.tsx`.
-- API bindings: `lib/backend-api.ts`.
-- Legacy backend docs: `backend/README.md`, `backend/app/api/*.py`.
-- Product context & pending ideas: `to-do.md`.
+---
 
-## 7. Open Follow-ups / Opportunities
-1. **Persistence for calendar data** – currently local-only; consider a backend endpoint for templates + instances tied to an org.
-2. **Authentication / multi-tenant routing** – flows assume a single environment; add auth if multiple hospitals manage data simultaneously.
-3. **Mobile & accessibility** – layouts are desktop-first; extend Tailwind breakpoints and keyboard interactions.
-4. **Expanded analytics** – add filters (region, department) and expose definitions via a dedicated `/glossary` route for reuse.
-5. **CI & testing** – integrate Playwright for E2E coverage across the verification → ingestion → dashboard journey.
+## 2. High-Level Architecture
 
-Use this blueprint plus the referenced files to onboard quickly, extend the UI, or reconnect the FastAPI backend without rediscovering architecture decisions.***
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                    SYSTEM ARCHITECTURE                            │
+└──────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────┐         ┌──────────────────┐         ┌──────────────┐
+│  React Native App   │  HTTPS  │  FastAPI Backend │  HTTP   │  Next.js Web │
+│   (iOS/Android)     │◄───────►│   + PostgreSQL   │◄───────►│   Dashboard  │
+│                     │  Noisy  │   (EU-hosted)    │         │   (Public)   │
+│  • Planning         │  Data   │                  │         │              │
+│  • Geofencing       │  Only   │  • Verification  │         │  • Charts    │
+│  • Review           │         │  • Submissions   │         │  • Tables    │
+│  • Privacy Pipeline │         │  • Analytics     │         │  • Filters   │
+└─────────────────────┘         └──────────────────┘         └──────────────┘
+         │                              │                            │
+         │ All raw data                 │ Only stores:               │
+         │ stored here:                 │ • User (email hash)        │
+         │ • Templates                  │ • Noisy weekly reports     │
+         │ • Instances                  │ • Aggregates               │
+         │ • Tracked times              │                            │
+         │ • GPS coordinates            │                            │
+         │                              │                            │
+         ▼                              ▼                            ▼
+   ┌──────────┐                  ┌──────────┐                 ┌──────────┐
+   │ Encrypted│                  │PostgreSQL│                 │ Recharts │
+   │  SQLite  │                  │ (Hetzner)│                 │Analytics │
+   │(on-device)│                 └──────────┘                 └──────────┘
+   └──────────┘
+
+            ◄─────────────────────────────────────►
+                  Privacy Boundary:
+                  Only noisy, aggregated data crosses
+```
+
+### Key Design Decisions
+
+| Aspect | Choice | Rationale |
+|--------|--------|-----------|
+| **Data Architecture** | Local-first | GDPR compliance, user control, minimal backend trust |
+| **Privacy Method** | Local Differential Privacy (ε=1.0) | Mathematical guarantee, applied on-device before transmission |
+| **Aggregation** | Weekly totals | Hides daily patterns, aligns with payroll cycles |
+| **Backend Role** | Minimal (auth + storage only) | Reduces attack surface, minimizes PII |
+| **Mobile Platform** | React Native/Expo | iOS + Android support, TypeScript reuse, TestFlight compatibility |
+| **Database** | PostgreSQL (Hetzner, Germany) | EU data residency, GDPR compliance |
+| **Geofencing** | expo-location + OS geofences | Hardware-accelerated, low battery impact, mature library |
+| **Encryption** | SQLCipher + Expo SecureStore | Industry standard, keychain/keystore integration |
+
+---
+
+## 3. Mobile App Architecture
+
+### 3.1 Technology Stack
+
+```json
+{
+  "core": ["React Native 0.74", "Expo ~51.0", "TypeScript"],
+  "navigation": "React Navigation 6",
+  "state": "Zustand (or Redux Toolkit)",
+  "storage": ["expo-sqlite (SQLCipher)", "expo-secure-store", "AsyncStorage"],
+  "location": ["expo-location", "expo-task-manager"],
+  "ui": ["react-native-gesture-handler", "react-native-reanimated", "react-native-maps"],
+  "utils": ["date-fns", "axios"]
+}
+```
+
+### 3.2 Project Structure
+
+```
+mobile-app/
+├── src/
+│   ├── api/                              # Backend communication
+│   │   ├── client.ts                     # HTTP client (auth headers)
+│   │   ├── verification.ts               # Email verification
+│   │   ├── submissions.ts                # Submit weekly reports
+│   │   └── analytics.ts                  # Fetch dashboard data
+│   │
+│   ├── services/                         # Core business logic
+│   │   ├── geofencing/
+│   │   │   ├── GeofenceService.ts       # Wrapper for expo-location
+│   │   │   ├── TrackingManager.ts       # Auto clock-in/out logic
+│   │   │   └── LocationPicker.tsx       # UI for setting up geofences
+│   │   │
+│   │   ├── privacy/                      # ✅ Essential privacy features
+│   │   │   ├── DifferentialPrivacy.ts   # Laplace noise (ε=1.0)
+│   │   │   ├── Aggregation.ts           # Weekly totals
+│   │   │   ├── Rounding.ts              # 0.5h bins
+│   │   │   └── SubmissionQueue.ts       # Queue + retry with exponential backoff
+│   │   │
+│   │   └── storage/
+│   │       ├── Database.ts              # SQLite + SQLCipher
+│   │       ├── SecureStore.ts           # Keychain/Keystore wrapper
+│   │       └── BackupExport.ts          # User data export (GDPR)
+│   │
+│   ├── screens/                          # UI screens
+│   │   ├── onboarding/
+│   │   │   ├── VerificationScreen.tsx   # Email verification
+│   │   │   └── LocationSetupScreen.tsx  # Geofence setup
+│   │   │
+│   │   ├── calendar/
+│   │   │   ├── CalendarScreen.tsx       # Main planning view
+│   │   │   ├── WeekView.tsx             # Ported from Next.js
+│   │   │   ├── MonthView.tsx            # Optional
+│   │   │   └── ReviewMode.tsx           # Compare planned vs tracked
+│   │   │
+│   │   ├── tracking/
+│   │   │   ├── TrackingStatusScreen.tsx # Current status + manual controls
+│   │   │   └── TrackingHistoryScreen.tsx
+│   │   │
+│   │   ├── submission/
+│   │   │   ├── SubmissionScreen.tsx     # Select weeks to submit
+│   │   │   ├── SummaryScreen.tsx        # Review before submit
+│   │   │   └── HistoryScreen.tsx        # Past submissions
+│   │   │
+│   │   └── settings/
+│   │       ├── SettingsScreen.tsx
+│   │       ├── LocationsManager.tsx     # Edit geofences
+│   │       ├── PrivacySettings.tsx      # Explain privacy features
+│   │       └── DataExport.tsx           # GDPR data export
+│   │
+│   ├── components/                       # Reusable UI
+│   │   ├── calendar/
+│   │   │   ├── ShiftTemplatePanel.tsx   # Ported from Next.js
+│   │   │   ├── ShiftInstance.tsx
+│   │   │   └── TimeGrid.tsx
+│   │   │
+│   │   ├── tracking/
+│   │   │   ├── TrackingStatusBar.tsx    # 🟢 Currently tracking indicator
+│   │   │   ├── GeofenceMap.tsx          # Map with radius overlay
+│   │   │   └── ClockInOutButton.tsx
+│   │   │
+│   │   └── ui/                           # Design system
+│   │       ├── Button.tsx
+│   │       ├── Card.tsx
+│   │       └── ...
+│   │
+│   ├── store/                            # State management
+│   │   ├── authSlice.ts                 # User session, token
+│   │   ├── calendarSlice.ts             # Templates, instances (synced with SQLite)
+│   │   ├── trackingSlice.ts             # Tracked times (synced with SQLite)
+│   │   ├── submissionSlice.ts           # Pending queue, history
+│   │   └── settingsSlice.ts             # App settings, geofence preferences
+│   │
+│   ├── lib/
+│   │   ├── types.ts                     # TypeScript types (shared with Next.js)
+│   │   ├── constants.ts                 # Privacy params: ε=1.0, sensitivity=168
+│   │   └── utils.ts                     # Helpers
+│   │
+│   └── App.tsx                          # Root component
+│
+├── app.json                             # Expo configuration
+├── eas.json                             # EAS Build configuration
+├── package.json
+└── tsconfig.json
+```
+
+### 3.3 Local Database Schema (SQLite + SQLCipher)
+
+**All tables stored on-device, encrypted at rest:**
+
+```sql
+-- Shift templates (reusable patterns)
+CREATE TABLE shift_templates (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  start_time TEXT NOT NULL,          -- HH:mm format
+  duration_minutes INTEGER NOT NULL,
+  color TEXT NOT NULL,               -- "blue", "green", "amber", etc.
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Shift instances (planned shifts)
+CREATE TABLE shift_instances (
+  id TEXT PRIMARY KEY,
+  template_id TEXT,
+  date TEXT NOT NULL,                -- YYYY-MM-DD
+  start_time TEXT NOT NULL,
+  duration_minutes INTEGER NOT NULL,
+  end_time TEXT NOT NULL,            -- Computed
+  color TEXT NOT NULL,
+  name TEXT NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (template_id) REFERENCES shift_templates(id)
+);
+
+-- Tracked times (geofence or manual)
+CREATE TABLE tracked_times (
+  id TEXT PRIMARY KEY,
+  instance_id TEXT,
+  date TEXT NOT NULL,
+  clock_in DATETIME NOT NULL,
+  clock_out DATETIME,
+  duration_minutes INTEGER,
+  location_id TEXT NOT NULL,
+  tracking_method TEXT NOT NULL,     -- "geofence_auto" | "manual_entry"
+  is_reviewed BOOLEAN DEFAULT 0,
+  notes TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (instance_id) REFERENCES shift_instances(id)
+);
+
+-- User locations (geofences)
+CREATE TABLE user_locations (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,                -- e.g., "UCSF Medical Center"
+  latitude REAL NOT NULL,
+  longitude REAL NOT NULL,
+  radius_meters INTEGER NOT NULL,    -- Default 200m
+  is_active BOOLEAN DEFAULT 1,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Submission history (for user's reference)
+CREATE TABLE submission_history (
+  id TEXT PRIMARY KEY,
+  week_start TEXT NOT NULL,          -- Monday of week (YYYY-MM-DD)
+  submitted_hours REAL NOT NULL,     -- Noisy value that was sent
+  submitted_overtime REAL NOT NULL,  -- Noisy value that was sent
+  privacy_epsilon REAL NOT NULL,     -- ε used (e.g., 1.0)
+  submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  backend_response TEXT              -- JSON response from server
+);
+```
+
+---
+
+## 4. Privacy Architecture (Essential Features)
+
+### 4.1 Privacy Pipeline
+
+**All privacy protections applied ON-DEVICE before data leaves:**
+
+```typescript
+// src/services/privacy/DifferentialPrivacy.ts
+
+export const PRIVACY_CONFIG = {
+  epsilon: 1.0,              // Privacy budget per submission
+  sensitivity: 168,          // Max hours per week (7 days × 24 hours)
+  roundingGranularity: 0.5   // Round to nearest 0.5h
+} as const;
+
+/**
+ * Complete privacy pipeline
+ * Applied to weekly hours before submission
+ */
+export function applyPrivacyProtections(weeklyHours: number): number {
+  // Step 1: Round to 0.5h bins (k-anonymity)
+  const rounded = Math.round(weeklyHours * 2) / 2;
+
+  // Step 2: Add Laplace noise (ε-differential privacy)
+  const scale = PRIVACY_CONFIG.sensitivity / PRIVACY_CONFIG.epsilon;
+  const u = Math.random() - 0.5;
+  const noise = -scale * Math.sign(u) * Math.log(1 - 2 * Math.abs(u));
+  const noisy = rounded + noise;
+
+  // Step 3: Clamp to valid range
+  return Math.max(0, Math.min(168, noisy));
+}
+
+// Usage: Backend NEVER sees true value!
+const trueHours = 42.0;
+const noisyHours = applyPrivacyProtections(trueHours);  // e.g., 43.7
+await api.post('/submissions/weekly', { total_hours: noisyHours });
+```
+
+### 4.2 Privacy Guarantees
+
+**Mathematical:**
+- ✅ (ε=1.0)-differential privacy per submission
+- ✅ K-anonymity via 0.5h rounding (multiple users share identical rounded values)
+- ✅ Temporal aggregation (weekly totals hide daily patterns)
+
+**Practical:**
+- ✅ Backend never sees true values (receives noisy data only)
+- ✅ GPS coordinates never transmitted (geofence detection is on-device)
+- ✅ Daily work patterns not revealed (only weekly totals)
+- ✅ Email stored as SHA256 hash only
+
+**Legal/Compliance:**
+- ✅ GDPR Article 25 (Privacy by Design and by Default)
+- ✅ GDPR Article 32 (Security of Processing)
+- ✅ German BDSG § 22 (Technical and Organizational Measures)
+- ✅ Data minimization (backend stores minimal PII)
+
+### 4.3 Planned Privacy Enhancements (Post-MVP)
+
+**Tier 2 features documented in `TODO.md` (tasks 337-345):**
+- Submission time jittering (0-24h random delay)
+- Hospital generalization for small facilities (< 10 users)
+- Randomized response for rare staff groups
+- User-controlled epsilon setting
+- Privacy budget dashboard
+
+---
+
+## 5. Data Flows
+
+### 5.1 Complete User Journey
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│                    USER JOURNEY FLOW                            │
+└────────────────────────────────────────────────────────────────┘
+
+1. ONBOARDING (Tasks 99-118 in TODO.md)
+   ┌──────────────┐
+   │ Install app  │ → From TestFlight (iOS) or Google Play (Android)
+   └──────┬───────┘
+          │
+   ┌──────▼───────┐
+   │ Enter email  │ → hospital-worker@klinikum-muenchen.de
+   │ (hospital)   │
+   └──────┬───────┘
+          │ POST /verification/request
+          ▼
+   ┌──────────────┐
+   │ Receive code │ → 6-digit code via email
+   │ (123456)     │
+   └──────┬───────┘
+          │ POST /verification/confirm
+          ▼
+   ┌──────────────┐
+   │ Get token    │ → JWT stored in SecureStore (never sent again)
+   │ Extract      │ → hospital_domain = "klinikum-muenchen.de"
+   │ domain       │
+   └──────┬───────┘
+          │
+   ┌──────▼───────┐
+   │ Setup        │ → Drop pin on map, set radius (200m default)
+   │ geofence(s)  │ → Save to local DB (encrypted)
+   └──────┬───────┘
+          │
+   ┌──────▼───────┐
+   │ Grant        │ → "Always Allow" for background (or "When In Use")
+   │ permissions  │
+   └──────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+2. PLANNING SHIFTS (Tasks 119-141 in TODO.md)
+   ┌──────────────┐                    ┌──────────────────────┐
+   │ Create       │ ──────────────────►│ Local DB:            │
+   │ templates    │  "Day Shift 7-3pm" │ shift_templates      │
+   └──────┬───────┘                    └──────────────────────┘
+          │
+   ┌──────▼───────┐                    ┌──────────────────────┐
+   │ Place on     │ ──────────────────►│ Local DB:            │
+   │ calendar     │  Mon Jan 15, 7:00  │ shift_instances      │
+   └──────────────┘                    └──────────────────────┘
+
+   All data stays on device!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+3. TRACKING (Tasks 151-193 in TODO.md)
+
+   [Option A: Automatic Geofencing]
+   ┌──────────────┐
+   │ User enters  │ → expo-location detects geofence
+   │ hospital     │
+   └──────┬───────┘
+          │
+   ┌──────▼───────┐                    ┌──────────────────────┐
+   │ Auto clock-in│ ──────────────────►│ Local DB:            │
+   │ 07:03        │  ON-DEVICE ONLY!   │ tracked_times        │
+   │              │  method="geofence" │ { clock_in, ... }    │
+   └──────┬───────┘                    └──────────────────────┘
+          │
+          │ Notification: "🟢 Clocked in at Hospital"
+          │
+          │ ... user works shift ...
+          │
+   ┌──────▼───────┐
+   │ User exits   │ → expo-location detects exit
+   │ hospital     │
+   └──────┬───────┘
+          │
+   ┌──────▼───────┐                    ┌──────────────────────┐
+   │ Auto clock-  │ ──────────────────►│ Local DB:            │
+   │ out 15:12    │  Update record     │ tracked_times        │
+   │              │  { clock_out, ... }│ { clock_in, out }    │
+   └──────────────┘                    └──────────────────────┘
+
+   [Option B: Manual Fallback]
+   ┌──────────────┐                    ┌──────────────────────┐
+   │ Tap "Clock   │ ──────────────────►│ Local DB:            │
+   │ In" button   │  method="manual"   │ tracked_times        │
+   └──────┬───────┘                    └──────────────────────┘
+          │
+   ┌──────▼───────┐
+   │ Tap "Clock   │ → Update record
+   │ Out" button  │
+   └──────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+4. REVIEW (Tasks 142-150 in TODO.md)
+   ┌──────────────┐
+   │ Open review  │ → Query local DB for week
+   │ mode         │
+   └──────┬───────┘
+          │
+   ┌──────▼───────┐
+   │ Compare:     │   Planned: 7:00-15:00 (8h)
+   │ planned vs   │   Tracked: 7:03-15:12 (8.15h)
+   │ tracked      │
+   └──────┬───────┘
+          │
+   ┌──────▼───────┐                    ┌──────────────────────┐
+   │ Adjust if    │ ──────────────────►│ Local DB:            │
+   │ needed       │  Correct to 7:00   │ tracked_times        │
+   │              │  Add notes         │ { ..., notes }       │
+   └──────┬───────┘                    └──────────────────────┘
+          │
+   ┌──────▼───────┐
+   │ Mark as      │ → is_reviewed = true
+   │ "reviewed"   │
+   └──────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+5. SUBMISSION (Tasks 194-222 in TODO.md) **← PRIVACY APPLIED HERE**
+   ┌──────────────┐
+   │ Select week  │ → Query reviewed tracked_times for week
+   │ to submit    │
+   └──────┬───────┘
+          │
+   ┌──────▼───────┐
+   │ Aggregate    │   Mon: 8h, Tue: 9h, Wed: 7.5h, ...
+   │ Mon-Sun      │   Total: 42.0 hours
+   └──────┬───────┘
+          │
+          ▼
+   ┌────────────────────────────────────────────────┐
+   │           PRIVACY PIPELINE (ON-DEVICE)          │
+   ├────────────────────────────────────────────────┤
+   │  True value: 42.0 hours                        │
+   │       ↓                                         │
+   │  Step 1: Round to 0.5h → 42.0                  │
+   │       ↓                                         │
+   │  Step 2: Add Laplace noise (ε=1.0) → 43.7      │
+   │       ↓                                         │
+   │  Noisy value: 43.7 hours                       │
+   │  ✅ Backend NEVER sees 42.0!                    │
+   └────────────────────────────────────────────────┘
+          │
+   ┌──────▼───────┐
+   │ Queue for    │ → Add to AsyncStorage queue
+   │ submission   │   (with retry logic)
+   └──────┬───────┘
+          │
+          │ HTTPS POST /submissions/weekly
+          │ { week_start: "2025-01-13",
+          │   total_hours: 43.7,  ← NOISY!
+          │   staff_group: "nurses",
+          │   hospital_domain: "klinikum-muenchen.de",
+          │   privacy_epsilon: 1.0 }
+          ▼
+   ┌────────────────────────────────────────────────┐
+   │              BACKEND (UNTRUSTED)                │
+   ├────────────────────────────────────────────────┤
+   │  Receives: 43.7 hours (already noisy)          │
+   │  Stores: 43.7 hours in database                │
+   │  ✅ True value (42.0) never transmitted         │
+   └────────────────────────────────────────────────┘
+          │
+   ┌──────▼───────┐                    ┌──────────────────────┐
+   │ Save to      │ ──────────────────►│ Local DB:            │
+   │ history      │  Record submitted  │ submission_history   │
+   └──────────────┘  noisy value       └──────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+6. DASHBOARD (Existing Next.js app, minimal changes)
+   ┌──────────────┐
+   │ User opens   │ → GET /analytics?months=6&staff_group=nurses
+   │ dashboard    │
+   └──────┬───────┘
+          │
+   ┌──────▼───────┐
+   │ Backend      │   avg(43.7, 38.2, 45.1, 39.8, ...)
+   │ aggregates   │   ≈ 42.0 hours (noise cancels out!)
+   │ noisy data   │
+   └──────┬───────┘
+          │
+   ┌──────▼───────┐
+   │ Apply        │ → If N < 5: suppressed = true
+   │ suppression  │
+   └──────┬───────┘
+          │
+   ┌──────▼───────┐
+   │ Display      │ → Charts: avg hours by month, staff group
+   │ charts/tables│   Tables: reports per hospital (if N ≥ 5)
+   └──────────────┘
+```
+
+---
+
+## 6. Backend Architecture (Minimal)
+
+### 6.1 Database Schema (PostgreSQL on Hetzner)
+
+**Only two tables needed:**
+
+```sql
+-- Users (minimal record for auth)
+CREATE TABLE users (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email_hash VARCHAR(64) UNIQUE NOT NULL,    -- SHA256(email)
+  affiliation_token TEXT NOT NULL,           -- JWT
+  hospital_domain VARCHAR(255) NOT NULL,     -- e.g., "klinikum-muenchen.de"
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_users_email_hash ON users(email_hash);
+CREATE INDEX idx_users_domain ON users(hospital_domain);
+
+-- Submitted reports (weekly, already noisy)
+CREATE TABLE submitted_reports (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+
+  week_start DATE NOT NULL,                  -- Monday of week
+  total_hours_worked FLOAT NOT NULL,         -- ← Noisy value (user added noise)
+  total_overtime_hours FLOAT NOT NULL,       -- ← Noisy value
+
+  staff_group VARCHAR(50) NOT NULL,          -- "nurses" | "facharzte" | "oberarzte"
+  hospital_domain VARCHAR(255) NOT NULL,
+
+  privacy_epsilon FLOAT DEFAULT 1.0,         -- ε used by client
+
+  submitted_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_reports_user ON submitted_reports(user_id);
+CREATE INDEX idx_reports_week_group ON submitted_reports(week_start, staff_group);
+CREATE INDEX idx_reports_hospital_week ON submitted_reports(hospital_domain, week_start);
+
+-- Constraints
+ALTER TABLE submitted_reports ADD CONSTRAINT chk_hours
+  CHECK (total_hours_worked >= 0 AND total_hours_worked <= 168);
+ALTER TABLE submitted_reports ADD CONSTRAINT chk_overtime
+  CHECK (total_overtime_hours >= 0 AND total_overtime_hours <= 168);
+```
+
+### 6.2 API Endpoints
+
+```python
+# backend/app/main.py
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+app = FastAPI(title="Open Working Hours API")
+
+# CORS for mobile app and dashboard
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://yourdomain.com"],  # Dashboard
+    allow_methods=["GET", "POST"],
+    allow_headers=["*"],
+)
+
+# Routers
+app.include_router(verification_router)    # Existing
+app.include_router(submissions_router)     # NEW
+app.include_router(analytics_router)       # Existing (minor updates)
+
+# Key endpoints:
+# POST   /verification/request     # Email → send code
+# POST   /verification/confirm     # Code → JWT token
+
+# POST   /submissions/weekly       # Submit noisy weekly data
+# GET    /submissions/history      # User's own past submissions
+
+# GET    /analytics                # Aggregated dashboard data
+```
+
+**New submission endpoint:**
+
+```python
+# backend/app/routers/submissions.py
+
+from pydantic import BaseModel, validator
+from datetime import date
+
+class WeeklySubmissionCreate(BaseModel):
+    week_start: date
+    total_hours: float           # Already noisy!
+    total_overtime: float        # Already noisy!
+    staff_group: str
+    hospital_domain: str
+    privacy_epsilon: float = 1.0
+
+    @validator('week_start')
+    def validate_week_start(cls, v):
+        if v.weekday() != 0:  # Must be Monday
+            raise ValueError('week_start must be Monday')
+        if v > date.today():
+            raise ValueError('Cannot submit future dates')
+        return v
+
+@router.post("/weekly")
+async def submit_weekly_report(
+    submission: WeeklySubmissionCreate,
+    current_user: User = Depends(get_current_user)  # JWT auth
+):
+    """
+    Receives ALREADY NOISY data from mobile app.
+    Backend just stores it - no further processing.
+    """
+
+    # Check duplicate
+    existing = db.query(SubmittedReport).filter(
+        SubmittedReport.user_id == current_user.id,
+        SubmittedReport.week_start == submission.week_start
+    ).first()
+
+    if existing:
+        raise HTTPException(409, "Week already submitted")
+
+    # Store noisy data as-is
+    report = SubmittedReport(
+        user_id=current_user.id,
+        week_start=submission.week_start,
+        total_hours_worked=submission.total_hours,      # Noisy!
+        total_overtime_hours=submission.total_overtime,  # Noisy!
+        staff_group=submission.staff_group,
+        hospital_domain=submission.hospital_domain,
+        privacy_epsilon=submission.privacy_epsilon
+    )
+
+    db.add(report)
+    db.commit()
+
+    return {
+        "message": "Submitted successfully",
+        "id": str(report.id),
+        "privacy_applied": f"ε={submission.privacy_epsilon}"
+    }
+```
+
+---
+
+## 7. Deployment & Hosting
+
+### 7.1 Backend (Hetzner, Germany)
+
+**Server setup:**
+```bash
+# Hetzner Cloud Server (EU region - Falkenstein or Nuremberg)
+# Ubuntu 22.04 LTS
+# 2 vCPU, 4GB RAM (sufficient for MVP)
+
+# Install dependencies
+apt update && apt upgrade -y
+apt install python3.11 python3-pip postgresql-15 nginx certbot -y
+
+# PostgreSQL setup
+sudo -u postgres psql
+CREATE DATABASE workinghours_db;
+CREATE USER workinghours_user WITH PASSWORD 'secure_password';
+GRANT ALL PRIVILEGES ON DATABASE workinghours_db TO workinghours_user;
+
+# Backend deployment
+cd /opt
+git clone https://github.com/yourusername/open_workinghours.git
+cd open_workinghours/backend
+pip install -r requirements.txt
+uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
+
+# Nginx reverse proxy
+# /etc/nginx/sites-available/workinghours
+server {
+    listen 443 ssl;
+    server_name api.workinghours.example.com;
+
+    ssl_certificate /etc/letsencrypt/live/api.workinghours.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/api.workinghours.example.com/privkey.pem;
+
+    location / {
+        proxy_pass http://localhost:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+```
+
+### 7.2 Mobile App (TestFlight + Google Play)
+
+**iOS (TestFlight):**
+```bash
+# Prerequisites: Apple Developer Account ($99/year)
+
+# Build with EAS
+eas login
+eas build:configure
+eas build --platform ios --profile production
+
+# Upload to TestFlight via EAS Submit
+eas submit --platform ios
+```
+
+**Android (Google Play Internal Testing):**
+```bash
+# Prerequisites: Google Play Developer Account ($25 one-time)
+
+# Build with EAS
+eas build --platform android --profile production
+
+# Upload to Google Play Console
+eas submit --platform android
+```
+
+### 7.3 Dashboard (Existing Next.js)
+
+**No significant changes needed:**
+- Update analytics query to handle weekly data (divide by 7 for daily avg)
+- Existing suppression logic (N < 5) remains the same
+- Deploy as usual (Vercel, Netlify, or self-hosted)
+
+---
+
+## 8. Developer Workflow
+
+### 8.1 Getting Started
+
+```bash
+# 1. Backend setup
+cd backend
+pip install -r requirements.txt
+# Set up .env with database credentials
+uvicorn main:app --reload
+# Backend runs on http://localhost:8000
+
+# 2. Mobile app setup
+cd mobile-app
+npm install
+expo start
+# Scan QR code with Expo Go app
+
+# 3. Dashboard (existing)
+cd ../
+pnpm install
+pnpm dev
+# Dashboard runs on http://localhost:3000
+```
+
+### 8.2 Testing Geofencing
+
+```bash
+# iOS Simulator: Feature → Location → Custom Location
+# Set coordinates near your test geofence
+
+# Android Emulator: ... (Extended Controls) → Location
+# Set custom GPS coordinates
+
+# Real device testing: Walk in/out of actual geofence radius
+```
+
+### 8.3 Testing Privacy Pipeline
+
+```typescript
+// Test in mobile app console or Jest tests
+import { applyPrivacyProtections } from '@/services/privacy/DifferentialPrivacy';
+
+const trueValue = 40.0;
+const noisy1 = applyPrivacyProtections(trueValue);
+const noisy2 = applyPrivacyProtections(trueValue);
+const noisy3 = applyPrivacyProtections(trueValue);
+
+console.log({ trueValue, noisy1, noisy2, noisy3 });
+// Output: { trueValue: 40, noisy1: 38.7, noisy2: 42.3, noisy3: 39.1 }
+// ✅ Each call produces different noisy value
+// ✅ Average converges to true value with enough samples
+```
+
+---
+
+## 9. References & Documentation
+
+### Key Files
+
+**Mobile app:**
+- Privacy pipeline: `mobile-app/src/services/privacy/DifferentialPrivacy.ts`
+- Geofencing: `mobile-app/src/services/geofencing/GeofenceService.ts`
+- Local DB: `mobile-app/src/services/storage/Database.ts`
+- Calendar: `mobile-app/src/screens/calendar/CalendarScreen.tsx`
+
+**Backend:**
+- Submissions: `backend/app/routers/submissions.py`
+- Auth: `backend/app/routers/verification.py`
+- Models: `backend/app/models.py`
+
+**Dashboard:**
+- Analytics: `app/[locale]/public-dashboard/page.tsx`
+- API client: `lib/backend-api.ts`
+
+### Additional Documentation
+
+- **Master todo list**: `TODO.md` (360 tasks, 11-week roadmap)
+- **Privacy policy**: `docs/privacy-policy.md` (TODO: write)
+- **API documentation**: Backend OpenAPI docs at `/docs`
+- **Architecture diagrams**: `docs/architecture/` (TODO: create)
+
+---
+
+## 10. Planned Features (Post-MVP)
+
+See `TODO.md` tasks 337-360 for detailed list. Key enhancements:
+
+### Tier 2 Privacy (High Priority)
+- [ ] Submission time jittering (0-24h random delay)
+- [ ] Hospital generalization for small facilities
+- [ ] Randomized response for staff groups
+
+### User Features
+- [ ] Multi-hospital support (switch between workplaces)
+- [ ] Shift templates sharing
+- [ ] Calendar sync (Google/Apple Calendar)
+- [ ] Push reminders
+
+### Technical Improvements
+- [ ] Improve geofence accuracy (WiFi SSID as secondary signal)
+- [ ] Battery optimization
+- [ ] Offline mode improvements
+- [ ] Biometric authentication
+
+---
+
+## 11. Privacy & Compliance Summary
+
+### What's Protected
+
+| Data Type | Location | Privacy Measure | Who Can Access? |
+|-----------|----------|-----------------|-----------------|
+| GPS coordinates | Device only | Never transmitted | User only |
+| Daily shift times | Device only | Never transmitted | User only |
+| Weekly hours | Backend (noisy) | Laplace noise (ε=1.0) | Backend (noisy only) |
+| Email | Backend (hashed) | SHA256 | Backend (hash only) |
+| Staff group | Backend | None (Tier 1) | Backend (aggregated) |
+| Templates | Device only | Never transmitted | User only |
+| Planned shifts | Device only | Never transmitted | User only |
+
+### Compliance Checklist
+
+- [x] GDPR Article 25 (Privacy by Design)
+- [x] GDPR Article 32 (Security of Processing)
+- [x] German BDSG § 22 (Technical Measures)
+- [x] Data minimization (backend stores minimal PII)
+- [x] User control (explicit submission, no auto-sync)
+- [x] Right to erasure (delete user → cascade to reports)
+- [x] Data portability (export feature in settings)
+- [x] Encryption at rest (SQLCipher on device)
+- [x] Encryption in transit (HTTPS)
+
+---
+
+## 12. Getting Help
+
+### Common Issues
+
+**Geofencing not working:**
+- Check location permissions (Settings → App → Location → Always Allow)
+- Verify geofence radius is reasonable (100-500m)
+- Check battery optimization settings (Android)
+
+**Submission failing:**
+- Check internet connection
+- Check backend is running (`curl https://api.workinghours.example.com/health`)
+- Check submission queue: Settings → Data Export → View pending submissions
+
+**Privacy concerns:**
+- Review Settings → Privacy Settings for explanation of protections
+- Export your data to see what's stored locally vs remotely
+- Read privacy policy at https://workinghours.example.com/privacy
+
+### Support
+
+- **GitHub Issues**: https://github.com/yourusername/open_workinghours/issues
+- **Documentation**: https://docs.workinghours.example.com
+- **Email**: support@workinghours.example.com
+
+---
+
+**Last updated**: 2025-01-15
+**Version**: 2.0 (Mobile app architecture)
+**Next review**: After MVP completion (Week 11)
