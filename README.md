@@ -106,3 +106,11 @@ See `backend/README.md` for database configuration, Docker Compose, and addition
 - Add Playwright tests for verification → ingestion → dashboard flows.
 
 Open issues and ideas are tracked in [`to-do.md`](./to-do.md). Feel free to file GitHub issues or submit PRs if you build on top of this baseline.***
+
+---
+
+## License
+
+This project is licensed under the [MIT License](./LICENSE).
+
+Documentation and other non-code content may be shared under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
