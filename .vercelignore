@@ -1,0 +1,2 @@
+# Ignore mobile app directory in Vercel builds
+mobile-app/
