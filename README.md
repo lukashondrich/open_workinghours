@@ -78,6 +78,12 @@ See `backend/README.md` for database configuration, Docker Compose, and addition
 
 ---
 
+## Temporary Mock Analytics API
+
+Until the FastAPI backend is deployed, the Next.js app exposes a placeholder analytics endpoint at [`/api/analytics`](./app/api/analytics/route.ts). It returns deterministic mock data so the dashboard renders on Vercel, and should be removed or replaced as soon as a real backend is available. To point the frontend at your FastAPI instance, set `NEXT_PUBLIC_API_BASE_URL` (and optionally `API_BASE_URL`) to the live service URL; this automatically bypasses the mock.
+
+---
+
 ## Primary Flows
 
 1. **Email Verification**

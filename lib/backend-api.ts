@@ -1,4 +1,4 @@
-const DEFAULT_API_BASE = "http://localhost:8000";
+const DEFAULT_API_BASE = "";
 
 const resolveApiBase = () => {
   if (process.env.NEXT_PUBLIC_API_BASE_URL) {
@@ -6,15 +6,18 @@ const resolveApiBase = () => {
   }
   if (typeof window !== "undefined") {
     const { protocol, hostname } = window.location;
-    const port = process.env.NEXT_PUBLIC_API_PORT ?? "8000";
-    const resolved = `${protocol}//${hostname}:${port}`;
-    if (!(window as typeof window & { __owhLoggedBase?: boolean }).__owhLoggedBase) {
-      console.info(`[OWH] Using API base: ${resolved}`);
-      (window as typeof window & { __owhLoggedBase?: boolean }).__owhLoggedBase = true;
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      const port = process.env.NEXT_PUBLIC_API_PORT ?? "8000";
+      const resolved = `${protocol}//${hostname}:${port}`;
+      if (!(window as typeof window & { __owhLoggedBase?: boolean }).__owhLoggedBase) {
+        console.info(`[OWH] Using API base: ${resolved}`);
+        (window as typeof window & { __owhLoggedBase?: boolean }).__owhLoggedBase = true;
+      }
+      return resolved;
     }
-    return resolved;
+    return "";
   }
-  return DEFAULT_API_BASE;
+  return process.env.API_BASE_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? DEFAULT_API_BASE;
 };
 
 type FetchOptions = RequestInit & { token?: string };
@@ -131,4 +134,3 @@ export async function fetchAnalytics(options: FetchAnalyticsOptions = {}): Promi
   }
   return apiFetch<AnalyticsResponse>(`/analytics/?${params.toString()}`);
 }
-
