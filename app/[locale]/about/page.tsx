@@ -118,8 +118,10 @@ export default async function AboutPage({ params }: { params: Promise<{ locale: 
             <br />
             {t('getInvolved.contribute')}{' '}
             <a
-              href="https://github.com"
+              href="https://github.com/lukashondrich/open_workinghours"
               className="text-slate-900 underline decoration-slate-300 hover:decoration-slate-900 transition-colors"
+              target="_blank"
+              rel="noreferrer"
             >
               {t('getInvolved.github')}
             </a>
