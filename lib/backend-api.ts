@@ -132,5 +132,10 @@ export async function fetchAnalytics(options: FetchAnalyticsOptions = {}): Promi
   if (staffGroup) {
     params.set("staff_group", staffGroup);
   }
-  return apiFetch<AnalyticsResponse>(`/analytics/?${params.toString()}`);
+  const path = `/analytics/?${params.toString()}`;
+  const base = resolveApiBase();
+  if (!base) {
+    return apiFetch<AnalyticsResponse>(`/api${path}`);
+  }
+  return apiFetch<AnalyticsResponse>(path);
 }
