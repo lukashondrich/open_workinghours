@@ -4,11 +4,10 @@ import type { AnalyticsResponse, StaffGroup } from "@/lib/backend-api"
 // Temporary mock API so the dashboard works without the FastAPI backend.
 // Replace this with a real proxy once the backend is deployed.
 
-const MOCK_HOSPITALS = [
-  { domain: "charite.de", baseHours: 162 },
-  { domain: "vivantes.de", baseHours: 155 },
-  { domain: "uk-koeln.de", baseHours: 168 }
-]
+const MOCK_HOSPITALS = Array.from({ length: 5 }).map((_, index) => ({
+  domain: `hospital-${index + 1}.example.org`,
+  baseHours: 150 + index * 4
+}))
 
 const STAFF_GROUPS: StaffGroup[] = ["group_a", "group_b", "group_c"]
 
