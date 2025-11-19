@@ -20,7 +20,9 @@ app/                  # Next.js App Router pages (home, verify, ingestion, dashb
 components/           # Shared UI and forms (VerificationForm, ReportForm, calendar views, etc.)
 hooks/useAffiliationToken.ts
 lib/                  # API client, calendar reducer/utilities, shared types
-backend/              # Legacy FastAPI service (verification, reporting, analytics)
+backend/              # FastAPI service (verification, reporting, analytics)
+mobile-app/           # React Native app (geofencing, privacy-first tracking) [IN PROGRESS]
+  └── MODULE_1_PROGRESS.md  # 📋 Detailed handoff documentation
 config/, data/, datasets/  # Domain configuration + seed data
 ```
 
@@ -101,6 +103,31 @@ Until the FastAPI backend is deployed, the Next.js app exposes a placeholder ana
 
 - **Frontend:** Deploy via Vercel or any Node-capable host (`pnpm build && pnpm start`).  
 - **Backend:** Deploy FastAPI (e.g., Fly.io, Render, or Docker/VPS). Update `NEXT_PUBLIC_API_BASE_URL` accordingly.
+
+---
+
+## Mobile App (React Native)
+
+**Status:** Module 1 in progress - Backend services complete (75% test coverage)
+
+The mobile app provides automatic working hours tracking via geofencing. See **[mobile-app/MODULE_1_PROGRESS.md](./mobile-app/MODULE_1_PROGRESS.md)** for complete documentation.
+
+**What's done:**
+- ✅ Database layer (SQLite with geofence events, tracking sessions)
+- ✅ Geofence service (expo-location wrapper, background tasks)
+- ✅ Tracking manager (auto clock-in/out, notifications)
+- ⏳ UI screens (pending)
+- ⏳ iOS device testing (pending)
+
+**Quick start:**
+```bash
+cd mobile-app
+npm install
+npm test          # Run tests (36/48 passing)
+npm start         # Start Expo dev server
+```
+
+**Next steps:** Build UI screens and test on physical iOS device to validate geofencing reliability.
 
 ---
 

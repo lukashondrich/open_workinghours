@@ -23,11 +23,12 @@ This file provides context for AI assistants (Claude) working on this project.
    - Differential privacy pipeline
    - Location: `mobile-app/` directory (to be created)
 
-3. **FastAPI Backend** (planned)
-   - Minimal API for verification and submissions
+3. **FastAPI Backend** (exists, will be extended)
+   - Currently serves web dashboard (email verification, daily reports, analytics)
+   - Will be extended for mobile app (weekly noisy submissions)
    - PostgreSQL database
-   - EU-hosted (Hetzner, Germany)
-   - Location: `backend/` directory (to be created)
+   - To be deployed: EU-hosted (Hetzner, Germany)
+   - Location: `backend/` directory (see backend/README.md)
 
 ---
 
@@ -36,8 +37,9 @@ This file provides context for AI assistants (Claude) working on this project.
 | File | Purpose |
 |------|---------|
 | `blueprint.md` | Complete system architecture (38KB, extremely detailed) |
-| `TODO.md` | 360-task master checklist, 11-week roadmap |
-| `MODULE_1_PLAN.md` | Modular development plan for geofencing (test-driven) |
+| `TODO.md` | Master TODO list (Module 1 first approach, single source of truth) |
+| `MODULE_1_PLAN.md` | Detailed Module 1 implementation guide with code examples |
+| `backend/README.md` | Backend architecture, endpoints (web + mobile), deployment guide |
 | `claude.md` | This file - context for AI assistants |
 
 ---
@@ -63,13 +65,21 @@ This file provides context for AI assistants (Claude) working on this project.
 - Zustand-style state management
 - pnpm for package management
 
+✅ **Backend API (for Web Dashboard)**
+- FastAPI backend in `/backend` directory
+- Email verification (6-digit codes via email)
+- Daily report submission (raw hours)
+- Analytics aggregation (with suppression)
+- PostgreSQL database (local dev, Hetzner deployment planned)
+- See backend/README.md for details
+
 ### What Doesn't Exist
 
 ❌ **Mobile App** - Not started yet
-❌ **Backend API** - Partially designed, not implemented
+❌ **Mobile Backend Endpoints** - Need to extend `/backend` with weekly submissions
 ❌ **Privacy Pipeline** - Designed in blueprint, not coded
 ❌ **Geofencing** - Core feature, not started
-❌ **Local Database** - SQLite schema designed, not implemented
+❌ **Local Database (Mobile)** - SQLite schema designed, not implemented
 
 ---
 
@@ -479,38 +489,120 @@ M text.txt
 
 ---
 
-## File Structure Reference
+## Documentation Structure
+
+### Core Documentation (Read in This Order)
+
+**For New Developers:**
+1. **README.md** - Project overview, quick start (web app focus)
+2. **claude.md** - This file, current state and context
+3. **blueprint.md** - Complete system architecture (38KB, comprehensive)
+4. **TODO.md** - Master TODO list (Module 1 first approach, single source of truth)
+
+**For Mobile Development:**
+1. **TODO.md** - Start here (Module 1 → 8 implementation plan)
+2. **MODULE_1_PLAN.md** - Detailed Module 1 guide with code examples
+3. **blueprint.md** - Full architecture reference
+
+**For Backend Development:**
+1. **backend/README.md** - Comprehensive backend guide (endpoints, deployment, architecture)
+2. **TODO.md Module 4** - When to implement mobile endpoints
+3. **blueprint.md section 6** - Original backend design
+
+### All Documentation Files
 
 ```
 /Users/user01/open_workinghours/
-├── app/                      # Next.js app (deployed to Vercel)
-├── components/               # React components
-├── lib/                      # Shared utilities, types
-├── styles/                   # Global CSS
-├── public/                   # Static assets
-├── messages/                 # i18n translations
-├── i18n/                     # i18n config
-├── datasets/                 # Hospital datasets (German)
 │
-├── blueprint.md              # System architecture (READ FIRST)
-├── TODO.md                   # 360-task checklist (11 weeks)
-├── MODULE_1_PLAN.md          # Geofencing module (TDD approach)
-├── claude.md                 # This file
-├── text.txt                  # User notes (?)
+├── 📚 Documentation
+│   ├── README.md              # Project overview (web app focus)
+│   ├── blueprint.md           # System architecture (38KB, comprehensive)
+│   ├── TODO.md                # Master TODO (Module 1 first, single source of truth)
+│   ├── MODULE_1_PLAN.md       # Module 1 detailed implementation guide
+│   ├── claude.md              # This file - AI assistant context
+│   └── LICENSE                # MIT License
 │
-├── mobile-app/               # NOT CREATED YET
-│   └── (future React Native app)
+├── 🌐 Web Dashboard (Next.js - Production on Vercel)
+│   ├── app/                   # Next.js App Router pages
+│   │   ├── [locale]/          # Internationalized routes
+│   │   ├── api/analytics/     # Temporary mock API
+│   │   └── fonts.ts
+│   ├── components/            # React components
+│   │   ├── ui/                # Radix UI components
+│   │   ├── calendar-*.tsx     # Calendar components
+│   │   ├── verification-form.tsx
+│   │   └── report-form.tsx
+│   ├── lib/                   # Shared utilities
+│   │   ├── types.ts           # TypeScript types
+│   │   ├── calendar-utils.ts
+│   │   ├── backend-api.ts
+│   │   └── utils.ts
+│   ├── messages/              # i18n translations (en, de, pt-BR)
+│   ├── public/                # Static assets
+│   ├── styles/                # Global CSS
+│   ├── package.json
+│   ├── next.config.mjs
+│   └── tsconfig.json
 │
-├── backend/                  # NOT CREATED YET
-│   └── (future FastAPI app)
+├── 🔧 Backend (FastAPI - Serves Web + Mobile)
+│   ├── README.md              # ✨ Comprehensive backend guide
+│   ├── app/
+│   │   ├── main.py            # FastAPI app, routers, CORS
+│   │   ├── config.py          # Environment variables
+│   │   ├── database.py        # SQLAlchemy setup
+│   │   ├── models.py          # Database models
+│   │   │   ├── VerificationRequest  # ✅ Exists
+│   │   │   ├── Report               # ✅ Exists (web: daily)
+│   │   │   ├── User                 # ❌ TODO (mobile)
+│   │   │   └── SubmittedReport      # ❌ TODO (mobile: weekly noisy)
+│   │   ├── schemas.py         # Pydantic schemas
+│   │   ├── routers/
+│   │   │   ├── verification.py      # ✅ Shared (web + mobile)
+│   │   │   ├── reports.py           # ✅ Web only (daily, raw)
+│   │   │   ├── submissions.py       # ❌ TODO (mobile: weekly noisy)
+│   │   │   └── analytics.py         # ✅ Shared (web + mobile)
+│   │   ├── security.py        # JWT, hashing
+│   │   ├── dependencies.py    # Auth dependencies
+│   │   ├── email.py           # Email sending
+│   │   ├── pii.py             # PII scrubbing
+│   │   └── utils.py
+│   ├── alembic/               # Database migrations
+│   ├── .env.example
+│   └── pyproject.toml
 │
-├── package.json              # Web app dependencies
-├── tsconfig.json             # TypeScript config
-├── next.config.mjs           # Next.js config
-├── tailwind.config.ts        # Tailwind config
-├── .gitignore                # Git ignore rules
-└── .vercelignore             # Vercel ignore rules (PROTECTS DEPLOYMENT)
+├── 📱 Mobile App (React Native - NOT CREATED YET)
+│   └── mobile-app/            # Will be created in Module 1
+│       ├── README.md          # Setup and testing guide
+│       ├── src/
+│       │   ├── modules/
+│       │   │   └── geofencing/  # Module 1
+│       │   ├── lib/
+│       │   └── App.tsx
+│       ├── app.json
+│       ├── eas.json
+│       └── package.json
+│
+├── 🗂️ Configuration
+│   ├── .vercelignore          # Protects web deployment
+│   ├── .gitignore
+│   ├── .eslintrc.json
+│   ├── postcss.config.mjs
+│   └── tailwind.config.ts
+│
+└── 📊 Data
+    ├── datasets/              # Hospital data (German)
+    └── data/
 ```
+
+### Documentation Updates
+
+**Last Updated:** 2025-01-18
+
+**Recent Changes:**
+- Created `backend/README.md` - Comprehensive backend documentation
+- Updated TODO.md to Module 1 first approach
+- Consolidated BACKEND_ANALYSIS.md into backend/README.md
+- Removed temporary analysis files
 
 ---
 
@@ -537,5 +629,5 @@ M text.txt
 ---
 
 **Last Updated:** 2025-01-18
-**Status:** Web app in production, mobile app not started
-**Current Focus:** Planning modular development approach
+**Status:** Web app in production, mobile app not started, backend ready for extension
+**Current Focus:** Module 1 - Geofencing & Basic Tracking (ready to start)

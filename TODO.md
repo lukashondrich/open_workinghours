@@ -1,599 +1,649 @@
-# Open Working Hours - Master Todo List
+# Open Working Hours - Development TODO
 
-## 📋 Complete Implementation Checklist
-
-This is the master todo list for implementing the mobile location tracking app with differential privacy. Use this as your primary reference for tracking progress.
+**Last Updated:** 2025-01-18
+**Current Focus:** Module 1 - Geofencing & Basic Tracking
 
 ---
 
-## Phase 0: Setup & Preparation (Week 0)
+## 📍 Development Strategy
 
-### Environment Setup
-- [ ] 1. Install Node.js 18+ and pnpm
-- [ ] 2. Install Expo CLI globally: `npm install -g expo-cli`
+This project uses a **modular development approach** starting with the highest-risk component first:
+
+1. **Build Module 1 FIRST** (2-3 weeks) - Validate geofencing works reliably
+2. **Decision Point** - If geofencing works → continue with full blueprint; If not → pivot to manual-entry-first
+3. **Then build remaining modules** (Calendar, Privacy, Submission, Polish)
+
+### Why Geofencing First?
+
+- ✅ **De-risks early**: Geofencing is the highest-risk assumption (iOS/Android background behavior is unpredictable)
+- ✅ **Fast feedback**: Test on real devices by Day 3
+- ✅ **Testable**: Small surface area, comprehensive tests
+- ✅ **Motivating**: See location tracking working immediately
+
+---
+
+## 🎯 Current Phase: Module 1 - Geofencing & Basic Tracking
+
+**Timeline:** 2-3 weeks
+**Goal:** Minimal working app that proves background geofencing works
+**Success Criteria:**
+- [ ] Background geofencing works on iOS and Android
+- [ ] Battery usage < 5% over 8 hours
+- [ ] Data persists in local SQLite database
+- [ ] 85%+ test coverage
+
+**What's Included:**
+- ✅ Expo React Native app
+- ✅ Location permissions flow
+- ✅ Geofence setup (map + radius selection)
+- ✅ Background location tracking
+- ✅ Auto clock-in/out via geofencing
+- ✅ Manual clock-in/out fallback
+- ✅ Local SQLite storage
+- ✅ Simple tracking history view
+- ✅ Comprehensive testing
+
+**What's Excluded (For Now):**
+- ❌ Email verification (use hardcoded user for testing)
+- ❌ Calendar/planning features
+- ❌ Differential privacy
+- ❌ Backend submission
+- ❌ UI polish
+
+---
+
+## Module 1 Task Breakdown
+
+### Phase 1.1: Project Setup (Day 1)
+**Goal:** Working Expo app that runs on your device
+
+- [x] 1. Install Node.js 18+ and pnpm *(already installed)*
+- [ ] 2. Install Expo CLI: `npm install -g expo-cli`
 - [ ] 3. Install EAS CLI: `npm install -g eas-cli`
-- [ ] 4. Create Expo account (for builds)
-- [ ] 5. Install Xcode (Mac) for iOS development
-- [ ] 6. Install Android Studio for Android development
-- [ ] 7. Set up iOS simulator / Android emulator
-- [ ] 8. Apply for Apple Developer Account ($99/year)
-- [ ] 9. Set up Google Play Developer Account ($25 one-time)
+- [ ] 4. Create Expo account (for builds later)
+- [ ] 5. Set up iOS simulator / Android emulator
+- [ ] 6. Initialize mobile app directory
+  ```bash
+  cd /Users/user01/open_workinghours
+  npx create-expo-app mobile-app --template blank-typescript
+  cd mobile-app
+  ```
+- [ ] 7. Install core dependencies:
+  ```bash
+  npx expo install expo-location expo-task-manager expo-sqlite expo-notifications
+  npx expo install react-native-maps
+  npm install uuid date-fns
+  npm install -D jest @testing-library/react-native @testing-library/jest-native
+  ```
+- [ ] 8. Configure TypeScript (strict mode, path aliases)
+- [ ] 9. Set up Jest for testing
+- [ ] 10. Create folder structure:
+  ```
+  src/modules/geofencing/{__tests__,components,services,screens,hooks}
+  src/lib
+  e2e
+  scripts
+  ```
+- [ ] 11. Create test utilities and mocks
+- [ ] 12. Run `expo start` and test on device (blank screen is fine)
 
-### Backend Setup
-- [ ] 10. Set up Hetzner server (EU region - Germany)
-- [ ] 11. Install PostgreSQL 15+ on server
-- [ ] 12. Configure firewall (allow 443, 80, PostgreSQL port)
-- [ ] 13. Set up SSL certificate (Let's Encrypt)
-- [ ] 14. Install Python 3.11+
-- [ ] 15. Install Poetry or pip
-- [ ] 16. Set up backend `.env` file with secrets
-
-### Project Initialization
-- [ ] 17. Create `mobile-app/` directory
-- [ ] 18. Initialize Expo project: `npx create-expo-app mobile-app --template blank-typescript`
-- [ ] 19. Install core dependencies (see package.json below)
-- [ ] 20. Set up Git branch for mobile app development
-- [ ] 21. Create project structure (folders: src/api, src/services, src/screens, etc.)
-
----
-
-## Phase 1: Backend Foundation (Week 1)
-
-### Database Schema
-- [ ] 22. Create migration for `users` table (id, email_hash, affiliation_token, hospital_domain, created_at)
-- [ ] 23. Create migration for `submitted_reports` table (id, user_id, week_start, total_hours, total_overtime, staff_group, hospital_domain, privacy_epsilon, submitted_at)
-- [ ] 24. Add indexes: (user_id), (week_start, staff_group), (hospital_domain, week_start)
-- [ ] 25. Run migrations on dev database
-- [ ] 26. Run migrations on production database (Hetzner)
-
-### Authentication
-- [ ] 27. Update `users` model to store email as SHA256 hash
-- [ ] 28. Implement JWT token generation (expiry: 30 days)
-- [ ] 29. Create `get_current_user` dependency for protected routes
-- [ ] 30. Add rate limiting to verification endpoints (3 req/min for request, 5 req/min for confirm)
-- [ ] 31. Test verification flow with Postman
-
-### Submissions API
-- [ ] 32. Create `backend/app/routers/submissions.py`
-- [ ] 33. Implement `POST /submissions/weekly` endpoint
-- [ ] 34. Add validation: week_start must be Monday, hours 0-168, no future dates
-- [ ] 35. Add duplicate check (prevent re-submitting same week)
-- [ ] 36. Implement `GET /submissions/history` endpoint (user's own submissions)
-- [ ] 37. Test submission endpoint with curl/Postman
-- [ ] 38. Add CORS middleware for mobile app origins
-
-### Analytics Updates
-- [ ] 39. Update analytics query to aggregate weekly submissions by month
-- [ ] 40. Update suppression logic (N < 5)
-- [ ] 41. Test analytics endpoint returns correct aggregates
+**Deliverable:** ✅ Expo app runs on your phone (scan QR code in Expo Go app)
 
 ---
 
-## Phase 2: Mobile App Foundation (Week 2)
+### Phase 1.2: Database Layer (Days 2-3)
+**Goal:** Local SQLite storage working and tested
 
-### Project Structure
-- [ ] 42. Create folder structure: `src/api`, `src/services`, `src/screens`, `src/components`, `src/store`, `src/lib`
-- [ ] 43. Set up TypeScript types in `src/lib/types.ts` (copy from Next.js `lib/types.ts`)
-- [ ] 44. Create constants file: `src/lib/constants.ts` (API URL, privacy params)
+#### Schema v1.0 (Minimal)
+```sql
+-- User locations (geofences)
+CREATE TABLE user_locations (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  latitude REAL NOT NULL,
+  longitude REAL NOT NULL,
+  radius_meters INTEGER NOT NULL,
+  is_active INTEGER DEFAULT 1,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
 
-### Navigation
-- [ ] 45. Install React Navigation dependencies
-- [ ] 46. Create stack navigator structure (Onboarding, Main, Settings)
-- [ ] 47. Create tab navigator for main app (Calendar, Tracking, Submission, Settings)
-- [ ] 48. Implement navigation guards (redirect to onboarding if not verified)
+-- Tracking sessions (clock in/out events)
+CREATE TABLE tracking_sessions (
+  id TEXT PRIMARY KEY,
+  location_id TEXT NOT NULL,
+  clock_in TEXT NOT NULL,
+  clock_out TEXT,
+  duration_minutes INTEGER,
+  tracking_method TEXT NOT NULL,  -- "geofence_auto" | "manual"
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (location_id) REFERENCES user_locations(id)
+);
 
-### API Client
-- [ ] 49. Create `src/api/client.ts` (HTTP client with auth headers)
-- [ ] 50. Implement `src/api/verification.ts` (requestVerification, confirmVerification)
-- [ ] 51. Implement `src/api/submissions.ts` (submitWeekly, getHistory)
-- [ ] 52. Implement `src/api/analytics.ts` (fetchAnalytics)
-- [ ] 53. Add retry logic with exponential backoff
-- [ ] 54. Test API client connects to backend
+-- Geofence events log (debugging)
+CREATE TABLE geofence_events (
+  id TEXT PRIMARY KEY,
+  location_id TEXT NOT NULL,
+  event_type TEXT NOT NULL,  -- "enter" | "exit"
+  timestamp TEXT NOT NULL,
+  latitude REAL,
+  longitude REAL,
+  accuracy REAL,
+  FOREIGN KEY (location_id) REFERENCES user_locations(id)
+);
 
-### Local Storage
-- [ ] 55. Install expo-sqlite, expo-secure-store, @react-native-async-storage/async-storage
-- [ ] 56. Create `src/services/storage/Database.ts`
-- [ ] 57. Implement SQLite schema: shift_templates, shift_instances, tracked_times, user_locations, submission_history
-- [ ] 58. Implement database initialization with encryption (SQLCipher)
-- [ ] 59. Create CRUD methods for each table
-- [ ] 60. Create `src/services/storage/SecureStore.ts` wrapper (store affiliation_token)
-- [ ] 61. Test local database read/write
+-- Schema version
+CREATE TABLE schema_version (
+  version INTEGER PRIMARY KEY,
+  applied_at TEXT NOT NULL
+);
+```
 
-### State Management
-- [ ] 62. Install Zustand (or Redux Toolkit)
-- [ ] 63. Create `src/store/authSlice.ts` (user, token, isVerified)
-- [ ] 64. Create `src/store/calendarSlice.ts` (templates, instances - synced with local DB)
-- [ ] 65. Create `src/store/trackingSlice.ts` (tracked times, active session)
-- [ ] 66. Create `src/store/submissionSlice.ts` (pending queue, history)
-- [ ] 67. Wire up store to persist to local DB on changes
+#### Tasks
+- [ ] 13. Create `src/modules/geofencing/types.ts` (TypeScript interfaces)
+- [ ] 14. Create `src/modules/geofencing/constants.ts` (config values)
+- [ ] 15. Create `src/modules/geofencing/services/Database.ts`
+- [ ] 16. Implement database initialization with schema
+- [ ] 17. Implement CRUD methods for `user_locations`
+- [ ] 18. Implement CRUD methods for `tracking_sessions`
+- [ ] 19. Implement methods for `geofence_events`
+- [ ] 20. Write comprehensive unit tests (Database.test.ts)
+  - Schema creation
+  - Insert/update/delete locations
+  - Clock in/out sessions
+  - Query active sessions
+  - Session history
+  - Foreign key constraints
+  - Error handling
+- [ ] 21. Run tests: `npm test -- Database.test.ts`
+- [ ] 22. Achieve 90%+ coverage on Database.ts
 
-### UI Components (Basic)
-- [ ] 68. Create design system folder: `src/components/ui/`
-- [ ] 69. Implement Button component
-- [ ] 70. Implement Card component
-- [ ] 71. Implement Input component
-- [ ] 72. Implement Modal component
-- [ ] 73. Set up theme colors (neutral palette from Next.js)
-
----
-
-## Phase 3: Essential Privacy Features (Week 3)
-
-### Differential Privacy Module
-- [ ] 74. Create `src/services/privacy/DifferentialPrivacy.ts`
-- [ ] 75. Implement `addLaplaceNoise(value, epsilon, sensitivity)` function
-- [ ] 76. Implement `roundToBin(value, binSize)` function
-- [ ] 77. Implement `applyPrivacyProtections(weeklyHours)` pipeline
-- [ ] 78. Write unit tests for Laplace noise (verify distribution)
-- [ ] 79. Write unit tests for rounding
-- [ ] 80. Add constants: PRIVACY_CONFIG { epsilon: 1.0, sensitivity: 168, roundingGranularity: 0.5 }
-
-### Aggregation Module
-- [ ] 81. Create `src/services/privacy/Aggregation.ts`
-- [ ] 82. Implement `aggregateWeek(dailyTrackedTimes[])` function
-- [ ] 83. Handle edge cases (missing days, partial weeks)
-- [ ] 84. Write unit tests
-
-### Submission Queue
-- [ ] 85. Create `src/services/privacy/SubmissionQueue.ts`
-- [ ] 86. Implement `queueSubmission(weekData, user)` - applies privacy before queueing
-- [ ] 87. Implement `processQueue()` - sends pending submissions
-- [ ] 88. Implement `getQueue()`, `removeFromQueue()`, `moveToFailedQueue()`
-- [ ] 89. Store queue in AsyncStorage
-- [ ] 90. Set up background task to call `processQueue()` every 15 min
-- [ ] 91. Test queue survives app restart
-- [ ] 92. Test retry logic (manually fail network, verify retry)
-
-### End-to-End Privacy Test
-- [ ] 93. Create test data: 40 hours tracked across 5 days
-- [ ] 94. Call `queueSubmission()` with test data
-- [ ] 95. Verify noisy value is different from true value
-- [ ] 96. Verify noisy value is sent to backend (check backend logs)
-- [ ] 97. Verify backend stores noisy value (query database)
-- [ ] 98. Verify true value never leaves device (check network logs)
+**Deliverable:** ✅ Fully tested database layer with 90%+ coverage
 
 ---
 
-## Phase 4: Onboarding Flow (Week 3 continued)
+### Phase 1.3: Geofence Service (Days 4-5)
+**Goal:** Wrapper around expo-location with testable service layer
 
-### Verification Screen
-- [ ] 99. Create `src/screens/onboarding/VerificationScreen.tsx`
-- [ ] 100. Port `VerificationForm` logic from Next.js component
-- [ ] 101. Implement email input → request code → enter code → success
-- [ ] 102. Store affiliation_token in SecureStore on success
-- [ ] 103. Extract hospital_domain from email
-- [ ] 104. Navigate to LocationSetupScreen after verification
+- [ ] 23. Create `src/modules/geofencing/services/GeofenceService.ts`
+- [ ] 24. Implement permission methods:
+  - `requestForegroundPermissions()`
+  - `requestBackgroundPermissions()`
+  - `hasForegroundPermissions()`
+  - `hasBackgroundPermissions()`
+- [ ] 25. Implement geofence registration:
+  - `registerGeofence(location)`
+  - `unregisterGeofence(locationId)`
+  - `stopAll()`
+  - `isGeofencingActive()`
+  - `getRegisteredGeofences()`
+- [ ] 26. Implement background task definition:
+  - `defineBackgroundTask(callback)`
+- [ ] 27. Write comprehensive unit tests (GeofenceService.test.ts)
+  - Mock expo-location
+  - Test permission requests
+  - Test geofence registration/unregistration
+  - Test background task callback
+- [ ] 28. Run tests: `npm test -- GeofenceService.test.ts`
+- [ ] 29. Achieve 85%+ coverage on GeofenceService.ts
 
-### Location Setup Screen
-- [ ] 105. Create `src/screens/onboarding/LocationSetupScreen.tsx`
-- [ ] 106. Install react-native-maps
-- [ ] 107. Implement map view with current location
-- [ ] 108. Add "Drop Pin" button to set hospital location
-- [ ] 109. Add radius slider (100m - 1000m, default 200m)
-- [ ] 110. Add location name input
-- [ ] 111. Save to local DB: user_locations table
-- [ ] 112. Request location permissions (when in use)
-- [ ] 113. Add "Skip for now" option (can add manually later)
-- [ ] 114. Navigate to main app after setup
-
-### Permissions Handling
-- [ ] 115. Request "When In Use" location permission during setup
-- [ ] 116. Show permission rationale screen (explain why location is needed)
-- [ ] 117. Handle permission denied (offer manual clock-in/out only)
-- [ ] 118. Add settings screen to re-request permissions later
-
----
-
-## Phase 5: Calendar & Planning (Weeks 4-5)
-
-### Templates
-- [ ] 119. Create `src/screens/calendar/TemplateManager.tsx`
-- [ ] 120. Port ShiftTemplatePanel logic from Next.js
-- [ ] 121. Implement create template (name, start time, duration, color)
-- [ ] 122. Implement edit template
-- [ ] 123. Implement delete template (with confirmation)
-- [ ] 124. Save templates to local DB
-- [ ] 125. Implement template picker/selector
-
-### Calendar Views
-- [ ] 126. Create `src/screens/calendar/CalendarScreen.tsx`
-- [ ] 127. Port WeekView component from Next.js
-- [ ] 128. Implement time grid (Y-axis: hours, X-axis: days)
-- [ ] 129. Implement drag-to-place shift from template
-- [ ] 130. Implement tap empty slot to place shift
-- [ ] 131. Show existing instances on grid
-- [ ] 132. Implement instance editing (tap to edit start time/duration)
-- [ ] 133. Implement instance deletion (swipe or long-press)
-- [ ] 134. Create MonthView component (optional, can be post-MVP)
-- [ ] 135. Add week navigation (prev/next buttons)
-
-### Instance Management
-- [ ] 136. Save instances to local DB on create/update/delete
-- [ ] 137. Query instances for current week from DB
-- [ ] 138. Handle instance spanning multiple days (split at midnight)
-- [ ] 139. Prevent overlapping instances (validation)
-- [ ] 140. Add 5-minute snap-to-grid
-- [ ] 141. Implement move up/down buttons (5-minute increments)
-
-### Review Mode
-- [ ] 142. Create `src/screens/calendar/ReviewMode.tsx`
-- [ ] 143. Toggle between planning and review mode
-- [ ] 144. Query both instances (planned) and tracked_times (actual) for week
-- [ ] 145. Display side-by-side or overlay comparison
-- [ ] 146. Highlight discrepancies (planned 8h, tracked 7.5h)
-- [ ] 147. Allow editing tracked times (adjust clock-in/clock-out)
-- [ ] 148. Add notes field for corrections
-- [ ] 149. Mark day as "reviewed" (is_reviewed flag)
-- [ ] 150. Disable submit until all days reviewed
+**Deliverable:** ✅ Fully tested GeofenceService with mocked expo-location
 
 ---
 
-## Phase 6: Geofencing & Tracking (Weeks 6-7)
+### Phase 1.4: Tracking Manager (Day 6)
+**Goal:** Business logic connecting geofence events to database
 
-### Geofence Service
-- [ ] 151. Create `src/services/geofencing/GeofenceService.ts`
-- [ ] 152. Install expo-location, expo-task-manager
-- [ ] 153. Implement `registerGeofence(location)` using expo-location
-- [ ] 154. Implement `unregisterGeofence(locationId)`
-- [ ] 155. Define background task for geofence events
-- [ ] 156. Handle `onEnter` event → call `clockIn()`
-- [ ] 157. Handle `onExit` event → call `clockOut()`
-- [ ] 158. Add hysteresis (5-minute dwell time before clock-out)
-- [ ] 159. Test geofence triggers in simulator (use fake location)
-- [ ] 160. Test on real device near actual hospital
+- [ ] 30. Create `src/modules/geofencing/services/TrackingManager.ts`
+- [ ] 31. Implement geofence event handlers:
+  - `handleGeofenceEnter(event)` → auto clock-in
+  - `handleGeofenceExit(event)` → auto clock-out
+- [ ] 32. Implement manual controls:
+  - `clockIn(locationId)` → manual clock-in
+  - `clockOut(locationId)` → manual clock-out
+- [ ] 33. Implement queries:
+  - `getActiveSession(locationId)`
+  - `getHistory(locationId, limit)`
+- [ ] 34. Add notifications (expo-notifications):
+  - Clock-in notification: "🟢 Clocked in at [Hospital]"
+  - Clock-out notification: "Clocked out. Worked X hours"
+- [ ] 35. Write comprehensive unit tests (TrackingManager.test.ts)
+  - Clock in on enter event
+  - Ignore enter if already clocked in
+  - Clock out on exit event
+  - Ignore exit if not clocked in
+  - Calculate duration correctly
+  - Send notifications (mocked)
+  - Manual clock-in/out
+  - Error handling
+- [ ] 36. Run tests: `npm test -- TrackingManager.test.ts`
+- [ ] 37. Achieve 85%+ coverage on TrackingManager.ts
 
-### Tracking Manager
-- [ ] 161. Create `src/services/geofencing/TrackingManager.ts`
-- [ ] 162. Implement `clockIn(locationId, method)` → save to tracked_times
-- [ ] 163. Implement `clockOut(trackingId)` → update tracked_times with clock_out
-- [ ] 164. Check for existing active sessions before clock-in
-- [ ] 165. Auto-close stale sessions (> 24h old)
-- [ ] 166. Calculate duration on clock-out
-- [ ] 167. Link to shift_instance if one exists for that date/time
-
-### Notifications
-- [ ] 168. Install expo-notifications
-- [ ] 169. Request notification permissions
-- [ ] 170. Send notification on auto clock-in: "🟢 Clocked in at [Hospital Name]"
-- [ ] 171. Send notification on auto clock-out: "Clocked out. Worked X hours."
-- [ ] 172. Add persistent notification when tracking active (Android)
-- [ ] 173. Handle notification tap (open app to tracking screen)
-
-### Manual Clock-In/Out (Fallback)
-- [ ] 174. Create `src/screens/tracking/TrackingStatusScreen.tsx`
-- [ ] 175. Show current tracking status (active or inactive)
-- [ ] 176. Show "Clock In" button when inactive
-- [ ] 177. Show "Clock Out" button when active
-- [ ] 178. Display duration timer during active session
-- [ ] 179. Allow selecting location for manual clock-in
-- [ ] 180. Test manual flow works without geofencing enabled
-
-### Background Permissions
-- [ ] 181. Request "Always Allow" location permission (optional)
-- [ ] 182. Show explanation screen before requesting (iOS requirement)
-- [ ] 183. Handle user declining background permission (manual mode)
-- [ ] 184. Add settings toggle to enable/disable background tracking
-- [ ] 185. Test background tracking works after app is closed
-- [ ] 186. Test background tracking survives phone restart
-
-### Location Management
-- [ ] 187. Create `src/screens/settings/LocationsManager.tsx`
-- [ ] 188. List all saved locations
-- [ ] 189. Add new location (same UI as onboarding)
-- [ ] 190. Edit location (change radius, name)
-- [ ] 191. Delete location (with confirmation)
-- [ ] 192. Toggle active/inactive (pause geofence without deleting)
-- [ ] 193. Show map with geofence radius overlay
+**Deliverable:** ✅ TrackingManager with full test coverage
 
 ---
 
-## Phase 7: Submission Flow (Week 8)
+### Phase 1.5: UI Components (Days 7-10)
+**Goal:** Build screens and connect to services
 
-### Week Selection
-- [ ] 194. Create `src/screens/submission/SubmissionScreen.tsx`
-- [ ] 195. Query tracked_times grouped by week
-- [ ] 196. Display list of weeks with data
-- [ ] 197. Show week summary: total hours, days worked, review status
-- [ ] 198. Disable unreviewed weeks (must review first)
-- [ ] 199. Allow selecting single week or multiple weeks
-- [ ] 200. Add date picker for selecting specific week
+#### React Hooks (Service → UI Bridge)
+- [ ] 38. Create `src/modules/geofencing/hooks/useGeofence.ts`
+  - Load locations from DB
+  - Create/update/delete locations
+  - Request permissions
+- [ ] 39. Create `src/modules/geofencing/hooks/useTracking.ts`
+  - Get active session
+  - Manual clock in/out
+  - Real-time duration timer
+- [ ] 40. Create `src/modules/geofencing/hooks/useTrackingLog.ts`
+  - Load session history
+  - Filter by date range
 
-### Summary Screen
-- [ ] 201. Create `src/screens/submission/SummaryScreen.tsx`
-- [ ] 202. Display week details: dates, hours per day, total
-- [ ] 203. Show "Before Privacy" vs "After Privacy" comparison
-- [ ] 204. Display noisy values that will be sent
-- [ ] 205. Show privacy parameters: ε=1.0, sensitivity=168, rounding=0.5h
-- [ ] 206. Add info box explaining privacy protections
-- [ ] 207. Add "Submit" button
-- [ ] 208. Add "Cancel" button
+#### Screens
+- [ ] 41. Create `src/modules/geofencing/screens/SetupScreen.tsx`
+  - Map view (react-native-maps)
+  - Drop pin to set hospital location
+  - Radius slider (100-1000m, default 200m)
+  - Location name input
+  - Save button → create geofence
+  - Permission requests
+- [ ] 42. Create `src/modules/geofencing/screens/TrackingScreen.tsx`
+  - Current status indicator (active/inactive)
+  - Location name
+  - Clock-in time (if active)
+  - Duration timer (if active)
+  - Manual clock-in/out buttons
+  - Hint text (explain geofencing)
+- [ ] 43. Create `src/modules/geofencing/screens/LogScreen.tsx`
+  - List of past sessions
+  - Date, time range, duration
+  - Method indicator (auto vs manual)
+  - Empty state
 
-### Submission Logic
-- [ ] 209. On submit: aggregate week data
-- [ ] 210. Apply privacy protections (round + noise)
-- [ ] 211. Call `queueSubmission()`
-- [ ] 212. Show loading spinner during submission
-- [ ] 213. Handle success: show confirmation, mark as submitted in local DB
-- [ ] 214. Handle failure: show error, keep in queue for retry
-- [ ] 215. Navigate to submission history on success
+#### Components
+- [ ] 44. Create `src/modules/geofencing/components/GeofenceMap.tsx`
+  - Map with marker
+  - Circle overlay showing radius
+  - Draggable marker
+- [ ] 45. Create `src/modules/geofencing/components/TrackingStatusBar.tsx`
+  - Visual indicator (green = active, gray = inactive)
+  - Clock-in time
+  - Duration
+- [ ] 46. Create basic UI components (Button, Card, Input, etc.)
 
-### Submission History
-- [ ] 216. Create `src/screens/submission/HistoryScreen.tsx`
-- [ ] 217. Query local submission_history table
-- [ ] 218. Display list of past submissions (week, date, hours)
-- [ ] 219. Show sync status (pending, sent, failed)
-- [ ] 220. Allow retrying failed submissions
-- [ ] 221. Show backend response (if available)
-- [ ] 222. Add export option (JSON or CSV)
+#### Navigation
+- [ ] 47. Install React Navigation: `npm install @react-navigation/native @react-navigation/native-stack`
+- [ ] 48. Create navigation structure:
+  - Stack navigator: Setup → Tracking → Log
+  - Tab navigator (for later)
+- [ ] 49. Wire up screens to navigator
 
----
+#### App Initialization
+- [ ] 50. Update `App.tsx`:
+  - Initialize database on startup
+  - Initialize GeofenceService
+  - Define background task
+  - Re-register existing geofences
+  - Set up notification handler
+  - Render navigator
 
-## Phase 8: Settings & Polish (Week 8 continued)
-
-### Settings Screen
-- [ ] 223. Create `src/screens/settings/SettingsScreen.tsx`
-- [ ] 224. Display user info (email, hospital domain)
-- [ ] 225. Add "Manage Locations" link
-- [ ] 226. Add "Privacy Settings" link
-- [ ] 227. Add "Background Tracking" toggle
-- [ ] 228. Add "Notifications" toggle
-- [ ] 229. Add "Export My Data" button
-- [ ] 230. Add "Privacy Policy" link
-- [ ] 231. Add "Terms of Service" link
-- [ ] 232. Add "About" section (app version, ε value)
-- [ ] 233. Add "Log Out" button (clear SecureStore, reset state)
-
-### Privacy Settings
-- [ ] 234. Create `src/screens/settings/PrivacySettings.tsx`
-- [ ] 235. Explain differential privacy in simple terms
-- [ ] 236. Show current privacy parameters (ε=1.0)
-- [ ] 237. Add info box: "Your data is protected with ε-differential privacy"
-- [ ] 238. Link to learn more (external resource or in-app explanation)
-
-### Data Export
-- [ ] 239. Create `src/screens/settings/DataExport.tsx`
-- [ ] 240. Implement export all data as JSON
-- [ ] 241. Include: templates, instances, tracked_times, submissions
-- [ ] 242. Use expo-sharing to let user save/share file
-- [ ] 243. Test import on new device (manual process for MVP)
-
-### UI Polish
-- [ ] 244. Add loading states to all async operations
-- [ ] 245. Add error boundaries
-- [ ] 246. Add toast notifications for success/error (use react-native-toast-message)
-- [ ] 247. Ensure all screens have proper back buttons
-- [ ] 248. Add empty states (no templates, no tracked times, etc.)
-- [ ] 249. Add skeleton loaders where appropriate
-- [ ] 250. Test dark mode support (if desired)
+**Deliverable:** ✅ Working UI with all screens functional
 
 ---
 
-## Phase 9: iOS Build & TestFlight (Week 9)
+### Phase 1.6: Integration & Device Testing (Days 11-14)
+**Goal:** Test on real devices, validate battery usage, fix bugs
 
-### iOS Setup
-- [ ] 251. Enroll in Apple Developer Program ($99/year)
-- [ ] 252. Create App ID in Apple Developer portal
-- [ ] 253. Create provisioning profiles
-- [ ] 254. Configure app.json with bundle identifier
-- [ ] 255. Set up app icons (1024x1024, plus all sizes)
-- [ ] 256. Create launch screen (splash screen)
-- [ ] 257. Configure Info.plist for location permissions (NSLocationWhenInUseUsageDescription, NSLocationAlwaysUsageDescription)
+#### Integration Testing
+- [ ] 51. Test complete flow on iOS simulator:
+  - Set up geofence
+  - Simulate location (Feature → Location → Custom)
+  - Trigger enter event
+  - Verify clock-in
+  - Trigger exit event
+  - Verify clock-out
+- [ ] 52. Test complete flow on Android emulator:
+  - Same as iOS
+  - Test with different Android versions
+- [ ] 53. Test manual clock-in/out works without geofencing
+- [ ] 54. Test data persists after app restart
+- [ ] 55. Test with multiple locations
 
-### EAS Build (iOS)
-- [ ] 258. Login to EAS: `eas login`
-- [ ] 259. Configure EAS: `eas build:configure`
-- [ ] 260. Update eas.json for iOS production build
-- [ ] 261. Run iOS build: `eas build --platform ios --profile production`
-- [ ] 262. Wait for build to complete (~20-30 min)
-- [ ] 263. Download IPA file
-- [ ] 264. Test IPA on physical device via TestFlight
+#### Real Device Testing (iOS)
+- [ ] 56. Build development client: `npx expo run:ios`
+- [ ] 57. Install on iPhone
+- [ ] 58. Grant location permissions (When In Use)
+- [ ] 59. Set up geofence near real location
+- [ ] 60. Walk outside geofence radius
+- [ ] 61. Verify clock-out notification
+- [ ] 62. Walk back inside
+- [ ] 63. Verify clock-in notification
+- [ ] 64. **Test background mode:**
+  - Set up geofence
+  - Clock in
+  - Lock phone
+  - Walk outside radius
+  - Unlock → verify clocked out
+- [ ] 65. **Test app killed:**
+  - Set up geofence
+  - Force quit app
+  - Walk into geofence
+  - Open app → verify session exists
+- [ ] 66. **Battery test:**
+  - Charge to 100%
+  - Set up geofence
+  - Clock in
+  - Lock phone for 8 hours
+  - Check battery usage in Settings
+  - **Target: < 5% drain**
 
-### App Store Connect
-- [ ] 265. Create app in App Store Connect
-- [ ] 266. Fill out app metadata (name, description, keywords)
-- [ ] 267. Add screenshots (iPhone 6.5", 6.7", iPad)
-- [ ] 268. Add privacy policy URL
-- [ ] 269. Configure data collection disclosures (location, working hours)
-- [ ] 270. Submit build to TestFlight
-- [ ] 271. Wait for Apple review (usually < 24h for TestFlight)
-- [ ] 272. Add internal testers (up to 100)
-- [ ] 273. Add external testers (beta review required)
+#### Real Device Testing (Android)
+- [ ] 67. Build development client: `npx expo run:android`
+- [ ] 68. Install on Android phone
+- [ ] 69. Repeat iOS tests 58-66
+- [ ] 70. Test with battery optimization ON
+- [ ] 71. Test with battery optimization OFF
+- [ ] 72. Verify persistent notification (Android requirement)
 
----
+#### Bug Fixes
+- [ ] 73. Document all bugs in GitHub issues
+- [ ] 74. Fix critical bugs (crashes, data loss)
+- [ ] 75. Fix high-priority UX issues
+- [ ] 76. Optimize battery usage if needed
+- [ ] 77. Add error handling for edge cases
 
-## Phase 10: Android Build & Google Play (Week 9 continued)
+#### Documentation
+- [ ] 78. Create `mobile-app/README.md`:
+  - Setup instructions
+  - How to run on device
+  - How to test geofencing
+  - Known limitations
+- [ ] 79. Document testing protocol
+- [ ] 80. Document battery optimization settings per manufacturer
 
-### Android Setup
-- [ ] 274. Create Google Play Developer account ($25 one-time)
-- [ ] 275. Generate keystore for signing
-- [ ] 276. Configure app.json with package name
-- [ ] 277. Set up app icons for Android
-- [ ] 278. Create launch screen (splash screen)
-- [ ] 279. Configure AndroidManifest.xml for permissions
-
-### EAS Build (Android)
-- [ ] 280. Update eas.json for Android production build
-- [ ] 281. Run Android build: `eas build --platform android --profile production`
-- [ ] 282. Wait for build to complete
-- [ ] 283. Download AAB (Android App Bundle)
-- [ ] 284. Test APK on physical device
-
-### Google Play Console
-- [ ] 285. Create app in Google Play Console
-- [ ] 286. Fill out store listing (title, description)
-- [ ] 287. Add screenshots (phone, tablet)
-- [ ] 288. Add app icon (512x512)
-- [ ] 289. Configure content rating questionnaire
-- [ ] 290. Add privacy policy URL
-- [ ] 291. Configure data safety section (location, working hours)
-- [ ] 292. Upload AAB to internal testing track
-- [ ] 293. Add internal testers
-- [ ] 294. Test internal release
-
----
-
-## Phase 11: Testing & Feedback (Weeks 10-11)
-
-### Internal Testing
-- [ ] 295. Install on your own devices (iOS + Android)
-- [ ] 296. Test complete user journey: onboard → plan → track → review → submit
-- [ ] 297. Test geofencing accuracy (walk in/out of radius)
-- [ ] 298. Test background tracking (close app, check if still works)
-- [ ] 299. Test manual clock-in/out fallback
-- [ ] 300. Test privacy protections (verify noisy values in backend)
-- [ ] 301. Test submission queue retry logic (turn off WiFi)
-- [ ] 302. Test data export/import
-- [ ] 303. Test on multiple devices (different iOS/Android versions)
-- [ ] 304. Document all bugs in GitHub issues
-
-### Beta Testing
-- [ ] 305. Invite 5-10 healthcare workers as beta testers
-- [ ] 306. Provide onboarding instructions
-- [ ] 307. Set up feedback channel (email, Slack, form)
-- [ ] 308. Collect feedback after 1 week
-- [ ] 309. Analyze feedback for critical issues
-- [ ] 310. Prioritize bug fixes and UX improvements
-
-### Bug Fixes
-- [ ] 311. Fix critical bugs (crashes, data loss)
-- [ ] 312. Fix high-priority UX issues
-- [ ] 313. Optimize battery usage if needed
-- [ ] 314. Improve notification text/timing
-- [ ] 315. Release hotfix build to TestFlight/Internal Testing
-- [ ] 316. Verify fixes with testers
+**Deliverable:** ✅ Module 1 complete, validated on real devices
 
 ---
 
-## Phase 12: Documentation (Ongoing)
+## 📊 Module 1 Success Criteria
 
-### User Documentation
-- [ ] 317. Write privacy policy (GDPR-compliant)
-- [ ] 318. Write terms of service
-- [ ] 319. Create user guide: "How to set up geofencing"
-- [ ] 320. Create user guide: "How to review and submit hours"
-- [ ] 321. Create FAQ: "Why is my data noisy?"
-- [ ] 322. Create FAQ: "Is my location tracked 24/7?"
-- [ ] 323. Host documentation on website
+Before moving to Module 2, ensure:
 
-### Technical Documentation
-- [ ] 324. Update blueprint.md with mobile app architecture (this file!)
-- [ ] 325. Document privacy implementation details
-- [ ] 326. Document API endpoints in OpenAPI/Swagger
-- [ ] 327. Write README.md for mobile-app/
-- [ ] 328. Write CONTRIBUTING.md if open source
-- [ ] 329. Document database schema
-- [ ] 330. Create architecture diagrams (draw.io or similar)
-
-### Legal & Compliance
-- [ ] 331. Conduct Privacy Impact Assessment (PIA)
-- [ ] 332. Document GDPR compliance measures
-- [ ] 333. Document data retention policy
-- [ ] 334. Document right to erasure process
-- [ ] 335. Create data processing agreement template (if needed)
-- [ ] 336. Consult with legal expert (if budget allows)
+- [ ] **All unit tests pass** (Database, GeofenceService, TrackingManager)
+- [ ] **Test coverage ≥ 85%** overall
+- [ ] **Tested on ≥ 2 iOS devices** (different iOS versions)
+- [ ] **Tested on ≥ 2 Android devices** (different manufacturers)
+- [ ] **Background geofencing works** (app closed, still tracks)
+- [ ] **Battery usage < 5%** over 8 hours background
+- [ ] **Data persists** across app restarts
+- [ ] **Manual fallback works** (if geofencing unavailable)
+- [ ] **README documentation complete**
 
 ---
 
-## Post-MVP: Planned Features (Phase 13+)
+## 🔍 Decision Point: After Module 1
 
-### Tier 2 Privacy Enhancements
-- [ ] 337. Implement submission time jittering (0-24h delay)
-- [ ] 338. Add backend API: `GET /hospitals/{domain}/size`
-- [ ] 339. Implement hospital generalization for small hospitals
-- [ ] 340. Create region mapping (small hospitals → regions)
-- [ ] 341. Test generalization logic
+### If Geofencing Works Reliably ✅
+→ **Proceed to Module 2**: Privacy Pipeline
+→ **Then Module 3**: Calendar & Planning
+→ **Then Module 4**: Submission & Backend
+→ **Then Module 5**: Polish & TestFlight
 
-### Advanced Privacy (Optional)
-- [ ] 342. Implement randomized response for staff groups
-- [ ] 343. Add user-controlled epsilon setting
-- [ ] 344. Build privacy budget dashboard
-- [ ] 345. Add lifetime budget tracking
-
-### Features
-- [ ] 346. Multi-hospital support (switch between hospitals)
-- [ ] 347. Shift templates sharing (export/import)
-- [ ] 348. Calendar sync with Google Calendar / Apple Calendar
-- [ ] 349. Push reminders: "Don't forget to review this week!"
-- [ ] 350. Biometric authentication (Face ID, fingerprint)
-
-### Improvements
-- [ ] 351. Improve geofence accuracy (use WiFi SSID as secondary signal)
-- [ ] 352. Add analytics: track app usage patterns (privacy-preserving)
-- [ ] 353. Optimize battery usage further
-- [ ] 354. Add offline mode improvements
-- [ ] 355. Improve error messages and user feedback
-
-### Scaling
-- [ ] 356. Set up production monitoring (Sentry, Datadog)
-- [ ] 357. Set up backend auto-scaling (if needed)
-- [ ] 358. Add database read replicas
-- [ ] 359. Implement caching layer (Redis)
-- [ ] 360. Add CDN for dashboard
+### If Geofencing Unreliable ❌
+→ **Pivot**: Manual-entry-first approach
+→ Build calendar first, geofencing as optional enhancement
+→ Lower expectations for automatic tracking
 
 ---
 
-## 📊 Progress Tracking
+## 🚀 Future Modules (After Module 1)
 
-### Milestones
-- [ ] Milestone 1: Backend API ready (Tasks 22-41)
-- [ ] Milestone 2: Mobile app skeleton (Tasks 42-73)
-- [ ] Milestone 3: Privacy features working (Tasks 74-98)
-- [ ] Milestone 4: Onboarding complete (Tasks 99-118)
-- [ ] Milestone 5: Calendar functional (Tasks 119-150)
-- [ ] Milestone 6: Geofencing working (Tasks 151-193)
-- [ ] Milestone 7: Submission flow complete (Tasks 194-222)
-- [ ] Milestone 8: TestFlight live (Tasks 251-273)
-- [ ] Milestone 9: Beta testing complete (Tasks 295-316)
-- [ ] Milestone 10: Public launch ready
+### Module 2: Privacy Pipeline (1-2 weeks)
+**Reference:** blueprint.md section 4
 
-### Time Estimates
-- Phase 1-3: ~3 weeks (Backend + Mobile foundation + Privacy)
-- Phase 4-5: ~2 weeks (Onboarding + Calendar)
-- Phase 6-7: ~2 weeks (Geofencing + Submission)
-- Phase 8-10: ~2 weeks (Polish + Builds)
-- Phase 11: ~2 weeks (Testing)
-- **Total MVP: ~11 weeks**
+- [ ] Differential privacy implementation (ε=1.0)
+- [ ] Laplace noise generator
+- [ ] Rounding to 0.5h bins
+- [ ] Weekly aggregation
+- [ ] Submission queue with retry logic
+- [ ] Comprehensive tests for noise distribution
 
-### Priority Labels
-- 🔴 **Critical**: Blocking other work, must be done first
-- 🟠 **High**: Important for MVP
-- 🟡 **Medium**: Nice to have for MVP
-- 🟢 **Low**: Can wait for post-MVP
+### Module 3: Calendar & Planning (2-3 weeks)
+**Reference:** Port from web app components
+
+- [ ] Shift templates (create, edit, delete)
+- [ ] Week view calendar
+- [ ] Drag-to-place shifts
+- [ ] Review mode (compare planned vs tracked)
+- [ ] Edit tracked times
+- [ ] Confirm days as reviewed
+
+### Module 4: Submission & Backend Integration (2-3 weeks)
+**Reference:** blueprint.md section 6, backend/README.md
+
+**Approach:** Extend existing `/backend` (FastAPI) with mobile endpoints. Same backend serves both web dashboard (daily reports) and mobile app (weekly noisy reports).
+
+#### Backend Work (Extend Existing `/backend`)
+- [ ] Create Alembic migration for `users` table:
+  ```sql
+  CREATE TABLE users (
+    id UUID PRIMARY KEY,
+    email_hash VARCHAR(64) UNIQUE NOT NULL,
+    affiliation_token TEXT NOT NULL,
+    hospital_domain VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+  );
+  ```
+- [ ] Create Alembic migration for `submitted_reports` table:
+  ```sql
+  CREATE TABLE submitted_reports (
+    id UUID PRIMARY KEY,
+    user_id UUID REFERENCES users(id),
+    week_start DATE NOT NULL,
+    total_hours_worked FLOAT NOT NULL,    -- NOISY value
+    total_overtime_hours FLOAT NOT NULL,  -- NOISY value
+    staff_group VARCHAR(50) NOT NULL,
+    hospital_domain VARCHAR(255) NOT NULL,
+    privacy_epsilon FLOAT DEFAULT 1.0,
+    submitted_at TIMESTAMP DEFAULT NOW()
+  );
+  ```
+- [ ] Create `/backend/app/routers/submissions.py` (new router)
+- [ ] Implement `POST /submissions/weekly` endpoint
+  - Accept noisy weekly data from mobile
+  - Validate: week_start is Monday, hours 0-168
+  - Store in `submitted_reports` table
+- [ ] Implement `GET /submissions/history` endpoint
+  - Return user's own past weekly submissions
+  - Requires JWT auth
+- [ ] Update `/backend/app/main.py` to include submissions router
+- [ ] Test both endpoints coexist:
+  - Web: `POST /reports/` (daily, raw)
+  - Mobile: `POST /submissions/weekly` (weekly, noisy)
+- [ ] Add README to `/backend` explaining dual-client architecture
+- [ ] Deploy updated backend to Hetzner (Germany)
+
+#### Mobile Work
+- [ ] Email verification flow (reuse web backend)
+- [ ] Week selection screen
+- [ ] Summary screen (before/after privacy)
+- [ ] Apply privacy pipeline
+- [ ] Submit to backend
+- [ ] Submission history screen
+- [ ] Offline queue
+
+### Module 5: Onboarding & Polish (2-3 weeks)
+
+- [ ] Onboarding flow (5-screen tour)
+- [ ] Settings screen
+- [ ] Privacy settings explanation
+- [ ] Data export (GDPR compliance)
+- [ ] App icons, splash screen
+- [ ] Notifications polish
+- [ ] UI/UX improvements
+- [ ] Dark mode support (optional)
+
+### Module 6: iOS TestFlight (1 week)
+
+- [ ] Apple Developer Account ($99/year) **← REQUIRED HERE**
+- [ ] App ID, provisioning profiles
+- [ ] Configure Info.plist (location permissions)
+- [ ] EAS Build for iOS
+- [ ] Upload to TestFlight
+- [ ] Internal testing
+- [ ] External testing (beta review)
+
+### Module 7: Android Google Play (1 week)
+
+- [ ] Google Play Developer Account ($25) **← REQUIRED HERE**
+- [ ] Generate signing keystore
+- [ ] Configure AndroidManifest.xml
+- [ ] EAS Build for Android
+- [ ] Upload to Google Play Console
+- [ ] Internal testing track
+- [ ] Beta testing
+
+### Module 8: Beta Testing & Launch (2-3 weeks)
+
+- [ ] Recruit 5-10 healthcare worker testers
+- [ ] 1-week beta period
+- [ ] Collect feedback
+- [ ] Bug fixes
+- [ ] Privacy policy, terms of service
+- [ ] Public launch
 
 ---
 
-## 🎯 Recommended Starting Point
+## 📱 Testing Requirements & Timeline
 
-Based on the architecture, here's the optimal order:
+### What You Need Now (Module 1)
+- ✅ **Physical iOS device** (iPhone with latest iOS)
+- ✅ **Physical Android device** (any Android 10+)
+- ✅ **Expo Go app** (free, from App Store/Play Store)
+- ✅ **Mac with Xcode** (for iOS development client)
+- ✅ **Android Studio** (for Android development client)
+- ❌ **Apple Developer Account** - NOT needed yet (only for TestFlight in Module 6)
+- ❌ **Google Play Account** - NOT needed yet (only for Play Store in Module 7)
 
-### Week 1: Start Here
-1. **Backend database schema** (Tasks 22-26) - Sets foundation
-2. **Backend auth updates** (Tasks 27-31) - Critical for mobile app
-3. **Backend submission endpoint** (Tasks 32-38) - Core functionality
-4. **Privacy utilities** (Tasks 74-80) - Can be developed in parallel
+### What You'll Need Later
 
-**Why this order?**
-- Backend needs to be ready before mobile app can test integration
-- Privacy utilities are standalone (no dependencies) - good for parallel work
-- You can test privacy utilities with simple scripts before mobile UI exists
+#### For Module 6 (TestFlight)
+- 💰 **Apple Developer Account** ($99/year)
+  - Required to distribute via TestFlight
+  - Can build and test locally without it for now
+  - Sign up at: https://developer.apple.com/programs/
 
-### Week 2-3: Then Move To
-1. **Mobile app initialization** (Tasks 42-54)
-2. **Local storage setup** (Tasks 55-61)
-3. **Privacy integration** (Tasks 85-98)
-4. **Onboarding flow** (Tasks 99-114)
+#### For Module 7 (Google Play)
+- 💰 **Google Play Developer Account** ($25 one-time)
+  - Required to distribute via Play Store
+  - Can build and test locally without it for now
+  - Sign up at: https://play.google.com/console/signup
+
+### Development Client vs. Expo Go
+
+**For Module 1, you have two options:**
+
+#### Option A: Expo Go (Simpler, Faster)
+- ✅ No Apple/Google accounts needed
+- ✅ Instant updates (scan QR code)
+- ✅ Good for initial development
+- ❌ Background geofencing may not work fully
+- ❌ Some native features limited
+
+**Recommended for:** Quick prototyping, UI development
+
+#### Option B: Development Client (More Realistic)
+- ✅ Full native features (geofencing, background tasks)
+- ✅ Identical to production behavior
+- ✅ Test background modes
+- ❌ Slower to build/update
+- ❌ Requires Xcode/Android Studio
+
+**Recommended for:** Geofencing testing (Phase 1.6)
+
+**You'll likely use both:**
+- Days 1-10: Expo Go for UI development
+- Days 11-14: Development client for geofencing testing
 
 ---
 
-## 📝 Notes
+## 📈 Progress Tracking
 
-- Use GitHub issues to track individual tasks
-- Label tasks with phase numbers (phase-1, phase-2, etc.)
-- Update this TODO.md as priorities change
-- Mark tasks complete with commit references
-- Keep sprint retrospectives after each phase
+**Module 1 Progress:** 0/80 tasks complete (0%)
+
+**Milestones:**
+- [ ] Phase 1.1 Complete (Setup)
+- [ ] Phase 1.2 Complete (Database)
+- [ ] Phase 1.3 Complete (Geofence Service)
+- [ ] Phase 1.4 Complete (Tracking Manager)
+- [ ] Phase 1.5 Complete (UI)
+- [ ] Phase 1.6 Complete (Device Testing)
+- [ ] Module 1 Complete (Decision Point)
 
 ---
 
-**Last updated**: 2025-01-15
-**Target MVP completion**: Week 11 (mid-March 2025)
+## 🔧 Development Commands Reference
+
+```bash
+# Module 1 Setup
+cd /Users/user01/open_workinghours
+npx create-expo-app mobile-app --template blank-typescript
+cd mobile-app
+
+# Install dependencies
+npx expo install expo-location expo-task-manager expo-sqlite expo-notifications react-native-maps
+npm install uuid date-fns
+npm install -D jest @testing-library/react-native @testing-library/jest-native
+
+# Development
+npm start                    # Start Expo dev server
+npm test                     # Run unit tests
+npm test -- --watch          # Run tests in watch mode
+npm test -- --coverage       # Run tests with coverage report
+
+# Build development clients
+npx expo run:ios             # Build for iOS simulator/device
+npx expo run:android         # Build for Android emulator/device
+
+# Production builds (Module 6+)
+eas build --platform ios     # Build for TestFlight
+eas build --platform android # Build for Play Store
+```
+
+---
+
+## 📚 Key Reference Documents
+
+| Document | Purpose |
+|----------|---------|
+| `blueprint.md` | Complete system architecture (38KB, read first!) |
+| `MODULE_1_PLAN.md` | Detailed Module 1 implementation guide with code examples |
+| `backend/README.md` | Backend architecture, endpoints (web + mobile), deployment |
+| `claude.md` | Context for AI assistants |
+| `.vercelignore` | Protects web deployment from mobile changes |
+
+---
+
+## ❓ Common Questions
+
+**Q: Can I skip the backend and test everything locally?**
+A: Yes! Module 1 is 100% local (no backend needed). Backend is only needed for Module 4 (submission).
+
+**Q: Do I need TestFlight to test on my iPhone?**
+A: No! Use development client (`npx expo run:ios`). TestFlight is only for distributing to other testers.
+
+**Q: What if geofencing doesn't work reliably?**
+A: That's the point of Module 1! We validate early so we can pivot if needed.
+
+**Q: Can I use the web app's calendar code?**
+A: Yes! Port components from `components/week-view.tsx` and `lib/calendar-utils.ts` in Module 3.
+
+**Q: Is the existing backend ready for mobile?**
+A: Partially. Verification endpoints work, but mobile needs NEW weekly submission endpoints. See `backend/README.md`.
+
+---
+
+**Last Updated:** 2025-01-18
+**Current Phase:** Module 1 - Setup (Day 1)
+**Next Task:** Install Expo CLI and create mobile-app directory
