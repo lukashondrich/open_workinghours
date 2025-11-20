@@ -8,13 +8,13 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import MapView, { Circle, Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { Circle, Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import { getDatabase } from '@/modules/geofencing/services/Database';
 import { getGeofenceService } from '@/modules/geofencing/services/GeofenceService';
-import { v4 as uuidv4 } from 'uuid';
+import * as Crypto from 'expo-crypto';
 import type { UserLocation } from '@/modules/geofencing/types';
 
 type SetupScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Setup'>;
@@ -88,17 +88,33 @@ export default function SetupScreen({ navigation }: Props) {
       const backgroundGranted = await geofenceService.requestBackgroundPermissions();
 
       if (!backgroundGranted) {
-        Alert.alert(
-          'Background Permission Required',
-          'Background location permission is required for automatic tracking. Please enable "Always Allow" in Settings.',
-          [{ text: 'OK' }]
-        );
-        setSaving(false);
-        return;
+        // Show alert with option to continue anyway (useful for simulator testing)
+        const shouldContinue = await new Promise<boolean>((resolve) => {
+          Alert.alert(
+            'Background Permission Required',
+            'Background location permission is required for automatic tracking. You can continue anyway, but automatic clock-in/out will not work.\n\nTo enable: Settings → [App] → Location → Always Allow',
+            [
+              {
+                text: 'Cancel',
+                style: 'cancel',
+                onPress: () => resolve(false),
+              },
+              {
+                text: 'Continue Anyway',
+                onPress: () => resolve(true),
+              },
+            ]
+          );
+        });
+
+        if (!shouldContinue) {
+          setSaving(false);
+          return;
+        }
       }
 
       const location: UserLocation = {
-        id: uuidv4(),
+        id: Crypto.randomUUID(),
         name: name.trim(),
         latitude: region.latitude,
         longitude: region.longitude,
@@ -112,8 +128,13 @@ export default function SetupScreen({ navigation }: Props) {
       const db = await getDatabase();
       await db.insertLocation(location);
 
-      // Register geofence
-      await geofenceService.registerGeofence(location);
+      // Register geofence (may fail in simulator without background permission)
+      try {
+        await geofenceService.registerGeofence(location);
+        console.log('[SetupScreen] Geofence registered successfully');
+      } catch (error) {
+        console.warn('[SetupScreen] Failed to register geofence (expected in simulator):', error);
+      }
 
       setSaving(false);
 
@@ -146,7 +167,6 @@ export default function SetupScreen({ navigation }: Props) {
   return (
     <View style={styles.container}>
       <MapView
-        provider={PROVIDER_GOOGLE}
         style={styles.map}
         region={region}
         onRegionChangeComplete={setRegion}

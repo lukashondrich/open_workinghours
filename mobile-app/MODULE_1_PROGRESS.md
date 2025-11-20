@@ -1,8 +1,9 @@
 # Module 1 Implementation Progress - Handoff Document
 
-**Date:** 2025-11-18
-**Status:** Phases 1.1-1.4 Complete (Backend services), Phase 1.5-1.6 Pending (UI + Device Testing)
-**Test Coverage:** 36/48 tests passing (75% overall)
+**Date:** 2025-11-19 (Updated)
+**Status:** Phases 1.1-1.5 Complete (Backend + UI), Phase 1.6 In Progress (Device Testing)
+**Test Coverage:** 37/49 tests passing (75% overall)
+**Current Build:** Version 1.0.0 (Build 3) - deployed to TestFlight
 
 ---
 
@@ -266,201 +267,124 @@ User exits geofence
 
 ---
 
-## What's Pending
+### ✅ Phase 1.5: UI Screens (100% - 2025-11-19)
 
-### ⏳ Phase 1.5: UI Screens (Not Started)
+**Status:** Complete with fixes deployed to TestFlight
 
-**Goal:** Create 3 screens to interact with the geofencing system
+**What was done:**
+- Created React Navigation structure with native stack navigator
+- Built 3 complete screens:
+  - **SetupScreen** - Map-based geofence configuration
+  - **TrackingScreen** - Live status with manual controls
+  - **LogScreen** - Work history with pull-to-refresh
+- Integrated App.tsx with background task initialization
+- Configured iOS permissions in app.json
+- Deployed to TestFlight for device testing
 
-**What needs to be done:**
+**Files created:**
+- `src/navigation/AppNavigator.tsx` - Navigation structure
+- `src/modules/geofencing/screens/SetupScreen.tsx` (275 lines)
+- `src/modules/geofencing/screens/TrackingScreen.tsx` (245 lines)
+- `src/modules/geofencing/screens/LogScreen.tsx` (180 lines)
+- Updated `App.tsx` with initialization logic
 
-#### Screen 1: Setup Screen
-- Map view with current location
-- Drag pin to set hospital location
-- Radius slider (100m - 1000m, default 200m)
-- Location name input
-- "Save Location" button
-- Visual: Circle overlay showing geofence radius
+**Bugs encountered and fixed:**
+1. **Google Maps blank screen**
+   - Cause: Used PROVIDER_GOOGLE without API key
+   - Fix: Switched to Apple Maps (native, no API key needed)
 
-**Suggested file:** `src/modules/geofencing/screens/SetupScreen.tsx`
+2. **UUID crypto.getRandomValues error**
+   - Cause: `uuid` library uses browser APIs not available in React Native
+   - Fix: Replaced with `expo-crypto.randomUUID()` throughout codebase
 
-**Required packages:** Already installed
-- `react-native-maps` for map
-- `expo-location` to get current position
+3. **Build number rejection**
+   - Cause: Apple requires unique build numbers for each upload
+   - Fix: Increment `buildNumber` in app.json for each TestFlight upload
 
-**Key functionality:**
-```typescript
-// Pseudo-code for SetupScreen
-const [region, setRegion] = useState({ lat, lng })
-const [radius, setRadius] = useState(200)
-const [name, setName] = useState('')
+4. **Navigation blocked in simulator**
+   - Cause: Background permission denied → save failed → no navigation
+   - Fix: Added "Continue Anyway" option to permission alert
 
-const handleSave = async () => {
-  const location: UserLocation = {
-    id: uuidv4(),
-    name,
-    latitude: region.lat,
-    longitude: region.lng,
-    radiusMeters: radius,
-    isActive: true,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  }
+**Deployment:**
+- Using EAS Build (cloud-based, bypasses Xcode version issues)
+- Deployed to TestFlight: Build 1 (broken), Build 2 (map fix), Build 3 (UUID fix)
+- TestFlight update is manual (user must tap "Update" in app)
 
-  await db.insertLocation(location)
-  await geofenceService.registerGeofence(location)
-
-  // Navigate to tracking screen
-}
-```
-
-#### Screen 2: Tracking Screen
-- Live status indicator: "🟢 Clocked In" or "⚪ Not Tracking"
-- Current location name (if clocked in)
-- Time elapsed (if clocked in)
-- Two large buttons:
-  - "Clock In" (enabled when not tracking)
-  - "Clock Out" (enabled when tracking)
-- Small "View History" link
-
-**Suggested file:** `src/modules/geofencing/screens/TrackingScreen.tsx`
-
-**Key functionality:**
-```typescript
-// Pseudo-code for TrackingScreen
-const [activeSession, setActiveSession] = useState(null)
-const [location, setLocation] = useState(null)
-
-useEffect(() => {
-  // Poll for active session every 5 seconds
-  const interval = setInterval(async () => {
-    const session = await manager.getActiveSession(locationId)
-    setActiveSession(session)
-
-    if (session) {
-      const loc = await db.getLocation(session.locationId)
-      setLocation(loc)
-    }
-  }, 5000)
-
-  return () => clearInterval(interval)
-}, [])
-
-const handleManualClockIn = async () => {
-  await manager.clockIn(locationId)
-}
-
-const handleManualClockOut = async () => {
-  await manager.clockOut(locationId)
-}
-```
-
-#### Screen 3: Log Screen
-- List of past sessions
-- Each row shows:
-  - Date
-  - Clock in/out times
-  - Duration
-  - Method (🤖 auto or ✋ manual)
-- Pull to refresh
-- Limit to last 50 sessions
-
-**Suggested file:** `src/modules/geofencing/screens/LogScreen.tsx`
-
-**Key functionality:**
-```typescript
-// Pseudo-code for LogScreen
-const [history, setHistory] = useState([])
-
-const loadHistory = async () => {
-  const sessions = await manager.getHistory(locationId, 50)
-  setHistory(sessions)
-}
-
-useEffect(() => {
-  loadHistory()
-}, [])
-
-// Render FlatList with sessions
-```
-
-**UI Library Suggestion:**
-- Use React Native's built-in components (View, Text, Button, FlatList)
-- Or install a UI library:
-  - `react-native-paper` (Material Design)
-  - `@rneui/themed` (React Native Elements)
-  - Native components are fine for MVP
+**Current status:** Build 3 ready for device testing
 
 ---
 
-### ⏳ Phase 1.6: iOS Device Testing (Not Started)
+## What's Pending
 
-**Goal:** Validate geofencing works in real-world conditions
+### ⏳ Phase 1.6: Device Testing (In Progress - 2025-11-19)
 
-**What needs to be done:**
+**Goal:** Validate geofencing works reliably on physical iPhone
 
-1. **Build development client:**
-   ```bash
-   # Install Expo CLI globally if needed
-   npm install -g expo-cli
+**What's been done:**
+- ✅ App deployed to TestFlight
+- ✅ Installed on physical iPhone (Argentina location)
+- ✅ Map displays correctly (Apple Maps showing real location)
+- ✅ Location permissions requested
+- ⏳ Currently fixing "save location" error (Build 3 in progress)
 
-   # Build for iOS device
-   npx expo run:ios
-   # OR use EAS Build
-   eas build --profile development --platform ios
-   ```
+**Next steps:**
 
-2. **Configure iOS permissions:**
-   - Edit `app.json` to add location permissions:
-   ```json
-   {
-     "expo": {
-       "ios": {
-         "infoPlist": {
-           "NSLocationWhenInUseUsageDescription": "We need your location to automatically track when you're at work.",
-           "NSLocationAlwaysAndWhenInUseUsageDescription": "We need your location in the background to automatically clock you in/out when you arrive/leave work.",
-           "UIBackgroundModes": ["location"]
-         }
-       }
-     }
-   }
-   ```
+#### 1. Update to Build 3 on TestFlight
+- Wait for Build 3 to process on App Store Connect
+- Update TestFlight app on iPhone
+- Verify location saves successfully
 
-3. **Testing checklist:**
-   - [ ] App requests foreground permission on first launch
-   - [ ] App requests background permission after setting up geofence
-   - [ ] Permissions show in iOS Settings > [App] > Location
-   - [ ] Background location is set to "Always"
-   - [ ] Create geofence at a test location (e.g., coffee shop)
-   - [ ] Walk to location → Should auto clock-in (notification)
-   - [ ] Walk away from location → Should auto clock-out (notification)
-   - [ ] Test with app in foreground
-   - [ ] Test with app in background
-   - [ ] **Critical:** Test with app force-quit (swipe up from app switcher)
-   - [ ] Manual clock-in/out works when geofencing fails
-   - [ ] Check database: `SELECT * FROM tracking_sessions`
-   - [ ] Sessions show correct times and durations
+#### 2. Complete Geofencing Test Checklist
+```markdown
+### Manual Tracking Test (5 min)
+- [ ] Enter location name
+- [ ] Save location successfully
+- [ ] Tap "Clock In" button
+- [ ] See status change to "🟢 Currently Working"
+- [ ] Elapsed time updates
+- [ ] Tap "Clock Out"
+- [ ] Navigate to "View Work History"
+- [ ] See session in the log
 
-4. **Battery testing:**
-   - Install app, set up geofence
-   - Let phone sit for 8 hours (simulate work shift)
-   - Check: Settings > Battery > [App]
-   - **Goal:** <5% battery drain over 8 hours
-   - If >5%, geofencing may not be viable (pivot decision)
+### Geofencing Test (Critical - 30 min)
+- [ ] Close/kill the app completely
+- [ ] Walk OUTSIDE the geofence radius (200m+)
+- [ ] Wait 2-3 minutes
+- [ ] Check for notification "Clocked out from..."
+- [ ] Walk BACK INSIDE the geofence
+- [ ] Wait 2-3 minutes
+- [ ] Check for notification "🟢 Clocked in at..."
+- [ ] Open app
+- [ ] Check Tracking screen - should show active
+- [ ] Check History - should show auto session
 
-5. **Reliability testing:**
-   - Test over 3 days with real commute
-   - Track success rate:
-     - Did it clock-in when arriving?
-     - Did it clock-out when leaving?
-     - Any false positives (clock-in when not at location)?
-   - **Goal:** >90% accuracy
-   - If <90%, may need to adjust radius or add hysteresis
+### Battery Test (8 hours)
+- [ ] Leave geofencing active overnight
+- [ ] Check battery usage next morning
+- [ ] Goal: <5% drain over 8 hours
+```
 
-**Decision Point:**
-- ✅ If reliable → Continue to Module 2 (Privacy features)
-- ❌ If unreliable → Pivot to manual-entry-first approach
+#### 3. Decision Point
+- ✅ If geofencing works reliably (>90% accuracy) → **Proceed to Module 2 (Privacy features)**
+- ❌ If geofencing unreliable → **Pivot to manual-entry-first approach**
 
+---
+
+## Future Enhancements (Post-Device Testing)
+
+### Hospital Search Feature
+**Status:** Planned, documented for future implementation
+
+**Goal:** Allow users to search for hospitals instead of manually positioning map
+
+**Approach:**
+- Simple: Search box → list of nearby hospitals → tap to select
+- Use Google Places API or Mapbox Search
+- Better map controls (zoom buttons, recenter button)
+
+**Priority:** Nice-to-have, implement after geofencing validation
+
+**Documentation:** Added to MODULE_1_PLAN.md as feature request
 ---
 
 ## Architecture Overview

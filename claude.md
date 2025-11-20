@@ -628,6 +628,28 @@ M text.txt
 
 ---
 
-**Last Updated:** 2025-01-18
-**Status:** Web app in production, mobile app not started, backend ready for extension
-**Current Focus:** Module 1 - Geofencing & Basic Tracking (ready to start)
+**Last Updated:** 2025-11-19
+**Status:** Web app in production, mobile Phase 1.5 complete (UI built)
+**Current Focus:** Module 1 Phase 1.6 - Device testing (geofencing validation)
+
+---
+
+## Mobile App Debugging (Added 2025-11-19)
+
+**Tools:**
+- Xcode Console: Connect iPhone → Xcode → Devices → Open Console
+- Simulator first, device second (geofencing needs device)
+- Screenshots of errors are diagnostic gold
+
+**Common Issues:**
+1. Browser APIs don't work in RN → Use Expo equivalents (`expo-crypto` not `uuid`)
+2. Google Maps needs API key → Use native maps instead
+3. Increment `buildNumber` in app.json for each TestFlight upload
+4. TestFlight updates are manual (tap "Update")
+
+**Deployment:**
+- EAS Build ($29/month) bypasses Xcode version issues
+- Simulator ≠ Device (especially location/background tasks)
+- Test with humans for real-world scenarios (walking, battery drain)
+
+**Status:** Mobile Phase 1.5 done, Phase 1.6 (device testing) in progress

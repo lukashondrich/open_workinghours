@@ -1,6 +1,6 @@
 import * as SQLite from 'expo-sqlite';
 import { UserLocation, TrackingSession, GeofenceEvent } from '../types';
-import { v4 as uuidv4 } from 'uuid';
+import * as Crypto from 'expo-crypto';
 
 export class Database {
   private db: SQLite.SQLiteDatabase | null = null;
@@ -170,7 +170,7 @@ export class Database {
   ): Promise<TrackingSession> {
     if (!this.db) throw new Error('Database not initialized');
 
-    const id = uuidv4();
+    const id = Crypto.randomUUID();
     const now = new Date().toISOString();
 
     await this.db.runAsync(
@@ -262,7 +262,7 @@ export class Database {
   async logGeofenceEvent(event: Omit<GeofenceEvent, 'id'>): Promise<GeofenceEvent> {
     if (!this.db) throw new Error('Database not initialized');
 
-    const id = uuidv4();
+    const id = Crypto.randomUUID();
 
     await this.db.runAsync(
       `INSERT INTO geofence_events
