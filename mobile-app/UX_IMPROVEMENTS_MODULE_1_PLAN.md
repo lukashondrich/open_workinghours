@@ -304,12 +304,13 @@ Already works perfectly - just filters by locationId.
 | # | Task | Files | Time | Notes |
 |---|------|-------|------|-------|
 | 4.1 | Add "View History" button | `TrackingScreen.tsx` | 10 min | Navigate to LogScreen |
-| 4.2 | Remove debug panel | `SetupScreen.tsx` | 5 min | Already in 1.7, verify |
-| 4.3 | Test full navigation flow | All screens | 15 min | Home → Setup → Tracking → Log → Back |
-| 4.4 | Test edge cases | Device | 20 min | Rapid location switches, kill app, etc. |
-| 4.5 | Update documentation | `MODULE_1_PROGRESS.md` | 10 min | Mark Phase 1.6 complete |
+| 4.2 | Test full navigation flow | All screens | 15 min | Home → Setup → Tracking → Log → Back |
+| 4.3 | Test edge cases | Device | 20 min | Rapid location switches, kill app, etc. |
+| 4.4 | Update documentation | `MODULE_1_PROGRESS.md` | 10 min | Mark UX improvements complete |
 
-**Subtotal: ~1 hour**
+**Subtotal: ~55 min**
+
+**Note:** Debug panel already removed from SetupScreen (2025-11-22)
 
 ---
 

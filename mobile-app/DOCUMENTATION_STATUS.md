@@ -40,10 +40,11 @@
 ### 🎯 What's Next
 
 **UX Improvements (Simplified Approach):**
-- 📋 20 tasks planned
-- ⏱️ Estimated: 5-6.5 hours
+- 📋 19 tasks planned (debug panel removal complete)
+- ⏱️ Estimated: 5-6 hours
 - 📖 Plan: `UX_IMPROVEMENTS_MODULE_1_PLAN.md`
 - 🔴 Status: **Ready to start** (Phase 1.1 pending)
+- ✅ **Pre-work complete:** Debug panel removed from SetupScreen
 
 **Implementation Phases:**
 1. **Phase 1:** Core Navigation (2-3 hours) - HomeScreen, bottom sheet, routing

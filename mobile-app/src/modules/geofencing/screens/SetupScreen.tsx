@@ -34,26 +34,10 @@ export default function SetupScreen({ navigation }: Props) {
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [existingLocations, setExistingLocations] = useState<UserLocation[]>([]);
 
   useEffect(() => {
-    initializeScreen();
+    requestPermissionsAndGetLocation();
   }, []);
-
-  const initializeScreen = async () => {
-    // First check for existing locations
-    try {
-      const db = await getDatabase();
-      const locations = await db.getActiveLocations();
-      setExistingLocations(locations);
-      console.log('[SetupScreen] Found existing locations:', locations.length);
-    } catch (error) {
-      console.error('[SetupScreen] Error loading existing locations:', error);
-    }
-
-    // Then request permissions and get location
-    await requestPermissionsAndGetLocation();
-  };
 
   const requestPermissionsAndGetLocation = async () => {
     try {
@@ -200,36 +184,6 @@ export default function SetupScreen({ navigation }: Props) {
       </MapView>
 
       <View style={styles.controls}>
-        {/* Debug Panel: Show existing locations */}
-        {existingLocations.length > 0 && (
-          <View style={styles.debugPanel}>
-            <Text style={styles.debugTitle}>
-              ✅ Database Working! Found {existingLocations.length} location(s):
-            </Text>
-            {existingLocations.map((loc) => (
-              <View key={loc.id} style={styles.locationItem}>
-                <Text style={styles.locationName}>📍 {loc.name}</Text>
-                <Text style={styles.locationDetails}>
-                  Radius: {loc.radiusMeters}m | Created: {new Date(loc.createdAt).toLocaleString()}
-                </Text>
-              </View>
-            ))}
-            <TouchableOpacity
-              style={styles.continueButton}
-              onPress={() => navigation.navigate('Tracking', { locationId: existingLocations[0].id })}
-            >
-              <Text style={styles.continueButtonText}>Continue to Tracking</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {existingLocations.length === 0 && (
-          <View style={styles.debugPanel}>
-            <Text style={styles.debugWarning}>⚠️ No saved locations found in database</Text>
-            <Text style={styles.debugSubtext}>This is normal for first launch, or if data didn't persist</Text>
-          </View>
-        )}
-
         <Text style={styles.label}>Location Name</Text>
         <TextInput
           style={styles.input}
@@ -311,56 +265,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 5,
-  },
-  debugPanel: {
-    backgroundColor: '#f0f0f0',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 20,
-  },
-  debugTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#2d7a2d',
-    marginBottom: 8,
-  },
-  debugWarning: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#d97706',
-    marginBottom: 4,
-  },
-  debugSubtext: {
-    fontSize: 12,
-    color: '#666',
-  },
-  locationItem: {
-    backgroundColor: '#fff',
-    padding: 10,
-    borderRadius: 6,
-    marginBottom: 8,
-  },
-  locationName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 4,
-  },
-  locationDetails: {
-    fontSize: 11,
-    color: '#666',
-  },
-  continueButton: {
-    backgroundColor: '#2d7a2d',
-    padding: 12,
-    borderRadius: 6,
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  continueButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
   },
   label: {
     fontSize: 14,

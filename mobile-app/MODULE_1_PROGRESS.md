@@ -385,9 +385,16 @@ User exits geofence
 - Long-press menu for edit/delete
 - Auto clock-out when switching locations
 
-**Estimated Time:** 5-6.5 hours
+**Estimated Time:** 5-6 hours
 
 **Status:** Ready to implement (Phase 1.1 pending)
+
+**Pre-work completed (2025-11-22):**
+- ✅ Debug panel removed from SetupScreen
+  - Removed database status display
+  - Removed "Continue to Tracking" button
+  - Cleaned up unused state and styles
+  - SetupScreen now ready for "add new location" flow
 
 ---
 
