@@ -52,6 +52,13 @@ export class GeofenceService {
    * Register a geofence for a user location
    */
   async registerGeofence(location: UserLocation): Promise<void> {
+    // Check if background permission is granted
+    const { status } = await Location.getBackgroundPermissionsAsync();
+    if (status !== 'granted') {
+      console.warn('[GeofenceService] Background permission not granted, skipping geofence registration');
+      return;
+    }
+
     const region: Location.LocationRegion = {
       identifier: location.id,
       latitude: location.latitude,

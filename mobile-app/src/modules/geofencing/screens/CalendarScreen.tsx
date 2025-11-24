@@ -1,11 +1,11 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
-export default function LogScreen() {
+export default function CalendarScreen() {
   return (
     <View style={styles.container}>
-      <Text style={styles.icon}>📋</Text>
-      <Text style={styles.title}>Work History Coming Soon</Text>
+      <Text style={styles.icon}>📅</Text>
+      <Text style={styles.title}>Calendar Feature Coming Soon</Text>
     </View>
   );
 }

@@ -10,7 +10,6 @@ import { TrackingManager } from '@/modules/geofencing/services/TrackingManager';
 // Configure notification behavior
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
     shouldShowBanner: true,
@@ -20,7 +19,6 @@ Notifications.setNotificationHandler({
 
 export default function App() {
   const [isReady, setIsReady] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     initializeApp();
@@ -68,16 +66,21 @@ export default function App() {
       console.log('[App] Found', locations.length, 'active locations');
 
       for (const location of locations) {
-        await geofenceService.registerGeofence(location);
-        console.log('[App] Re-registered geofence:', location.name);
+        try {
+          await geofenceService.registerGeofence(location);
+          console.log('[App] Re-registered geofence:', location.name);
+        } catch (error) {
+          console.warn('[App] Failed to register geofence for', location.name, ':', error);
+          // Continue with other locations even if one fails
+        }
       }
 
       console.log('[App] Initialization complete');
       setIsReady(true);
     } catch (error) {
       console.error('[App] Initialization error:', error);
-      setError(error instanceof Error ? error.message : 'Unknown error');
-      setIsReady(true); // Still show the app even if there's an error
+      // Don't show error screen - let the app continue with manual mode
+      setIsReady(true);
     }
   };
 
@@ -86,16 +89,6 @@ export default function App() {
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#007AFF" />
         <Text style={styles.loadingText}>Initializing...</Text>
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorIcon}>⚠️</Text>
-        <Text style={styles.errorText}>Initialization Error</Text>
-        <Text style={styles.errorMessage}>{error}</Text>
       </View>
     );
   }
