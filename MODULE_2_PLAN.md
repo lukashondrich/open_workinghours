@@ -21,23 +21,27 @@
 ## 2. Mobile Implementation Plan
 
 ### Phase 1: Weekly Aggregation
-1. Add aggregation helpers (mobile) that:
-   - Determine week boundaries based on confirmed shifts.
-   - Sum planned hours from calendar instances on confirmed days.
-   - Sum actual hours from confirmed tracking records.
-2. Lock weeks once submitted (user must “unlock” before editing).
+1. Add persistence + aggregation helpers (see `MODULE_2_DATA_FLOW.md`):
+   - `calendar.db`: new `confirmed_days` table so confirmations survive reload and expose lock state to UI.
+   - `workinghours.db`: new `daily_actuals` table storing immutable per-day planned vs. actual minutes derived from calendar instances + tracking sessions.
+   - Helper service that writes `daily_actuals` every time a day is confirmed, ensuring the reducer, storage, and upcoming queue reference the same canonical numbers.
+2. Lock semantics (pre-submission): confirmed days default to `status='confirmed'`, and the user must explicitly “Unlock” before editing if a day was already part of a sent week.
 3. Add friction prompts when confirming days without planned shifts (optional but recommended).
 
 ### Phase 2: Privacy Layer
-1. Implement Laplace noise generation (`LaplaceNoise.ts`), parameterized by epsilon (constants file).
-2. Apply noise to both planned and actual totals; retain epsilon in code/config only.
+1. Implement Laplace noise helper (`lib/privacy/LaplaceNoise.ts`) using `PRIVACY_EPSILON = 1.0` from `lib/privacy/constants.ts` (see data-flow doc).
+2. Apply noise to both planned and actual totals (minutes → hours → noise → minutes) before enqueueing submissions; retain epsilon in config only.
 3. Add unit tests to ensure each call produces different noise and mean ≈ original value.
 
 ### Phase 3: Submission Queue
-1. Create a local queue table (SQLite) for pending weekly submissions (`status: pending/sent/failed`).
-2. Add a manual “Submit Week” button in Calendar > Week view once all days are confirmed.
-3. POST to the backend endpoint; if successful, mark as sent + lock week. On failure, retain `pending` status with error message.
-4. Expose basic queue status in Settings > Data & Privacy (e.g., “No pending submissions / 1 pending”).
+1. Create the queue schema described in `MODULE_2_DATA_FLOW.md`:
+   - `workinghours.db.weekly_submission_queue` stores true + noisy totals, epsilon, and status (`pending/sending/sent/failed`).
+   - `weekly_submission_items` links each queued week to its constituent `daily_actuals` IDs.
+2. Add a manual “Submit Week” button in Calendar > Week view once all days are confirmed. The button:
+   - Validates `confirmed_days` coverage for the target week.
+   - Aggregates `daily_actuals`, applies Laplace noise, persists queue entry, and updates `confirmed_days.status = 'locked'` with the queue id.
+3. POST to the backend endpoint; if successful, mark queue row as `sent` and keep days locked. On failure, set `status='failed'` with `last_error` and surface a retry option (keeping the week locked until user unlocks explicitly).
+4. Expose basic queue + lock status in Settings > Data & Privacy (e.g., “1 pending submission”, “Last week sent on …”) and offer an “Unlock week” CTA that clears the queue row + lock if the user needs to edit.
 
 ### Phase 4: UI/UX polish
 1. Confirmation modal summarizing the week totals (pre-noise and noisy) before sending.
@@ -64,10 +68,10 @@
 
 | Risk | Mitigation |
 |------|------------|
-| Missing planned shift on a confirmed day | Block submission or require manual entry before confirming day. |
-| Users editing after submission | Lock week and require explicit “unlock” flow (clears submission). |
+| Missing planned shift on a confirmed day | Block submission or require manual entry before confirming day (the `daily_actuals` helper should warn before writing). |
+| Users editing after submission | `confirmed_days.status='locked'` + queue linkage enforce an explicit “unlock week” flow that clears or supersedes the prior submission before edits apply. |
 | Laplace noise too large for small weeks | Display info tooltip (“noise may vary ±2h”) and allow larger epsilon tuning later. |
-| Backend schema drift | Keep payload minimal; document fields in README. |
+| Backend schema drift | Keep payload minimal; document fields + queue schema in README/blueprint so backend + mobile stay aligned. |
 | Offline submission failures | Queue pending submissions and show status; add retry logic in Phase 2. |
 
 ---
