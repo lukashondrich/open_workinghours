@@ -242,35 +242,30 @@ export default function SetupScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      {/* Header with Back Button */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
+      {/* Map Container */}
+      <View style={styles.mapContainer}>
+        <MapView
+          ref={mapRef}
+          style={styles.map}
+          region={region}
+          onRegionChangeComplete={setRegion}
+          showsUserLocation
+          showsMyLocationButton={false}
+          scrollEnabled={true}
+          zoomEnabled={true}
+          pitchEnabled={false}
+          rotateEnabled={false}
         >
-          <Text style={styles.backIcon}>←</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Add Location</Text>
-        <View style={styles.headerSpacer} />
+          <Marker coordinate={region} draggable />
+          <Circle
+            center={region}
+            radius={radius}
+            strokeColor="rgba(0, 122, 255, 0.5)"
+            fillColor="rgba(0, 122, 255, 0.2)"
+            strokeWidth={2}
+          />
+        </MapView>
       </View>
-
-      <MapView
-        ref={mapRef}
-        style={styles.map}
-        region={region}
-        onRegionChangeComplete={setRegion}
-        showsUserLocation
-        showsMyLocationButton={false}
-      >
-        <Marker coordinate={region} draggable />
-        <Circle
-          center={region}
-          radius={radius}
-          strokeColor="rgba(0, 122, 255, 0.5)"
-          fillColor="rgba(0, 122, 255, 0.2)"
-          strokeWidth={2}
-        />
-      </MapView>
 
       {/* Map Controls */}
       <MapControls
@@ -337,36 +332,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 16,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 10,
-  },
-  backButton: {
-    padding: 8,
-  },
-  backIcon: {
-    fontSize: 24,
-    color: '#007AFF',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#000',
-  },
-  headerSpacer: {
-    width: 40,
+  mapContainer: {
+    flex: 1,
   },
   loadingContainer: {
     flex: 1,

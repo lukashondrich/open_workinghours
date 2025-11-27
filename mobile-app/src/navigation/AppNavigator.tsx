@@ -136,7 +136,7 @@ export default function AppNavigator() {
         <Stack.Screen
           name="Setup"
           component={SetupScreen}
-          options={{ headerShown: false }}
+          options={{ title: 'Add Location' }}
         />
         <Stack.Screen
           name="Tracking"
@@ -151,22 +151,22 @@ export default function AppNavigator() {
         <Stack.Screen
           name="LocationsList"
           component={LocationsListScreen}
-          options={{ headerShown: false }}
+          options={{ title: 'Work Locations', headerBackTitle: 'Settings' }}
         />
         <Stack.Screen
           name="Notifications"
           component={NotificationsScreen}
-          options={{ title: 'Notifications' }}
+          options={{ title: 'Notifications', headerBackTitle: 'Settings' }}
         />
         <Stack.Screen
           name="Permissions"
           component={PermissionsScreen}
-          options={{ title: 'Permissions' }}
+          options={{ title: 'Permissions', headerBackTitle: 'Settings' }}
         />
         <Stack.Screen
           name="DataPrivacy"
           component={DataPrivacyScreen}
-          options={{ title: 'Data & Privacy' }}
+          options={{ title: 'Data & Privacy', headerBackTitle: 'Settings' }}
         />
       </Stack.Navigator>
     </NavigationContainer>

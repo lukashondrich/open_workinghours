@@ -5,27 +5,44 @@ interface MapControlsProps {
   onZoomIn: () => void;
   onZoomOut: () => void;
   onMyLocation: () => void;
+  bottomOffset?: number;
 }
 
 export default function MapControls({
   onZoomIn,
   onZoomOut,
   onMyLocation,
+  bottomOffset = 340,
 }: MapControlsProps) {
+  const handleZoomIn = () => {
+    console.log('[MapControls] Zoom In pressed!');
+    onZoomIn();
+  };
+
+  const handleZoomOut = () => {
+    console.log('[MapControls] Zoom Out pressed!');
+    onZoomOut();
+  };
+
+  const handleMyLocation = () => {
+    console.log('[MapControls] My Location pressed!');
+    onMyLocation();
+  };
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { bottom: bottomOffset }]}>
       {/* Zoom In */}
-      <TouchableOpacity style={styles.button} onPress={onZoomIn}>
+      <TouchableOpacity style={styles.button} onPress={handleZoomIn}>
         <Text style={styles.buttonText}>+</Text>
       </TouchableOpacity>
 
       {/* Zoom Out */}
-      <TouchableOpacity style={styles.button} onPress={onZoomOut}>
+      <TouchableOpacity style={styles.button} onPress={handleZoomOut}>
         <Text style={styles.buttonText}>−</Text>
       </TouchableOpacity>
 
       {/* My Location */}
-      <TouchableOpacity style={styles.button} onPress={onMyLocation}>
+      <TouchableOpacity style={styles.button} onPress={handleMyLocation}>
         <Text style={styles.buttonText}>📍</Text>
       </TouchableOpacity>
     </View>
@@ -35,9 +52,9 @@ export default function MapControls({
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    right: 16,
-    top: 100,
+    left: 16,
     gap: 8,
+    zIndex: 100,
   },
   button: {
     width: 44,

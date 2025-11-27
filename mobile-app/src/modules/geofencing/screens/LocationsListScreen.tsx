@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,6 @@ import {
   Platform,
 } from 'react-native';
 import MapView, { Circle, Marker, Region } from 'react-native-maps';
-import RBSheet from 'react-native-raw-bottom-sheet';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Location from 'expo-location';
@@ -26,10 +25,11 @@ type LocationsListScreenNavigationProp = NativeStackNavigationProp<RootStackPara
 
 const MAX_LOCATIONS = 5;
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const COLLAPSED_PANEL_HEIGHT = 88;
+const EXPANDED_PANEL_HEIGHT = Math.min(SCREEN_HEIGHT * 0.5, 360);
 
 export default function LocationsListScreen() {
   const navigation = useNavigation<LocationsListScreenNavigationProp>();
-  const bottomSheetRef = useRef<RBSheet>(null);
   const mapRef = useRef<MapView>(null);
 
   const [locations, setLocations] = useState<UserLocation[]>([]);
@@ -40,6 +40,7 @@ export default function LocationsListScreen() {
     latitudeDelta: 0.05,
     longitudeDelta: 0.05,
   });
+  const [isPanelExpanded, setIsPanelExpanded] = useState(false);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -251,20 +252,10 @@ export default function LocationsListScreen() {
     );
   };
 
+  const panelHeight = isPanelExpanded ? EXPANDED_PANEL_HEIGHT : COLLAPSED_PANEL_HEIGHT;
+
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Text style={styles.backIcon}>←</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Work Locations</Text>
-        <View style={styles.headerSpacer} />
-      </View>
-
       {/* Map */}
       <MapView
         ref={mapRef}
@@ -303,77 +294,56 @@ export default function LocationsListScreen() {
         onZoomIn={handleZoomIn}
         onZoomOut={handleZoomOut}
         onMyLocation={handleMyLocation}
+        bottomOffset={panelHeight + 16}
       />
 
-      {/* Bottom Sheet - COLLAPSED by default */}
-      <RBSheet
-        ref={bottomSheetRef}
-        height={SCREEN_HEIGHT * 0.5}
-        openDuration={250}
-        closeDuration={200}
-        closeOnPressMask={false}
-        customStyles={{
-          wrapper: {
-            backgroundColor: 'transparent',
-          },
-          draggableIcon: {
-            backgroundColor: '#000',
-            width: 50,
-          },
-          container: {
-            borderTopLeftRadius: 20,
-            borderTopRightRadius: 20,
-          },
-        }}
-      >
-        <View style={styles.bottomSheetContent}>
-          {/* Header */}
-          <View style={styles.bottomSheetHeader}>
-            <Text style={styles.bottomSheetTitle}>
-              Locations ({locations.length}/{MAX_LOCATIONS})
-            </Text>
-          </View>
+      {/* Location Panel */}
+      <View style={[styles.panel, { height: panelHeight }]}>
+        <TouchableOpacity
+          style={[styles.panelHeader, isPanelExpanded && styles.panelHeaderExpanded]}
+          onPress={() => setIsPanelExpanded((prev) => !prev)}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.panelTitle}>
+            Locations ({locations.length}/{MAX_LOCATIONS})
+          </Text>
+          <Text style={styles.panelToggle}>{isPanelExpanded ? '▾' : '▴'}</Text>
+        </TouchableOpacity>
 
-          {/* Location List */}
-          <FlatList
-            data={locations}
-            keyExtractor={(item) => item.id}
-            renderItem={renderLocationCard}
-            contentContainerStyle={styles.locationList}
-            showsVerticalScrollIndicator={false}
-            ListEmptyComponent={
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyText}>No locations saved yet</Text>
-                <Text style={styles.emptySubtext}>
-                  Add your first work location to start tracking
-                </Text>
-              </View>
-            }
-          />
+        {isPanelExpanded ? (
+          <>
+            <FlatList
+              data={locations}
+              keyExtractor={(item) => item.id}
+              renderItem={renderLocationCard}
+              contentContainerStyle={styles.locationList}
+              showsVerticalScrollIndicator={false}
+              style={styles.panelList}
+              ListEmptyComponent={
+                <View style={styles.emptyState}>
+                  <Text style={styles.emptyText}>No locations saved yet</Text>
+                  <Text style={styles.emptySubtext}>
+                    Add your first work location to start tracking
+                  </Text>
+                </View>
+              }
+            />
 
-          {/* Add Location Button */}
-          <TouchableOpacity
-            style={[
-              styles.addButton,
-              locations.length >= MAX_LOCATIONS && styles.addButtonDisabled,
-            ]}
-            onPress={handleAddLocation}
-            disabled={locations.length >= MAX_LOCATIONS}
-          >
-            <Text style={styles.addButtonText}>+ Add New Location</Text>
-          </TouchableOpacity>
-        </View>
-      </RBSheet>
-
-      {/* Collapsed Bottom Bar - Always visible */}
-      <TouchableOpacity
-        style={styles.collapsedBar}
-        onPress={() => bottomSheetRef.current?.open()}
-      >
-        <Text style={styles.collapsedBarText}>
-          ═══ Locations ({locations.length}/{MAX_LOCATIONS}) ═══
-        </Text>
-      </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.addButton,
+                locations.length >= MAX_LOCATIONS && styles.addButtonDisabled,
+              ]}
+              onPress={handleAddLocation}
+              disabled={locations.length >= MAX_LOCATIONS}
+            >
+              <Text style={styles.addButtonText}>+ Add New Location</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <Text style={styles.panelHint}>Tap to view and manage your locations</Text>
+        )}
+      </View>
     </View>
   );
 }
@@ -382,48 +352,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 16,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 10,
-  },
-  backButton: {
-    padding: 8,
-  },
-  backIcon: {
-    fontSize: 24,
-    color: '#007AFF',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#000',
-  },
-  headerSpacer: {
-    width: 40, // Balance back button
-  },
   map: {
     flex: 1,
   },
-  collapsedBar: {
+  panel: {
     position: 'absolute',
-    bottom: 0,
     left: 0,
     right: 0,
+    bottom: 0,
     backgroundColor: '#fff',
-    paddingVertical: 16,
-    alignItems: 'center',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     shadowColor: '#000',
@@ -431,26 +368,35 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 5,
-  },
-  collapsedBarText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#666',
-  },
-  bottomSheetContent: {
-    flex: 1,
     paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingBottom: 16,
   },
-  bottomSheetHeader: {
-    paddingVertical: 15,
+  panelHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 14,
+  },
+  panelHeaderExpanded: {
     borderBottomWidth: 1,
     borderBottomColor: '#E0E0E0',
   },
-  bottomSheetTitle: {
+  panelTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#000',
+  },
+  panelToggle: {
+    fontSize: 18,
+    color: '#666',
+  },
+  panelHint: {
+    textAlign: 'center',
+    paddingVertical: 16,
+    color: '#777',
+  },
+  panelList: {
+    flex: 1,
   },
   locationList: {
     paddingVertical: 15,

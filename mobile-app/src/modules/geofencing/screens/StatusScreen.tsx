@@ -24,7 +24,7 @@ type StatusScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 interface LocationStatus {
   location: UserLocation;
   isCheckedIn: boolean;
-  checkInTime?: string;
+  clockInTime?: string;
   elapsedMinutes?: number;
 }
 
@@ -75,9 +75,9 @@ export default function StatusScreen() {
 
         console.log('[StatusScreen] Location:', location.name, 'Active session:', activeSession);
 
-        if (activeSession && !activeSession.checkOutTime) {
-          // Checked in (checkOutTime is null or undefined)
-          const checkInDate = new Date(activeSession.checkInTime);
+        if (activeSession && !activeSession.clockOut) {
+          // Checked in (clockOut is null or undefined)
+          const checkInDate = new Date(activeSession.clockIn);
           const now = new Date();
           const elapsedMs = now.getTime() - checkInDate.getTime();
           const elapsedMinutes = Math.floor(elapsedMs / 60000);
@@ -85,7 +85,7 @@ export default function StatusScreen() {
           statuses.push({
             location,
             isCheckedIn: true,
-            checkInTime: activeSession.checkInTime,
+            clockInTime: activeSession.clockIn,
             elapsedMinutes,
           });
         } else {
@@ -111,8 +111,8 @@ export default function StatusScreen() {
   const updateElapsedTimes = () => {
     setLocationStatuses((prevStatuses) =>
       prevStatuses.map((status) => {
-        if (status.isCheckedIn && status.checkInTime) {
-          const checkInDate = new Date(status.checkInTime);
+        if (status.isCheckedIn && status.clockInTime) {
+          const checkInDate = new Date(status.clockInTime);
           const now = new Date();
           const elapsedMs = now.getTime() - checkInDate.getTime();
           const elapsedMinutes = Math.floor(elapsedMs / 60000);

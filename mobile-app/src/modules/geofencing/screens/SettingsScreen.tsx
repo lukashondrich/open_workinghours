@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  SafeAreaView,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -55,33 +56,41 @@ export default function SettingsScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {settingsItems.map((item) => (
-          <TouchableOpacity
-            key={item.id}
-            style={styles.settingsItem}
-            onPress={() => handleItemPress(item.screen)}
-          >
-            <View style={styles.itemLeft}>
-              <Text style={styles.itemIcon}>{item.icon}</Text>
-              <Text style={styles.itemTitle}>{item.title}</Text>
-            </View>
-            <Text style={styles.itemChevron}>›</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-    </View>
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          {settingsItems.map((item) => (
+            <TouchableOpacity
+              key={item.id}
+              style={styles.settingsItem}
+              onPress={() => handleItemPress(item.screen)}
+            >
+              <View style={styles.itemLeft}>
+                <Text style={styles.itemIcon}>{item.icon}</Text>
+                <Text style={styles.itemTitle}>{item.title}</Text>
+              </View>
+              <Text style={styles.itemChevron}>›</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#F5F5F5',
+  },
   container: {
     flex: 1,
     backgroundColor: '#F5F5F5',
   },
   scrollContent: {
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 32,
   },
   settingsItem: {
     flexDirection: 'row',
