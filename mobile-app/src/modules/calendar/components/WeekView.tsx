@@ -10,6 +10,7 @@ import {
   PanResponder,
   GestureResponderEvent,
   PanResponderGestureState,
+  Vibration,
 } from 'react-native';
 import { startOfWeek, subDays, format as formatDate } from 'date-fns';
 import { useCalendar } from '@/lib/calendar/calendar-context';
@@ -66,7 +67,10 @@ function TrackingBadge({
     () =>
       PanResponder.create({
         onStartShouldSetPanResponder: () => active,
-        onPanResponderGrant: () => setDragging(true),
+        onPanResponderGrant: () => {
+          setDragging(true);
+          Vibration.vibrate(15);
+        },
         onPanResponderRelease: (_evt: GestureResponderEvent, gesture: PanResponderGestureState) => {
           setDragging(false);
           const delta = minutesFromDrag(gesture.dy);
@@ -83,7 +87,10 @@ function TrackingBadge({
     () =>
       PanResponder.create({
         onStartShouldSetPanResponder: () => active,
-        onPanResponderGrant: () => setDragging(true),
+        onPanResponderGrant: () => {
+          setDragging(true);
+          Vibration.vibrate(15);
+        },
         onPanResponderRelease: (_evt: GestureResponderEvent, gesture: PanResponderGestureState) => {
           setDragging(false);
           const delta = minutesFromDrag(gesture.dy);
@@ -145,6 +152,7 @@ export default function WeekView() {
   const { state, dispatch } = useCalendar();
   const [activeTrackingId, setActiveTrackingId] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [confirmationMessage, setConfirmationMessage] = useState<string | null>(null);
   const [editingInstance, setEditingInstance] = useState<ShiftInstance | null>(null);
   const weekStart = startOfWeek(state.currentWeekStart, { weekStartsOn: 1 });
   const weekDays = useMemo(() => getWeekDays(weekStart), [weekStart]);
@@ -167,6 +175,9 @@ export default function WeekView() {
 
   const confirmDay = (dateKey: string) => {
     dispatch({ type: 'CONFIRM_DAY', date: dateKey });
+    const formatted = formatDate(new Date(dateKey), 'EEEE');
+    setConfirmationMessage(`${formatted} confirmed`);
+    setTimeout(() => setConfirmationMessage(null), 2000);
   };
 
   const handleAdjustTrackingEnd = (id: string, deltaMinutes: number) => {
@@ -328,6 +339,11 @@ export default function WeekView() {
         onClose={() => setEditingInstance(null)}
         onSave={handleSaveInstance}
       />
+      {confirmationMessage && (
+        <View style={styles.toast}>
+          <Text style={styles.toastText}>{confirmationMessage}</Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -491,5 +507,23 @@ const styles = StyleSheet.create({
   },
   edgeLabelBottom: {
     bottom: -EDGE_LABEL_OFFSET,
+  },
+  toast: {
+    position: 'absolute',
+    top: 12,
+    left: 20,
+    right: 20,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0,122,255,0.9)',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+  },
+  toastText: {
+    color: '#fff',
+    fontWeight: '600',
   },
 });

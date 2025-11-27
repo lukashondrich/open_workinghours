@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { CalendarProvider, useCalendar } from '@/lib/calendar/calendar-context';
 import CalendarHeader from '../components/CalendarHeader';
 import WeekView from '../components/WeekView';
+import MonthView from '../components/MonthView';
 import TemplatePanel from '../components/TemplatePanel';
 
 function CalendarLayout() {
@@ -13,14 +14,7 @@ function CalendarLayout() {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         <CalendarHeader />
-        {state.view === 'week' ? (
-          <WeekView />
-        ) : (
-          <View style={styles.placeholder}>
-          <Text style={styles.placeholderIcon}>🗓️</Text>
-          <Text style={styles.placeholderText}>Month view coming soon</Text>
-        </View>
-        )}
+      {state.view === 'week' ? <WeekView /> : <MonthView />}
         <TemplatePanel />
       </View>
     </SafeAreaView>

@@ -1,20 +1,30 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { addDays, addWeeks, format, startOfWeek, subWeeks } from 'date-fns';
+import { addDays, addWeeks, format, startOfWeek, subWeeks, addMonths, subMonths } from 'date-fns';
 import { useCalendar } from '@/lib/calendar/calendar-context';
 
 export default function CalendarHeader() {
   const { state, dispatch } = useCalendar();
   const weekStart = startOfWeek(state.currentWeekStart, { weekStartsOn: 1 });
   const weekEnd = addDays(weekStart, 6);
-  const rangeLabel = `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d')}`;
+  const weekRangeLabel = `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d')}`;
+  const monthLabel = format(state.currentMonth, 'LLLL yyyy');
+  const title = state.view === 'week' ? weekRangeLabel : monthLabel;
 
   const handlePrev = () => {
-    dispatch({ type: 'SET_WEEK', date: subWeeks(state.currentWeekStart, 1) });
+    if (state.view === 'week') {
+      dispatch({ type: 'SET_WEEK', date: subWeeks(state.currentWeekStart, 1) });
+    } else {
+      dispatch({ type: 'SET_MONTH', date: subMonths(state.currentMonth, 1) });
+    }
   };
 
   const handleNext = () => {
-    dispatch({ type: 'SET_WEEK', date: addWeeks(state.currentWeekStart, 1) });
+    if (state.view === 'week') {
+      dispatch({ type: 'SET_WEEK', date: addWeeks(state.currentWeekStart, 1) });
+    } else {
+      dispatch({ type: 'SET_MONTH', date: addMonths(state.currentMonth, 1) });
+    }
   };
 
   const toggleTemplatePanel = () => {
@@ -34,7 +44,7 @@ export default function CalendarHeader() {
       <View style={styles.topRow}>
         <View>
           <Text style={styles.label}>Planning Calendar</Text>
-          <Text style={styles.title}>{rangeLabel}</Text>
+          <Text style={styles.title}>{title}</Text>
         </View>
         <View style={styles.viewToggle}>
           <TouchableOpacity

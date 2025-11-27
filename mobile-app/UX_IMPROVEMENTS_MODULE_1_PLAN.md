@@ -137,6 +137,19 @@ After risk analysis, we're implementing a **simplified MVP** to avoid common pit
 
 ---
 
+## Calendar Integration (Current Status)
+
+- ✅ **Shared reducer + persistence:** `src/lib/calendar/**` is reused inside the mobile app, and templates/instances/tracking persist via a dedicated SQLite storage layer (`CalendarStorage`).
+- ✅ **Week view parity:** The Calendar tab now renders the full Week view with template panel, long-press shift editing/deletion, and tap-to-place interactions that respect template defaults.
+- ✅ **Review mode polish:** Tracking records expose long-press grabbers for precise start/end adjustments (5-minute increments) and display edge timestamps aligned with the visual block.
+- ✅ **Feedback:** Confirming a day surfaces a quick toast to mirror the web workflow.
+- ⚪ **Month view placeholder:** The Month tab is stubbed out for now; upgrade it once Week view is fully validated.
+- ⚪ **Additional polish ideas:** Search for templates, template duplication, and advanced analytics remain out-of-scope until the MVP privacy work is complete.
+
+These decisions keep the mobile calendar experience aligned with the web prototype while respecting the simplified MVP scope.
+
+---
+
 ## Screen Redesigns
 
 ### 1. HomeScreen (NEW)
