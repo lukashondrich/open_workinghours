@@ -13,6 +13,7 @@
 | **UX_IMPROVEMENTS_MODULE_1_PLAN.md** | Simplified plan + Phase 2 backlog | ✅ Current | Adds "Calendar Integration" section summarizing Week/Month work. |
 | **Todo List** | Remaining UX polish items (search, edit flow, etc.) | ✅ Current | Located in `TODO.md`. |
 | **app.json** | Build metadata (current build: 3) | ✅ Current | Update before next TestFlight build. |
+| **MODULE_2_PLAN.md** | Plan for privacy-protected weekly submissions | ✅ Current | Root-level plan outlining Module 2 scope/phases. |
 
 *Archived:* `MODULE_1_PROGRESS.md`, `NAVIGATION_REDESIGN_PLAN.md`, and `CALENDAR_MIGRATION_PLAN.md` were deleted after their content migrated into the UX summary and plan files.
 
@@ -34,4 +35,4 @@
 
 ---
 
-**Status:** ✅ Ready for next implementation phase.
+**Status:** ✅ Ready for Module 2 implementation (see `MODULE_2_PLAN.md`).

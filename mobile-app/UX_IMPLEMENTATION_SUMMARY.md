@@ -53,7 +53,7 @@
 ## Next Steps
 
 1. **Finish device validation:** Ensure the new navigation, controls, and manual-only behavior hold up on real hardware (both iOS + Android if possible).
-2. **Decide on priorities:** Either continue with Phase 2 UX polish (search, edit flows) or move directly to Module 2 (privacy + submission pipeline) now that the UX foundation is stable.
+2. **Module 2:** Privacy-protected weekly submission (see `MODULE_2_PLAN.md` for scope, aggregation, noise, and submission pipeline plan).
 3. **Plan test coverage:** Once the MVP flow is finalized, expand Jest coverage for Database/TrackingManager edge cases and consider a Detox happy-path run (Status → Settings → Work Locations → Tracking → Log).
 
 The UX module is effectively wrapped; focus can shift to device verification and the broader MVP roadmap. Let me know when you want to dive into Module 2 or any deferred UX enhancements.
