@@ -195,6 +195,7 @@ export function generateHourMarkers(): string[] {
 export function calculateShiftDisplay(
   startTime: string,
   duration: number,
+  slotHeight: number = 40,
 ): {
   topOffset: number;
   height: number;
@@ -204,11 +205,11 @@ export function calculateShiftDisplay(
   const startMinutes = timeToMinutes(startTime);
   const endMinutes = startMinutes + duration;
   const minutesInDay = 24 * 60;
-  const topOffset = (startMinutes / 60) * 40;
+  const topOffset = (startMinutes / 60) * slotHeight;
   if (endMinutes <= minutesInDay) {
     return {
       topOffset,
-      height: (duration / 60) * 40,
+      height: (duration / 60) * slotHeight,
       spansNextDay: false,
       nextDayHeight: 0,
     };
@@ -217,9 +218,9 @@ export function calculateShiftDisplay(
   const minutesNextDay = endMinutes - minutesInDay;
   return {
     topOffset,
-    height: (remainingMinutesToday / 60) * 40,
+    height: (remainingMinutesToday / 60) * slotHeight,
     spansNextDay: true,
-    nextDayHeight: (minutesNextDay / 60) * 40,
+    nextDayHeight: (minutesNextDay / 60) * slotHeight,
   };
 }
 

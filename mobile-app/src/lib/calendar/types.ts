@@ -61,6 +61,7 @@ export type CalendarAction =
   | { type: "START_EDIT_TEMPLATE"; id: string }
   | { type: "START_EDIT_INSTANCE"; id: string }
   | { type: "STOP_EDITING" }
+  | { type: "DELETE_INSTANCE"; id: string }
   | { type: "MOVE_INSTANCE_UP"; id: string }
   | { type: "MOVE_INSTANCE_DOWN"; id: string }
   | { type: "SET_WEEK"; date: Date }

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,10 @@ import {
   ScrollView,
   TouchableOpacity,
   Pressable,
+  Alert,
+  PanResponder,
+  GestureResponderEvent,
+  PanResponderGestureState,
 } from 'react-native';
 import { startOfWeek, subDays, format as formatDate } from 'date-fns';
 import { useCalendar } from '@/lib/calendar/calendar-context';
@@ -20,24 +24,111 @@ import {
   getColorPalette,
 } from '@/lib/calendar/calendar-utils';
 import type { ShiftInstance, TrackingRecord } from '@/lib/calendar/types';
+import ShiftEditModal from './ShiftEditModal';
 
 const HOUR_HEIGHT = 48;
+const MIN_DRAG_STEP_MINUTES = 5;
+const GRABBER_HIT_HEIGHT = 64;
+const EDGE_LABEL_OFFSET = 18;
 
-function TrackingBadge({ record }: { record: TrackingRecord }) {
-  const { topOffset, height } = calculateShiftDisplay(record.startTime, record.duration);
+function minutesFromDrag(dy: number) {
+  const minutes = (dy / HOUR_HEIGHT) * 60;
+  const rounded = Math.round(minutes / MIN_DRAG_STEP_MINUTES) * MIN_DRAG_STEP_MINUTES;
+  return rounded;
+}
+
+function formatTimeLabel(minutesTotal: number) {
+  const normalized = ((minutesTotal % (24 * 60)) + 24 * 60) % (24 * 60);
+  const hours = Math.floor(normalized / 60);
+  const mins = normalized % 60;
+  return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+}
+
+function TrackingBadge({
+  record,
+  onAdjustStart,
+  onAdjustEnd,
+  onToggleActive,
+  active,
+  setDragging,
+}: {
+  record: TrackingRecord;
+  onAdjustStart: (id: string, deltaMinutes: number) => void;
+  onAdjustEnd: (id: string, deltaMinutes: number) => void;
+  onToggleActive: () => void;
+  active: boolean;
+  setDragging: (dragging: boolean) => void;
+}) {
+  const { topOffset, height } = calculateShiftDisplay(record.startTime, record.duration, HOUR_HEIGHT);
+  const startMinutes = timeToMinutes(record.startTime);
+  const endLabel = formatTimeLabel(startMinutes + record.duration);
+  const startPan = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => active,
+        onPanResponderGrant: () => setDragging(true),
+        onPanResponderRelease: (_evt: GestureResponderEvent, gesture: PanResponderGestureState) => {
+          setDragging(false);
+          const delta = minutesFromDrag(gesture.dy);
+          if (delta !== 0) {
+            onAdjustStart(record.id, delta);
+          }
+        },
+        onPanResponderTerminate: () => setDragging(false),
+      }),
+    [record.id, onAdjustStart, active, setDragging],
+  );
+
+  const endPan = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => active,
+        onPanResponderGrant: () => setDragging(true),
+        onPanResponderRelease: (_evt: GestureResponderEvent, gesture: PanResponderGestureState) => {
+          setDragging(false);
+          const delta = minutesFromDrag(gesture.dy);
+          if (delta !== 0) {
+            onAdjustEnd(record.id, delta);
+          }
+        },
+        onPanResponderTerminate: () => setDragging(false),
+      }),
+    [record.id, onAdjustEnd, active, setDragging],
+  );
+
   return (
-    <View style={[styles.trackingBlock, { top: topOffset, height }]}> 
-      <Text style={styles.trackingText}>{record.startTime}</Text>
-      <Text style={styles.trackingTextSmall}>{formatDuration(record.duration)}</Text>
-    </View>
+    <Pressable
+      onLongPress={onToggleActive}
+      style={{ position: 'absolute', left: 12, right: 12, top: topOffset, height }}
+    >
+      <View style={[styles.trackingBlock, { height }]}> 
+        <View style={styles.trackingDurationContainer}>
+          <Text style={styles.trackingDurationText}>{formatDuration(record.duration)}</Text>
+        </View>
+      </View>
+      {active && (
+        <View style={[styles.grabberContainer, styles.grabberTop]} {...startPan.panHandlers}>
+          <View style={styles.grabberBar} />
+        </View>
+      )}
+      {active && (
+        <View style={[styles.grabberContainer, styles.grabberBottom]} {...endPan.panHandlers}>
+          <View style={styles.grabberBar} />
+        </View>
+      )}
+      <Text style={[styles.edgeLabel, styles.edgeLabelTop]}>{record.startTime}</Text>
+      <Text style={[styles.edgeLabel, styles.edgeLabelBottom]}>{endLabel}</Text>
+    </Pressable>
   );
 }
 
-function InstanceCard({ instance }: { instance: ShiftInstance }) {
+function InstanceCard({ instance, onLongPress }: { instance: ShiftInstance; onLongPress: (instance: ShiftInstance) => void }) {
   const palette = getColorPalette(instance.color);
-  const { topOffset, height } = calculateShiftDisplay(instance.startTime, instance.duration);
+  const { topOffset, height } = calculateShiftDisplay(instance.startTime, instance.duration, HOUR_HEIGHT);
   return (
-    <View
+    <Pressable
+      onLongPress={() => onLongPress(instance)}
+      delayLongPress={400}
       style={[styles.shiftBlock, { top: topOffset, height, backgroundColor: palette.bg, borderColor: palette.border }]}
     >
       <Text style={[styles.shiftName, { color: palette.text }]} numberOfLines={1}>
@@ -46,15 +137,24 @@ function InstanceCard({ instance }: { instance: ShiftInstance }) {
       <Text style={styles.shiftTime}>
         {instance.startTime} - {instance.endTime}
       </Text>
-    </View>
+    </Pressable>
   );
 }
 
 export default function WeekView() {
   const { state, dispatch } = useCalendar();
+  const [activeTrackingId, setActiveTrackingId] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [editingInstance, setEditingInstance] = useState<ShiftInstance | null>(null);
   const weekStart = startOfWeek(state.currentWeekStart, { weekStartsOn: 1 });
   const weekDays = useMemo(() => getWeekDays(weekStart), [weekStart]);
   const hourMarkers = useMemo(() => generateHourMarkers(), []);
+
+  useEffect(() => {
+    if (!state.reviewMode) {
+      setActiveTrackingId(null);
+    }
+  }, [state.reviewMode]);
 
   const getTrackingForDate = (dateKey: string): TrackingRecord[] => {
     return Object.values(state.trackingRecords).filter((record) => record.date === dateKey);
@@ -69,9 +169,62 @@ export default function WeekView() {
     dispatch({ type: 'CONFIRM_DAY', date: dateKey });
   };
 
+  const handleAdjustTrackingEnd = (id: string, deltaMinutes: number) => {
+    const record = state.trackingRecords[id];
+    if (!record) return;
+    const newDuration = Math.max(5, record.duration + deltaMinutes);
+    const endMinutes = timeToMinutes(record.startTime) + newDuration;
+    const hours = Math.floor(endMinutes / 60) % 24;
+    const minutes = endMinutes % 60;
+    const endTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+    dispatch({ type: 'UPDATE_TRACKING_END', id, endTime });
+  };
+
+  const handleAdjustTrackingStart = (id: string, deltaMinutes: number) => {
+    const record = state.trackingRecords[id];
+    if (!record) return;
+    const startMinutes = Math.max(0, timeToMinutes(record.startTime) + deltaMinutes);
+    const hours = Math.floor(startMinutes / 60) % 24;
+    const minutes = startMinutes % 60;
+    const startTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+    dispatch({ type: 'UPDATE_TRACKING_START', id, startTime });
+  };
+
+  const handleInstanceLongPress = (instance: ShiftInstance) => {
+    const showDeleteConfirm = () => {
+      Alert.alert('Delete shift?', `Remove ${instance.name}?`, [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => dispatch({ type: 'DELETE_INSTANCE', id: instance.id }),
+        },
+      ]);
+    };
+
+    Alert.alert('Shift Options', instance.name, [
+      { text: 'Edit', onPress: () => setEditingInstance(instance) },
+      { text: 'Delete', style: 'destructive', onPress: showDeleteConfirm },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
+  const handleSaveInstance = (changes: { id: string; name: string; startTime: string; duration: number }) => {
+    dispatch({
+      type: 'UPDATE_INSTANCE',
+      id: changes.id,
+      instance: {
+        name: changes.name,
+        startTime: changes.startTime,
+        duration: changes.duration,
+      },
+    });
+    setEditingInstance(null);
+  };
+
   return (
     <View style={styles.wrapper}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} scrollEnabled={!isDragging}>
         <View>
           <View style={styles.headerRow}>
             <View style={styles.timeColumnHeader} />
@@ -101,7 +254,11 @@ export default function WeekView() {
             })}
           </View>
 
-          <ScrollView style={styles.gridScroll} contentContainerStyle={{ flexGrow: 1 }}>
+          <ScrollView
+            style={styles.gridScroll}
+            contentContainerStyle={{ flexGrow: 1 }}
+            scrollEnabled={!isDragging}
+          >
             <View style={styles.gridRow}>
               <View style={styles.timeColumn}>
                 {hourMarkers.map((hour) => (
@@ -126,7 +283,7 @@ export default function WeekView() {
                       />
                     ))}
                     {current.map((instance) => (
-                      <InstanceCard key={instance.id} instance={instance} />
+                      <InstanceCard key={instance.id} instance={instance} onLongPress={handleInstanceLongPress} />
                     ))}
                     {fromPrevious.map((instance) => {
                       const startMinutes = timeToMinutes(instance.startTime);
@@ -146,7 +303,17 @@ export default function WeekView() {
                       );
                     })}
                     {state.reviewMode && trackingRecords.map((record) => (
-                      <TrackingBadge key={record.id} record={record} />
+                      <TrackingBadge
+                        key={record.id}
+                        record={record}
+                        onAdjustStart={handleAdjustTrackingStart}
+                        onAdjustEnd={handleAdjustTrackingEnd}
+                        onToggleActive={() =>
+                          setActiveTrackingId((prev) => (prev === record.id ? null : record.id))
+                        }
+                        active={activeTrackingId === record.id}
+                        setDragging={setIsDragging}
+                      />
                     ))}
                   </View>
                 );
@@ -155,6 +322,12 @@ export default function WeekView() {
           </ScrollView>
         </View>
       </ScrollView>
+      <ShiftEditModal
+        visible={!!editingInstance}
+        instance={editingInstance}
+        onClose={() => setEditingInstance(null)}
+        onSave={handleSaveInstance}
+      />
     </View>
   );
 }
@@ -269,22 +442,54 @@ const styles = StyleSheet.create({
     color: '#555',
   },
   trackingBlock: {
-    position: 'absolute',
-    left: 12,
-    right: 12,
-    borderRadius: 6,
+    flex: 1,
+    borderRadius: 8,
     backgroundColor: 'rgba(244, 67, 54, 0.2)',
     borderWidth: 1,
     borderColor: 'rgba(244, 67, 54, 0.6)',
-    padding: 4,
+    justifyContent: 'center',
   },
-  trackingText: {
-    fontSize: 11,
-    color: '#B71C1C',
+  trackingDurationContainer: {
+    alignItems: 'center',
+  },
+  trackingDurationText: {
+    fontSize: 12,
     fontWeight: '600',
-  },
-  trackingTextSmall: {
-    fontSize: 10,
     color: '#B71C1C',
+  },
+  grabberContainer: {
+    position: 'absolute',
+    left: 24,
+    right: 24,
+    height: GRABBER_HIT_HEIGHT,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  grabberTop: {
+    top: -GRABBER_HIT_HEIGHT / 2,
+  },
+  grabberBottom: {
+    bottom: -GRABBER_HIT_HEIGHT / 2,
+  },
+  grabberBar: {
+    width: '80%',
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#B71C1C',
+  },
+  edgeLabel: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    textAlign: 'center',
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#B71C1C',
+  },
+  edgeLabelTop: {
+    top: -EDGE_LABEL_OFFSET,
+  },
+  edgeLabelBottom: {
+    bottom: -EDGE_LABEL_OFFSET,
   },
 });
