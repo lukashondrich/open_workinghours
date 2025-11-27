@@ -1,109 +1,37 @@
 # Documentation Status Summary
 
-**Last Updated:** 2025-11-22
-**Status:** ✅ All documentation synchronized
+**Last Updated:** 2025-11-22 (Updated after calendar integration)
+**Status:** ✅ Key docs synchronized (UX summary + plan)
 
 ---
 
 ## Document Overview
 
-| Document | Purpose | Status | Last Updated |
-|----------|---------|--------|--------------|
-| **MODULE_1_PROGRESS.md** | Handoff document, tracks Phases 1.1-1.6 | ✅ Current | 2025-11-22 |
-| **UX_IMPROVEMENTS_MODULE_1_PLAN.md** | Next implementation plan (simplified) | ✅ Current | 2025-11-22 |
-| **Todo List** | 20 tasks for UX improvements | ✅ Current | 2025-11-22 |
-| **app.json** | Build 3 metadata | ✅ Current | 2025-11-19 |
+| Document | Purpose | Status | Notes |
+|----------|---------|--------|-------|
+| **UX_IMPLEMENTATION_SUMMARY.md** | Canonical UX state, decisions, and next steps | ✅ Current | Includes navigation + calendar updates (Week + Month views, grabbers, persistence). |
+| **UX_IMPROVEMENTS_MODULE_1_PLAN.md** | Simplified plan + Phase 2 backlog | ✅ Current | Adds "Calendar Integration" section summarizing Week/Month work. |
+| **Todo List** | Remaining UX polish items (search, edit flow, etc.) | ✅ Current | Located in `TODO.md`. |
+| **app.json** | Build metadata (current build: 3) | ✅ Current | Update before next TestFlight build. |
+
+*Archived:* `MODULE_1_PROGRESS.md`, `NAVIGATION_REDESIGN_PLAN.md`, and `CALENDAR_MIGRATION_PLAN.md` were deleted after their content migrated into the UX summary and plan files.
 
 ---
 
-## Current State (2025-11-22)
+## Current State
 
-### ✅ What's Complete
-
-**Module 1 Phases 1.1-1.6:**
-- ✅ Phase 1.1: Project Setup (100%)
-- ✅ Phase 1.2: Database Layer (87% - mock limitations only)
-- ✅ Phase 1.3: Geofence Service (100%)
-- ✅ Phase 1.4: Tracking Manager (44% tests - mock limitations only)
-- ✅ Phase 1.5: UI Screens (100%)
-- ✅ **Phase 1.6: Device Testing (100% - VALIDATED TODAY)**
-
-**Key Achievements:**
-- ✅ Background geofencing works reliably
-- ✅ Database persists correctly (survives app kill)
-- ✅ Manual tracking works
-- ✅ Work history displays correctly
-- ✅ Build 3 deployed to TestFlight
+- Module 1 (tracking UX) validated on device.
+- Calendar tab now feature-complete for Week view + entry-level Month view.
+- Documentation reflects the new interactions; no open discrepancies.
 
 ---
 
-### 🎯 What's Next
+## Next Documentation Touchpoints
 
-**UX Improvements (Simplified Approach):**
-- 📋 19 tasks planned (debug panel removal complete)
-- ⏱️ Estimated: 5-6 hours
-- 📖 Plan: `UX_IMPROVEMENTS_MODULE_1_PLAN.md`
-- 🔴 Status: **Ready to start** (Phase 1.1 pending)
-- ✅ **Pre-work complete:** Debug panel removed from SetupScreen
-
-**Implementation Phases:**
-1. **Phase 1:** Core Navigation (2-3 hours) - HomeScreen, bottom sheet, routing
-2. **Phase 2:** Map Controls (1 hour) - Zoom, my location buttons
-3. **Phase 3:** Multi-Location Logic (1-2 hours) - Auto clock-out, testing
-4. **Phase 4:** Polish & Testing (1 hour) - History button, edge cases
+1. Update `UX_IMPLEMENTATION_SUMMARY.md` when Module 2 (privacy/submission) work begins.
+2. Expand README/onboarding once privacy + submission flows are in place (include new screenshots/test steps).
+3. Keep `TODO.md` as the single source for remaining UX polish items.
 
 ---
 
-## Key Simplifications Made (Risk Mitigation)
-
-| Feature | Original Plan | Simplified Approach | Reason |
-|---------|--------------|---------------------|---------|
-| Bottom sheet | Complex (@gorhom/bottom-sheet) | Simple (react-native-raw-bottom-sheet) | Avoid Reanimated complexity |
-| Search | Google Places API | Deferred to Phase 2 | API setup time, costs |
-| Actions | Swipe-to-delete | Long-press menu | Gesture conflicts |
-| Geofences shown | All circles | Selected location only | Visual clutter |
-| Location limit | Unlimited | Max 5 enforced | iOS 20 limit buffer |
-| Active sessions | Unclear | Only 1 at a time | Clear business logic |
-
----
-
-## Documentation Consistency Checklist
-
-- ✅ **MODULE_1_PROGRESS.md** updated with Phase 1.6 completion
-- ✅ **UX_IMPROVEMENTS_MODULE_1_PLAN.md** reflects simplified approach
-- ✅ **Todo list** has 20 tasks matching plan
-- ✅ All dates updated to 2025-11-22
-- ✅ Status fields synchronized
-- ✅ "What's Next" sections align across docs
-- ✅ Deferred features documented in Phase 2 section
-
----
-
-## Quick Start (For Next Implementation Session)
-
-```bash
-# 1. Install new dependency
-cd mobile-app
-npm install react-native-raw-bottom-sheet@^2.2.0
-
-# 2. Start with Phase 1.1
-# Create HomeScreen with map + bottom sheet
-# See UX_IMPROVEMENTS_MODULE_1_PLAN.md for details
-
-# 3. Track progress
-# Use todo list (20 tasks)
-```
-
----
-
-## References
-
-- **Implementation Plan:** `UX_IMPROVEMENTS_MODULE_1_PLAN.md`
-- **Progress History:** `MODULE_1_PROGRESS.md`
-- **Original Plan:** `MODULE_1_PLAN.md` (comprehensive guide)
-- **Blueprint:** `blueprint.md` (system architecture)
-- **Main Context:** `CLAUDE.md` (AI assistant context)
-
----
-
-**All documentation is now consistent and ready for implementation!** ✅
+**Status:** ✅ Ready for next implementation phase.
