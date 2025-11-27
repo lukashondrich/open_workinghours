@@ -7,7 +7,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 // Screens
 import SetupScreen from '@/modules/geofencing/screens/SetupScreen';
 import StatusScreen from '@/modules/geofencing/screens/StatusScreen';
-import CalendarScreen from '@/modules/geofencing/screens/CalendarScreen';
+import CalendarScreen from '@/modules/calendar/screens/CalendarScreen';
 import SettingsScreen from '@/modules/geofencing/screens/SettingsScreen';
 import TrackingScreen from '@/modules/geofencing/screens/TrackingScreen';
 import LogScreen from '@/modules/geofencing/screens/LogScreen';

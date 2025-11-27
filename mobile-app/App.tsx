@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
 import AppNavigator from '@/navigation/AppNavigator';
 import { getDatabase } from '@/modules/geofencing/services/Database';
@@ -94,10 +95,10 @@ export default function App() {
   }
 
   return (
-    <>
+    <SafeAreaProvider>
       <AppNavigator />
       <StatusBar style="auto" />
-    </>
+    </SafeAreaProvider>
   );
 }
 
