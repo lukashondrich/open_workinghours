@@ -10,6 +10,13 @@
 # production
 /build
 
+# backend artifacts
+backend/.venv/
+backend/build/
+backend/open_workinghours_backend.egg-info/
+backend/dev.db
+backend/app/**/__pycache__/
+
 # debug
 npm-debug.log*
 yarn-debug.log*
