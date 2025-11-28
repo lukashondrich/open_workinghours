@@ -63,6 +63,15 @@ class MockDatabase {
           });
         }
 
+        if (tableName === 'tracking_sessions') {
+          if (row.clock_out === undefined) {
+            row.clock_out = null;
+          }
+          if (row.duration_minutes === undefined) {
+            row.duration_minutes = null;
+          }
+        }
+
         table.push(row);
         this.tables.set(tableName, table);
       }
@@ -79,7 +88,8 @@ class MockDatabase {
 
           if (row) {
             // Update fields - map each param to the SET clause field
-            const setClause = sql.match(/SET (.+?) WHERE/)?.[1];
+            const setClauseMatch = sql.match(/SET([\s\S]+?)WHERE/);
+            const setClause = setClauseMatch?.[1]?.trim();
             if (setClause) {
               const fields = setClause.split(',').map(s => s.trim());
               fields.forEach((field, idx) => {
@@ -108,7 +118,7 @@ class MockDatabase {
     let table = [...(this.tables.get(tableName) || [])];
 
     if (sql.includes('WHERE')) {
-      if (sql.includes('id = ?') && params.length > 0) {
+      if (/\bid\s*=\s*\?/.test(sql) && params.length > 0) {
         const id = params[0];
         const found = table.find((r: any) => r.id === id);
         return found || null;

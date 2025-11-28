@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -7,8 +7,12 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
+import { format, parseISO } from 'date-fns';
 import { getDatabase } from '@/modules/geofencing/services/Database';
 import { getGeofenceService } from '@/modules/geofencing/services/GeofenceService';
+import type { WeeklySubmissionRecord } from '@/modules/geofencing/types';
+import { formatDuration } from '@/lib/calendar/calendar-utils';
+import { processSubmissionQueue } from '@/modules/calendar/services/SubmissionQueueWorker';
 
 interface DataSummary {
   locationCount: number;
@@ -20,6 +24,8 @@ export default function DataPrivacyScreen() {
     locationCount: 0,
     sessionCount: 0,
   });
+  const [queueEntries, setQueueEntries] = useState<WeeklySubmissionRecord[]>([]);
+  const [isProcessingQueue, setIsProcessingQueue] = useState(false);
 
   useEffect(() => {
     loadDataSummary();
@@ -30,11 +36,13 @@ export default function DataPrivacyScreen() {
       const db = await getDatabase();
       const locations = await db.getActiveLocations();
       const sessions = await db.getAllSessions();
+      const submissions = await db.getWeeklySubmissions();
 
       setDataSummary({
         locationCount: locations.length,
         sessionCount: sessions.length,
       });
+      setQueueEntries(submissions);
     } catch (error) {
       console.error('[DataPrivacyScreen] Failed to load data summary:', error);
     }
@@ -86,6 +94,72 @@ export default function DataPrivacyScreen() {
     }
   };
 
+  const queueCounts = useMemo(() => {
+    return queueEntries.reduce(
+      (acc, entry) => {
+        acc[entry.status] = (acc[entry.status] ?? 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
+  }, [queueEntries]);
+  const pendingCount = queueCounts['pending'] ?? 0;
+  const failedCount = queueCounts['failed'] ?? 0;
+
+  const handleRetryFailed = async () => {
+    const failed = queueEntries.filter((entry) => entry.status === 'failed');
+    if (failed.length === 0) {
+      Alert.alert('No failed submissions', 'Everything looks good!');
+      return;
+    }
+    try {
+      setIsProcessingQueue(true);
+      const db = await getDatabase();
+      for (const entry of failed) {
+        await db.updateWeeklySubmissionStatus(entry.id, 'pending', null);
+      }
+      await processSubmissionQueue(failed.map((entry) => entry.id));
+      Alert.alert('Retry queued', 'Failed submissions were re-sent.');
+      loadDataSummary();
+    } catch (error) {
+      console.error('[DataPrivacyScreen] Failed to retry submissions:', error);
+      Alert.alert('Retry failed', 'Could not update submissions. Try again later.');
+    } finally {
+      setIsProcessingQueue(false);
+    }
+  };
+
+  const handleSendPending = async () => {
+    if (pendingCount === 0) {
+      Alert.alert('No pending submissions', 'Confirm a week and tap “Submit Week” in the Calendar first.');
+      return;
+    }
+    try {
+      setIsProcessingQueue(true);
+      await processSubmissionQueue();
+      Alert.alert('Sent', 'Pending weeks were sent to the backend.');
+      loadDataSummary();
+    } catch (error) {
+      console.error('[DataPrivacyScreen] Failed to send pending submissions:', error);
+      Alert.alert('Send failed', error instanceof Error ? error.message : 'Unable to reach submission endpoint.');
+    } finally {
+      setIsProcessingQueue(false);
+    }
+  };
+
+  const handleUnlockInfo = () => {
+    Alert.alert(
+      'Unlocking weeks',
+      'Unlock a week from the Calendar header after selecting the week you want to edit.',
+    );
+  };
+
+  const formatWeekLabel = (entry: WeeklySubmissionRecord) => {
+    const start = parseISO(entry.weekStart);
+    const end = parseISO(entry.weekEnd);
+    return `${format(start, 'MMM d')} – ${format(end, 'MMM d')}`;
+  };
+
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -101,6 +175,60 @@ export default function DataPrivacyScreen() {
             <Text style={styles.summaryLabel}>Work Sessions:</Text>
             <Text style={styles.summaryValue}>{dataSummary.sessionCount}</Text>
           </View>
+        </View>
+
+        <View style={styles.summaryCard}>
+          <Text style={styles.summaryTitle}>Weekly Submissions</Text>
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Pending:</Text>
+            <Text style={styles.summaryValue}>{queueCounts['pending'] ?? 0}</Text>
+          </View>
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Failed:</Text>
+            <Text style={[styles.summaryValue, styles.summaryValueWarning]}>{queueCounts['failed'] ?? 0}</Text>
+          </View>
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Sent:</Text>
+            <Text style={styles.summaryValue}>{queueCounts['sent'] ?? 0}</Text>
+          </View>
+          {queueEntries.length === 0 ? (
+            <Text style={styles.queueEmptyText}>No submissions yet. Confirm a full week to get started.</Text>
+          ) : (
+            <ScrollView style={styles.queueList} nestedScrollEnabled>
+              {queueEntries.map((entry) => (
+                <View key={entry.id} style={styles.queueRow}>
+                  <View>
+                    <Text style={styles.queueWeek}>{formatWeekLabel(entry)}</Text>
+                    <Text style={styles.queueStatus}>Status: {entry.status}</Text>
+                  </View>
+                  <Text style={styles.queueHours}>
+                    {formatDuration(entry.plannedMinutesTrue)} planned / {formatDuration(entry.actualMinutesTrue)} actual
+                  </Text>
+                </View>
+              ))}
+            </ScrollView>
+          )}
+          <View style={styles.queueActions}>
+            <TouchableOpacity
+              style={[styles.secondaryButton, isProcessingQueue && styles.secondaryButtonDisabled]}
+              onPress={handleSendPending}
+              disabled={isProcessingQueue}
+            >
+              <Text style={styles.secondaryButtonText}>
+                {isProcessingQueue ? 'Processing…' : 'Send Pending'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.secondaryButton, isProcessingQueue && styles.secondaryButtonDisabled]}
+              onPress={handleRetryFailed}
+              disabled={isProcessingQueue || failedCount === 0}
+            >
+              <Text style={styles.secondaryButtonText}>Retry Failed</Text>
+            </TouchableOpacity>
+          </View>
+          <TouchableOpacity style={[styles.secondaryButton, styles.unlockButton]} onPress={handleUnlockInfo}>
+            <Text style={styles.secondaryButtonText}>Unlock Help</Text>
+          </TouchableOpacity>
         </View>
 
         <TouchableOpacity
@@ -170,6 +298,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#000',
   },
+  summaryValueWarning: {
+    color: '#C62828',
+  },
   deleteButton: {
     backgroundColor: '#F44336',
     paddingVertical: 16,
@@ -214,5 +345,59 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#1976D2',
     lineHeight: 20,
+  },
+  queueEmptyText: {
+    marginTop: 12,
+    color: '#666',
+    fontSize: 14,
+  },
+  queueRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#EFEFF4',
+  },
+  queueWeek: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#111',
+  },
+  queueStatus: {
+    fontSize: 13,
+    color: '#666',
+  },
+  queueHours: {
+    fontSize: 13,
+    color: '#444',
+    textAlign: 'right',
+  },
+  queueActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 12,
+  },
+  queueList: {
+    maxHeight: 200,
+    marginTop: 8,
+  },
+  secondaryButton: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#007AFF',
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  secondaryButtonText: {
+    color: '#007AFF',
+    fontWeight: '600',
+  },
+  secondaryButtonDisabled: {
+    opacity: 0.5,
+  },
+  unlockButton: {
+    marginTop: 8,
   },
 });

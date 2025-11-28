@@ -26,6 +26,12 @@ export interface TrackingRecord {
   duration: number
 }
 
+export type ConfirmedDayStatus = {
+  status: 'pending' | 'confirmed' | 'locked'
+  confirmedAt?: string | null
+  lockedSubmissionId?: string | null
+}
+
 export type AppMode = "viewing" | "template-editing" | "shift-armed" | "instance-editing"
 export type CalendarView = "week" | "month"
 
@@ -43,6 +49,7 @@ export interface CalendarState {
   reviewMode: boolean
   trackingRecords: Record<string, TrackingRecord>
   confirmedDates: Set<string>
+  confirmedDayStatus: Record<string, ConfirmedDayStatus>
   editingTrackingId: string | null
 }
 
@@ -70,14 +77,17 @@ export type CalendarAction =
   | { type: "TOGGLE_REVIEW_MODE" }
   | { type: "UPDATE_TRACKING_START"; id: string; startTime: string }
   | { type: "UPDATE_TRACKING_END"; id: string; endTime: string }
-  | { type: "CONFIRM_DAY"; date: string }
+  | { type: "CONFIRM_DAY"; date: string; confirmedAt?: string }
   | { type: "START_EDIT_TRACKING"; id: string }
   | { type: "CANCEL_EDIT_TRACKING" }
+  | { type: "LOCK_CONFIRMED_DAYS"; dates: string[]; submissionId: string }
+  | { type: "UNLOCK_CONFIRMED_DAYS"; dates: string[] }
   | {
       type: "HYDRATE_STATE"
       payload: {
         templates: Record<string, ShiftTemplate>
         instances: Record<string, ShiftInstance>
         trackingRecords: Record<string, TrackingRecord>
+        confirmedDayStatus?: Record<string, ConfirmedDayStatus>
       }
     }

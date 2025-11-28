@@ -1,5 +1,5 @@
 import * as SQLite from 'expo-sqlite';
-import type { ShiftInstance, ShiftTemplate, TrackingRecord } from '@/lib/calendar/types';
+import type { ShiftInstance, ShiftTemplate, TrackingRecord, ConfirmedDayStatus } from '@/lib/calendar/types';
 
 class CalendarStorage {
   private db: SQLite.SQLiteDatabase | null = null;
@@ -35,6 +35,15 @@ class CalendarStorage {
         date TEXT NOT NULL,
         start_time TEXT NOT NULL,
         duration INTEGER NOT NULL
+      );`
+    );
+    await this.db.execAsync(
+      `CREATE TABLE IF NOT EXISTS confirmed_days (
+        date TEXT PRIMARY KEY,
+        status TEXT NOT NULL,
+        confirmed_at TEXT,
+        locked_submission_id TEXT,
+        notes TEXT
       );`
     );
   }
@@ -96,6 +105,20 @@ class CalendarStorage {
     return records;
   }
 
+  async loadConfirmedDays(): Promise<Record<string, ConfirmedDayStatus>> {
+    const db = this.getDb();
+    const rows = await db.getAllAsync<any>('SELECT * FROM confirmed_days');
+    const confirmed: Record<string, ConfirmedDayStatus> = {};
+    rows.forEach((row) => {
+      confirmed[row.date] = {
+        status: row.status ?? 'pending',
+        confirmedAt: row.confirmed_at,
+        lockedSubmissionId: row.locked_submission_id,
+      };
+    });
+    return confirmed;
+  }
+
   async replaceTemplates(templates: ShiftTemplate[]) {
     const db = this.getDb();
     await db.runAsync('DELETE FROM shift_templates');
@@ -140,6 +163,21 @@ class CalendarStorage {
         record.date,
         record.startTime,
         record.duration,
+      );
+    }
+  }
+
+  async replaceConfirmedDays(days: Record<string, ConfirmedDayStatus>) {
+    const db = this.getDb();
+    await db.runAsync('DELETE FROM confirmed_days');
+    for (const [date, meta] of Object.entries(days)) {
+      await db.runAsync(
+        `INSERT INTO confirmed_days (date, status, confirmed_at, locked_submission_id, notes)
+         VALUES (?, ?, ?, ?, NULL)`,
+        date,
+        meta.status,
+        meta.confirmedAt ?? null,
+        meta.lockedSubmissionId ?? null,
       );
     }
   }

@@ -12,7 +12,10 @@ class SecuritySettings(BaseModel):
 
 
 class DatabaseSettings(BaseModel):
-    url: str = Field(..., description="SQLAlchemy compatible database URL")
+    url: str = Field(
+        default="sqlite:///./dev.db",
+        description="SQLAlchemy compatible database URL (defaults to local SQLite)",
+    )
 
 
 class EmailSettings(BaseModel):

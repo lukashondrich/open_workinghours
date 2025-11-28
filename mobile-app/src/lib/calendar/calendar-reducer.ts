@@ -1,4 +1,4 @@
-import type { CalendarState, CalendarAction, ShiftInstance } from './types';
+import type { CalendarState, CalendarAction, ShiftInstance, ConfirmedDayStatus } from './types';
 import { generateSimulatedTracking } from './calendar-utils';
 
 function computeEndTime(startTime: string, duration: number): string {
@@ -8,6 +8,14 @@ function computeEndTime(startTime: string, duration: number): string {
   const endHours = Math.floor(totalMinutes / 60);
   const endMinutes = totalMinutes % 60;
   return `${String(endHours).padStart(2, '0')}:${String(endMinutes).padStart(2, '0')}`;
+}
+
+function deriveConfirmedSet(statusMap: Record<string, ConfirmedDayStatus>): Set<string> {
+  return new Set(
+    Object.entries(statusMap)
+      .filter(([, meta]) => meta.status === 'confirmed' || meta.status === 'locked')
+      .map(([date]) => date),
+  );
 }
 
 export const initialState: CalendarState = {
@@ -24,6 +32,7 @@ export const initialState: CalendarState = {
   reviewMode: false,
   trackingRecords: {},
   confirmedDates: new Set(),
+  confirmedDayStatus: {},
   editingTrackingId: null,
 };
 
@@ -35,6 +44,10 @@ export function calendarReducer(state: CalendarState, action: CalendarAction): C
         templates: action.payload.templates,
         instances: action.payload.instances,
         trackingRecords: action.payload.trackingRecords,
+        confirmedDayStatus: action.payload.confirmedDayStatus ?? state.confirmedDayStatus,
+        confirmedDates: action.payload.confirmedDayStatus
+          ? deriveConfirmedSet(action.payload.confirmedDayStatus)
+          : state.confirmedDates,
       };
     case 'SET_MODE':
       return { ...state, mode: action.mode };
@@ -216,14 +229,59 @@ export function calendarReducer(state: CalendarState, action: CalendarAction): C
       };
     }
     case 'CONFIRM_DAY': {
-      const next = new Set(state.confirmedDates);
-      next.add(action.date);
-      return { ...state, confirmedDates: next, editingTrackingId: null };
+      const confirmedAt = action.confirmedAt ?? new Date().toISOString();
+      const updatedStatus: Record<string, ConfirmedDayStatus> = {
+        ...state.confirmedDayStatus,
+        [action.date]: {
+          ...(state.confirmedDayStatus[action.date] ?? { status: 'pending' }),
+          status: 'confirmed',
+          confirmedAt,
+        },
+      };
+      return {
+        ...state,
+        confirmedDates: deriveConfirmedSet(updatedStatus),
+        confirmedDayStatus: updatedStatus,
+        editingTrackingId: null,
+      };
     }
     case 'START_EDIT_TRACKING':
       return { ...state, editingTrackingId: action.id };
     case 'CANCEL_EDIT_TRACKING':
       return { ...state, editingTrackingId: null };
+    case 'LOCK_CONFIRMED_DAYS': {
+      const nextStatus: Record<string, ConfirmedDayStatus> = { ...state.confirmedDayStatus };
+      action.dates.forEach((date) => {
+        const existing = nextStatus[date] ?? { status: 'pending' };
+        nextStatus[date] = {
+          ...existing,
+          status: 'locked',
+          lockedSubmissionId: action.submissionId,
+        };
+      });
+      return {
+        ...state,
+        confirmedDayStatus: nextStatus,
+        confirmedDates: deriveConfirmedSet(nextStatus),
+      };
+    }
+    case 'UNLOCK_CONFIRMED_DAYS': {
+      const nextStatus: Record<string, ConfirmedDayStatus> = { ...state.confirmedDayStatus };
+      action.dates.forEach((date) => {
+        const existing = nextStatus[date];
+        if (!existing) return;
+        nextStatus[date] = {
+          ...existing,
+          status: 'confirmed',
+          lockedSubmissionId: null,
+        };
+      });
+      return {
+        ...state,
+        confirmedDayStatus: nextStatus,
+        confirmedDates: deriveConfirmedSet(nextStatus),
+      };
+    }
     default:
       return state;
   }

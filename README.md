@@ -67,9 +67,14 @@ NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
 ## Backend Setup (FastAPI)
 
 ```bash
+# easiest: runs SQLite dev DB + uvicorn on port 8000
+./scripts/start-backend.sh
+
+# manual steps (if you prefer controlling the env)
 cd backend
-pip install -r requirements.txt  # or poetry install
-uvicorn main:app --reload --port 8000
+python3.11 -m venv .venv && source .venv/bin/activate
+pip install .
+uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
 See `backend/README.md` for database configuration, Docker Compose, and additional endpoints. The frontend expects the following routes:
@@ -77,6 +82,9 @@ See `backend/README.md` for database configuration, Docker Compose, and addition
 - `POST /verification/confirm`
 - `POST /reports/`
 - `GET /analytics/`
+
+### Weekly Submission Smoke Test
+- Follow [`docs/submission-smoke-test.md`](docs/submission-smoke-test.md) to verify the Expo app can submit a week and the backend stores it (SQLite fallback or Postgres).
 
 ---
 

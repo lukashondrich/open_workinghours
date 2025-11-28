@@ -8,10 +8,15 @@ from .models import Base
 
 settings = get_settings()
 
+connect_args: dict[str, object] = {}
+if settings.database.url.startswith("sqlite"):
+    connect_args["check_same_thread"] = False
+
 engine = create_engine(
     settings.database.url,
     pool_pre_ping=True,
     future=True,
+    connect_args=connect_args,
 )
 
 SessionLocal = sessionmaker(

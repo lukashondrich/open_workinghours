@@ -1,5 +1,12 @@
 import * as SQLite from 'expo-sqlite';
-import { UserLocation, TrackingSession, GeofenceEvent } from '../types';
+import {
+  UserLocation,
+  TrackingSession,
+  GeofenceEvent,
+  DailyActual,
+  WeeklySubmissionRecord,
+  SubmissionStatus,
+} from '../types';
 import * as Crypto from 'expo-crypto';
 
 export class Database {
@@ -63,6 +70,39 @@ export class Database {
         applied_at TEXT NOT NULL
       );
 
+      CREATE TABLE IF NOT EXISTS daily_actuals (
+        id TEXT PRIMARY KEY,
+        date TEXT UNIQUE NOT NULL,
+        planned_minutes INTEGER NOT NULL,
+        actual_minutes INTEGER NOT NULL,
+        source TEXT NOT NULL,
+        confirmed_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS weekly_submission_queue (
+        id TEXT PRIMARY KEY,
+        week_start TEXT NOT NULL,
+        week_end TEXT NOT NULL,
+        planned_minutes_true INTEGER NOT NULL,
+        actual_minutes_true INTEGER NOT NULL,
+        planned_minutes_noisy INTEGER NOT NULL,
+        actual_minutes_noisy INTEGER NOT NULL,
+        epsilon REAL NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending',
+        last_error TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS weekly_submission_items (
+        submission_id TEXT NOT NULL,
+        day_id TEXT NOT NULL,
+        PRIMARY KEY (submission_id, day_id),
+        FOREIGN KEY (submission_id) REFERENCES weekly_submission_queue(id) ON DELETE CASCADE,
+        FOREIGN KEY (day_id) REFERENCES daily_actuals(id) ON DELETE CASCADE
+      );
+
       INSERT OR IGNORE INTO schema_version (version, applied_at)
       VALUES (1, datetime('now'));
     `);
@@ -85,6 +125,32 @@ export class Database {
       'SELECT version FROM schema_version ORDER BY version DESC LIMIT 1'
     );
     return result?.version ?? 0;
+  }
+
+  async getSessionsBetween(startIso: string, endIso: string): Promise<TrackingSession[]> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const results = await this.db.getAllAsync<any>(
+      `SELECT * FROM tracking_sessions
+       WHERE clock_in < ? AND (clock_out IS NULL OR clock_out > ?)
+       ORDER BY clock_in ASC`,
+      endIso,
+      startIso
+    );
+
+    return results.map((row) => this.mapSession(row));
+  }
+
+  async getDailyActualsByDates(dates: string[]): Promise<DailyActual[]> {
+    if (!this.db) throw new Error('Database not initialized');
+    if (dates.length === 0) return [];
+
+    const placeholders = dates.map(() => '?').join(', ');
+    const rows = await this.db.getAllAsync<any>(
+      `SELECT * FROM daily_actuals WHERE date IN (${placeholders}) ORDER BY date ASC`,
+      ...dates,
+    );
+    return rows.map((row) => this.mapDailyActual(row));
   }
 
   // User Locations CRUD
@@ -258,6 +324,12 @@ export class Database {
     return results.map(r => this.mapSession(r));
   }
 
+  async getAllSessions(): Promise<TrackingSession[]> {
+    if (!this.db) throw new Error('Database not initialized');
+    const results = await this.db.getAllAsync<any>('SELECT * FROM tracking_sessions ORDER BY clock_in DESC');
+    return results.map((row) => this.mapSession(row));
+  }
+
   // Geofence Events
   async logGeofenceEvent(event: Omit<GeofenceEvent, 'id'>): Promise<GeofenceEvent> {
     if (!this.db) throw new Error('Database not initialized');
@@ -332,6 +404,160 @@ export class Database {
       longitude: row.longitude,
       accuracy: row.accuracy,
     };
+  }
+
+  private mapWeeklySubmission(row: any): WeeklySubmissionRecord {
+    return {
+      id: row.id,
+      weekStart: row.week_start,
+      weekEnd: row.week_end,
+      plannedMinutesTrue: row.planned_minutes_true,
+      actualMinutesTrue: row.actual_minutes_true,
+      plannedMinutesNoisy: row.planned_minutes_noisy,
+      actualMinutesNoisy: row.actual_minutes_noisy,
+      epsilon: row.epsilon,
+      status: row.status as SubmissionStatus,
+      lastError: row.last_error,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  }
+
+  private mapDailyActual(row: any): DailyActual {
+    return {
+      id: row.id,
+      date: row.date,
+      plannedMinutes: row.planned_minutes,
+      actualMinutes: row.actual_minutes,
+      source: row.source as DailyActual['source'],
+      confirmedAt: row.confirmed_at,
+      updatedAt: row.updated_at,
+    };
+  }
+
+  async upsertDailyActual(record: DailyActual): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    await this.db.runAsync(
+      `INSERT INTO daily_actuals (id, date, planned_minutes, actual_minutes, source, confirmed_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(date) DO UPDATE SET
+         planned_minutes = excluded.planned_minutes,
+         actual_minutes = excluded.actual_minutes,
+         source = excluded.source,
+         confirmed_at = excluded.confirmed_at,
+         updated_at = excluded.updated_at,
+         id = excluded.id`,
+      record.id,
+      record.date,
+      record.plannedMinutes,
+      record.actualMinutes,
+      record.source,
+      record.confirmedAt,
+      record.updatedAt
+    );
+  }
+
+  async getDailyActual(date: string): Promise<DailyActual | null> {
+    if (!this.db) throw new Error('Database not initialized');
+    const row = await this.db.getFirstAsync<any>('SELECT * FROM daily_actuals WHERE date = ?', date);
+    return row ? this.mapDailyActual(row) : null;
+  }
+
+  async insertWeeklySubmission(record: WeeklySubmissionRecord, dayIds: string[]): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized');
+    await this.db.execAsync('BEGIN TRANSACTION');
+    try {
+      await this.db.runAsync(
+        `INSERT INTO weekly_submission_queue
+         (id, week_start, week_end, planned_minutes_true, actual_minutes_true,
+          planned_minutes_noisy, actual_minutes_noisy, epsilon, status, last_error, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        record.id,
+        record.weekStart,
+        record.weekEnd,
+        record.plannedMinutesTrue,
+        record.actualMinutesTrue,
+        record.plannedMinutesNoisy,
+        record.actualMinutesNoisy,
+        record.epsilon,
+        record.status,
+        record.lastError,
+        record.createdAt,
+        record.updatedAt,
+      );
+
+      for (const dayId of dayIds) {
+        await this.db.runAsync(
+          `INSERT INTO weekly_submission_items (submission_id, day_id) VALUES (?, ?)`,
+          record.id,
+          dayId,
+        );
+      }
+
+      await this.db.execAsync('COMMIT');
+    } catch (error) {
+      await this.db.execAsync('ROLLBACK');
+      throw error;
+    }
+  }
+
+  async getWeeklySubmissions(status?: SubmissionStatus): Promise<WeeklySubmissionRecord[]> {
+    if (!this.db) throw new Error('Database not initialized');
+    const query = status
+      ? 'SELECT * FROM weekly_submission_queue WHERE status = ? ORDER BY created_at ASC'
+      : 'SELECT * FROM weekly_submission_queue ORDER BY created_at ASC';
+    const rows = status
+      ? await this.db.getAllAsync<any>(query, status)
+      : await this.db.getAllAsync<any>(query);
+    return rows.map((row) => this.mapWeeklySubmission(row));
+  }
+
+  async getWeeklySubmissionByWeek(weekStart: string): Promise<WeeklySubmissionRecord | null> {
+    if (!this.db) throw new Error('Database not initialized');
+    const row = await this.db.getFirstAsync<any>(
+      `SELECT * FROM weekly_submission_queue
+       WHERE week_start = ?
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      weekStart,
+    );
+    return row ? this.mapWeeklySubmission(row) : null;
+  }
+
+  async updateWeeklySubmissionStatus(id: string, status: SubmissionStatus, lastError: string | null = null) {
+    if (!this.db) throw new Error('Database not initialized');
+    await this.db.runAsync(
+      `UPDATE weekly_submission_queue
+       SET status = ?, last_error = ?, updated_at = ?
+       WHERE id = ?`,
+      status,
+      lastError,
+      new Date().toISOString(),
+      id,
+    );
+  }
+
+  async deleteWeeklySubmission(id: string): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized');
+    await this.db.runAsync('DELETE FROM weekly_submission_queue WHERE id = ?', id);
+  }
+
+  async deleteAllData(): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized');
+    await this.db.execAsync('BEGIN TRANSACTION');
+    try {
+      await this.db.runAsync('DELETE FROM weekly_submission_items');
+      await this.db.runAsync('DELETE FROM weekly_submission_queue');
+      await this.db.runAsync('DELETE FROM daily_actuals');
+      await this.db.runAsync('DELETE FROM geofence_events');
+      await this.db.runAsync('DELETE FROM tracking_sessions');
+      await this.db.runAsync('DELETE FROM user_locations');
+      await this.db.execAsync('COMMIT');
+    } catch (error) {
+      await this.db.execAsync('ROLLBACK');
+      throw error;
+    }
   }
 }
 

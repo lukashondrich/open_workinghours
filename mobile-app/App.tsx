@@ -7,6 +7,7 @@ import AppNavigator from '@/navigation/AppNavigator';
 import { getDatabase } from '@/modules/geofencing/services/Database';
 import { getGeofenceService } from '@/modules/geofencing/services/GeofenceService';
 import { TrackingManager } from '@/modules/geofencing/services/TrackingManager';
+console.log('SUBMISSION URL', process.env.EXPO_PUBLIC_SUBMISSION_BASE_URL);
 
 // Configure notification behavior
 Notifications.setNotificationHandler({

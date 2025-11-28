@@ -51,6 +51,7 @@
       ]
     ],
     "extra": {
+      "submissionBaseUrl": "http://localhost:8000",
       "eas": {
         "projectId": "911b57e4-6180-4b0f-ae1b-ff195611a680"
       }

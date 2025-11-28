@@ -39,3 +39,30 @@ export interface GeofenceConfig {
   notifyOnEnter: boolean;
   notifyOnExit: boolean;
 }
+
+export interface DailyActual {
+  id: string;
+  date: string; // YYYY-MM-DD
+  plannedMinutes: number;
+  actualMinutes: number;
+  source: 'geofence' | 'manual' | 'mixed';
+  confirmedAt: string;
+  updatedAt: string;
+}
+
+export type SubmissionStatus = 'pending' | 'sending' | 'sent' | 'failed';
+
+export interface WeeklySubmissionRecord {
+  id: string;
+  weekStart: string; // YYYY-MM-DD
+  weekEnd: string;   // YYYY-MM-DD
+  plannedMinutesTrue: number;
+  actualMinutesTrue: number;
+  plannedMinutesNoisy: number;
+  actualMinutesNoisy: number;
+  epsilon: number;
+  status: SubmissionStatus;
+  lastError: string | null;
+  createdAt: string;
+  updatedAt: string;
+}

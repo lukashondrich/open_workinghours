@@ -26,6 +26,7 @@ import {
 } from '@/lib/calendar/calendar-utils';
 import type { ShiftInstance, TrackingRecord } from '@/lib/calendar/types';
 import ShiftEditModal from './ShiftEditModal';
+import { persistDailyActualForDate } from '../services/DailyAggregator';
 
 const HOUR_HEIGHT = 48;
 const MIN_DRAG_STEP_MINUTES = 5;
@@ -173,11 +174,18 @@ export default function WeekView() {
     dispatch({ type: 'PLACE_SHIFT', date: dateKey });
   };
 
-  const confirmDay = (dateKey: string) => {
-    dispatch({ type: 'CONFIRM_DAY', date: dateKey });
-    const formatted = formatDate(new Date(dateKey), 'EEEE');
-    setConfirmationMessage(`${formatted} confirmed`);
-    setTimeout(() => setConfirmationMessage(null), 2000);
+  const confirmDay = async (dateKey: string) => {
+    try {
+      const trackingRecords = getTrackingForDate(dateKey);
+      const record = await persistDailyActualForDate(dateKey, state.instances, trackingRecords);
+      dispatch({ type: 'CONFIRM_DAY', date: dateKey, confirmedAt: record.confirmedAt });
+      const formatted = formatDate(new Date(dateKey), 'EEEE');
+      setConfirmationMessage(`${formatted} confirmed`);
+      setTimeout(() => setConfirmationMessage(null), 2000);
+    } catch (error) {
+      console.error('[WeekView] Failed to confirm day:', error);
+      Alert.alert('Confirmation failed', 'Could not finalize this day. Please try again.');
+    }
   };
 
   const handleAdjustTrackingEnd = (id: string, deltaMinutes: number) => {
@@ -243,7 +251,7 @@ export default function WeekView() {
               const dateKey = formatDateKey(day);
               const isConfirmed = state.confirmedDates.has(dateKey);
               const trackingRecords = getTrackingForDate(dateKey);
-              const needsReview = state.reviewMode && trackingRecords.length > 0 && !isConfirmed;
+              const needsReview = state.reviewMode && !isConfirmed;
               return (
                 <View key={dateKey} style={styles.dayHeader}>
                   <Text style={styles.dayName}>{formatDate(day, 'EEE')}</Text>
@@ -255,7 +263,7 @@ export default function WeekView() {
                       </Text>
                     </View>
                   )}
-                  {state.reviewMode && trackingRecords.length > 0 && !isConfirmed && (
+                  {state.reviewMode && !isConfirmed && (
                     <TouchableOpacity style={styles.confirmButton} onPress={() => confirmDay(dateKey)}>
                       <Text style={styles.confirmButtonText}>Confirm</Text>
                     </TouchableOpacity>

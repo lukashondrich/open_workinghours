@@ -30,3 +30,7 @@ jest.mock('expo-notifications', () => ({
 jest.mock('expo-task-manager', () => ({
   defineTask: jest.fn(),
 }));
+
+jest.mock('expo-crypto', () => ({
+  randomUUID: jest.fn(() => `mock-id-${Math.random().toString(16).slice(2)}`),
+}));

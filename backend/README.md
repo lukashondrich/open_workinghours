@@ -118,70 +118,38 @@ Output: {
 
 ---
 
-## Future Endpoints (Mobile App)
+## Mobile Endpoints (Module 2)
 
-**Status:** ❌ Not implemented yet (Module 4, ~8-10 weeks from now)
-
-### 1. Weekly Submissions (`/submissions`)
+### 1. Weekly Submissions (`/submissions/weekly`)
 
 **POST /submissions/weekly**
 ```python
 Input: {
-  "week_start": "2025-01-13",              -- Monday
-  "total_hours": 43.7,                      -- NOISY value (ε=1.0)
-  "total_overtime": 2.1,                    -- NOISY value
-  "staff_group": "nurses",
-  "hospital_domain": "hospital-muenchen.de",
-  "privacy_epsilon": 1.0
+  "week_start": "2025-01-13",
+  "week_end": "2025-01-19",
+  "planned_hours": 42.5,   # noisy value produced on-device
+  "actual_hours": 40.1,    # noisy value produced on-device
+  "client_version": "1.0.0"
 }
-Headers: { "Authorization": "Bearer <affiliation_token>" }
+Output: { "id": "uuid", "received_at": "2025-01-20T18:21:00Z" }
 ```
 
-**Schema (to be created):**
+**Schema:**
 ```sql
-CREATE TABLE users (
+CREATE TABLE weekly_submissions (
   id UUID PRIMARY KEY,
-  email_hash VARCHAR(64) UNIQUE NOT NULL,    -- SHA256(email)
-  affiliation_token TEXT NOT NULL,           -- JWT
-  hospital_domain VARCHAR(255) NOT NULL,
+  week_start DATE NOT NULL,
+  week_end DATE NOT NULL,
+  planned_hours NUMERIC(6,2) NOT NULL,
+  actual_hours NUMERIC(6,2) NOT NULL,
+  client_version VARCHAR(64) NOT NULL,
   created_at TIMESTAMP DEFAULT NOW()
 );
-
-CREATE TABLE submitted_reports (
-  id UUID PRIMARY KEY,
-  user_id UUID REFERENCES users(id),
-  week_start DATE NOT NULL,                  -- Monday only
-  total_hours_worked FLOAT NOT NULL,         -- NOISY value
-  total_overtime_hours FLOAT NOT NULL,       -- NOISY value
-  staff_group VARCHAR(50) NOT NULL,
-  hospital_domain VARCHAR(255) NOT NULL,
-  privacy_epsilon FLOAT DEFAULT 1.0,
-  submitted_at TIMESTAMP DEFAULT NOW(),
-
-  CONSTRAINT week_is_monday CHECK (EXTRACT(DOW FROM week_start) = 1)
-);
 ```
 
-**Used by:** Mobile app only
-**Privacy:** ✅ Differential privacy (noise added on-device)
+**GET /submissions/weekly?limit=10**
 
----
-
-**GET /submissions/history**
-```python
-Headers: { "Authorization": "Bearer <affiliation_token>" }
-Output: [
-  {
-    "id": "uuid",
-    "week_start": "2025-01-13",
-    "total_hours": 43.7,
-    "submitted_at": "2025-01-20T10:00:00Z"
-  }
-]
-```
-
-**Used by:** Mobile app only
-**Purpose:** Show user their own past submissions
+Returns the latest submissions for local verification—handy when testing the Expo queue locally.
 
 ---
 
@@ -189,13 +157,13 @@ Output: [
 
 | Aspect | Web Dashboard | Mobile App |
 |--------|--------------|------------|
-| **Table** | `reports` | `submitted_reports` |
+| **Table** | `reports` | `weekly_submissions` |
 | **Granularity** | Daily shifts | Weekly totals |
 | **Privacy** | None (raw hours) | Differential privacy (ε=1.0) |
 | **Data Type** | True values | Noisy values (Laplace noise) |
-| **User Model** | Implicit (token only) | Explicit `users` table |
+| **User Model** | Implicit (token only) | No auth (MVP), future `users` table |
 | **Notes** | Accepts notes (PII-scrubbed) | No notes (privacy) |
-| **Validation** | Any date | Must be Monday |
+| **Validation** | Any date | Week start/end pair |
 
 **Both tables coexist** in the same PostgreSQL database.
 
@@ -233,7 +201,10 @@ uvicorn app.main:app --reload --port 8000
 
 ```bash
 # .env
-DATABASE_URL=postgresql://user:password@localhost:5432/workinghours_db
+# Defaults to local SQLite (dev.db) if not set:
+DATABASE__URL=sqlite:///./dev.db
+# To use PostgreSQL instead:
+# DATABASE__URL=postgresql://user:password@localhost:5432/workinghours_db
 JWT_SECRET_KEY=your-secret-key-here
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587

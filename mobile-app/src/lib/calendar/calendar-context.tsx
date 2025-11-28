@@ -13,6 +13,7 @@ import type {
   ShiftTemplate,
   ShiftInstance,
   TrackingRecord,
+  ConfirmedDayStatus,
 } from './types';
 import { calendarReducer, initialState } from './calendar-reducer';
 import { getCalendarStorage } from '@/modules/calendar/services/CalendarStorage';
@@ -38,14 +39,18 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
         if (!isMounted) return;
         storageRef.current = storage;
 
-        const [templates, instances, trackingRecords] = await Promise.all([
+        const [templates, instances, trackingRecords, confirmedDays] = await Promise.all([
           storage.loadTemplates(),
           storage.loadInstances(),
           storage.loadTrackingRecords(),
+          storage.loadConfirmedDays(),
         ]);
 
         if (!isMounted) return;
-        dispatch({ type: 'HYDRATE_STATE', payload: { templates, instances, trackingRecords } });
+        dispatch({
+          type: 'HYDRATE_STATE',
+          payload: { templates, instances, trackingRecords, confirmedDayStatus: confirmedDays },
+        });
       } catch (error) {
         console.error('[CalendarProvider] Failed to hydrate calendar data:', error);
       } finally {
@@ -86,6 +91,14 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const persistConfirmedDays = async (days: Record<string, ConfirmedDayStatus>) => {
+    try {
+      await storageRef.current?.replaceConfirmedDays(days);
+    } catch (error) {
+      console.error('[CalendarProvider] Failed to persist confirmed days:', error);
+    }
+  };
+
   useEffect(() => {
     if (!isHydrated) return;
     persistTemplates(Object.values(state.templates));
@@ -100,6 +113,11 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
     if (!isHydrated) return;
     persistTracking(Object.values(state.trackingRecords));
   }, [state.trackingRecords, isHydrated]);
+
+  useEffect(() => {
+    if (!isHydrated) return;
+    persistConfirmedDays(state.confirmedDayStatus);
+  }, [state.confirmedDayStatus, isHydrated]);
 
   return <CalendarContext.Provider value={{ state, dispatch }}>{children}</CalendarContext.Provider>;
 }
