@@ -16,6 +16,7 @@
 | **MODULE_2_PLAN.md** | Plan for privacy-protected weekly submissions | ✅ Current | Root-level plan outlining Module 2 scope/phases. |
 | **docs/MODULE_2_DECISIONS.md** | Running log of Module 2 design decisions | ✅ New | Captures aggregator behavior, backend API defaults, and queue UI tradeoffs. |
 | **docs/submission-smoke-test.md** | E2E validation checklist | ✅ New | Steps to run backend (SQLite), submit a week via Expo, and verify persistence. |
+| **integration-testing-plan.md** | Roadmap for automated Expo↔️FastAPI integration tests | ✅ New | Covers Detox harness, backend abstraction, and screenshot strategy. |
 
 *Archived:* `MODULE_1_PROGRESS.md`, `NAVIGATION_REDESIGN_PLAN.md`, and `CALENDAR_MIGRATION_PLAN.md` were deleted after their content migrated into the UX summary and plan files.
 
