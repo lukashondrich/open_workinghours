@@ -1,11 +1,13 @@
 /**
- * Detox config scaffold for Expo-managed app (iOS simulator).
- * Adjust binary/build commands as the Expo dev client is wired up.
+ * Detox config for Expo-managed app (iOS simulator).
  */
 module.exports = {
-  testRunner: 'jest',
-  runnerConfig: 'e2e/jest.config.js',
-  specs: 'e2e/**/*.spec.{js,ts}',
+  testRunner: {
+    type: 'jest',
+    jest: {
+      config: 'e2e/jest.config.js',
+    },
+  },
   behavior: {
     init: {
       exposeGlobals: true,
@@ -13,12 +15,9 @@ module.exports = {
   },
   apps: {
     'ios.sim.debug': {
-      type: 'ios.simulator',
+      type: 'ios.app',
       binaryPath: 'ios/build/Build/Products/Debug-iphonesimulator/mobileapp.app',
       build: 'EXPO_NO_START=1 npx expo run:ios --configuration Debug --device "iPhone 15"',
-      device: {
-        type: 'iPhone 15',
-      },
     },
   },
   devices: {
