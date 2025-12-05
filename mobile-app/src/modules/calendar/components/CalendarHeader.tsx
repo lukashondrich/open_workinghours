@@ -6,6 +6,7 @@ import { buildWeekDateKeys, enqueueWeeklySubmission, loadWeekSummary } from '../
 import { getDatabase } from '@/modules/geofencing/services/Database';
 import type { WeeklySubmissionRecord } from '@/modules/geofencing/types';
 import { processSubmissionQueue } from '../services/SubmissionQueueWorker';
+import { Toast } from '@/components/Toast';
 
 export default function CalendarHeader() {
   const { state, dispatch } = useCalendar();
@@ -47,6 +48,7 @@ export default function CalendarHeader() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isProcessingQueue, setIsProcessingQueue] = useState(false);
   const [queueRefreshKey, setQueueRefreshKey] = useState(0);
+  const [toast, setToast] = useState<string | null>(null);
   const weekDateKeys = useMemo(() => buildWeekDateKeys(weekStart), [weekStart]);
   const weekStartKey = weekDateKeys[0];
 
@@ -141,7 +143,8 @@ export default function CalendarHeader() {
       await processSubmissionQueue(targetId ? [targetId] : undefined);
       setQueueRefreshKey((key) => key + 1);
       if (targetId) {
-        Alert.alert('Week sent', 'Your weekly totals were transmitted to the backend.');
+        setToast('Week sent to backend');
+        setTimeout(() => setToast(null), 2000);
       }
     } catch (error) {
       console.error('[CalendarHeader] Failed to process submission queue:', error);
@@ -192,7 +195,8 @@ export default function CalendarHeader() {
   };
 
   return (
-    <View style={styles.container}>
+    <>
+      <View style={styles.container}>
       <View style={styles.topRow}>
         <View>
           <Text style={styles.label}>Planning Calendar</Text>
@@ -228,22 +232,34 @@ export default function CalendarHeader() {
           <TouchableOpacity
             style={[styles.actionButton, state.reviewMode && styles.actionButtonActive]}
             onPress={toggleReview}
+            testID="toggle-review"
           >
             <Text style={[styles.actionButtonText, state.reviewMode && styles.actionButtonTextActive]}>
               {state.reviewMode ? 'Exit Review' : 'Enter Review'}
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.primaryButton} onPress={toggleTemplatePanel}>
+          <TouchableOpacity style={styles.primaryButton} onPress={toggleTemplatePanel} testID="toggle-templates">
             <Text style={styles.primaryButtonText}>Templates</Text>
           </TouchableOpacity>
         </View>
       </View>
 
       {state.view === 'week' && (
-        <View style={styles.submissionContainer}>
+        <View style={styles.submissionContainer} testID="week-submission-card">
           <View style={styles.submissionInfo}>
             <Text style={styles.submissionLabel}>Weekly Submission</Text>
-            <Text style={styles.submissionStatus}>{submissionStatusLabel}</Text>
+            <Text
+              style={styles.submissionStatus}
+              testID={
+                hasReadyWeek && !weekLocked && !submissionRecord
+                  ? 'week-status-ready'
+                  : submissionRecord?.status
+                    ? `week-status-${submissionRecord.status}`
+                    : 'week-status-other'
+              }
+            >
+              {submissionStatusLabel}
+            </Text>
             {submissionRecord?.status === 'failed' && submissionRecord.lastError ? (
               <Text style={styles.errorText}>{submissionRecord.lastError}</Text>
             ) : submissionHint ? (
@@ -257,6 +273,8 @@ export default function CalendarHeader() {
             ]}
             disabled={!canSubmitWeek || isSubmitting}
             onPress={handleSubmitWeek}
+            testID="submit-week-button"
+            accessibilityLabel="Submit Week"
           >
             {isSubmitting ? (
               <ActivityIndicator color="#fff" />
@@ -274,6 +292,8 @@ export default function CalendarHeader() {
               style={styles.submissionLink}
               onPress={() => processQueue(submissionRecord.id)}
               disabled={isProcessingQueue}
+              testID="submission-send-now"
+              accessibilityLabel="Send submission now"
             >
               {isProcessingQueue ? (
                 <ActivityIndicator />
@@ -283,21 +303,35 @@ export default function CalendarHeader() {
             </TouchableOpacity>
           )}
           {submissionRecord.status === 'failed' && (
-            <TouchableOpacity style={styles.submissionLink} onPress={handleRetrySubmission}>
+            <TouchableOpacity
+              style={styles.submissionLink}
+              onPress={handleRetrySubmission}
+              testID="submission-retry"
+              accessibilityLabel="Retry submission"
+            >
               <Text style={styles.submissionLinkText}>Retry Submission</Text>
             </TouchableOpacity>
           )}
           {submissionRecord.status !== 'sent' && (
-            <TouchableOpacity style={styles.submissionLink} onPress={handleUnlockWeek}>
+            <TouchableOpacity
+              style={styles.submissionLink}
+              onPress={handleUnlockWeek}
+              testID="submission-unlock"
+              accessibilityLabel="Unlock week"
+            >
               <Text style={styles.submissionLinkText}>Unlock Week</Text>
             </TouchableOpacity>
           )}
           {submissionRecord.status === 'sent' && (
-            <Text style={styles.lockedBadge}>Locked after send</Text>
+            <Text style={styles.lockedBadge} testID="submission-locked-badge">
+              Locked after send
+            </Text>
           )}
         </View>
       )}
-    </View>
+      </View>
+      <Toast visible={!!toast} message={toast ?? ''} testID="toast-week-sent" />
+    </>
   );
 }
 

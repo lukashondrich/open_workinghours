@@ -51,6 +51,7 @@ export default function TemplatePanel() {
     dispatch({ type: 'UPDATE_TEMPLATE', id: editingId, template: { ...formData, duration: totalDuration } });
     setEditingId(null);
     setFormData({});
+    handleClose();
   };
 
   const handleArm = (id: string) => {
@@ -81,7 +82,7 @@ export default function TemplatePanel() {
             <View style={styles.panel}>
           <View style={styles.header}>
             <Text style={styles.headerTitle}>Shift Templates</Text>
-            <TouchableOpacity style={styles.addButton} onPress={handleCreate}>
+            <TouchableOpacity style={styles.addButton} onPress={handleCreate} testID="template-add">
               <Text style={styles.addButtonText}>+ New</Text>
             </TouchableOpacity>
           </View>
@@ -91,13 +92,13 @@ export default function TemplatePanel() {
               <Text style={styles.emptyText}>No templates yet. Tap “New” to create one.</Text>
             )}
 
-            {templates.map((template) => {
+            {templates.map((template, index) => {
               const isEditing = editingId === template.id;
               const palette = getColorPalette(template.color);
               const isArmed = state.armedTemplateId === template.id;
 
               return (
-                <View key={template.id} style={[styles.card, isArmed && styles.cardArmed]}>
+                <View key={template.id} style={[styles.card, isArmed && styles.cardArmed]} testID={`template-card-${template.id}`}>
                   {isEditing ? (
                     <View>
                       <TextInput
@@ -155,7 +156,7 @@ export default function TemplatePanel() {
                       </View>
 
                       <View style={styles.editActions}>
-                        <TouchableOpacity style={styles.primaryButton} onPress={handleSave}>
+                        <TouchableOpacity style={styles.primaryButton} onPress={handleSave} testID="template-save">
                           <Text style={styles.primaryButtonText}>Save</Text>
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.secondaryButton} onPress={handleCancel}>
@@ -183,6 +184,8 @@ export default function TemplatePanel() {
                       <TouchableOpacity
                         style={[styles.primaryButton, isArmed && styles.primaryButtonActive]}
                         onPress={() => handleArm(template.id)}
+                        testID={`template-arm-${index}`}
+                        accessibilityLabel={`template-arm-${template.id}`}
                       >
                         <Text style={styles.primaryButtonText}>{isArmed ? 'Armed' : 'Arm Template'}</Text>
                       </TouchableOpacity>

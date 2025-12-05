@@ -253,7 +253,7 @@ export default function WeekView() {
               const trackingRecords = getTrackingForDate(dateKey);
               const needsReview = state.reviewMode && !isConfirmed;
               return (
-                <View key={dateKey} style={styles.dayHeader}>
+                <View key={dateKey} style={styles.dayHeader} testID={`week-day-${dateKey}`}>
                   <Text style={styles.dayName}>{formatDate(day, 'EEE')}</Text>
                   <Text style={styles.dayNumber}>{formatDate(day, 'd')}</Text>
                   {state.reviewMode && (
@@ -264,7 +264,11 @@ export default function WeekView() {
                     </View>
                   )}
                   {state.reviewMode && !isConfirmed && (
-                    <TouchableOpacity style={styles.confirmButton} onPress={() => confirmDay(dateKey)}>
+                    <TouchableOpacity
+                      style={styles.confirmButton}
+                      onPress={() => confirmDay(dateKey)}
+                      testID={`confirm-day-${dateKey}`}
+                    >
                       <Text style={styles.confirmButtonText}>Confirm</Text>
                     </TouchableOpacity>
                   )}
@@ -293,7 +297,7 @@ export default function WeekView() {
                 const { current, fromPrevious } = getInstancesForDate(state.instances, dateKey, previousDateKey);
                 const trackingRecords = getTrackingForDate(dateKey);
                 return (
-                  <View key={dateKey} style={styles.dayColumn}>
+                  <View key={dateKey} style={styles.dayColumn} testID={`week-day-column-${dateKey}`}>
                     {Array.from({ length: 24 }).map((_, hourIndex) => (
                       <Pressable
                         key={hourIndex}

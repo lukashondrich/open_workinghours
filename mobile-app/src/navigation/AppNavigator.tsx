@@ -57,6 +57,7 @@ function MainTabs() {
         component={StatusScreen}
         options={{
           tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>📊</Text>,
+          tabBarTestID: 'tab-status',
         }}
       />
       <Tab.Screen
@@ -64,6 +65,7 @@ function MainTabs() {
         component={CalendarScreen}
         options={{
           tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>📅</Text>,
+          tabBarTestID: 'tab-calendar',
         }}
       />
       <Tab.Screen
@@ -71,6 +73,7 @@ function MainTabs() {
         component={SettingsScreen}
         options={{
           tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>⚙️</Text>,
+          tabBarTestID: 'tab-settings',
         }}
       />
     </Tab.Navigator>

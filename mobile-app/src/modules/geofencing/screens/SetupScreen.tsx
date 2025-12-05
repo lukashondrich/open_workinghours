@@ -274,7 +274,7 @@ export default function SetupScreen({ navigation }: Props) {
         onMyLocation={handleMyLocation}
       />
 
-      <View style={styles.controls}>
+      <View style={styles.controls} testID="setup-controls">
         <Text style={styles.label}>Location Name</Text>
         <TextInput
           style={styles.input}
@@ -282,6 +282,7 @@ export default function SetupScreen({ navigation }: Props) {
           value={name}
           onChangeText={setName}
           autoCapitalize="words"
+          testID="input-location-name"
         />
 
         <Text style={styles.label}>Geofence Radius: {radius}m</Text>
@@ -290,6 +291,7 @@ export default function SetupScreen({ navigation }: Props) {
             style={styles.radiusButton}
             onPress={decreaseRadius}
             disabled={radius <= 100}
+            testID="radius-decrease"
           >
             <Text style={styles.radiusButtonText}>−</Text>
           </TouchableOpacity>
@@ -302,6 +304,7 @@ export default function SetupScreen({ navigation }: Props) {
             style={styles.radiusButton}
             onPress={increaseRadius}
             disabled={radius >= 1000}
+            testID="radius-increase"
           >
             <Text style={styles.radiusButtonText}>+</Text>
           </TouchableOpacity>
@@ -316,6 +319,8 @@ export default function SetupScreen({ navigation }: Props) {
           style={[styles.saveButton, saving && styles.saveButtonDisabled]}
           onPress={handleSave}
           disabled={saving || !name.trim()}
+          testID="save-location-button"
+          accessibilityLabel="Save location"
         >
           {saving ? (
             <ActivityIndicator color="#fff" />

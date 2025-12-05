@@ -15,7 +15,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.openworkinghours.mobileapp",
-      "buildNumber": "7",
+      "buildNumber": "8",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "We need your location to automatically track when you're at work.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "We need your location in the background to automatically clock you in/out when you arrive/leave work.",
@@ -52,6 +52,8 @@
     ],
     "extra": {
       "submissionBaseUrl": "http://localhost:8000",
+      "TEST_DB_SEED": false,
+      "TEST_PRIVACY_NOISE_SEED": null,
       "eas": {
         "projectId": "911b57e4-6180-4b0f-ae1b-ff195611a680"
       }

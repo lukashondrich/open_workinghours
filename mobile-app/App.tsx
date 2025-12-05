@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
+import Constants from 'expo-constants';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
@@ -7,6 +8,7 @@ import AppNavigator from '@/navigation/AppNavigator';
 import { getDatabase } from '@/modules/geofencing/services/Database';
 import { getGeofenceService } from '@/modules/geofencing/services/GeofenceService';
 import { TrackingManager } from '@/modules/geofencing/services/TrackingManager';
+import { seedTestDeviceDataIfEnabled } from '@/test-utils/deviceDbSeed';
 console.log('SUBMISSION URL', process.env.EXPO_PUBLIC_SUBMISSION_BASE_URL);
 
 // Configure notification behavior
@@ -33,6 +35,12 @@ export default function App() {
       // Initialize database
       const db = await getDatabase();
       console.log('[App] Database initialized');
+
+      // Seed test fixtures when explicitly enabled (Detox/CI)
+      if (Constants.expoConfig?.extra?.TEST_DB_SEED || (process as any)?.env?.TEST_DB_SEED) {
+        await seedTestDeviceDataIfEnabled();
+        console.log('[App] Seeded test data');
+      }
 
       // Initialize geofencing
       const geofenceService = getGeofenceService();

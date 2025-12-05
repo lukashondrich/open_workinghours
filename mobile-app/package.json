@@ -9,7 +9,9 @@
     "web": "expo start --web",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "e2e:ios": "bash ./scripts/run-detox-ios.sh seeded",
+    "e2e:ios:shift": "bash ./scripts/run-detox-ios.sh shift"
   },
   "dependencies": {
     "@react-navigation/bottom-tabs": "^7.8.6",
