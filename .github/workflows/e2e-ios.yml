@@ -39,8 +39,8 @@ jobs:
       - name: Run Detox (seeded flow, happy-path only)
         run: |
           npx detox test \
+            e2e/happy-path.seeded.spec.ts \
             --configuration ios.sim.debug \
-            --specs e2e/happy-path.seeded.spec.ts \
             --reuse \
             --headless \
             --debug-synchronization 10000 \
