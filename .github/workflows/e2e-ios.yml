@@ -1,0 +1,33 @@
+name: e2e-ios
+
+on:
+  workflow_dispatch:
+
+jobs:
+  detox-ios:
+    runs-on: macos-14
+    env:
+      SIMULATOR_NAME: iPhone 15
+      TEST_PRIVACY_NOISE_SEED: 12345
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install watchman (required by Detox)
+        run: brew install watchman
+
+      - name: Ensure CocoaPods
+        run: sudo gem install cocoapods
+
+      - name: Install npm dependencies
+        run: npm ci
+        working-directory: mobile-app
+
+      - name: Run Detox (seeded flow)
+        run: npm run e2e:ios
+        working-directory: mobile-app
