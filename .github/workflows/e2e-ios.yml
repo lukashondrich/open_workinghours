@@ -13,6 +13,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Select Xcode 16.1
+        run: sudo xcode-select -s /Applications/Xcode_16.1.app
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -26,6 +29,10 @@ jobs:
 
       - name: Install npm dependencies
         run: npm ci
+        working-directory: mobile-app
+
+      - name: Install pods (preflight)
+        run: npx pod-install --non-interactive
         working-directory: mobile-app
 
       - name: Run Detox (seeded flow)
