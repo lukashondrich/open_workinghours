@@ -24,6 +24,7 @@ describe('Happy path (seeded data)', () => {
         TEST_DB_SEED: 'true',
         TEST_PRIVACY_NOISE_SEED: '12345',
       },
+      permissions: { location: 'always', notifications: 'YES' },
     });
   });
 

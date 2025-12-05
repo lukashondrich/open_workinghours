@@ -30,4 +30,4 @@ echo "[detox-run] Building Expo dev client for simulator ($SIMULATOR_NAME)..."
 EXPO_NO_START=1 npx expo run:ios --configuration Debug --device "$SIMULATOR_NAME"
 
 echo "[detox-run] Running Detox ($MODE) with config $DETOX_CONFIG ..."
-npx detox test --configuration "$DETOX_CONFIG"
+npx detox test --configuration "$DETOX_CONFIG" --reuse --headless

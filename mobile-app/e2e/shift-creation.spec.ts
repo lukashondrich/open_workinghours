@@ -29,6 +29,7 @@ describe('Shift creation flow (UI)', () => {
         TEST_DB_SEED: 'false',
         TEST_PRIVACY_NOISE_SEED: '12345',
       },
+      permissions: { location: 'always', notifications: 'YES' },
     });
   });
 
