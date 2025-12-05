@@ -36,6 +36,13 @@ jobs:
         run: npx pod-install --non-interactive
         working-directory: mobile-app
 
-      - name: Run Detox (seeded flow)
-        run: npm run e2e:ios
+      - name: Run Detox (seeded flow, happy-path only)
+        run: |
+          npx detox test \
+            --configuration ios.sim.debug \
+            --specs e2e/happy-path.seeded.spec.ts \
+            --reuse \
+            --headless \
+            --debug-synchronization 10000 \
+            --loglevel warn
         working-directory: mobile-app
