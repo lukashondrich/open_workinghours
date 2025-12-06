@@ -54,6 +54,9 @@ export async function startBackend({
   const childEnv = {
     ...env,
     DATABASE__URL: dbUrl,
+    SECURITY__SECRET_KEY: env.SECURITY__SECRET_KEY ?? 'test-secret',
+    SECURITY__ALLOWED_ORIGINS: env.SECURITY__ALLOWED_ORIGINS ?? '*',
+    SECURITY__ALLOWED_HOSTS: env.SECURITY__ALLOWED_HOSTS ?? '*',
     PYTHONUNBUFFERED: '1',
   };
 

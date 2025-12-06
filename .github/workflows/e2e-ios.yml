@@ -10,6 +10,9 @@ jobs:
       SIMULATOR_NAME: iPhone 15
       TEST_PRIVACY_NOISE_SEED: 12345
       EXPO_PUBLIC_SUBMISSION_BASE_URL: http://localhost:8000
+      SECURITY__SECRET_KEY: test-secret
+      SECURITY__ALLOWED_ORIGINS: "*"
+      SECURITY__ALLOWED_HOSTS: "*"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
