@@ -10,8 +10,8 @@ jobs:
       SIMULATOR_NAME: iPhone 15
       TEST_PRIVACY_NOISE_SEED: 12345
       EXPO_PUBLIC_SUBMISSION_BASE_URL: http://localhost:8000
-      SECURITY__SECRET_KEY: test-secret
-      SECURITY__EMAIL_HASH_SECRET: test-email-hash-secret-please-replace-with-strong-key
+      SECURITY__SECRET_KEY: test-secret-should-be-32-characters-xxxx
+      SECURITY__EMAIL_HASH_SECRET: test-email-hash-secret-should-be-32-characters
       SECURITY__ALLOWED_ORIGINS: "*"
       SECURITY__ALLOWED_HOSTS: "*"
     steps:
