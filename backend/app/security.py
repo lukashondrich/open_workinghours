@@ -46,3 +46,38 @@ def verify_affiliation_token(token: str) -> str | None:
     except JWTError:
         return None
     return payload.get("hd")
+
+
+# ============================================================================
+# USER AUTHENTICATION (NEW - Privacy Architecture)
+# ============================================================================
+
+
+def create_user_access_token(*, user_id: str) -> tuple[str, datetime]:
+    """
+    Create JWT access token for authenticated user.
+    Token expires after 30 days (720 hours).
+    """
+    expire = datetime.now(timezone.utc) + timedelta(hours=720)  # 30 days
+    payload = {
+        "sub": user_id,
+        "exp": expire,
+        "type": "access",
+    }
+    token = jwt.encode(payload, settings.security.secret_key, algorithm="HS256")
+    return token, expire
+
+
+def verify_user_access_token(token: str) -> str | None:
+    """
+    Verify JWT access token and return user_id.
+    Returns None if token is invalid or expired.
+    """
+    try:
+        payload = jwt.decode(token, settings.security.secret_key, algorithms=["HS256"])
+        if payload.get("type") != "access":
+            return None
+        user_id: str | None = payload.get("sub")
+        return user_id
+    except JWTError:
+        return None

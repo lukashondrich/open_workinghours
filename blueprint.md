@@ -1,5 +1,13 @@
 w# Open Working Hours – System Blueprint v2.0
 
+> **⚠️ ARCHITECTURE TRANSITION IN PROGRESS**
+> **Date:** 2025-12-08
+> **Status:** Sections 1-3 below describe the ORIGINAL design (client-side noise, local-first).
+> **NEW architecture:** Server-side aggregation with k-anonymity (see Section 4 & 5 below + `privacy_architecture.md` + `BACKEND_REDESIGN_PLAN.md`)
+> **Reason:** Better GDPR compliance (right to erasure), improved privacy (k-anonymity), flexible analytics.
+
+---
+
 ## 1. Purpose & Scope
 
 The Open Working Hours platform enables healthcare workers to track and report their working hours transparently while maintaining strong privacy guarantees. The system consists of three main components:
@@ -261,7 +269,187 @@ CREATE TABLE submission_history (
 
 ---
 
-## 4. Privacy Architecture (Essential Features)
+## 4. Mobile App Implementation Status
+
+### 4.1 Module 1: Geofencing & Tracking ✅ Complete
+
+**Purpose:** Automatic work-time tracking via GPS geofencing with manual fallback.
+
+**Status:** Implemented, tested on iOS devices (TestFlight Build #8).
+
+**Architecture:**
+
+```
+mobile-app/src/modules/geofencing/
+├── services/
+│   ├── Database.ts           # SQLite wrapper (workinghours.db)
+│   ├── GeofenceService.ts    # expo-location wrapper
+│   └── TrackingManager.ts    # Business logic (clock in/out)
+├── screens/
+│   ├── LocationsScreen.tsx   # Manage geofences
+│   ├── TrackingScreen.tsx    # Live status
+│   └── DataPrivacyScreen.tsx # Queue viewer
+├── components/
+│   └── ...
+└── __tests__/               # Unit tests
+    ├── Database.test.ts
+    ├── GeofenceService.test.ts
+    └── TrackingManager.test.ts
+```
+
+**Database Schema (workinghours.db):**
+
+```sql
+user_locations        # Geofence definitions
+tracking_sessions     # Clock in/out events
+geofence_events       # Debug log
+daily_actuals         # Confirmed day summaries (Module 2)
+weekly_submission_queue  # Submission queue (Module 2)
+```
+
+**Key Features:**
+- Background geofencing with `expo-location` + `expo-task-manager`
+- Automatic clock-in on geofence enter, clock-out on exit
+- 5-minute exit hysteresis (prevents false clock-outs)
+- Manual clock-in/out fallback
+- Persistent local storage (SQLite with encryption)
+
+**Known Limitations:**
+- iOS background location restrictions (may fail in some scenarios)
+- Battery impact not yet measured (target: <5% over 8 hours)
+- Android battery optimization may kill background tasks
+
+**Files:** `mobile-app/src/modules/geofencing/`
+
+**Tests:** Unit tests exist (Database, GeofenceService, TrackingManager)
+
+**Documentation:** See archived `MODULE_1_PLAN.md` for full implementation details.
+
+---
+
+### 4.2 Module 2: Privacy & Submission 🔄 Architecture Redesign
+
+**Status:** Old implementation exists but is OBSOLETE. New architecture in planning.
+
+**Old Implementation (Deprecated):**
+- Client-side Laplace noise added to weekly totals
+- Anonymous POST to `/submissions/weekly`
+- No user accounts, no authentication
+- Files: `mobile-app/src/lib/privacy/LaplaceNoise.ts`, `mobile-app/src/modules/calendar/services/WeeklySubmissionService.ts`
+
+**Problems with Old Approach:**
+- Cannot support GDPR right to erasure (no user_id)
+- Cannot link submissions to hospitals/specialties for analytics
+- Noise applied per-user reduces accuracy vs per-group
+- Backend queries raw submissions (not pre-aggregated stats)
+
+**New Architecture (Planned):**
+- See `privacy_architecture.md` + `BACKEND_REDESIGN_PLAN.md`
+- User authentication (JWT tokens)
+- Mobile submits RAW confirmed daily data (no noise)
+- Server-side aggregation with k-anonymity + noise
+- Right to erasure supported (DELETE user → cascades)
+- Timeline: 6-8 weeks (backend + mobile + deployment)
+
+**Transition Plan:**
+- Phase 1: Implement new backend (users, work_events, stats_*)
+- Phase 2: Update mobile app (add auth, remove client-side noise)
+- Phase 3: Hard cutover deployment (breaking change)
+
+**Blocked On:** Backend implementation (Phase 1 not started)
+
+---
+
+## 5. Backend Implementation Status
+
+### 5.1 Current State (MVP - Anonymous Submissions)
+
+**Status:** Deployed locally for dev/testing (SQLite fallback).
+
+**Schema:**
+
+```sql
+verification_requests  # Email verification codes (6-digit)
+reports               # Old daily reports (deprecated)
+weekly_submissions    # Anonymous weekly totals (to be replaced)
+├── id (UUID)
+├── week_start, week_end
+├── planned_hours (noisy, from client)
+├── actual_hours (noisy, from client)
+├── client_version
+└── created_at
+```
+
+**Endpoints:**
+- `POST /verification/request` - Send email with code
+- `POST /verification/confirm` - Verify code, return token (currently unused)
+- `POST /submissions/weekly` - Accept anonymous noisy data
+- `GET /submissions/weekly?limit=N` - Dev helper (list submissions)
+- `GET /analytics` - Query `weekly_submissions` directly (no aggregation)
+
+**Limitations:**
+- No user accounts or authentication enforcement
+- No hospital/specialty tracking
+- No right to erasure (no user_id)
+- Dashboard queries raw submissions (privacy issues)
+
+**Database:** SQLite (`dev.db`) - for local dev only
+
+**Files:** `backend/app/routers/submissions.py`, `backend/app/models.py`
+
+---
+
+### 5.2 Planned State (Privacy Architecture)
+
+**Status:** Designed, not implemented. See `BACKEND_REDESIGN_PLAN.md`.
+
+**Two-Layer Architecture:**
+
+1. **Operational Layer** (pseudonymous personal data):
+   - `users` table (user_id, hospital_id, specialty, role_level, state_code)
+   - `work_events` table (user_id, date, planned_hours, actual_hours, source)
+   - GDPR applies: user can request deletion
+
+2. **Analytics Layer** (anonymous aggregated statistics):
+   - `stats_by_state_specialty` table (state, specialty, role, period, n_users, avg_overtime_noised)
+   - `stats_by_hospital_role` table (hospital, role_group, period, n_users, avg_overtime_noised)
+   - Treated as anonymous: k-anonymity + noise applied
+
+**Key Changes:**
+- User authentication required (JWT)
+- Mobile submits raw daily events (not noisy)
+- Aggregation job runs periodically:
+  1. Group by dimensions (state × specialty × role × quarter)
+  2. Apply k-anonymity (only publish if n_users ≥ 10)
+  3. Add Laplace noise to aggregates
+  4. Write to `stats_*` tables
+- Dashboard queries `stats_*` only (no raw data access)
+- Right to erasure: `DELETE user → CASCADE to work_events` (stats retained as anonymous)
+
+**Timeline:** 6-8 weeks
+- Phase 1 (2-3 weeks): Backend implementation
+- Phase 2 (2-3 weeks): Mobile integration
+- Phase 3 (1 week): Deployment
+
+**Files (planned):** See `BACKEND_REDESIGN_PLAN.md` for full specification.
+
+---
+
+## 6. Privacy Architecture (Original Design - Deprecated)
+
+> **Note:** This section describes the ORIGINAL client-side privacy approach.
+> **New approach:** See `privacy_architecture.md` and Section 5.2 above.
+
+---
+
+## 7. Data Flows (Original Design - Deprecated)
+
+> **Note:** This section describes the ORIGINAL data flows.
+> **New flows:** See `BACKEND_REDESIGN_PLAN.md` Section 4.
+
+---
+
+## 8. Backend Architecture (Original Design - Deprecated)
 
 ### 4.1 Privacy Pipeline
 

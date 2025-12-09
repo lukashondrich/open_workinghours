@@ -2,53 +2,133 @@
 
 This file provides context for AI assistants (Claude) working on this project.
 
+**Last Updated:** 2025-12-08 (architecture redesign)
+
 ---
 
 ## Project Overview
 
-**Open Working Hours** is a privacy-first platform for healthcare workers to track and report working hours transparently.
+**Open Working Hours** is a privacy-first platform for healthcare workers to track and report working hours transparently while complying with GDPR.
 
 ### Architecture (3 Components)
 
-1. **Next.js Web Dashboard** (current, deployed to Vercel)
+1. **Next.js Web Dashboard** (deployed to Vercel)
    - Public analytics and reporting
-   - Calendar planning interface (already built)
+   - Calendar planning interface
    - Email verification flow
    - Location: Root of this repo
 
-2. **React Native Mobile App** (planned, not started)
+2. **React Native Mobile App** (in development)
    - Primary user interface
-   - Geofencing-based automatic tracking
+   - Geofencing-based automatic tracking ✅ Working (Module 1 complete)
+   - Calendar with shift planning ✅ Working
+   - Privacy-protected submissions 🔄 Redesigning (Module 2)
    - Local-first data storage (SQLite + encryption)
-   - Differential privacy pipeline
-   - Location: `mobile-app/` directory (to be created)
+   - Location: `mobile-app/` directory
 
-3. **FastAPI Backend** (exists, will be extended)
-   - Currently serves web dashboard (email verification, daily reports, analytics)
-   - Will be extended for mobile app (weekly noisy submissions)
-   - PostgreSQL database
-   - To be deployed: EU-hosted (Hetzner, Germany)
-   - Location: `backend/` directory (see backend/README.md)
+3. **FastAPI Backend** (partial implementation)
+   - Email verification ✅ Working
+   - Anonymous weekly submissions ✅ Working (deprecated)
+   - Server-side aggregation with k-anonymity 🔴 Planning (redesign)
+   - Location: `backend/` directory
+
+---
+
+## Documentation Strategy
+
+We follow a **blueprint-centric** approach to keep documentation manageable:
+
+### Permanent Documents (Always Current)
+
+**1. blueprint.md** - System architecture & design decisions
+- **Purpose:** Single source of truth for how the system works
+- **Audience:** Developers (current & future), architects
+- **Content:** Completed modules, design rationale, schemas, data flows
+- **Update trigger:** When a module/feature is FINISHED and tested
+
+**2. TODO.md** - Active work tracking
+- **Purpose:** Track ongoing and planned work
+- **Audience:** Current developers
+- **Content:** Incomplete tasks, priorities, status
+- **Update trigger:** Daily/weekly as work progresses
+
+**3. CLAUDE.md** - AI assistant context (this file)
+- **Purpose:** Onboard AI assistants quickly to current project state
+- **Audience:** Claude, future AI assistants
+- **Content:** Current state, recent decisions, where to find things
+- **Update trigger:** After major changes or interruptions
+
+**4. README.md** - User-facing setup guide
+- **Purpose:** Help users install and run the project
+- **Audience:** End users, contributors
+- **Content:** Installation, quick start, links to other docs
+- **Update trigger:** When setup process changes
+
+**5. privacy_architecture.md** - Privacy design specification
+- **Purpose:** Define privacy/GDPR approach (legal + technical)
+- **Audience:** Developers, lawyers, auditors
+- **Content:** Privacy layers, compliance strategy, data flows
+- **Update trigger:** When privacy approach changes (rare)
+
+### Temporary Documents (Planning → Archive)
+
+**Planning docs:**
+- Created: When starting a new module/feature
+- Lifecycle: Active during development → Archive when finished
+- Examples: `BACKEND_REDESIGN_PLAN.md`, `MODULE_1_PLAN.md` (archived)
+
+**Progress tracking:**
+- Created: To track complex multi-week work
+- Lifecycle: Active during work → Delete when consolidated into blueprint
+- Examples: `UX_IMPLEMENTATION_SUMMARY.md` (archived)
+
+**Decision logs:**
+- Created: To document implementation choices during development
+- Lifecycle: Active during work → Merge into blueprint when finished
+- Examples: `MODULE_2_DECISIONS.md` (archived)
+
+### Lifecycle
+
+```
+1. Start feature → Create *_PLAN.md
+2. During work → May create *_DECISIONS.md, *_SUMMARY.md
+3. Feature complete → Extract key info into blueprint.md
+4. Archive/delete planning docs
+```
+
+### When to Update Blueprint
+
+Only when a module/feature is:
+- ✅ Implemented
+- ✅ Tested (unit + device/integration)
+- ✅ Documented
+- ✅ Stable
+
+**Do NOT add planned features to blueprint** - they go in `TODO.md` or `*_PLAN.md`.
 
 ---
 
 ## Key Documents
 
-| File | Purpose |
-|------|---------|
-| `blueprint.md` | Complete system architecture (38KB, extremely detailed) |
-| `TODO.md` | Master TODO list (Module 1 first approach, single source of truth) |
-| `MODULE_1_PLAN.md` | Detailed Module 1 implementation guide with code examples |
-| `backend/README.md` | Backend architecture, endpoints (web + mobile), deployment guide |
-| `claude.md` | This file - context for AI assistants |
+| File | Purpose | Status |
+|------|---------|--------|
+| `blueprint.md` | System architecture (completed modules) | ✅ Current |
+| `TODO.md` | Active work tracking (backend redesign tasks) | ✅ Current |
+| `privacy_architecture.md` | Privacy/GDPR design specification | ✅ Current |
+| `BACKEND_REDESIGN_PLAN.md` | Backend redesign planning (active) | 🔴 Planning |
+| `CLAUDE.md` | This file - AI assistant context | ✅ Current |
+| `README.md` | User-facing setup guide | ✅ Current |
+| `integration-testing-plan.md` | E2E testing strategy (Detox) | ⏸️ On hold |
+| `docs/e2e-status.md` | E2E implementation status | ⏸️ On hold |
+| `archive/` | Archived planning docs (Module 1, old Module 2) | 📦 Reference |
 
 ---
 
-## Current State
+## Current State (2025-12-08)
 
-### What Exists (Production, on Vercel)
+### What Exists & Works
 
-✅ **Next.js Web Dashboard**
+✅ **Next.js Web Dashboard** (Production on Vercel)
 - Calendar with shift planning (drag-and-drop, templates)
 - Week view and month view components
 - Review mode (compare planned vs tracked)
@@ -56,41 +136,103 @@ This file provides context for AI assistants (Claude) working on this project.
 - Analytics dashboard with Recharts
 - Multi-language support (English/German via next-intl)
 - Dark mode support
+- **Tech:** Next.js 16.0.0, React 19.2.0, TypeScript, Tailwind CSS 4.1.9
 
-✅ **Tech Stack**
-- Next.js 16.0.0, React 19.2.0
-- TypeScript (strict mode)
-- Tailwind CSS 4.1.9
-- Radix UI components
-- Zustand-style state management
-- pnpm for package management
+✅ **Module 1: Geofencing & Tracking** (Mobile - TestFlight Build #8)
+- Background GPS geofencing with `expo-location`
+- Automatic clock-in on geofence enter, clock-out on exit
+- 5-minute exit hysteresis (prevents false clock-outs)
+- Manual clock-in/out fallback
+- Local SQLite storage (workinghours.db with encryption)
+- Unit tests (Database, GeofenceService, TrackingManager)
+- **Status:** Complete, tested on iOS devices
+- **Files:** `mobile-app/src/modules/geofencing/`
+- **Docs:** See `blueprint.md` Section 4.1
 
-✅ **Backend API (for Web Dashboard)**
-- FastAPI backend in `/backend` directory
+✅ **Backend (FastAPI - Local Dev)**
 - Email verification (6-digit codes via email)
-- Daily report submission (raw hours)
-- Analytics aggregation (with suppression)
-- PostgreSQL database (local dev, Hetzner deployment planned)
-- See backend/README.md for details
+- Anonymous weekly submissions (deprecated, see below)
+- SQLite fallback (dev.db) for local testing
+- **Status:** Partial implementation, will be redesigned
+- **Files:** `backend/app/`
 
-### What Doesn't Exist
+### What's Deprecated / Being Redesigned
 
-❌ **Mobile App** - Not started yet
-❌ **Mobile Backend Endpoints** - Need to extend `/backend` with weekly submissions
-❌ **Privacy Pipeline** - Designed in blueprint, not coded
-❌ **Geofencing** - Core feature, not started
-❌ **Local Database (Mobile)** - SQLite schema designed, not implemented
+🔄 **Module 2: Privacy & Submission** (Mobile - Old Implementation)
+- **Old approach:** Client-side Laplace noise, anonymous weekly submissions
+- **Status:** Implemented but OBSOLETE
+- **Problems:**
+  - Cannot support GDPR right to erasure (no user_id)
+  - Cannot link submissions to hospitals/specialties
+  - Noise applied per-user (inefficient)
+- **Files (to be removed):** `mobile-app/src/lib/privacy/LaplaceNoise.ts`, `mobile-app/src/modules/calendar/services/WeeklySubmissionService.ts`
+
+🔄 **Backend (Redesigning)**
+- **Old approach:** Store anonymous noisy submissions in `weekly_submissions` table
+- **New approach:** Server-side aggregation with k-anonymity + noise
+- **See:** `privacy_architecture.md` + `BACKEND_REDESIGN_PLAN.md`
+- **Status:** Planning phase (not started)
+- **Timeline:** 6-8 weeks
+
+### What's Next (Current Priority)
+
+🔴 **Backend Redesign** (6-8 weeks total)
+- **Phase 1 (2-3 weeks):** Implement new backend
+  - Schema: `users`, `work_events`, `stats_by_*` tables
+  - Auth endpoints (JWT)
+  - Work events endpoints (authenticated)
+  - Aggregation job (k-anonymity + noise)
+- **Phase 2 (2-3 weeks):** Update mobile app
+  - Add auth screens
+  - Remove client-side noise
+  - Submit raw daily events (authenticated)
+- **Phase 3 (1 week):** Deploy
+  - PostgreSQL on Hetzner (Germany)
+  - Hard cutover (breaking change)
+  - User communication
+
+**See:** `TODO.md` for detailed task breakdown
+
+---
+
+## Privacy Architecture
+
+### ⚠️ Architecture Transition
+
+**OLD (Deprecated):**
+- Client-side Laplace noise (ε=1.0)
+- Anonymous submissions
+- Local Differential Privacy (LDP)
+- No user accounts
+
+**NEW (Planning):**
+- Server-side aggregation with k-anonymity
+- Authenticated daily submissions (raw data)
+- User accounts with right to erasure
+- Two-layer architecture:
+  1. **Operational Layer:** `users`, `work_events` (pseudonymous, GDPR applies)
+  2. **Analytics Layer:** `stats_*` tables (k-anonymous + noised, treated as anonymous)
+
+**See:** `privacy_architecture.md` for full specification
+
+**Key Changes:**
+- Mobile submits RAW confirmed daily data (no noise)
+- Backend aggregates by state/specialty/role/period
+- Only publish cells with n_users ≥ K_MIN (e.g., 10)
+- Add Laplace noise to aggregates (not individuals)
+- Right to erasure: DELETE user → cascades to work_events
+- Stats tables retained (anonymous)
 
 ---
 
 ## Deployment Protection Strategy
 
 ### Problem
-- Web app is deployed to Vercel (production, advertising to collaborators)
-- Mobile app development is about to start
+- Web app is deployed to Vercel (production)
+- Mobile app development ongoing
 - Need to ensure mobile work doesn't break web deployment
 
-### Solution Implemented
+### Solution
 
 **File:** `.vercelignore`
 ```
@@ -102,186 +244,87 @@ mobile-app/
 2. Web app only rebuilds when files in `app/`, `components/`, `lib/`, etc. change
 3. Mobile development can proceed without triggering deployments
 
-**Developer context:**
-- Solo developer (user is only dev)
-- Won't be working on web app during mobile development
-- No need for complex branch strategies or monorepo tooling
-- Simple `.vercelignore` is sufficient
-
 ---
 
 ## Development Workflow
 
-### Current (Web App Frozen)
+### Current Focus
 
 ```bash
-# User is NOT editing web app right now
-# Focus is on mobile app development
+# Backend redesign (Phase 1)
+cd backend
+# Implement new schema, auth endpoints, aggregation job
 
-# When mobile app work starts:
-cd /Users/user01/open_workinghours
-npx create-expo-app mobile-app --template blank-typescript
+# Mobile app (waiting for backend)
 cd mobile-app
-# ... develop mobile app
-
-# Commits to repo won't trigger Vercel rebuilds
-git add .
-git commit -m "Add mobile geofencing"
-git push  # ← Vercel ignores mobile-app/ changes
+# Module 1 complete, Module 2 blocked on backend
 ```
 
-### Future (If Web App Needs Updates)
+### Testing
 
-```bash
-# Edit web app files
-# app/, components/, lib/, styles/
-git commit -m "Update dashboard"
-git push  # ← Vercel WILL rebuild and deploy
-```
+**Mobile:**
+- Unit tests: `npm test` (geofencing module)
+- E2E tests: Detox (on hold due to CI issues)
+- Device testing: TestFlight (iOS Build #8)
 
----
-
-## Mobile App Development Plan
-
-### Modular Approach (Recommended)
-
-Instead of following the linear 11-week TODO.md plan, use **Module 1 First** approach:
-
-**Module 1: Geofencing & Basic Tracking** (2-3 weeks)
-- Proves the highest-risk assumption early
-- Fully test-driven (TDD)
-- Validates battery usage and reliability
-- See `MODULE_1_PLAN.md` for details
-
-**Why Module 1 First:**
-- ✅ De-risks geofencing (iOS/Android behavior is unpredictable)
-- ✅ Provides decision point: does auto-tracking work?
-- ✅ Enables early device testing (Day 3)
-- ✅ Independent of backend, calendar, privacy features
-- ✅ High test coverage from day 1 (90%+ goal)
-
-**If geofencing works → Continue with blueprint**
-**If geofencing unreliable → Pivot to manual-entry-first**
-
-### Testing Strategy
-
-**Test Pyramid:**
-```
-E2E Tests (Detox)      ~10 tests
-Integration Tests      ~20 tests
-Unit Tests            ~60 tests
-```
-
-**Coverage Goals:**
-- Services: 90%
-- Hooks: 75%
-- Overall: 85%+
-
----
-
-## Privacy Architecture (Critical Feature)
-
-### Differential Privacy (ε=1.0)
-
-**Where it's applied:** ON-DEVICE before any data transmission
-
-**Pipeline:**
-```
-True hours: 42.0
-    ↓
-Step 1: Round to 0.5h → 42.0
-    ↓
-Step 2: Add Laplace noise (ε=1.0, sensitivity=168)
-    scale = 168 / 1.0 = 168
-    noise ~ Laplace(0, 168)
-    → 43.7
-    ↓
-Noisy value: 43.7 (sent to backend)
-```
-
-**Key principle:** Backend NEVER sees true values
-
-### Data Minimization
-
-| Data | Storage Location | Encryption | Transmitted? |
-|------|-----------------|------------|--------------|
-| GPS coordinates | Device only | SQLCipher | ❌ Never |
-| Daily shift times | Device only | SQLCipher | ❌ Never |
-| Shift templates | Device only | SQLCipher | ❌ Never |
-| Weekly hours (noisy) | Backend | TLS in transit | ✅ Yes (noisy) |
-| Email | Backend | SHA256 hash | ✅ Yes (hashed) |
+**Backend:**
+- Unit tests: TBD (aggregation logic)
+- Integration tests: TBD (auth, work-events)
 
 ---
 
 ## Key Design Decisions
 
-### 1. Local-First Architecture
-- All raw data stays on device
-- Only noisy aggregates transmitted
-- Backend is "untrusted" by design
+### Data Architecture
+- **Choice:** Two-layer (Operational + Analytics)
+- **Rationale:** GDPR compliance (right to erasure), better privacy (k-anonymity)
 
-### 2. Geofencing Strategy
-- Primary UI: Background automatic tracking
-- Fallback: Manual clock-in/out buttons
-- 5-minute exit hysteresis (prevents false clock-outs)
+### Privacy Method
+- **Choice:** Server-side aggregation with k-anonymity + noise
+- **Rationale:** More accurate than per-user noise, flexible analytics, GDPR compliant
+- **Parameters:** K_MIN = 10, ε = 1.0, sensitivity = computed per-group
 
-### 3. Weekly Aggregation
-- Hides daily work patterns
-- Aligns with payroll cycles
-- Reduces privacy leakage
+### Aggregation Granularity
+- **Choice:** Mobile submits confirmed daily data (not weekly)
+- **Rationale:** Flexible for backend to aggregate at different time scales
 
-### 4. Backend Minimalism
-- Only stores: email hash, noisy weekly totals
-- No GPS, no daily data, no templates
-- Reduces attack surface
+### User Authentication
+- **Choice:** JWT tokens, reuse email verification flow
+- **Rationale:** Minimal friction, already built, GDPR requires user linkage
 
-### 5. GDPR Compliance
-- Privacy by design (Article 25)
-- Data minimization
-- User control (explicit submission)
-- Right to erasure
-- EU hosting (Hetzner, Germany)
+### Database
+- **Choice:** PostgreSQL (Hetzner, Germany)
+- **Rationale:** EU data residency, GDPR compliance, robust aggregation queries
+
+### Mobile Platform
+- **Choice:** React Native + Expo
+- **Rationale:** iOS + Android support, TypeScript reuse, TestFlight compatibility
 
 ---
 
-## Technical Concerns & Decisions Made
+## Technical Concerns & Risks
 
-### 1. Geofencing Reliability (UNKNOWN)
+### Backend Redesign (Current)
+- **Timeline risk:** 6-8 weeks is optimistic, may take longer
+- **Complexity:** Aggregation job is non-trivial (k-anonymity + noise)
+- **Migration:** Hard cutover, users must create accounts, old data lost
+- **Mitigation:** Test aggregation thoroughly with synthetic data, incremental deployment
 
-**Concerns:**
-- iOS increasingly restrictive on background location
-- Android battery optimization kills background tasks
-- Different behavior across device manufacturers
+### Geofencing Reliability (Module 1 - Mitigated)
+- **Concern:** iOS/Android background restrictions
+- **Status:** Tested on iOS (Build #8), works in most scenarios
+- **Fallback:** Manual clock-in/out available
+- **Outstanding:** Battery usage not yet measured
 
-**Decision:** Build Module 1 first to validate
+### Privacy Parameters
+- **Concern:** K_MIN = 10 may be too sparse in some cells (e.g., rare specialties)
+- **Concern:** ε = 1.0 may add too much noise for small groups
+- **Decision needed:** Tune after testing with real data
 
-### 2. Privacy Parameter Tradeoffs
-
-**Current spec:** ε=1.0, sensitivity=168
-
-**Issue:** Huge variance (~56 hours std dev)
-- 40-hour week could report as 0-120 hours
-- Noise only cancels out with many users
-
-**Potential adjustment:** Lower sensitivity or higher epsilon
-**Decision:** Test with real data first, tune later
-
-### 3. Battery Usage
-
-**Goal:** <5% drain over 8 hours background
-
-**Testing required:**
-- Real device testing (not simulator)
-- Different iOS/Android versions
-- Different manufacturers
-
-### 4. Schema Migrations
-
-**Current:** Not addressed in blueprint
-
-**Decision needed:** Use migration library from day 1
-- Options: Kysely, expo-sqlite versioning
-- Critical for app updates with existing user data
+### Legal Compliance
+- **Concern:** DPIA (Data Protection Impact Assessment) may be required
+- **Concern:** Privacy policy needs legal review
+- **Action:** Consult GDPR lawyer before production deployment
 
 ---
 
@@ -290,19 +333,15 @@ Noisy value: 43.7 (sent to backend)
 ### Currently Shared
 
 ```typescript
-// lib/types.ts
+// lib/types.ts (partially shared)
 export interface ShiftTemplate { ... }
 export interface ShiftInstance { ... }
-// etc.
 ```
 
 ### Strategy
 
-**Short-term:** Copy types to mobile app
-**Long-term:** Consider:
-- Shared `packages/types/` directory
-- npm package (if open-sourced)
-- Monorepo structure (overkill for solo dev)
+**Short-term:** Copy types to mobile app, diverge as needed
+**Long-term:** Consider shared `packages/types/` if codebase grows
 
 ---
 
@@ -311,38 +350,25 @@ export interface ShiftInstance { ... }
 ### Branches
 
 **main**
-- Production web app
-- Auto-deploys to Vercel
-- Protected (stable)
+- Production web app (auto-deploys to Vercel)
+- Mobile app (TestFlight builds)
+- Backend (local dev only)
 
-**No dev branches yet** (solo developer, not needed)
+**No dev branches** (solo developer, not needed)
 
 ### Recent Commits
 
 ```
-906cc88 multi lang support, UI improvement, runs
-48ef2f1 finalize multiflow migration, improve dashboard UI
-fb50e2f Merge remote-tracking branch 'v0-calendar/main'
-314c083 add separate pages
-```
-
-### Modified Files (Uncommitted)
-
-```
-M blueprint.md
-M text.txt
-?? TODO.md
-?? app/page.tsx
-?? .vercelignore
-?? MODULE_1_PLAN.md
-?? claude.md
+Latest: docs: consolidate planning docs into blueprint, archive completed work
+Previous: add BACKEND_REDESIGN_PLAN.md
+Previous: add privacy_architecture.md
 ```
 
 ---
 
 ## Tech Stack Details
 
-### Web App (Current)
+### Web App
 
 ```json
 {
@@ -353,12 +379,11 @@ M text.txt
   "ui": "Radix UI",
   "charts": "Recharts 2.15.4",
   "i18n": "next-intl 4.5.3",
-  "forms": "react-hook-form + zod",
   "packageManager": "pnpm 10.20.0"
 }
 ```
 
-### Mobile App (Planned)
+### Mobile App
 
 ```json
 {
@@ -366,28 +391,29 @@ M text.txt
   "runtime": "Expo ~51.0",
   "typescript": "5.x",
   "navigation": "React Navigation 6",
-  "state": "Zustand or Redux Toolkit",
-  "storage": "expo-sqlite (SQLCipher)",
+  "state": "Zustand-style (calendar context)",
+  "storage": "expo-sqlite (SQLite + SQLCipher planned)",
   "location": "expo-location + expo-task-manager",
   "maps": "react-native-maps",
   "testing": {
     "unit": "Jest",
     "component": "@testing-library/react-native",
-    "e2e": "Detox"
+    "e2e": "Detox (on hold)"
   }
 }
 ```
 
-### Backend (Planned)
+### Backend
 
 ```python
 {
   "framework": "FastAPI",
-  "database": "PostgreSQL 15+",
+  "database": "SQLite (dev) → PostgreSQL (prod)",
   "orm": "SQLAlchemy",
   "validation": "Pydantic",
-  "auth": "JWT",
-  "hosting": "Hetzner (Germany)"
+  "auth": "JWT (to be implemented)",
+  "migrations": "Alembic",
+  "hosting": "Hetzner (Germany) - planned"
 }
 ```
 
@@ -401,21 +427,23 @@ M text.txt
 2. **Data residency:** EU only (Hetzner, Germany)
 3. **Privacy by design:** Required by law (Article 25)
 4. **Data minimization:** Required
-5. **Right to erasure:** Must implement
+5. **Right to erasure:** Must implement (now possible with new architecture)
 
 ### Technical
 
-1. **iOS background limitations:** May restrict geofencing
-2. **Android battery optimization:** May kill background tasks
-3. **SQLite performance:** Limited to on-device data
-4. **Differential privacy noise:** May require parameter tuning
+1. **iOS background limitations:** Geofencing works but may fail in edge cases
+2. **Android battery optimization:** May kill background tasks (not yet tested)
+3. **SQLite performance:** Limited to on-device data (not a concern)
+4. **K-anonymity sparsity:** May suppress cells with rare specialties/hospitals
+5. **Noise variance:** ε=1.0 may be too noisy for small groups (TBD)
 
 ### User Experience
 
 1. **Healthcare workers:** Busy, low tolerance for bugs
-2. **Hospital environments:** May block personal phones
+2. **Hospital environments:** May block personal phones (geofencing may fail)
 3. **Shift work:** Irregular hours, overnight shifts
 4. **Legal requirement:** Working hour tracking (Arbeitszeitgesetz)
+5. **Account creation:** Users will need to create accounts (new requirement)
 
 ---
 
@@ -423,27 +451,30 @@ M text.txt
 
 ### Do's
 
-✅ **Read blueprint.md first** - It's extremely detailed
+✅ **Read privacy_architecture.md first** - It defines the new approach
 ✅ **Follow test-driven development** - Tests before implementation
 ✅ **Test on real devices early** - Simulators lie about geofencing
 ✅ **Consider privacy implications** - Every feature decision
 ✅ **Keep web app stable** - It's in production
+✅ **Update docs when modules are finished** - Not while in progress
 
 ### Don'ts
 
 ❌ **Don't edit web app accidentally** - Check your working directory
 ❌ **Don't skip testing** - Privacy/geofencing are too critical
-❌ **Don't assume geofencing works** - Validate early
+❌ **Don't assume geofencing works** - Validate on real devices
 ❌ **Don't hardcode secrets** - Use environment variables
-❌ **Don't commit node_modules** - Already in .gitignore
+❌ **Don't add planned features to blueprint** - Use TODO.md instead
+❌ **Don't create docs for incomplete work** - Wait until stable
 
 ### Questions to Always Ask
 
 1. **Privacy:** Does this leak user data?
-2. **Battery:** Will this drain battery?
-3. **Reliability:** Does this work when app is killed?
-4. **Testing:** How do I test this automatically?
-5. **Compliance:** Does this violate GDPR?
+2. **GDPR:** Does this support right to erasure?
+3. **Battery:** Will this drain battery?
+4. **Reliability:** Does this work when app is killed?
+5. **Testing:** How do I test this automatically?
+6. **Documentation:** Where should this be documented?
 
 ---
 
@@ -469,155 +500,54 @@ M text.txt
 
 ---
 
-## Next Steps (Pending User Decision)
+## Next Steps
 
-### Immediate Actions Available
+### Immediate (Current Sprint)
 
-1. **Start Module 1** - Initialize mobile app, build geofencing
-2. **Create Module 2 Plan** - Privacy pipeline implementation
-3. **Review blueprint concerns** - Address privacy parameter issues
-4. **Set up testing infrastructure** - Jest, Detox configuration
-5. **Prototype privacy noise** - Validate ε=1.0 assumption
+1. **Start Backend Phase 1** (see `TODO.md`)
+   - Implement new database schema
+   - Implement auth endpoints
+   - Implement work-events endpoints
+   - Implement aggregation job
 
-### Decision Points
+2. **Test aggregation with synthetic data**
+   - Verify k-anonymity filter (n_users ≥ 10)
+   - Verify Laplace noise is applied correctly
+   - Verify sensitivity calculation
 
-- [ ] Confirm Module 1 approach vs linear TODO.md
-- [ ] Choose state management (Zustand vs Redux)
-- [ ] Decide on backend hosting provider
-- [ ] Confirm privacy parameters (ε, sensitivity)
-- [ ] Plan for legal/compliance review
+3. **Document decisions** in `BACKEND_REDESIGN_PLAN.md` Section 8
 
----
+### Medium-term
 
-## Documentation Structure
+1. **Complete Backend Phase 1** (2-3 weeks)
+2. **Start Mobile Phase 2** (add auth, remove noise)
+3. **Test end-to-end** (register → submit → verify backend)
+4. **Update blueprint.md** with Module 2 (when finished)
 
-### Core Documentation (Read in This Order)
+### Long-term
 
-**For New Developers:**
-1. **README.md** - Project overview, quick start (web app focus)
-2. **claude.md** - This file, current state and context
-3. **blueprint.md** - Complete system architecture (38KB, comprehensive)
-4. **TODO.md** - Master TODO list (Module 1 first approach, single source of truth)
-
-**For Mobile Development:**
-1. **TODO.md** - Start here (Module 1 → 8 implementation plan)
-2. **MODULE_1_PLAN.md** - Detailed Module 1 guide with code examples
-3. **blueprint.md** - Full architecture reference
-
-**For Backend Development:**
-1. **backend/README.md** - Comprehensive backend guide (endpoints, deployment, architecture)
-2. **TODO.md Module 4** - When to implement mobile endpoints
-3. **blueprint.md section 6** - Original backend design
-
-### All Documentation Files
-
-```
-/Users/user01/open_workinghours/
-│
-├── 📚 Documentation
-│   ├── README.md              # Project overview (web app focus)
-│   ├── blueprint.md           # System architecture (38KB, comprehensive)
-│   ├── TODO.md                # Master TODO (Module 1 first, single source of truth)
-│   ├── MODULE_1_PLAN.md       # Module 1 detailed implementation guide
-│   ├── claude.md              # This file - AI assistant context
-│   └── LICENSE                # MIT License
-│
-├── 🌐 Web Dashboard (Next.js - Production on Vercel)
-│   ├── app/                   # Next.js App Router pages
-│   │   ├── [locale]/          # Internationalized routes
-│   │   ├── api/analytics/     # Temporary mock API
-│   │   └── fonts.ts
-│   ├── components/            # React components
-│   │   ├── ui/                # Radix UI components
-│   │   ├── calendar-*.tsx     # Calendar components
-│   │   ├── verification-form.tsx
-│   │   └── report-form.tsx
-│   ├── lib/                   # Shared utilities
-│   │   ├── types.ts           # TypeScript types
-│   │   ├── calendar-utils.ts
-│   │   ├── backend-api.ts
-│   │   └── utils.ts
-│   ├── messages/              # i18n translations (en, de, pt-BR)
-│   ├── public/                # Static assets
-│   ├── styles/                # Global CSS
-│   ├── package.json
-│   ├── next.config.mjs
-│   └── tsconfig.json
-│
-├── 🔧 Backend (FastAPI - Serves Web + Mobile)
-│   ├── README.md              # ✨ Comprehensive backend guide
-│   ├── app/
-│   │   ├── main.py            # FastAPI app, routers, CORS
-│   │   ├── config.py          # Environment variables
-│   │   ├── database.py        # SQLAlchemy setup
-│   │   ├── models.py          # Database models
-│   │   │   ├── VerificationRequest  # ✅ Exists
-│   │   │   ├── Report               # ✅ Exists (web: daily)
-│   │   │   ├── User                 # ❌ TODO (mobile)
-│   │   │   └── SubmittedReport      # ❌ TODO (mobile: weekly noisy)
-│   │   ├── schemas.py         # Pydantic schemas
-│   │   ├── routers/
-│   │   │   ├── verification.py      # ✅ Shared (web + mobile)
-│   │   │   ├── reports.py           # ✅ Web only (daily, raw)
-│   │   │   ├── submissions.py       # ❌ TODO (mobile: weekly noisy)
-│   │   │   └── analytics.py         # ✅ Shared (web + mobile)
-│   │   ├── security.py        # JWT, hashing
-│   │   ├── dependencies.py    # Auth dependencies
-│   │   ├── email.py           # Email sending
-│   │   ├── pii.py             # PII scrubbing
-│   │   └── utils.py
-│   ├── alembic/               # Database migrations
-│   ├── .env.example
-│   └── pyproject.toml
-│
-├── 📱 Mobile App (React Native - NOT CREATED YET)
-│   └── mobile-app/            # Will be created in Module 1
-│       ├── README.md          # Setup and testing guide
-│       ├── src/
-│       │   ├── modules/
-│       │   │   └── geofencing/  # Module 1
-│       │   ├── lib/
-│       │   └── App.tsx
-│       ├── app.json
-│       ├── eas.json
-│       └── package.json
-│
-├── 🗂️ Configuration
-│   ├── .vercelignore          # Protects web deployment
-│   ├── .gitignore
-│   ├── .eslintrc.json
-│   ├── postcss.config.mjs
-│   └── tailwind.config.ts
-│
-└── 📊 Data
-    ├── datasets/              # Hospital data (German)
-    └── data/
-```
-
-### Documentation Updates
-
-**Last Updated:** 2025-01-18
-
-**Recent Changes:**
-- Created `backend/README.md` - Comprehensive backend documentation
-- Updated TODO.md to Module 1 first approach
-- Consolidated BACKEND_ANALYSIS.md into backend/README.md
-- Removed temporary analysis files
+1. **Deploy to production** (Hetzner + TestFlight)
+2. **Communicate breaking changes** to users
+3. **Monitor aggregation job** in production
+4. **Collect feedback** and iterate
 
 ---
 
 ## Resources
 
-### Documentation Links
+### Documentation
 
-- Blueprint: `blueprint.md`
-- Todo list: `TODO.md`
-- Module 1: `MODULE_1_PLAN.md`
+- **Blueprint:** `blueprint.md` (system architecture)
+- **TODO:** `TODO.md` (active work)
+- **Privacy:** `privacy_architecture.md` (GDPR approach)
+- **Backend Plan:** `BACKEND_REDESIGN_PLAN.md` (current planning)
+- **Archive:** `archive/` (historical planning docs)
 
 ### External References
 
 - Differential Privacy: https://en.wikipedia.org/wiki/Differential_privacy
 - GDPR Article 25: https://gdpr-info.eu/art-25-gdpr/
+- GDPR Article 17: https://gdpr-info.eu/art-17-gdpr/ (right to erasure)
 - Expo Location: https://docs.expo.dev/versions/latest/sdk/location/
 - React Native Geofencing: https://github.com/transistorsoft/react-native-background-geolocation
 
@@ -625,16 +555,11 @@ M text.txt
 
 - iOS background location: https://developer.apple.com/documentation/corelocation/getting_the_user_s_location/handling_location_events_in_the_background
 - Android battery optimization: https://dontkillmyapp.com/
+- K-anonymity pitfalls: https://en.wikipedia.org/wiki/K-anonymity#Limitations
 
 ---
 
-**Last Updated:** 2025-11-19
-**Status:** Web app in production, mobile Phase 1.5 complete (UI built)
-**Current Focus:** Module 1 Phase 1.6 - Device testing (geofencing validation)
-
----
-
-## Mobile App Debugging (Added 2025-11-19)
+## Mobile App Debugging
 
 **Tools:**
 - Xcode Console: Connect iPhone → Xcode → Devices → Open Console
@@ -644,7 +569,7 @@ M text.txt
 **Common Issues:**
 1. Browser APIs don't work in RN → Use Expo equivalents (`expo-crypto` not `uuid`)
 2. Google Maps needs API key → Use native maps instead
-3. Increment `buildNumber` in app.json for each TestFlight upload
+3. Increment `buildNumber` in app.json for each TestFlight upload (current: 8)
 4. TestFlight updates are manual (tap "Update")
 
 **Deployment:**
@@ -652,4 +577,8 @@ M text.txt
 - Simulator ≠ Device (especially location/background tasks)
 - Test with humans for real-world scenarios (walking, battery drain)
 
-**Status:** Mobile Phase 1.5 done, Phase 1.6 (device testing) in progress
+---
+
+**Last Updated:** 2025-12-08
+**Status:** Module 1 complete, Backend redesign in planning
+**Current Focus:** Backend Phase 1 implementation (not started)

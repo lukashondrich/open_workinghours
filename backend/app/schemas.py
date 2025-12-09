@@ -117,3 +117,131 @@ class WeeklySubmissionListItem(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# ============================================================================
+# USER AUTHENTICATION (NEW - Privacy Architecture)
+# ============================================================================
+
+
+class UserRegisterIn(BaseModel):
+    """User registration request."""
+    email: EmailStr
+    hospital_id: str = Field(..., min_length=1, max_length=255)
+    specialty: str = Field(..., min_length=1, max_length=100)
+    role_level: str = Field(..., min_length=1, max_length=50)
+    state_code: str | None = Field(default=None, max_length=10)
+
+    @validator("email")
+    def _lowercase_email(cls, value: str) -> str:
+        return value.lower()
+
+
+class UserLoginIn(BaseModel):
+    """User login request (email + verification code)."""
+    email: EmailStr
+    code: str = Field(..., min_length=8, max_length=128)
+
+    @validator("email")
+    def _lowercase_email(cls, value: str) -> str:
+        return value.lower()
+
+
+class AuthTokenOut(BaseModel):
+    """Authentication response with JWT token."""
+    access_token: str
+    token_type: str = "bearer"
+    expires_at: datetime
+    user_id: UUID
+
+
+class UserOut(BaseModel):
+    """User information response."""
+    user_id: UUID
+    hospital_id: str
+    specialty: str
+    role_level: str
+    state_code: str | None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# ============================================================================
+# WORK EVENTS (NEW - Privacy Architecture)
+# ============================================================================
+
+
+class WorkEventIn(BaseModel):
+    """Create a new work event (daily work record)."""
+    date: date
+    planned_hours: float = Field(..., ge=0, le=24)
+    actual_hours: float = Field(..., ge=0, le=24)
+    source: str = Field(..., pattern="^(geofence|manual|mixed)$")
+
+    @validator("actual_hours")
+    def _validate_time_ordering(cls, actual_hours: float, values: dict[str, object]) -> float:
+        """Ensure basic consistency (can add more validation later)."""
+        # MVP: Just ensure non-negative, more complex validation later
+        return actual_hours
+
+
+class WorkEventUpdate(BaseModel):
+    """Update an existing work event (partial updates allowed)."""
+    planned_hours: float | None = Field(default=None, ge=0, le=24)
+    actual_hours: float | None = Field(default=None, ge=0, le=24)
+    source: str | None = Field(default=None, pattern="^(geofence|manual|mixed)$")
+
+
+class WorkEventOut(BaseModel):
+    """Work event response."""
+    event_id: UUID
+    user_id: UUID
+    date: date
+    planned_hours: float
+    actual_hours: float
+    source: str
+    submitted_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# ============================================================================
+# STATISTICS (NEW - Privacy Architecture)
+# ============================================================================
+
+
+class StatsByStateSpecialtyOut(BaseModel):
+    """
+    Privacy-preserving statistics response.
+
+    All data is k-anonymous (n_users >= K_MIN) and differentially private
+    (Laplace noise added). Cannot be linked back to individuals.
+    """
+    stat_id: UUID
+    country_code: str
+    state_code: str
+    specialty: str
+    role_level: str
+    period_start: date
+    period_end: date
+
+    # Anonymity set size
+    n_users: int
+
+    # Noised averages (hours per week)
+    avg_planned_hours_noised: float | None
+    avg_actual_hours_noised: float | None
+    avg_overtime_hours_noised: float | None
+
+    # Privacy parameters used
+    k_min_threshold: int
+    noise_epsilon: float
+
+    # Metadata
+    computed_at: datetime
+
+    class Config:
+        from_attributes = True
