@@ -13,14 +13,14 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install Python dependencies
-COPY requirements.txt .
+COPY pyproject.toml .
 RUN pip install --upgrade pip \
-    && pip install --no-cache-dir -r requirements.txt
+    && pip install --no-cache-dir .
 
 # Copy application code
 COPY . .
 
 EXPOSE 8000
 
-# Run migrations and start server
-CMD alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000
+# Start server (migrations run separately)
+CMD uvicorn app.main:app --host 0.0.0.0 --port 8000
