@@ -3,21 +3,50 @@ version: '3.8'
 services:
   db:
     image: postgres:15
-    container_name: owh_postgres
+    container_name: owh-postgres
     environment:
-      POSTGRES_DB: owh
       POSTGRES_USER: owh
-      POSTGRES_PASSWORD: owh
-    ports:
-      - "5432:5432"
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-owh}
+      POSTGRES_DB: owh
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - owh-network
+    restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U owh"]
       interval: 10s
       timeout: 5s
       retries: 5
 
+  backend:
+    build: .
+    container_name: owh-backend
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      DATABASE__URL: postgresql+psycopg://owh:${DB_PASSWORD:-owh}@db:5432/owh
+      SECURITY__SECRET_KEY: ${SECRET_KEY}
+      SECURITY__EMAIL_HASH_SECRET: ${EMAIL_HASH_SECRET}
+      SECURITY__TOKEN_EXP_HOURS: ${SECURITY__TOKEN_EXP_HOURS:-720}
+      EMAIL__FROM_ADDRESS: ${EMAIL__FROM_ADDRESS:-verify@mail.openworkinghours.org}
+      EMAIL__SMTP_HOST: ${EMAIL__SMTP_HOST:-smtp-relay.brevo.com}
+      EMAIL__SMTP_PORT: ${EMAIL__SMTP_PORT:-587}
+      EMAIL__SMTP_USERNAME: ${EMAIL__SMTP_USERNAME}
+      EMAIL__SMTP_PASSWORD: ${EMAIL__SMTP_PASSWORD}
+      EMAIL__USE_TLS: ${EMAIL__USE_TLS:-true}
+      ALLOWED_EMAIL_DOMAINS_FILE: /app/config/allowed_domains.txt
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - owh-network
+    restart: unless-stopped
+
 volumes:
   postgres_data:
-    driver: local
+
+networks:
+  owh-network:
+    driver: bridge
