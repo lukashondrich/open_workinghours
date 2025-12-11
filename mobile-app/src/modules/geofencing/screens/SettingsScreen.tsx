@@ -5,11 +5,13 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/navigation/AppNavigator';
+import { useAuth } from '@/lib/auth/auth-context';
 
 type SettingsScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -49,10 +51,35 @@ const settingsItems: SettingsItem[] = [
 
 export default function SettingsScreen() {
   const navigation = useNavigation<SettingsScreenNavigationProp>();
+  const { signOut } = useAuth();
 
   const handleItemPress = (screen: keyof RootStackParamList) => {
     // @ts-ignore - Navigation type checking is complex with mixed params
     navigation.navigate(screen);
+  };
+
+  const handleSignOut = () => {
+    Alert.alert(
+      'Sign Out',
+      'Are you sure you want to sign out?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Sign Out',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await signOut();
+            } catch (error) {
+              Alert.alert('Error', 'Failed to sign out. Please try again.');
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -72,6 +99,15 @@ export default function SettingsScreen() {
               <Text style={styles.itemChevron}>›</Text>
             </TouchableOpacity>
           ))}
+
+          {/* Sign Out Button */}
+          <TouchableOpacity
+            style={styles.signOutButton}
+            onPress={handleSignOut}
+          >
+            <Text style={styles.signOutIcon}>🚪</Text>
+            <Text style={styles.signOutText}>Sign Out</Text>
+          </TouchableOpacity>
         </ScrollView>
       </View>
     </SafeAreaView>
@@ -123,5 +159,25 @@ const styles = StyleSheet.create({
   itemChevron: {
     fontSize: 28,
     color: '#C0C0C0',
+  },
+  signOutButton: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 20,
+    marginTop: 24,
+    borderWidth: 1,
+    borderColor: '#FF3B30',
+  },
+  signOutIcon: {
+    fontSize: 24,
+    marginRight: 12,
+  },
+  signOutText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#FF3B30',
   },
 });

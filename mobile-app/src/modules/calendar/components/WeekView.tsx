@@ -27,6 +27,7 @@ import {
 import type { ShiftInstance, TrackingRecord } from '@/lib/calendar/types';
 import ShiftEditModal from './ShiftEditModal';
 import { persistDailyActualForDate } from '../services/DailyAggregator';
+import { DailySubmissionService } from '@/modules/auth/services/DailySubmissionService';
 
 const HOUR_HEIGHT = 48;
 const MIN_DRAG_STEP_MINUTES = 5;
@@ -179,6 +180,17 @@ export default function WeekView() {
       const trackingRecords = getTrackingForDate(dateKey);
       const record = await persistDailyActualForDate(dateKey, state.instances, trackingRecords);
       dispatch({ type: 'CONFIRM_DAY', date: dateKey, confirmedAt: record.confirmedAt });
+
+      // NEW: Enqueue daily submission (v2.0 - authenticated, no noise)
+      try {
+        await DailySubmissionService.enqueueDailySubmission(dateKey);
+        await DailySubmissionService.processQueue();
+        console.log('[WeekView] Daily submission enqueued and sent for', dateKey);
+      } catch (submissionError) {
+        console.warn('[WeekView] Daily submission failed (queued for retry):', submissionError);
+        // Don't block confirmation on submission failure - it's queued for retry
+      }
+
       const formatted = formatDate(new Date(dateKey), 'EEEE');
       setConfirmationMessage(`${formatted} confirmed`);
       setTimeout(() => setConfirmationMessage(null), 2000);

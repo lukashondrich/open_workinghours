@@ -66,3 +66,15 @@ export interface WeeklySubmissionRecord {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface DailySubmissionRecord {
+  id: string;
+  date: string; // YYYY-MM-DD
+  plannedHours: number;
+  actualHours: number;
+  source: 'geofence' | 'manual' | 'mixed';
+  status: SubmissionStatus;
+  createdAt: string;
+  submittedAt: string | null;
+  errorMessage: string | null;
+}

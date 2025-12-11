@@ -5,6 +5,7 @@ import {
   GeofenceEvent,
   DailyActual,
   WeeklySubmissionRecord,
+  DailySubmissionRecord,
   SubmissionStatus,
 } from '../types';
 import * as Crypto from 'expo-crypto';
@@ -102,6 +103,21 @@ export class Database {
         FOREIGN KEY (submission_id) REFERENCES weekly_submission_queue(id) ON DELETE CASCADE,
         FOREIGN KEY (day_id) REFERENCES daily_actuals(id) ON DELETE CASCADE
       );
+
+      CREATE TABLE IF NOT EXISTS daily_submission_queue (
+        id TEXT PRIMARY KEY,
+        date TEXT NOT NULL,
+        planned_hours REAL NOT NULL,
+        actual_hours REAL NOT NULL,
+        source TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending',
+        created_at TEXT NOT NULL,
+        submitted_at TEXT,
+        error_message TEXT
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_daily_submission_status
+        ON daily_submission_queue(status);
 
       INSERT OR IGNORE INTO schema_version (version, applied_at)
       VALUES (1, datetime('now'));
@@ -541,6 +557,82 @@ export class Database {
   async deleteWeeklySubmission(id: string): Promise<void> {
     if (!this.db) throw new Error('Database not initialized');
     await this.db.runAsync('DELETE FROM weekly_submission_queue WHERE id = ?', id);
+  }
+
+  // ============================================================================
+  // Daily Submission Queue (v2.0 - authenticated submissions)
+  // ============================================================================
+
+  private mapDailySubmission(row: any): DailySubmissionRecord {
+    return {
+      id: row.id,
+      date: row.date,
+      plannedHours: row.planned_hours,
+      actualHours: row.actual_hours,
+      source: row.source as 'geofence' | 'manual' | 'mixed',
+      status: row.status as SubmissionStatus,
+      createdAt: row.created_at,
+      submittedAt: row.submitted_at,
+      errorMessage: row.error_message,
+    };
+  }
+
+  async enqueueDailySubmission(record: DailySubmissionRecord): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    await this.db.runAsync(
+      `INSERT INTO daily_submission_queue (
+        id, date, planned_hours, actual_hours, source,
+        status, created_at, submitted_at, error_message
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      record.id,
+      record.date,
+      record.plannedHours,
+      record.actualHours,
+      record.source,
+      record.status,
+      record.createdAt,
+      record.submittedAt,
+      record.errorMessage
+    );
+  }
+
+  async getDailySubmissionQueue(status?: SubmissionStatus): Promise<DailySubmissionRecord[]> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const query = status
+      ? 'SELECT * FROM daily_submission_queue WHERE status = ? ORDER BY date DESC'
+      : 'SELECT * FROM daily_submission_queue ORDER BY date DESC';
+
+    const rows = status
+      ? await this.db.getAllAsync<any>(query, status)
+      : await this.db.getAllAsync<any>(query);
+
+    return rows.map((row) => this.mapDailySubmission(row));
+  }
+
+  async updateDailySubmissionStatus(
+    id: string,
+    status: SubmissionStatus,
+    submittedAt?: string,
+    errorMessage?: string
+  ): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    await this.db.runAsync(
+      `UPDATE daily_submission_queue
+       SET status = ?, submitted_at = ?, error_message = ?
+       WHERE id = ?`,
+      status,
+      submittedAt || null,
+      errorMessage || null,
+      id
+    );
+  }
+
+  async deleteDailySubmission(id: string): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized');
+    await this.db.runAsync('DELETE FROM daily_submission_queue WHERE id = ?', id);
   }
 
   async deleteAllData(): Promise<void> {

@@ -5,7 +5,7 @@ import random
 from datetime import date
 from collections.abc import Generator
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -17,7 +17,7 @@ from ..schemas import (
     StaffGroupMonthlySummary,
 )
 
-router = APIRouter(prefix="/analytics", tags=["analytics"])
+router = APIRouter(prefix="/analytics", tags=["analytics"], deprecated=True)
 
 SUPPRESSION_THRESHOLD = 5
 BOOTSTRAP_ITERATIONS = 200
@@ -28,12 +28,28 @@ def _get_db_session() -> Generator[Session, None, None]:
     yield from get_db()
 
 
-@router.get("/", response_model=AnalyticsResponse)
+@router.get("/", response_model=AnalyticsResponse, deprecated=True)
 def analytics_overview(
     months: int = Query(default=6, ge=1, le=36),
     staff_group: StaffGroup | None = Query(default=None),
     db: Session = Depends(_get_db_session),
+    response: Response = None,
 ) -> AnalyticsResponse:
+    """
+    Get analytics overview (DEPRECATED).
+
+    **DEPRECATED:** This endpoint queries the old Report table and will be removed in a future release.
+    Please migrate to GET /stats/by-state-specialty which uses the new privacy-preserving architecture.
+
+    Migration guide:
+    - Old: GET /analytics/?months=6
+    - New: GET /stats/by-state-specialty?limit=100
+    """
+    if response:
+        response.headers["Deprecation"] = "true"
+        response.headers["Sunset"] = "2026-03-01"
+        response.headers["Link"] = '</stats/by-state-specialty>; rel="alternate"'
+
     hospital_rows = _fetch_hospital_monthly(db=db, months=months, staff_group=staff_group)
     staff_group_rows = _fetch_staff_group_monthly(db=db, months=months, staff_group=staff_group)
     return AnalyticsResponse(

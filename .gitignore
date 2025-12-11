@@ -16,6 +16,15 @@ backend/build/
 backend/open_workinghours_backend.egg-info/
 backend/dev.db
 backend/app/**/__pycache__/
+backend/**/*.pyc
+backend/.pytest_cache/
+backend/*.tar.gz
+
+# mobile app artifacts
+mobile-app/node_modules/
+mobile-app/.expo/
+mobile-app/dist/
+mobile-app/*.tar.gz
 
 # debug
 npm-debug.log*
@@ -32,3 +41,5 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+backend-clean.tar.gz
+backend.tar.gz

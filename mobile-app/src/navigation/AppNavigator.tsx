@@ -16,9 +16,20 @@ import NotificationsScreen from '@/modules/geofencing/screens/NotificationsScree
 import PermissionsScreen from '@/modules/geofencing/screens/PermissionsScreen';
 import DataPrivacyScreen from '@/modules/geofencing/screens/DataPrivacyScreen';
 
+// Auth screens
+import EmailVerificationScreen from '@/modules/auth/screens/EmailVerificationScreen';
+import RegisterScreen from '@/modules/auth/screens/RegisterScreen';
+import LoginScreen from '@/modules/auth/screens/LoginScreen';
+
 import { getDatabase } from '@/modules/geofencing/services/Database';
+import { useAuth } from '@/lib/auth/auth-context';
 
 export type RootStackParamList = {
+  // Auth stack
+  EmailVerification: undefined;
+  Register: { email: string };
+  Login: { email: string };
+  // Main app stack
   MainTabs: undefined;
   Setup: undefined;
   Tracking: { locationId: string };
@@ -89,7 +100,65 @@ function LoadingScreen() {
   );
 }
 
+/**
+ * Auth Stack - For unauthenticated users
+ */
+function AuthStack() {
+  const Stack = createNativeStackNavigator<RootStackParamList>();
+  const [mode, setMode] = useState<'verify' | 'register' | 'login'>('verify');
+  const [email, setEmail] = useState('');
+
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerShown: true,
+        headerStyle: {
+          backgroundColor: '#fff',
+        },
+        headerTintColor: '#007AFF',
+        headerTitleStyle: {
+          fontWeight: '600',
+        },
+      }}
+    >
+      {mode === 'verify' && (
+        <Stack.Screen name="EmailVerification" options={{ title: 'Verify Email' }}>
+          {() => (
+            <EmailVerificationScreen
+              onVerified={(verifiedEmail) => {
+                setEmail(verifiedEmail);
+                setMode('register');
+              }}
+            />
+          )}
+        </Stack.Screen>
+      )}
+      {mode === 'register' && (
+        <Stack.Screen name="Register" options={{ title: 'Create Account' }}>
+          {() => (
+            <RegisterScreen
+              email={email}
+              onLoginPress={() => setMode('login')}
+            />
+          )}
+        </Stack.Screen>
+      )}
+      {mode === 'login' && (
+        <Stack.Screen name="Login" options={{ title: 'Log In' }}>
+          {() => (
+            <LoginScreen
+              email={email}
+              onRegisterPress={() => setMode('register')}
+            />
+          )}
+        </Stack.Screen>
+      )}
+    </Stack.Navigator>
+  );
+}
+
 export default function AppNavigator() {
+  const { state: authState } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [hasLocations, setHasLocations] = useState(false);
 
@@ -105,10 +174,17 @@ export default function AppNavigator() {
         setIsLoading(false);
       }
     }
-    checkForLocations();
-  }, []);
 
-  if (isLoading) {
+    // Only check for locations if authenticated
+    if (authState.status === 'authenticated') {
+      checkForLocations();
+    } else if (authState.status === 'unauthenticated') {
+      setIsLoading(false);
+    }
+  }, [authState.status]);
+
+  // Show loading while auth state is being restored or app is initializing
+  if (authState.status === 'idle' || authState.status === 'loading' || isLoading) {
     return (
       <NavigationContainer>
         <LoadingScreen />
@@ -116,6 +192,16 @@ export default function AppNavigator() {
     );
   }
 
+  // Show auth stack if user is not authenticated
+  if (authState.status === 'unauthenticated') {
+    return (
+      <NavigationContainer>
+        <AuthStack />
+      </NavigationContainer>
+    );
+  }
+
+  // Show main app if user is authenticated
   return (
     <NavigationContainer>
       <Stack.Navigator

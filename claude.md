@@ -2,7 +2,7 @@
 
 This file provides context for AI assistants (Claude) working on this project.
 
-**Last Updated:** 2025-12-08 (architecture redesign)
+**Last Updated:** 2025-12-11 (Phase 3 deployment complete - LIVE IN PRODUCTION)
 
 ---
 
@@ -124,7 +124,7 @@ Only when a module/feature is:
 
 ---
 
-## Current State (2025-12-08)
+## Current State (2025-12-09)
 
 ### What Exists & Works
 
@@ -138,60 +138,85 @@ Only when a module/feature is:
 - Dark mode support
 - **Tech:** Next.js 16.0.0, React 19.2.0, TypeScript, Tailwind CSS 4.1.9
 
-✅ **Module 1: Geofencing & Tracking** (Mobile - TestFlight Build #8)
+✅ **React Native Mobile App** (TestFlight Build #9 - v2.0.0)
+
+**Module 1: Geofencing & Tracking** (Complete)
 - Background GPS geofencing with `expo-location`
 - Automatic clock-in on geofence enter, clock-out on exit
 - 5-minute exit hysteresis (prevents false clock-outs)
 - Manual clock-in/out fallback
 - Local SQLite storage (workinghours.db with encryption)
 - Unit tests (Database, GeofenceService, TrackingManager)
-- **Status:** Complete, tested on iOS devices
 - **Files:** `mobile-app/src/modules/geofencing/`
-- **Docs:** See `blueprint.md` Section 4.1
 
-✅ **Backend (FastAPI - Local Dev)**
-- Email verification (6-digit codes via email)
-- Anonymous weekly submissions (deprecated, see below)
-- SQLite fallback (dev.db) for local testing
-- **Status:** Partial implementation, will be redesigned
+**Module 2: Authentication & Submission** (✅ Complete - Tested)
+- Email verification flow (passwordless authentication)
+- User registration (hospital_id, specialty, role_level, state_code)
+- JWT token storage with expo-secure-store (encrypted)
+- Auth state management with React Context
+- Daily submission service (authenticated POST /work-events)
+- Auto-submit on day confirmation (no weekly batching)
+- Client-side noise removed (server-side k-anonymity instead)
+- Exponential backoff retry logic (1s → 32s, max 10 retries)
+- Sign out button in Settings screen
+- **Files:** `mobile-app/src/modules/auth/`, `mobile-app/src/lib/auth/`
+- **Status:** ✅ Fully tested end-to-end (register, login, submit, sign out)
+
+✅ **Backend (FastAPI - PostgreSQL Dev + Local SQLite)**
+- Email verification (verification codes via email)
+- Authentication (JWT with 30-day expiry)
+- Work events CRUD (`POST /work-events`, `GET /work-events`, etc.)
+- Privacy-preserving aggregation (k-anonymity ≥ 10 + Laplace noise ε=1.0)
+- Stats API (`GET /stats/by-state-specialty`, etc.)
+- 37 tests (10 unit + 27 integration) - all passing
+- **Status:** 95% complete (only scheduling aggregation job pending)
 - **Files:** `backend/app/`
 
-### What's Deprecated / Being Redesigned
+### What's Deprecated (Old Architecture)
 
-🔄 **Module 2: Privacy & Submission** (Mobile - Old Implementation)
-- **Old approach:** Client-side Laplace noise, anonymous weekly submissions
-- **Status:** Implemented but OBSOLETE
-- **Problems:**
-  - Cannot support GDPR right to erasure (no user_id)
-  - Cannot link submissions to hospitals/specialties
-  - Noise applied per-user (inefficient)
-- **Files (to be removed):** `mobile-app/src/lib/privacy/LaplaceNoise.ts`, `mobile-app/src/modules/calendar/services/WeeklySubmissionService.ts`
+❌ **Old Module 2 Implementation** (Removed)
+- Client-side Laplace noise - **DELETED**
+- Anonymous weekly submissions - **DEPRECATED** (old endpoints still work)
+- `LaplaceNoise.ts` - **DELETED**
+- `WeeklySubmissionService.ts` - **SUPERSEDED** by `DailySubmissionService.ts`
 
-🔄 **Backend (Redesigning)**
-- **Old approach:** Store anonymous noisy submissions in `weekly_submissions` table
-- **New approach:** Server-side aggregation with k-anonymity + noise
-- **See:** `privacy_architecture.md` + `BACKEND_REDESIGN_PLAN.md`
-- **Status:** Planning phase (not started)
-- **Timeline:** 6-8 weeks
+⚠️ **Old Backend Endpoints** (Deprecated but functional)
+- `GET /analytics/*` - Returns HTTP 410 with deprecation headers
+- `POST /submissions/weekly` - Returns HTTP 410 with deprecation headers
+- Sunset date: 2026-03-01
+- Use new endpoints: `GET /stats/*`, `POST /work-events`
 
 ### What's Next (Current Priority)
 
-🔴 **Backend Redesign** (6-8 weeks total)
-- **Phase 1 (2-3 weeks):** Implement new backend
-  - Schema: `users`, `work_events`, `stats_by_*` tables
-  - Auth endpoints (JWT)
-  - Work events endpoints (authenticated)
-  - Aggregation job (k-anonymity + noise)
-- **Phase 2 (2-3 weeks):** Update mobile app
-  - Add auth screens
-  - Remove client-side noise
-  - Submit raw daily events (authenticated)
-- **Phase 3 (1 week):** Deploy
-  - PostgreSQL on Hetzner (Germany)
-  - Hard cutover (breaking change)
-  - User communication
+✅ **Phase 1: Backend Complete** (95% - only scheduling pending)
+- All endpoints implemented and tested
+- K-anonymity + Laplace noise working
+- 37 tests passing (10 unit + 27 integration)
 
-**See:** `TODO.md` for detailed task breakdown
+✅ **Phase 2: Mobile Integration Complete** (100% - tested end-to-end)
+- Authentication flow tested (email verification → register/login ✅)
+- Daily submission service tested (authenticated POST /work-events ✅)
+- Client-side noise removed ✅
+- Token persistence across app restarts ✅
+- Sign out functionality ✅
+- Backend verified receiving work-events in PostgreSQL ✅
+- App version 2.0.0, Build #9
+
+✅ **Testing Complete:** All Phase 2 features validated
+- Auth flow: register → login → token persistence ✅
+- Submission flow: confirm day → POST /work-events → backend storage ✅
+- Sign out → clears auth → returns to login ✅
+- Verified in backend database: work_events table receiving data
+
+✅ **Phase 3: Deployment** (COMPLETE - deployed 2025-12-11)
+- Backend live at https://api.openworkinghours.org
+- PostgreSQL on Hetzner (Germany) ✅
+- Nginx + SSL (Let's Encrypt) ✅
+- Mobile app connected to production ✅
+- End-to-end tested (auth + submissions working) ✅
+- Remaining: TestFlight Build #9 distribution
+
+**See:** `TODO.md` and `PHASE_2_MOBILE_INTEGRATION_PLAN.md` for detailed status
 
 ---
 
@@ -579,6 +604,7 @@ Previous: add privacy_architecture.md
 
 ---
 
-**Last Updated:** 2025-12-08
-**Status:** Module 1 complete, Backend redesign in planning
-**Current Focus:** Backend Phase 1 implementation (not started)
+**Last Updated:** 2025-12-11
+**Status:** Phase 1, 2 & 3 complete - LIVE IN PRODUCTION
+**Current Focus:** TestFlight distribution + monitoring
+**Production URL:** https://api.openworkinghours.org
