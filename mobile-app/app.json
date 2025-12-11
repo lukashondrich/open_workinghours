@@ -2,7 +2,7 @@
   "expo": {
     "name": "mobile-app",
     "slug": "mobile-app",
-    "version": "1.0.0",
+    "version": "2.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -15,7 +15,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.openworkinghours.mobileapp",
-      "buildNumber": "8",
+      "buildNumber": "9",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "We need your location to automatically track when you're at work.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "We need your location in the background to automatically clock you in/out when you arrive/leave work.",
@@ -48,10 +48,12 @@
         {
           "locationAlwaysAndWhenInUsePermission": "Allow Open Working Hours to use your location to automatically track work hours."
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "extra": {
-      "submissionBaseUrl": "http://localhost:8000",
+      "authBaseUrl": "https://api.openworkinghours.org",
+      "submissionBaseUrl": "https://api.openworkinghours.org",
       "TEST_DB_SEED": false,
       "TEST_PRIVACY_NOISE_SEED": null,
       "eas": {
