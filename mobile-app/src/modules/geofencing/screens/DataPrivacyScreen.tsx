@@ -10,9 +10,9 @@ import {
 import { format, parseISO } from 'date-fns';
 import { getDatabase } from '@/modules/geofencing/services/Database';
 import { getGeofenceService } from '@/modules/geofencing/services/GeofenceService';
-import type { WeeklySubmissionRecord } from '@/modules/geofencing/types';
+import type { DailySubmissionRecord } from '@/modules/geofencing/types';
 import { formatDuration } from '@/lib/calendar/calendar-utils';
-import { processSubmissionQueue } from '@/modules/calendar/services/SubmissionQueueWorker';
+import { DailySubmissionService } from '@/modules/auth/services/DailySubmissionService';
 
 interface DataSummary {
   locationCount: number;
@@ -24,7 +24,7 @@ export default function DataPrivacyScreen() {
     locationCount: 0,
     sessionCount: 0,
   });
-  const [queueEntries, setQueueEntries] = useState<WeeklySubmissionRecord[]>([]);
+  const [queueEntries, setQueueEntries] = useState<DailySubmissionRecord[]>([]);
   const [isProcessingQueue, setIsProcessingQueue] = useState(false);
 
   useEffect(() => {
@@ -36,7 +36,7 @@ export default function DataPrivacyScreen() {
       const db = await getDatabase();
       const locations = await db.getActiveLocations();
       const sessions = await db.getAllSessions();
-      const submissions = await db.getWeeklySubmissions();
+      const submissions = await db.getDailySubmissionQueue();
 
       setDataSummary({
         locationCount: locations.length,
@@ -114,11 +114,7 @@ export default function DataPrivacyScreen() {
     }
     try {
       setIsProcessingQueue(true);
-      const db = await getDatabase();
-      for (const entry of failed) {
-        await db.updateWeeklySubmissionStatus(entry.id, 'pending', null);
-      }
-      await processSubmissionQueue(failed.map((entry) => entry.id));
+      await DailySubmissionService.retryFailedSubmissions();
       Alert.alert('Retry queued', 'Failed submissions were re-sent.');
       loadDataSummary();
     } catch (error) {
@@ -129,35 +125,9 @@ export default function DataPrivacyScreen() {
     }
   };
 
-  const handleSendPending = async () => {
-    if (pendingCount === 0) {
-      Alert.alert('No pending submissions', 'Confirm a week and tap “Submit Week” in the Calendar first.');
-      return;
-    }
-    try {
-      setIsProcessingQueue(true);
-      await processSubmissionQueue();
-      Alert.alert('Sent', 'Pending weeks were sent to the backend.');
-      loadDataSummary();
-    } catch (error) {
-      console.error('[DataPrivacyScreen] Failed to send pending submissions:', error);
-      Alert.alert('Send failed', error instanceof Error ? error.message : 'Unable to reach submission endpoint.');
-    } finally {
-      setIsProcessingQueue(false);
-    }
-  };
-
-  const handleUnlockInfo = () => {
-    Alert.alert(
-      'Unlocking weeks',
-      'Unlock a week from the Calendar header after selecting the week you want to edit.',
-    );
-  };
-
-  const formatWeekLabel = (entry: WeeklySubmissionRecord) => {
-    const start = parseISO(entry.weekStart);
-    const end = parseISO(entry.weekEnd);
-    return `${format(start, 'MMM d')} – ${format(end, 'MMM d')}`;
+  const formatDateLabel = (entry: DailySubmissionRecord) => {
+    const date = parseISO(entry.date);
+    return format(date, 'MMM d, yyyy');
   };
 
   return (
@@ -178,7 +148,10 @@ export default function DataPrivacyScreen() {
         </View>
 
         <View style={styles.summaryCard}>
-          <Text style={styles.summaryTitle}>Weekly Submissions</Text>
+          <Text style={styles.summaryTitle}>Daily Submissions</Text>
+          <Text style={styles.submissionExplainer}>
+            When you confirm a day in the calendar, it's automatically submitted to the backend (authenticated).
+          </Text>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Pending:</Text>
             <Text style={styles.summaryValue}>{queueCounts['pending'] ?? 0}</Text>
@@ -192,43 +165,40 @@ export default function DataPrivacyScreen() {
             <Text style={styles.summaryValue}>{queueCounts['sent'] ?? 0}</Text>
           </View>
           {queueEntries.length === 0 ? (
-            <Text style={styles.queueEmptyText}>No submissions yet. Confirm a full week to get started.</Text>
+            <Text style={styles.queueEmptyText}>No submissions yet. Confirm days in the Calendar to get started.</Text>
           ) : (
             <ScrollView style={styles.queueList} nestedScrollEnabled>
               {queueEntries.map((entry) => (
                 <View key={entry.id} style={styles.queueRow}>
                   <View>
-                    <Text style={styles.queueWeek}>{formatWeekLabel(entry)}</Text>
+                    <Text style={styles.queueWeek}>{formatDateLabel(entry)}</Text>
                     <Text style={styles.queueStatus}>Status: {entry.status}</Text>
                   </View>
-                  <Text style={styles.queueHours}>
-                    {formatDuration(entry.plannedMinutesTrue)} planned / {formatDuration(entry.actualMinutesTrue)} actual
-                  </Text>
+                  <View style={styles.queueHoursContainer}>
+                    <Text style={styles.queueHours}>
+                      Planned: {entry.plannedHours.toFixed(1)}h
+                    </Text>
+                    <Text style={styles.queueHours}>
+                      Actual: {entry.actualHours.toFixed(1)}h
+                    </Text>
+                  </View>
                 </View>
               ))}
             </ScrollView>
           )}
-          <View style={styles.queueActions}>
-            <TouchableOpacity
-              style={[styles.secondaryButton, isProcessingQueue && styles.secondaryButtonDisabled]}
-              onPress={handleSendPending}
-              disabled={isProcessingQueue}
-            >
-              <Text style={styles.secondaryButtonText}>
-                {isProcessingQueue ? 'Processing…' : 'Send Pending'}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.secondaryButton, isProcessingQueue && styles.secondaryButtonDisabled]}
-              onPress={handleRetryFailed}
-              disabled={isProcessingQueue || failedCount === 0}
-            >
-              <Text style={styles.secondaryButtonText}>Retry Failed</Text>
-            </TouchableOpacity>
-          </View>
-          <TouchableOpacity style={[styles.secondaryButton, styles.unlockButton]} onPress={handleUnlockInfo}>
-            <Text style={styles.secondaryButtonText}>Unlock Help</Text>
-          </TouchableOpacity>
+          {failedCount > 0 && (
+            <View style={styles.queueActions}>
+              <TouchableOpacity
+                style={[styles.secondaryButton, isProcessingQueue && styles.secondaryButtonDisabled]}
+                onPress={handleRetryFailed}
+                disabled={isProcessingQueue}
+              >
+                <Text style={styles.secondaryButtonText}>
+                  {isProcessingQueue ? 'Retrying…' : 'Retry Failed'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
 
         <TouchableOpacity
@@ -249,8 +219,11 @@ export default function DataPrivacyScreen() {
         <View style={styles.infoBox}>
           <Text style={styles.infoIcon}>ℹ️</Text>
           <Text style={styles.infoText}>
-            Your data is stored locally on your device using encrypted SQLite. GPS coordinates and
-            work session times never leave your device unless you explicitly export or donate data.
+            Your GPS location never leaves your phone. All work sessions are stored locally with encryption.
+            {'\n\n'}
+            When you confirm a day, only your hours (planned and actual) are shared. Your data is combined with at least 10 other users and mathematically protected before any statistics are published.
+            {'\n\n'}
+            This keeps your personal data private while enabling collective insights.
           </Text>
         </View>
       </ScrollView>
@@ -368,10 +341,19 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#666',
   },
+  queueHoursContainer: {
+    alignItems: 'flex-end',
+  },
   queueHours: {
     fontSize: 13,
     color: '#444',
     textAlign: 'right',
+  },
+  submissionExplainer: {
+    fontSize: 13,
+    color: '#666',
+    marginBottom: 12,
+    fontStyle: 'italic',
   },
   queueActions: {
     flexDirection: 'row',
