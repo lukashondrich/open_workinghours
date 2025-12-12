@@ -48,7 +48,7 @@ def request_verification(
         )
 
     hashed_email = hash_email(email)
-    code = generate_code(48)
+    code = generate_code(6)  # 6-digit code for easy manual entry
     code_digest = hash_code(code)
 
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=VERIFICATION_TTL_MINUTES)

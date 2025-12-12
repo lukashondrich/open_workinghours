@@ -160,30 +160,15 @@ function AuthStack() {
 export default function AppNavigator() {
   const { state: authState } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
-  const [hasLocations, setHasLocations] = useState(false);
 
   useEffect(() => {
-    async function checkForLocations() {
-      try {
-        const db = await getDatabase();
-        const locations = await db.getActiveLocations();
-        setHasLocations(locations.length > 0);
-      } catch (error) {
-        console.error('[AppNavigator] Failed to check for locations:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    // Only check for locations if authenticated
-    if (authState.status === 'authenticated') {
-      checkForLocations();
-    } else if (authState.status === 'unauthenticated') {
+    // Just check if auth is loaded, don't wait for location check
+    if (authState.status === 'authenticated' || authState.status === 'unauthenticated') {
       setIsLoading(false);
     }
   }, [authState.status]);
 
-  // Show loading while auth state is being restored or app is initializing
+  // Show loading while auth state is being restored
   if (authState.status === 'idle' || authState.status === 'loading' || isLoading) {
     return (
       <NavigationContainer>
@@ -201,11 +186,11 @@ export default function AppNavigator() {
     );
   }
 
-  // Show main app if user is authenticated
+  // Show main app if user is authenticated - ALWAYS show tabs
   return (
     <NavigationContainer>
       <Stack.Navigator
-        initialRouteName={hasLocations ? 'MainTabs' : 'Setup'}
+        initialRouteName="MainTabs"
         screenOptions={{
           headerShown: true,
           headerStyle: {
