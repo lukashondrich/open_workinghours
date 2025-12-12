@@ -15,7 +15,7 @@ from ..schemas import (
     VerificationRequestIn,
     VerificationRequestOut,
 )
-from ..security import create_affiliation_token, generate_code, hash_code, hash_email
+from ..security import create_affiliation_token, generate_numeric_code, hash_code, hash_email
 from ..utils import allowed_domains
 
 router = APIRouter(prefix="/verification", tags=["verification"])
@@ -48,7 +48,7 @@ def request_verification(
         )
 
     hashed_email = hash_email(email)
-    code = generate_code(6)  # 6-digit code for easy manual entry
+    code = generate_numeric_code(6)  # 6-digit numeric code (e.g., "123456")
     code_digest = hash_code(code)
 
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=VERIFICATION_TTL_MINUTES)

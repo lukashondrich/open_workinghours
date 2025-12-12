@@ -13,7 +13,13 @@ settings = get_settings()
 
 
 def generate_code(length: int = 32) -> str:
+    """Generate URL-safe token (for legacy compatibility)"""
     return secrets.token_urlsafe(length)
+
+
+def generate_numeric_code(length: int = 6) -> str:
+    """Generate a numeric verification code (e.g., '123456')"""
+    return ''.join(secrets.choice('0123456789') for _ in range(length))
 
 
 def hash_email(email: str) -> str:
