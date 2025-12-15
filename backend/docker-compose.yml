@@ -35,6 +35,8 @@ services:
       EMAIL__SMTP_PASSWORD: ${EMAIL__SMTP_PASSWORD}
       EMAIL__USE_TLS: ${EMAIL__USE_TLS:-true}
       ALLOWED_EMAIL_DOMAINS_FILE: /app/config/allowed_domains.txt
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
     ports:
       - "8000:8000"
     depends_on:
