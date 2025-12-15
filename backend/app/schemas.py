@@ -19,7 +19,7 @@ class VerificationRequestOut(BaseModel):
 
 
 class VerificationConfirmIn(BaseModel):
-    code: str = Field(..., min_length=8, max_length=128)
+    code: str = Field(..., min_length=6, max_length=128)
 
 
 class VerificationConfirmOut(BaseModel):
@@ -140,7 +140,7 @@ class UserRegisterIn(BaseModel):
 class UserLoginIn(BaseModel):
     """User login request (email + verification code)."""
     email: EmailStr
-    code: str = Field(..., min_length=8, max_length=128)
+    code: str = Field(..., min_length=6, max_length=128)
 
     @validator("email")
     def _lowercase_email(cls, value: str) -> str:
