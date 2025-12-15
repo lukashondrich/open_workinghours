@@ -20,9 +20,17 @@ from ..models import User, WorkEvent, VerificationRequest, StatsByStateSpecialty
 router = APIRouter(prefix="/admin", tags=["admin"])
 security = HTTPBasic()
 
-# Simple password - should be in environment variable in production
-ADMIN_USERNAME = "admin"
-ADMIN_PASSWORD = "changeme123"  # TODO: Move to environment variable
+# Admin credentials from environment variables
+import os
+
+ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
+
+if not ADMIN_PASSWORD:
+    raise RuntimeError(
+        "ADMIN_PASSWORD environment variable must be set! "
+        "Add it to .env.production: ADMIN_PASSWORD=your-secure-password"
+    )
 
 
 def verify_admin(credentials: Annotated[HTTPBasicCredentials, Depends(security)]) -> str:
