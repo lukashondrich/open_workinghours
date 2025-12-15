@@ -2,7 +2,8 @@
 
 This file provides context for AI assistants (Claude) working on this project.
 
-**Last Updated:** 2025-12-11 (Phase 3 deployment complete - LIVE IN PRODUCTION)
+**Last Updated:** 2025-12-15
+**Status:** Phase 3 deployed + Monitoring setup + Known verification bug
 
 ---
 
@@ -124,7 +125,7 @@ Only when a module/feature is:
 
 ---
 
-## Current State (2025-12-09)
+## Current State (2025-12-15)
 
 ### What Exists & Works
 
@@ -186,37 +187,101 @@ Only when a module/feature is:
 - Sunset date: 2026-03-01
 - Use new endpoints: `GET /stats/*`, `POST /work-events`
 
+## Recent Updates (2025-12-15)
+
+### ✅ Completed Today:
+
+1. **Logo & Splash Screen** (Build #11)
+   - Added logo_for_mvp.png as app icon
+   - Created proper splash screen (logo centered on white 1242x2436px canvas)
+   - App name changed to "Open Working Hours"
+   - Build number incremented to 11
+
+2. **Navigation Fix**
+   - Fixed critical bug: Users getting stuck in Add Location → Settings loop
+   - Solution: Status/Calendar/Settings tabs now ALWAYS accessible
+   - No more conditional navigation based on location setup
+   - Empty state message guides new users
+
+3. **Verification Code Fix**
+   - Backend now generates 6-digit NUMERIC codes (e.g., "123456")
+   - Previously: 48-character base64 strings (e.g., "u0x-GGAO")
+   - Created `generate_numeric_code()` function
+   - Deployed to production Hetzner server
+
+4. **Backend Monitoring Setup**
+   - Created `monitoring.sql` with 14 queries (users, events, stats, health)
+   - Created `setup_monitoring.sh` for cron job setup
+   - Created `check_status.sh` for quick status checks
+   - Aggregation cron job runs daily at 3 AM UTC
+   - Logs stored in `/home/deploy/logs/`
+
+5. **Admin Web Dashboard** 🎉
+   - Accessible at: `https://api.openworkinghours.org/admin`
+   - Password protected (HTTP Basic Auth over HTTPS)
+   - Shows: total users, work events, 24h activity, stats groups
+   - Recent events list with source badges
+   - Auto-refreshes every 30 seconds
+   - Mobile-optimized design
+   - **Status: WORKING** ✅
+
+6. **Security Improvements**
+   - Removed hardcoded password from code
+   - Admin credentials now required via environment variables
+   - Fixed `.env.example` with all required variables and correct names
+   - Fixed docker-compose.yml to pass admin credentials to container
+
+### 🐛 Known Issues (To Debug Next Session):
+
+**CRITICAL: Verification/Login Failure**
+- **Symptoms:** User enters email → receives 6-digit code → enters code → "verification failed [object Object]"
+- **Tested on:** iPhone (Build #11)
+- **When it happens:** During login flow (email verification works, code entry fails)
+- **Backend status:** Deployed and running, admin dashboard works
+- **Next steps:**
+  1. Check backend logs: `docker compose logs backend -f` while attempting login
+  2. Test endpoint directly: `curl -X POST https://api.openworkinghours.org/auth/login`
+  3. Check if it's a code expiry issue (15 min timeout)
+  4. Verify mobile app error handling (LoginScreen.tsx line 68-88)
+  5. Check for mismatched request/response formats
+- **Files to check:**
+  - `mobile-app/src/modules/auth/screens/LoginScreen.tsx`
+  - `mobile-app/src/modules/auth/services/AuthService.ts`
+  - `backend/app/routers/auth.py`
+  - `backend/app/routers/verification.py`
+
 ### What's Next (Current Priority)
 
-✅ **Phase 1: Backend Complete** (95% - only scheduling pending)
+✅ **Phase 1: Backend** (100% - COMPLETE)
 - All endpoints implemented and tested
 - K-anonymity + Laplace noise working
 - 37 tests passing (10 unit + 27 integration)
+- Aggregation cron job scheduled (3 AM UTC daily)
 
-✅ **Phase 2: Mobile Integration Complete** (100% - tested end-to-end)
-- Authentication flow tested (email verification → register/login ✅)
-- Daily submission service tested (authenticated POST /work-events ✅)
+✅ **Phase 2: Mobile Integration** (95% - Auth bug blocking)
+- Authentication flow implemented ✅
+- Daily submission service implemented ✅
 - Client-side noise removed ✅
-- Token persistence across app restarts ✅
+- Token persistence implemented ✅
 - Sign out functionality ✅
-- Backend verified receiving work-events in PostgreSQL ✅
-- App version 2.0.0, Build #9
+- ⚠️ Login/verification failing with "[object Object]" error (TO DEBUG)
 
-✅ **Testing Complete:** All Phase 2 features validated
-- Auth flow: register → login → token persistence ✅
-- Submission flow: confirm day → POST /work-events → backend storage ✅
-- Sign out → clears auth → returns to login ✅
-- Verified in backend database: work_events table receiving data
-
-✅ **Phase 3: Deployment** (COMPLETE - deployed 2025-12-11)
-- Backend live at https://api.openworkinghours.org
+✅ **Phase 3: Deployment** (100% - LIVE IN PRODUCTION)
+- Backend live at https://api.openworkinghours.org ✅
 - PostgreSQL on Hetzner (Germany) ✅
 - Nginx + SSL (Let's Encrypt) ✅
-- Mobile app connected to production ✅
-- End-to-end tested (auth + submissions working) ✅
-- Remaining: TestFlight Build #9 distribution
+- Admin dashboard accessible ✅
+- Monitoring setup complete ✅
+- Mobile app Build #11 ready (pending bug fix)
 
-**See:** `TODO.md` and `PHASE_2_MOBILE_INTEGRATION_PLAN.md` for detailed status
+✅ **Phase 4: Monitoring & Admin** (100% - COMPLETE 2025-12-15)
+- Admin dashboard deployed and working ✅
+- Backend monitoring queries created ✅
+- Aggregation cron job configured ✅
+- Quick status check script created ✅
+- Password security enforced (environment variables) ✅
+
+**Next:** Debug verification/login issue, then distribute Build #11 to 2 testers
 
 ---
 
