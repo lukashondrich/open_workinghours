@@ -956,6 +956,10 @@ eas submit --platform android
 
 **Schema Validation:** Verification codes require min_length=6 (6-digit numeric codes)
 
+**Bug Reports:** POST `/feedback` - Mobile app sends bug reports with app state (user, locations, sessions, device info) → emails admin
+
+**Log Viewer:** GET `/admin/logs` - View container logs (backend, aggregation, nginx) with filtering (search, level, lines)
+
 ---
 
 ## 8. Developer Workflow

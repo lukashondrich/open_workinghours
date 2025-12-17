@@ -6,7 +6,7 @@
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import type { User } from '@/lib/auth/auth-types';
-import { Database } from '@/modules/geofencing/services/Database';
+import { getDatabase } from '@/modules/geofencing/services/Database';
 
 const BASE_URL = Constants.expoConfig?.extra?.authBaseUrl || 'http://localhost:8000';
 
@@ -34,24 +34,14 @@ interface AppStateSnapshot {
  * Collect app state snapshot for bug report
  */
 export async function collectAppState(user: User | null): Promise<AppStateSnapshot> {
-  const db = Database.getInstance();
+  const db = await getDatabase();
 
-  // Get locations
-  const locations = await db.getAllLocations();
+  // Get active locations
+  const locations = await db.getActiveLocations();
 
-  // Get work events stats
-  const allWorkEvents = await db.getAllWorkEvents();
-  const pendingEvents = allWorkEvents.filter(event => !event.confirmed);
-
-  // Find last submission (most recent confirmed event)
-  const confirmedEvents = allWorkEvents.filter(event => event.confirmed);
-  const lastSubmission = confirmedEvents.length > 0
-    ? confirmedEvents.reduce((latest, event) =>
-        event.confirmedAt && (!latest || event.confirmedAt > latest)
-          ? event.confirmedAt
-          : latest
-      , null as Date | null)
-    : null;
+  // Note: Work events are tracked via tracking sessions in this app
+  // For now, we'll just report 0 for work events (can be enhanced later)
+  const allSessions = await db.getAllSessions();
 
   return {
     user,
@@ -64,9 +54,9 @@ export async function collectAppState(user: User | null): Promise<AppStateSnapsh
       })),
     },
     workEvents: {
-      total: allWorkEvents.length,
-      lastSubmission,
-      pending: pendingEvents.length,
+      total: allSessions.length,
+      lastSubmission: null, // Not tracked in current architecture
+      pending: 0, // Not applicable
     },
     appInfo: {
       version: Constants.expoConfig?.version || 'unknown',

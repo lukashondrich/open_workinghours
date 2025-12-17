@@ -187,9 +187,27 @@ Only when a module/feature is:
 - Sunset date: 2026-03-01
 - Use new endpoints: `GET /stats/*`, `POST /work-events`
 
-## Recent Updates (2025-12-15)
+## Recent Updates
 
-### ✅ Completed Today:
+### ✅ Completed 2025-12-17:
+
+1. **Bug Report System** (POST /feedback endpoint + mobile UI)
+   - Backend: `/feedback` endpoint accepts bug reports, emails to admin (see `backend/app/routers/feedback.py`)
+   - Mobile: "Report Issue" button in Settings (posts app state to API)
+   - Collects: user info, locations, sessions, device info
+   - ⚠️ Working but email delivery needs debugging
+
+2. **Admin Logs Endpoint** (GET /admin/logs)
+   - Backend endpoint for viewing logs (backend, aggregation, nginx)
+   - Supports filtering: source, lines, search term, log level
+   - UI implementation pending (see `backend/app/routers/admin.py`)
+
+3. **Docker & Deployment Fixes**
+   - Removed obsolete `frontend` service from docker-compose.yml
+   - Fixed `.env` format (double underscores: `SECURITY__`, `EMAIL__`, `DATABASE__`)
+   - Deployed to Hetzner - backend running successfully
+
+### ✅ Completed 2025-12-15:
 
 1. **Logo & Splash Screen** (Build #11)
    - Added logo_for_mvp.png as app icon
@@ -244,7 +262,26 @@ Only when a module/feature is:
 - Quick status check script created ✅
 - Password security enforced (environment variables) ✅
 
-**Next:** Distribute Build #11 to 2 testers for real-world testing
+### 🔄 Pending (Next Session):
+
+1. **Debug /feedback email delivery**
+   - API works, mobile sends reports, but emails not arriving
+   - Check: email service config, background tasks, SMTP credentials
+   - Files: `backend/app/routers/feedback.py`, `backend/app/email.py`
+
+2. **Build Mobile App #13**
+   - Includes Report Issue button with API endpoint
+   - Fixed Database imports for app state collection
+   - Ready to build: `eas build --platform ios --profile production`
+
+3. **Admin Logs Dashboard UI**
+   - Backend endpoint ready (`GET /admin/logs`)
+   - Need: Tabs (Dashboard | Logs), filters, search, download, tail mode
+   - Estimated: 2-3 hours implementation
+
+4. **TestFlight Distribution**
+   - Test Report Issue on iPhone (Build #13)
+   - Distribute to 2 testers for real-world testing
 
 ---
 
@@ -664,7 +701,7 @@ Previous: add privacy_architecture.md
 **Common Issues:**
 1. Browser APIs don't work in RN → Use Expo equivalents (`expo-crypto` not `uuid`)
 2. Google Maps needs API key → Use native maps instead
-3. Increment `buildNumber` in app.json for each TestFlight upload (current: 8)
+3. Increment `buildNumber` in app.json for each TestFlight upload (current: 12, next: 13)
 4. TestFlight updates are manual (tap "Update")
 
 **Deployment:**
@@ -674,7 +711,7 @@ Previous: add privacy_architecture.md
 
 ---
 
-**Last Updated:** 2025-12-15
-**Status:** All 4 phases complete - FULLY OPERATIONAL
-**Current Focus:** TestFlight distribution to testers (Build #11)
+**Last Updated:** 2025-12-17
+**Status:** All 4 phases complete - Bug report system added
+**Current Focus:** Debug email delivery → Build #13 → Distribute to testers
 **Production URL:** https://api.openworkinghours.org
