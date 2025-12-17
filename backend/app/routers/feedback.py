@@ -32,21 +32,29 @@ def submit_feedback(
     # Format the feedback email
     timestamp = datetime.now(timezone.utc).isoformat()
 
-    email_body = f"""--- Bug Report / Feedback ---
-Submitted: {timestamp}
+    # Format locations list outside f-string (can't use backslash in f-string)
+    locations_list = "\n".join([
+        f"- Location {i+1}: \"{loc.get('name', 'Unnamed')}\" ({loc.get('latitude', 0):.4f}, {loc.get('longitude', 0):.4f})"
+        for i, loc in enumerate(payload.locations_details)
+    ])
 
-USER INFO:
-{f'''- User ID: {payload.user_id}
+    # Format user info
+    user_info = f'''- User ID: {payload.user_id}
 - Email: {payload.user_email}
 - Hospital: {payload.hospital_id}
 - Specialty: {payload.specialty}
 - Role: {payload.role_level}
-- State: {payload.state_code}''' if payload.user_id else '- Not logged in'}
+- State: {payload.state_code}''' if payload.user_id else '- Not logged in'
+
+    email_body = f"""--- Bug Report / Feedback ---
+Submitted: {timestamp}
+
+USER INFO:
+{user_info}
 
 LOCATIONS:
 - Total configured: {payload.locations_count}
-{chr(10).join([f"- Location {i+1}: \"{loc.get('name', 'Unnamed')}\" ({loc.get('latitude', 0):.4f}, {loc.get('longitude', 0):.4f})"
-               for i, loc in enumerate(payload.locations_details)])}
+{locations_list}
 
 WORK EVENTS:
 - Total tracked: {payload.work_events_total}
