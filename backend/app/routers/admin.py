@@ -352,3 +352,75 @@ def get_dashboard_data(
         "recent_events": recent_events_data,
         "timestamp": datetime.now(timezone.utc).isoformat()
     }
+
+
+@router.get("/logs")
+def get_logs(
+    source: str = "backend",
+    lines: int = 100,
+    search: str | None = None,
+    level: str | None = None,
+    username: str = Depends(verify_admin),
+) -> dict:
+    """Get logs from Docker containers with filtering
+
+    Args:
+        source: Log source (backend, aggregation, nginx)
+        lines: Number of lines to return (default: 100, max: 1000)
+        search: Search term to filter logs
+        level: Filter by log level (ERROR, WARNING, INFO)
+    """
+    import subprocess
+
+    # Limit lines to prevent abuse
+    lines = min(lines, 1000)
+
+    try:
+        # Get logs based on source
+        if source == "backend":
+            result = subprocess.run(
+                ["docker", "compose", "logs", "--tail", str(lines), "backend"],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+        elif source == "aggregation":
+            # Get aggregation logs from log files
+            result = subprocess.run(
+                ["tail", "-n", str(lines), "/home/deploy/logs/aggregation*.log"],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                shell=True
+            )
+        elif source == "nginx":
+            result = subprocess.run(
+                ["docker", "compose", "logs", "--tail", str(lines), "nginx"],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+        else:
+            raise HTTPException(status_code=400, detail="Invalid log source")
+
+        logs = result.stdout
+
+        # Apply search filter
+        if search:
+            logs = "\n".join([line for line in logs.split("\n") if search.lower() in line.lower()])
+
+        # Apply level filter
+        if level:
+            logs = "\n".join([line for line in logs.split("\n") if level.upper() in line.upper()])
+
+        return {
+            "source": source,
+            "lines_requested": lines,
+            "logs": logs,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+
+    except subprocess.TimeoutExpired:
+        raise HTTPException(status_code=504, detail="Log fetch timeout")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch logs: {str(e)}")

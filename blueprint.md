@@ -944,6 +944,18 @@ eas submit --platform android
 - Existing suppression logic (N < 5) remains the same
 - Deploy as usual (Vercel, Netlify, or self-hosted)
 
+### 7.4 Monitoring & Observability
+
+**Admin Dashboard:** `https://api.openworkinghours.org/admin` - Real-time metrics, recent events, auto-refreshes (see `backend/ADMIN_DASHBOARD.md`)
+
+**SQL Queries:** `backend/monitoring.sql` - 14 queries for user activity, work events, aggregation status, health checks
+
+**Quick Status:** `backend/check_status.sh` - Run on Hetzner for instant system overview
+
+**Aggregation Cron:** Daily at 3 AM UTC (configured via `backend/setup_monitoring.sh`)
+
+**Schema Validation:** Verification codes require min_length=6 (6-digit numeric codes)
+
 ---
 
 ## 8. Developer Workflow

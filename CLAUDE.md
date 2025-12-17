@@ -203,52 +203,15 @@ Only when a module/feature is:
    - No more conditional navigation based on location setup
    - Empty state message guides new users
 
-3. **Verification Code Fix**
-   - Backend now generates 6-digit NUMERIC codes (e.g., "123456")
-   - Previously: 48-character base64 strings (e.g., "u0x-GGAO")
-   - Created `generate_numeric_code()` function
-   - Deployed to production Hetzner server
+3. **Backend Monitoring & Admin Dashboard**
+   - Admin dashboard live at `https://api.openworkinghours.org/admin` (see `backend/ADMIN_DASHBOARD.md`)
+   - SQL monitoring queries for tester activity (see `backend/monitoring.sql`)
+   - Quick status script and aggregation cron job (see `blueprint.md` Section 7.4)
 
-4. **Backend Monitoring Setup**
-   - Created `monitoring.sql` with 14 queries (users, events, stats, health)
-   - Created `setup_monitoring.sh` for cron job setup
-   - Created `check_status.sh` for quick status checks
-   - Aggregation cron job runs daily at 3 AM UTC
-   - Logs stored in `/home/deploy/logs/`
-
-5. **Admin Web Dashboard** 🎉
-   - Accessible at: `https://api.openworkinghours.org/admin`
-   - Password protected (HTTP Basic Auth over HTTPS)
-   - Shows: total users, work events, 24h activity, stats groups
-   - Recent events list with source badges
-   - Auto-refreshes every 30 seconds
-   - Mobile-optimized design
-   - **Status: WORKING** ✅
-
-6. **Security Improvements**
-   - Removed hardcoded password from code
-   - Admin credentials now required via environment variables
-   - Fixed `.env.example` with all required variables and correct names
-   - Fixed docker-compose.yml to pass admin credentials to container
-
-### 🐛 Known Issues (To Debug Next Session):
-
-**CRITICAL: Verification/Login Failure**
-- **Symptoms:** User enters email → receives 6-digit code → enters code → "verification failed [object Object]"
-- **Tested on:** iPhone (Build #11)
-- **When it happens:** During login flow (email verification works, code entry fails)
-- **Backend status:** Deployed and running, admin dashboard works
-- **Next steps:**
-  1. Check backend logs: `docker compose logs backend -f` while attempting login
-  2. Test endpoint directly: `curl -X POST https://api.openworkinghours.org/auth/login`
-  3. Check if it's a code expiry issue (15 min timeout)
-  4. Verify mobile app error handling (LoginScreen.tsx line 68-88)
-  5. Check for mismatched request/response formats
-- **Files to check:**
-  - `mobile-app/src/modules/auth/screens/LoginScreen.tsx`
-  - `mobile-app/src/modules/auth/services/AuthService.ts`
-  - `backend/app/routers/auth.py`
-  - `backend/app/routers/verification.py`
+4. **Verification Code Updates**
+   - 6-digit numeric codes (was 48-char base64)
+   - Fixed schema validation (min_length=6) - login now works ✅
+   - See `blueprint.md` Section 7.4 for technical details
 
 ### What's Next (Current Priority)
 
@@ -258,13 +221,13 @@ Only when a module/feature is:
 - 37 tests passing (10 unit + 27 integration)
 - Aggregation cron job scheduled (3 AM UTC daily)
 
-✅ **Phase 2: Mobile Integration** (95% - Auth bug blocking)
+✅ **Phase 2: Mobile Integration** (100% - COMPLETE)
 - Authentication flow implemented ✅
 - Daily submission service implemented ✅
 - Client-side noise removed ✅
 - Token persistence implemented ✅
 - Sign out functionality ✅
-- ⚠️ Login/verification failing with "[object Object]" error (TO DEBUG)
+- Login/verification bug fixed ✅
 
 ✅ **Phase 3: Deployment** (100% - LIVE IN PRODUCTION)
 - Backend live at https://api.openworkinghours.org ✅
@@ -272,7 +235,7 @@ Only when a module/feature is:
 - Nginx + SSL (Let's Encrypt) ✅
 - Admin dashboard accessible ✅
 - Monitoring setup complete ✅
-- Mobile app Build #11 ready (pending bug fix)
+- Mobile app Build #11 deployed and working ✅
 
 ✅ **Phase 4: Monitoring & Admin** (100% - COMPLETE 2025-12-15)
 - Admin dashboard deployed and working ✅
@@ -281,7 +244,7 @@ Only when a module/feature is:
 - Quick status check script created ✅
 - Password security enforced (environment variables) ✅
 
-**Next:** Debug verification/login issue, then distribute Build #11 to 2 testers
+**Next:** Distribute Build #11 to 2 testers for real-world testing
 
 ---
 
@@ -355,11 +318,51 @@ cd mobile-app
 **Mobile:**
 - Unit tests: `npm test` (geofencing module)
 - E2E tests: Detox (on hold due to CI issues)
-- Device testing: TestFlight (iOS Build #8)
+- Device testing: TestFlight (iOS Build #11)
 
 **Backend:**
-- Unit tests: TBD (aggregation logic)
-- Integration tests: TBD (auth, work-events)
+- Unit tests: 10 passing
+- Integration tests: 27 passing
+- Total: 37 tests passing
+
+### Docker Deployment (Hetzner Production)
+
+**IMPORTANT:** When deploying backend changes to production, you MUST rebuild the Docker image to apply code changes.
+
+**Correct deployment process:**
+
+```bash
+# SSH to Hetzner server
+ssh deploy@your-server-ip
+
+# Navigate to project directory
+cd ~/open_workinghours
+
+# Pull latest changes (user handles git commands)
+# git pull origin main
+
+# Stop containers
+docker compose down
+
+# Rebuild backend image (REQUIRED for code changes)
+docker compose build --no-cache backend
+
+# Start containers
+docker compose up -d
+
+# Verify backend is running
+docker compose logs backend -f
+```
+
+**Why `--no-cache` is important:**
+- Docker caches layers during builds
+- Without `--no-cache`, Python code changes may not be picked up
+- The flag forces a complete rebuild with latest code
+
+**Common mistakes:**
+- ❌ `docker compose restart backend` - Does NOT apply code changes
+- ❌ `docker compose down && docker compose up -d` - May use cached image
+- ✅ `docker compose build --no-cache backend` - Forces rebuild with new code
 
 ---
 
@@ -578,6 +581,7 @@ Previous: add privacy_architecture.md
 - Prefers planning before execution
 - Asks clarifying questions
 - Appreciates detailed technical analysis
+- **Handles git commands personally** - Claude should prepare changes but not execute git add/commit/push
 
 ### Response Guidelines
 
@@ -587,6 +591,7 @@ Previous: add privacy_architecture.md
 - Test-driven approach
 - Don't over-engineer for solo dev
 - Practical > theoretical
+- For git operations: prepare changes, then inform user to commit
 
 ---
 
@@ -669,7 +674,7 @@ Previous: add privacy_architecture.md
 
 ---
 
-**Last Updated:** 2025-12-11
-**Status:** Phase 1, 2 & 3 complete - LIVE IN PRODUCTION
-**Current Focus:** TestFlight distribution + monitoring
+**Last Updated:** 2025-12-15
+**Status:** All 4 phases complete - FULLY OPERATIONAL
+**Current Focus:** TestFlight distribution to testers (Build #11)
 **Production URL:** https://api.openworkinghours.org

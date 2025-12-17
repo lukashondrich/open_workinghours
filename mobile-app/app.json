@@ -15,7 +15,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.openworkinghours.mobileapp",
-      "buildNumber": "10",
+      "buildNumber": "12",
       "config": {
         "usesNonExemptEncryption": false
       },
@@ -56,7 +56,8 @@
           "locationAlwaysAndWhenInUsePermission": "Allow Open Working Hours to use your location to automatically track work hours."
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-mail-composer"
     ],
     "extra": {
       "authBaseUrl": "https://api.openworkinghours.org",

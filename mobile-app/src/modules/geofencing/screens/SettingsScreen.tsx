@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,12 +6,14 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/navigation/AppNavigator';
 import { useAuth } from '@/lib/auth/auth-context';
+import { reportIssue } from '@/lib/utils/reportIssue';
 
 type SettingsScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -51,11 +53,33 @@ const settingsItems: SettingsItem[] = [
 
 export default function SettingsScreen() {
   const navigation = useNavigation<SettingsScreenNavigationProp>();
-  const { signOut } = useAuth();
+  const { signOut, state } = useAuth();
+  const [isReporting, setIsReporting] = useState(false);
 
   const handleItemPress = (screen: keyof RootStackParamList) => {
     // @ts-ignore - Navigation type checking is complex with mixed params
     navigation.navigate(screen);
+  };
+
+  const handleReportIssue = async () => {
+    try {
+      setIsReporting(true);
+      await reportIssue(state.user);
+      Alert.alert(
+        'Report Sent',
+        'Thank you! Your bug report has been submitted.',
+        [{ text: 'OK' }]
+      );
+    } catch (error) {
+      console.error('[SettingsScreen] Failed to report issue:', error);
+      Alert.alert(
+        'Submission Failed',
+        error instanceof Error ? error.message : 'Failed to submit bug report. Please try again or contact support.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsReporting(false);
+    }
   };
 
   const handleSignOut = () => {
@@ -99,6 +123,22 @@ export default function SettingsScreen() {
               <Text style={styles.itemChevron}>›</Text>
             </TouchableOpacity>
           ))}
+
+          {/* Report Issue Button */}
+          <TouchableOpacity
+            style={styles.reportIssueButton}
+            onPress={handleReportIssue}
+            disabled={isReporting}
+          >
+            {isReporting ? (
+              <ActivityIndicator color="#007AFF" size="small" />
+            ) : (
+              <>
+                <Text style={styles.reportIssueIcon}>🐛</Text>
+                <Text style={styles.reportIssueText}>Report Issue</Text>
+              </>
+            )}
+          </TouchableOpacity>
 
           {/* Sign Out Button */}
           <TouchableOpacity
@@ -160,7 +200,7 @@ const styles = StyleSheet.create({
     fontSize: 28,
     color: '#C0C0C0',
   },
-  signOutButton: {
+  reportIssueButton: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
@@ -168,6 +208,27 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 20,
     marginTop: 24,
+    borderWidth: 1,
+    borderColor: '#007AFF',
+    minHeight: 64,
+  },
+  reportIssueIcon: {
+    fontSize: 24,
+    marginRight: 12,
+  },
+  reportIssueText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#007AFF',
+  },
+  signOutButton: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 20,
+    marginTop: 12,
     borderWidth: 1,
     borderColor: '#FF3B30',
   },

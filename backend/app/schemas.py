@@ -245,3 +245,40 @@ class StatsByStateSpecialtyOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# Feedback / Bug Reports
+
+class FeedbackIn(BaseModel):
+    """Bug report / feedback submission from mobile app"""
+    user_id: str | None = None
+    user_email: str | None = None
+    hospital_id: str | None = None
+    specialty: str | None = None
+    role_level: str | None = None
+    state_code: str | None = None
+
+    # Location info
+    locations_count: int = 0
+    locations_details: list[dict] = Field(default_factory=list)
+
+    # Work events info
+    work_events_total: int = 0
+    work_events_pending: int = 0
+    last_submission: datetime | None = None
+
+    # App info
+    app_version: str
+    build_number: str
+    platform: str
+    device_model: str | None = None
+    os_version: str | None = None
+
+    # User's description (optional - they might just send app state)
+    description: str | None = None
+
+
+class FeedbackOut(BaseModel):
+    """Feedback submission response"""
+    success: bool
+    message: str
