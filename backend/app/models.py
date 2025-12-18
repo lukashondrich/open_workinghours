@@ -5,7 +5,7 @@ from enum import Enum
 from uuid import uuid4
 
 from sqlalchemy import Column, Date, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSON
 from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
@@ -181,3 +181,31 @@ class StatsByHospital(Base):
             name="uq_stats_hospital_period"
         ),
     )
+
+
+class FeedbackReport(Base):
+    """
+    Bug reports and feedback from mobile app users.
+    Stored for admin review in dashboard.
+    """
+    __tablename__ = "feedback_reports"
+
+    report_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+
+    # User info (optional - may be unauthenticated)
+    user_id = Column(String(255), nullable=True)
+    user_email = Column(String(255), nullable=True)
+    hospital_id = Column(String(255), nullable=True)
+    specialty = Column(String(100), nullable=True)
+    role_level = Column(String(50), nullable=True)
+    state_code = Column(String(10), nullable=True)
+
+    # User's description
+    description = Column(Text, nullable=True)
+
+    # App state (JSON)
+    app_state = Column(JSON, nullable=False)
+
+    # Metadata
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False, index=True)
+    resolved = Column(String(20), default="pending", nullable=False)  # pending, resolved, dismissed

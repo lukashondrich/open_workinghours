@@ -15,7 +15,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import User, WorkEvent, VerificationRequest, StatsByStateSpecialty
+from ..models import User, WorkEvent, VerificationRequest, StatsByStateSpecialty, FeedbackReport
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 security = HTTPBasic()
@@ -93,6 +93,43 @@ def get_dashboard_page(username: str = Depends(verify_admin)) -> str:
         .last-updated {
             font-size: 14px;
             color: #666;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .tab-button {
+            background: none;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            color: #666;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.2s;
+        }
+
+        .tab-button:hover {
+            color: #1B7A5E;
+        }
+
+        .tab-button.active {
+            color: #1B7A5E;
+            border-bottom-color: #1B7A5E;
+            font-weight: 600;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
         }
 
         .stats-grid {
@@ -179,6 +216,112 @@ def get_dashboard_page(username: str = Depends(verify_admin)) -> str:
             color: #f57c00;
         }
 
+        .report-card {
+            background: white;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            border-left: 4px solid #1B7A5E;
+            cursor: pointer;
+            transition: box-shadow 0.2s;
+        }
+
+        .report-card:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+
+        .report-card.resolved {
+            border-left-color: #4caf50;
+            opacity: 0.7;
+        }
+
+        .report-card.dismissed {
+            border-left-color: #9e9e9e;
+            opacity: 0.6;
+        }
+
+        .report-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+
+        .report-timestamp {
+            font-size: 14px;
+            color: #666;
+            font-weight: 600;
+        }
+
+        .report-status {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .report-status.pending {
+            background: #fff3e0;
+            color: #f57c00;
+        }
+
+        .report-status.resolved {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .report-status.dismissed {
+            background: #f5f5f5;
+            color: #616161;
+        }
+
+        .report-user {
+            font-size: 14px;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .report-description {
+            font-size: 14px;
+            color: #666;
+            margin-top: 8px;
+            padding: 8px;
+            background: #f9f9f9;
+            border-radius: 4px;
+        }
+
+        .report-details {
+            display: none;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #eee;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .report-card.expanded .report-details {
+            display: block;
+        }
+
+        .report-details-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin-top: 8px;
+        }
+
+        .report-detail-item {
+            background: #f9f9f9;
+            padding: 8px;
+            border-radius: 4px;
+        }
+
+        .report-detail-label {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+        }
+
         .loading {
             text-align: center;
             padding: 40px;
@@ -219,32 +362,50 @@ def get_dashboard_page(username: str = Depends(verify_admin)) -> str:
             <div class="last-updated" id="last-updated">Loading...</div>
         </div>
 
+        <div class="tabs">
+            <button class="tab-button active" onclick="showTab('dashboard')">Dashboard</button>
+            <button class="tab-button" onclick="showTab('reports')">Reports</button>
+        </div>
+
         <div id="error-message" class="error" style="display: none;"></div>
 
-        <div class="stats-grid" id="stats-grid">
-            <div class="stat-card">
-                <div class="stat-value" id="total-users">-</div>
-                <div class="stat-label">Total Users</div>
+        <!-- Dashboard Tab -->
+        <div id="dashboard-tab" class="tab-content active">
+            <div class="stats-grid" id="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="total-users">-</div>
+                    <div class="stat-label">Total Users</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="total-events">-</div>
+                    <div class="stat-label">Work Events</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="events-24h">-</div>
+                    <div class="stat-label">Last 24h</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="total-stats">-</div>
+                    <div class="stat-label">Stats Groups</div>
+                </div>
             </div>
-            <div class="stat-card">
-                <div class="stat-value" id="total-events">-</div>
-                <div class="stat-label">Work Events</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value" id="events-24h">-</div>
-                <div class="stat-label">Last 24h</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value" id="total-stats">-</div>
-                <div class="stat-label">Stats Groups</div>
+
+            <div class="section">
+                <h2>📅 Recent Work Events</h2>
+                <ul class="event-list" id="recent-events">
+                    <li class="loading">Loading...</li>
+                </ul>
             </div>
         </div>
 
-        <div class="section">
-            <h2>📅 Recent Work Events</h2>
-            <ul class="event-list" id="recent-events">
-                <li class="loading">Loading...</li>
-            </ul>
+        <!-- Reports Tab -->
+        <div id="reports-tab" class="tab-content">
+            <div class="section">
+                <h2>🐛 Bug Reports & Feedback</h2>
+                <div id="reports-list">
+                    <div class="loading">Loading reports...</div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -300,6 +461,103 @@ def get_dashboard_page(username: str = Depends(verify_admin)) -> str:
 
         // Refresh every 30 seconds
         setInterval(fetchDashboardData, 30000);
+
+        // Tab switching
+        function showTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            // Remove active class from all buttons
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // Show selected tab
+            document.getElementById(tabName + '-tab').classList.add('active');
+
+            // Add active class to clicked button
+            event.target.classList.add('active');
+
+            // Load reports if reports tab is selected
+            if (tabName === 'reports') {
+                fetchReports();
+            }
+        }
+
+        // Fetch and display bug reports
+        async function fetchReports() {
+            try {
+                const response = await fetch('/admin/reports');
+                if (!response.ok) throw new Error('Failed to fetch reports');
+
+                const data = await response.json();
+                const reportsList = document.getElementById('reports-list');
+
+                if (data.reports.length === 0) {
+                    reportsList.innerHTML = '<div class="loading">No reports yet</div>';
+                    return;
+                }
+
+                reportsList.innerHTML = data.reports.map(report => {
+                    const timestamp = new Date(report.created_at).toLocaleString();
+                    const userInfo = report.user_email || 'Anonymous';
+
+                    return `
+                        <div class="report-card ${report.resolved}" onclick="toggleReport(this)">
+                            <div class="report-header">
+                                <div class="report-timestamp">${timestamp}</div>
+                                <span class="report-status ${report.resolved}">${report.resolved}</span>
+                            </div>
+                            <div class="report-user">
+                                📧 ${userInfo}
+                                ${report.specialty ? `| ${report.specialty}` : ''}
+                                ${report.hospital_id ? `| ${report.hospital_id}` : ''}
+                            </div>
+                            ${report.description ? `<div class="report-description">${report.description}</div>` : ''}
+                            <div class="report-details">
+                                <div class="report-details-grid">
+                                    <div class="report-detail-item">
+                                        <div class="report-detail-label">App Version</div>
+                                        Build #${report.app_state.app.build_number} (v${report.app_state.app.version})
+                                    </div>
+                                    <div class="report-detail-item">
+                                        <div class="report-detail-label">Platform</div>
+                                        ${report.app_state.app.platform} ${report.app_state.app.os_version || ''}
+                                    </div>
+                                    <div class="report-detail-item">
+                                        <div class="report-detail-label">Device</div>
+                                        ${report.app_state.app.device_model || 'Unknown'}
+                                    </div>
+                                    <div class="report-detail-item">
+                                        <div class="report-detail-label">Locations</div>
+                                        ${report.app_state.locations.count} configured
+                                    </div>
+                                    <div class="report-detail-item">
+                                        <div class="report-detail-label">Work Events</div>
+                                        ${report.app_state.work_events.total} total (${report.app_state.work_events.pending} pending)
+                                    </div>
+                                    <div class="report-detail-item">
+                                        <div class="report-detail-label">Last Submission</div>
+                                        ${report.app_state.work_events.last_submission || 'Never'}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (error) {
+                console.error('Error fetching reports:', error);
+                document.getElementById('reports-list').innerHTML =
+                    '<div class="error">Failed to load reports. Please refresh the page.</div>';
+            }
+        }
+
+        // Toggle report expansion
+        function toggleReport(element) {
+            element.classList.toggle('expanded');
+        }
     </script>
 </body>
 </html>
@@ -350,6 +608,57 @@ def get_dashboard_data(
         "total_stats": total_stats,
         "events_last_24h": events_last_24h,
         "recent_events": recent_events_data,
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }
+
+
+@router.get("/reports")
+def get_feedback_reports(
+    status: str | None = None,
+    limit: int = 100,
+    username: str = Depends(verify_admin),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Get bug reports and feedback from mobile app users
+
+    Args:
+        status: Filter by resolution status (pending, resolved, dismissed)
+        limit: Number of reports to return (default: 100, max: 500)
+    """
+    # Limit to prevent abuse
+    limit = min(limit, 500)
+
+    # Build query
+    query = db.query(FeedbackReport)
+
+    # Filter by status if provided
+    if status:
+        query = query.filter(FeedbackReport.resolved == status)
+
+    # Order by most recent first
+    reports = query.order_by(FeedbackReport.created_at.desc()).limit(limit).all()
+
+    # Format response
+    reports_data = [
+        {
+            "report_id": str(report.report_id),
+            "created_at": report.created_at.isoformat(),
+            "user_id": report.user_id,
+            "user_email": report.user_email,
+            "hospital_id": report.hospital_id,
+            "specialty": report.specialty,
+            "role_level": report.role_level,
+            "state_code": report.state_code,
+            "description": report.description,
+            "app_state": report.app_state,
+            "resolved": report.resolved,
+        }
+        for report in reports
+    ]
+
+    return {
+        "total": len(reports_data),
+        "reports": reports_data,
         "timestamp": datetime.now(timezone.utc).isoformat()
     }
 
