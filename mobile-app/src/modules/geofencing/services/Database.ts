@@ -346,6 +346,11 @@ export class Database {
     return results.map((row) => this.mapSession(row));
   }
 
+  async deleteSession(id: string): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized');
+    await this.db.runAsync('DELETE FROM tracking_sessions WHERE id = ?', id);
+  }
+
   // Geofence Events
   async logGeofenceEvent(event: Omit<GeofenceEvent, 'id'>): Promise<GeofenceEvent> {
     if (!this.db) throw new Error('Database not initialized');

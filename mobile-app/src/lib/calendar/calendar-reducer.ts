@@ -178,7 +178,8 @@ export function calendarReducer(state: CalendarState, action: CalendarAction): C
       return { ...state, templatePanelOpen: !state.templatePanelOpen };
     case 'TOGGLE_REVIEW_MODE': {
       if (!state.reviewMode) {
-        const trackingRecords = generateSimulatedTracking(state.instances);
+        // Use provided tracking records (real data), or fall back to simulated
+        const trackingRecords = action.trackingRecords ?? generateSimulatedTracking(state.instances);
         return {
           ...state,
           reviewMode: true,
@@ -215,7 +216,13 @@ export function calendarReducer(state: CalendarState, action: CalendarAction): C
       const [startHours, startMinutes] = record.startTime.split(':').map(Number);
       const [endHours, endMinutes] = action.endTime.split(':').map(Number);
       const startTotal = startHours * 60 + startMinutes;
-      const endTotal = endHours * 60 + endMinutes;
+      let endTotal = endHours * 60 + endMinutes;
+
+      // Handle overnight sessions: if end < start, end time is on next day
+      if (endTotal < startTotal) {
+        endTotal += 24 * 60;
+      }
+
       const newDuration = endTotal - startTotal;
       return {
         ...state,
@@ -282,6 +289,20 @@ export function calendarReducer(state: CalendarState, action: CalendarAction): C
         confirmedDates: deriveConfirmedSet(nextStatus),
       };
     }
+    case 'DELETE_TRACKING_RECORD': {
+      const remaining = { ...state.trackingRecords };
+      delete remaining[action.id];
+      return {
+        ...state,
+        trackingRecords: remaining,
+        editingTrackingId: state.editingTrackingId === action.id ? null : state.editingTrackingId,
+      };
+    }
+    case 'UPDATE_TRACKING_RECORDS':
+      return {
+        ...state,
+        trackingRecords: action.trackingRecords,
+      };
     default:
       return state;
   }

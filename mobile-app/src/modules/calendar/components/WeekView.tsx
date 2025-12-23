@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   GestureResponderEvent,
   PanResponderGestureState,
   Vibration,
+  Animated,
 } from 'react-native';
 import { startOfWeek, subDays, format as formatDate } from 'date-fns';
 import { useCalendar } from '@/lib/calendar/calendar-context';
@@ -31,7 +32,8 @@ import { DailySubmissionService } from '@/modules/auth/services/DailySubmissionS
 
 const HOUR_HEIGHT = 48;
 const MIN_DRAG_STEP_MINUTES = 5;
-const GRABBER_HIT_HEIGHT = 64;
+const GRABBER_HIT_AREA = 44; // Larger hit area for easier grabbing
+const GRABBER_BAR_HEIGHT = 12;
 const EDGE_LABEL_OFFSET = 18;
 
 function minutesFromDrag(dy: number) {
@@ -51,20 +53,127 @@ function TrackingBadge({
   record,
   onAdjustStart,
   onAdjustEnd,
+  onDelete,
   onToggleActive,
   active,
   setDragging,
+  clippedDuration,
+  showStartGrabber = true,
+  showEndGrabber = true,
+  currentTime,
 }: {
   record: TrackingRecord;
   onAdjustStart: (id: string, deltaMinutes: number) => void;
   onAdjustEnd: (id: string, deltaMinutes: number) => void;
+  onDelete: (id: string) => void;
   onToggleActive: () => void;
   active: boolean;
   setDragging: (dragging: boolean) => void;
+  clippedDuration?: number;
+  showStartGrabber?: boolean;
+  showEndGrabber?: boolean;
+  currentTime: Date;
 }) {
-  const { topOffset, height } = calculateShiftDisplay(record.startTime, record.duration, HOUR_HEIGHT);
+  // Pulsing animation for active sessions
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  // Local state for live drag preview
+  const [dragStartDelta, setDragStartDelta] = useState(0);
+  const [dragEndDelta, setDragEndDelta] = useState(0);
+
+  useEffect(() => {
+    if (record.isActive) {
+      // Create pulsing animation (0.5Hz = 2 second cycle)
+      const pulse = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 0.6,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      pulse.start();
+      return () => pulse.stop();
+    } else {
+      // Reset to full opacity for completed sessions
+      pulseAnim.setValue(1);
+    }
+  }, [record.isActive, pulseAnim]);
+
+  // Calculate duration based on current time for active sessions
   const startMinutes = timeToMinutes(record.startTime);
-  const endLabel = formatTimeLabel(startMinutes + record.duration);
+  let displayDuration = clippedDuration ?? record.duration;
+
+  if (record.isActive) {
+    // Include seconds for accurate duration matching the current time line
+    const currentMinutes = currentTime.getHours() * 60 + currentTime.getMinutes() + currentTime.getSeconds() / 60;
+
+    if (!clippedDuration) {
+      // Main active session (not clipped/overflow)
+      displayDuration = currentMinutes - startMinutes;
+      // Handle overnight sessions (current time is next day)
+      if (displayDuration < 0) {
+        displayDuration = (24 * 60 - startMinutes) + currentMinutes;
+      }
+    } else if (record.startTime === '00:00') {
+      // Overflow segment of active session (from previous day)
+      // Extend from 00:00 to current time
+      displayDuration = currentMinutes;
+    }
+    // Otherwise keep clippedDuration (for day 1 of overnight active session)
+  }
+
+  // Ensure minimum duration for rendering (only for completed sessions)
+  // Active sessions should show exact duration to match current time line
+  if (!record.isActive) {
+    displayDuration = Math.max(1, displayDuration);
+  } else {
+    displayDuration = Math.max(0.1, displayDuration); // Very small minimum for active sessions
+  }
+
+  // Calculate base position and height
+  let topOffset = (startMinutes / 60) * HOUR_HEIGHT;
+  let height = (displayDuration / 60) * HOUR_HEIGHT;
+
+  // Apply live drag preview deltas
+  if (dragStartDelta !== 0) {
+    // Start grabber moved: adjust position and height
+    const deltaMinutes = minutesFromDrag(dragStartDelta);
+    topOffset += dragStartDelta;
+    height -= dragStartDelta; // Moving start changes duration
+  }
+  if (dragEndDelta !== 0) {
+    // End grabber moved: only adjust height
+    height += dragEndDelta;
+  }
+
+  // Show end time based on displayDuration (clipped if overflow, otherwise full)
+  const endLabel = formatTimeLabel(startMinutes + displayDuration);
+
+  const handleLongPress = () => {
+    const showDeleteConfirm = () => {
+      Alert.alert('Delete tracking?', 'Remove this time entry?', [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => onDelete(record.id),
+        },
+      ]);
+    };
+
+    Alert.alert('Tracking Options', formatDuration(record.duration), [
+      { text: 'Adjust', onPress: onToggleActive },
+      { text: 'Delete', style: 'destructive', onPress: showDeleteConfirm },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
   const startPan = useMemo(
     () =>
       PanResponder.create({
@@ -73,16 +182,24 @@ function TrackingBadge({
           setDragging(true);
           Vibration.vibrate(15);
         },
+        onPanResponderMove: (_evt: GestureResponderEvent, gesture: PanResponderGestureState) => {
+          // Update local preview state during drag
+          setDragStartDelta(gesture.dy);
+        },
         onPanResponderRelease: (_evt: GestureResponderEvent, gesture: PanResponderGestureState) => {
           setDragging(false);
+          setDragStartDelta(0); // Reset preview
           const delta = minutesFromDrag(gesture.dy);
           if (delta !== 0) {
             onAdjustStart(record.id, delta);
           }
         },
-        onPanResponderTerminate: () => setDragging(false),
+        onPanResponderTerminate: () => {
+          setDragging(false);
+          setDragStartDelta(0); // Reset preview
+        },
       }),
-    [record.id, onAdjustStart, active, setDragging],
+    [record.id, onAdjustStart, active, setDragging, setDragStartDelta],
   );
 
   const endPan = useMemo(
@@ -93,40 +210,58 @@ function TrackingBadge({
           setDragging(true);
           Vibration.vibrate(15);
         },
+        onPanResponderMove: (_evt: GestureResponderEvent, gesture: PanResponderGestureState) => {
+          // Update local preview state during drag
+          setDragEndDelta(gesture.dy);
+        },
         onPanResponderRelease: (_evt: GestureResponderEvent, gesture: PanResponderGestureState) => {
           setDragging(false);
+          setDragEndDelta(0); // Reset preview
           const delta = minutesFromDrag(gesture.dy);
           if (delta !== 0) {
             onAdjustEnd(record.id, delta);
           }
         },
-        onPanResponderTerminate: () => setDragging(false),
+        onPanResponderTerminate: () => {
+          setDragging(false);
+          setDragEndDelta(0); // Reset preview
+        },
       }),
-    [record.id, onAdjustEnd, active, setDragging],
+    [record.id, onAdjustEnd, active, setDragging, setDragEndDelta],
   );
 
   return (
     <Pressable
-      onLongPress={onToggleActive}
-      style={{ position: 'absolute', left: 12, right: 12, top: topOffset, height }}
+      onLongPress={handleLongPress}
+      style={{ position: 'absolute', left: 12, right: 12, top: topOffset, height, zIndex: active ? 100 : 1 }}
     >
-      <View style={[styles.trackingBlock, { height }]}> 
+      <Animated.View
+        style={[
+          styles.trackingBlock,
+          { height, opacity: pulseAnim },
+          record.isActive && styles.trackingBlockActive
+        ]}
+      >
         <View style={styles.trackingDurationContainer}>
-          <Text style={styles.trackingDurationText}>{formatDuration(record.duration)}</Text>
+          <Text style={styles.trackingDurationText}>
+            {formatDuration(displayDuration)}
+          </Text>
         </View>
-      </View>
-      {active && (
+      </Animated.View>
+      {active && showStartGrabber && (
         <View style={[styles.grabberContainer, styles.grabberTop]} {...startPan.panHandlers}>
           <View style={styles.grabberBar} />
         </View>
       )}
-      {active && (
+      {active && showEndGrabber && (
         <View style={[styles.grabberContainer, styles.grabberBottom]} {...endPan.panHandlers}>
           <View style={styles.grabberBar} />
         </View>
       )}
       <Text style={[styles.edgeLabel, styles.edgeLabelTop]}>{record.startTime}</Text>
-      <Text style={[styles.edgeLabel, styles.edgeLabelBottom]}>{endLabel}</Text>
+      {!record.isActive && (
+        <Text style={[styles.edgeLabel, styles.edgeLabelBottom]}>{endLabel}</Text>
+      )}
     </Pressable>
   );
 }
@@ -150,15 +285,37 @@ function InstanceCard({ instance, onLongPress }: { instance: ShiftInstance; onLo
   );
 }
 
+function CurrentTimeLine({ currentTime, reviewMode }: { currentTime: Date; reviewMode: boolean }) {
+  const hours = currentTime.getHours();
+  const minutes = currentTime.getMinutes();
+  const seconds = currentTime.getSeconds();
+  // Include seconds for more accurate positioning
+  const totalMinutes = hours * 60 + minutes + seconds / 60;
+  // Position line at bottom edge of active sessions
+  const topOffset = (totalMinutes / 60) * HOUR_HEIGHT - 4;
+
+  // Red in review mode, grey in planning mode
+  const lineColor = reviewMode ? '#FF3B30' : '#8E8E93';
+
+  return (
+    <View style={[styles.currentTimeLine, { top: topOffset }]}>
+      <View style={[styles.currentTimeCircle, { backgroundColor: lineColor }]} />
+      <View style={[styles.currentTimeBar, { backgroundColor: lineColor }]} />
+    </View>
+  );
+}
+
 export default function WeekView() {
   const { state, dispatch } = useCalendar();
   const [activeTrackingId, setActiveTrackingId] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [confirmationMessage, setConfirmationMessage] = useState<string | null>(null);
   const [editingInstance, setEditingInstance] = useState<ShiftInstance | null>(null);
+  const [currentTime, setCurrentTime] = useState(new Date());
   const weekStart = startOfWeek(state.currentWeekStart, { weekStartsOn: 1 });
   const weekDays = useMemo(() => getWeekDays(weekStart), [weekStart]);
   const hourMarkers = useMemo(() => generateHourMarkers(), []);
+  const todayKey = formatDateKey(new Date());
 
   useEffect(() => {
     if (!state.reviewMode) {
@@ -166,11 +323,39 @@ export default function WeekView() {
     }
   }, [state.reviewMode]);
 
+  // Update current time and refresh tracking records every 60 seconds
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      setCurrentTime(new Date());
+
+      // Reload tracking records in review mode to catch status changes (active → completed)
+      if (state.reviewMode) {
+        try {
+          const startDate = formatDateKey(weekDays[0]);
+          const endDate = formatDateKey(weekDays[weekDays.length - 1]);
+          const { loadRealTrackingRecords } = await import('@/lib/calendar/calendar-utils');
+          const updatedRecords = await loadRealTrackingRecords(startDate, endDate);
+          dispatch({ type: 'UPDATE_TRACKING_RECORDS', trackingRecords: updatedRecords });
+        } catch (error) {
+          console.error('[WeekView] Failed to refresh tracking records:', error);
+        }
+      }
+    }, 60000); // 60 seconds
+
+    return () => clearInterval(interval);
+  }, [state.reviewMode, weekDays, dispatch]);
+
   const getTrackingForDate = (dateKey: string): TrackingRecord[] => {
     return Object.values(state.trackingRecords).filter((record) => record.date === dateKey);
   };
 
   const handleHourPress = (dateKey: string) => {
+    // Clear active tracking selection when clicking elsewhere
+    if (activeTrackingId) {
+      setActiveTrackingId(null);
+      return;
+    }
+
     if (!state.armedTemplateId) return;
     dispatch({ type: 'PLACE_SHIFT', date: dateKey });
   };
@@ -221,6 +406,27 @@ export default function WeekView() {
     dispatch({ type: 'UPDATE_TRACKING_START', id, startTime });
   };
 
+  const handleDeleteTracking = async (id: string) => {
+    // Extract session ID from tracking record ID (format: "tracking-session-123")
+    const sessionId = id.replace('tracking-session-', '');
+
+    try {
+      // Delete from database
+      const { getDatabase } = await import('@/modules/geofencing/services/Database');
+      const db = await getDatabase();
+      await db.deleteSession(sessionId);
+
+      // Delete from state
+      dispatch({ type: 'DELETE_TRACKING_RECORD', id });
+      if (activeTrackingId === id) {
+        setActiveTrackingId(null);
+      }
+    } catch (error) {
+      console.error('[WeekView] Failed to delete tracking session:', error);
+      Alert.alert('Delete failed', 'Could not delete this session. Please try again.');
+    }
+  };
+
   const handleInstanceLongPress = (instance: ShiftInstance) => {
     const showDeleteConfirm = () => {
       Alert.alert('Delete shift?', `Remove ${instance.name}?`, [
@@ -267,23 +473,26 @@ export default function WeekView() {
               return (
                 <View key={dateKey} style={styles.dayHeader} testID={`week-day-${dateKey}`}>
                   <Text style={styles.dayName}>{formatDate(day, 'EEE')}</Text>
-                  <Text style={styles.dayNumber}>{formatDate(day, 'd')}</Text>
-                  {state.reviewMode && (
-                    <View style={[styles.reviewBadge, needsReview && styles.reviewBadgeNeedsReview, isConfirmed && styles.reviewBadgeConfirmed]}>
-                      <Text style={styles.reviewBadgeText}>
-                        {isConfirmed ? '✓' : needsReview ? '!' : ''}
-                      </Text>
-                    </View>
-                  )}
-                  {state.reviewMode && !isConfirmed && (
-                    <TouchableOpacity
-                      style={styles.confirmButton}
-                      onPress={() => confirmDay(dateKey)}
-                      testID={`confirm-day-${dateKey}`}
-                    >
-                      <Text style={styles.confirmButtonText}>Confirm</Text>
-                    </TouchableOpacity>
-                  )}
+                  <View style={styles.dayNumberRow}>
+                    <Text style={styles.dayNumber}>{formatDate(day, 'd')}</Text>
+                    {state.reviewMode && (
+                      <>
+                        {isConfirmed ? (
+                          <View style={styles.reviewBadgeConfirmed}>
+                            <Text style={styles.reviewBadgeText}>✓</Text>
+                          </View>
+                        ) : (
+                          <TouchableOpacity
+                            style={styles.confirmButton}
+                            onPress={() => confirmDay(dateKey)}
+                            testID={`confirm-day-${dateKey}`}
+                          >
+                            <Text style={styles.confirmButtonText}>Confirm?</Text>
+                          </TouchableOpacity>
+                        )}
+                      </>
+                    )}
+                  </View>
                 </View>
               );
             })}
@@ -337,19 +546,68 @@ export default function WeekView() {
                         </View>
                       );
                     })}
-                    {state.reviewMode && trackingRecords.map((record) => (
-                      <TrackingBadge
-                        key={record.id}
-                        record={record}
-                        onAdjustStart={handleAdjustTrackingStart}
-                        onAdjustEnd={handleAdjustTrackingEnd}
-                        onToggleActive={() =>
-                          setActiveTrackingId((prev) => (prev === record.id ? null : record.id))
-                        }
-                        active={activeTrackingId === record.id}
-                        setDragging={setIsDragging}
-                      />
-                    ))}
+                    {state.reviewMode && trackingRecords.map((record) => {
+                      const startMinutes = timeToMinutes(record.startTime);
+                      const endMinutes = startMinutes + record.duration;
+                      const spansNextDay = endMinutes > 24 * 60;
+
+                      // Render badge for this day - clip at midnight if it spans to next day
+                      return (
+                        <TrackingBadge
+                          key={record.id}
+                          record={record}
+                          onAdjustStart={handleAdjustTrackingStart}
+                          onAdjustEnd={handleAdjustTrackingEnd}
+                          onDelete={handleDeleteTracking}
+                          onToggleActive={() =>
+                            setActiveTrackingId((prev) => (prev === record.id ? null : record.id))
+                          }
+                          active={activeTrackingId === record.id}
+                          setDragging={setIsDragging}
+                          clippedDuration={spansNextDay ? (24 * 60 - startMinutes) : undefined}
+                          showStartGrabber={true}
+                          showEndGrabber={!spansNextDay}
+                          currentTime={currentTime}
+                        />
+                      );
+                    })}
+                    {state.reviewMode && (() => {
+                      // Render overflow tracking from previous day
+                      const prevDayRecords = dayIndex > 0 ? getTrackingForDate(previousDateKey) : [];
+                      return prevDayRecords.map((record) => {
+                        const startMinutes = timeToMinutes(record.startTime);
+                        const endMinutes = startMinutes + record.duration;
+                        if (endMinutes <= 24 * 60) return null; // No overflow
+
+                        const overflowMinutes = endMinutes - 24 * 60;
+
+                        // Create modified record for overflow segment (starts at 00:00 on Day 2)
+                        const overflowRecord = {
+                          ...record,
+                          startTime: '00:00',
+                        };
+
+                        return (
+                          <TrackingBadge
+                            key={`${record.id}-overflow`}
+                            record={overflowRecord}
+                            onAdjustStart={handleAdjustTrackingStart}
+                            onAdjustEnd={handleAdjustTrackingEnd}
+                            onDelete={handleDeleteTracking}
+                            onToggleActive={() =>
+                              setActiveTrackingId((prev) => (prev === record.id ? null : record.id))
+                            }
+                            active={activeTrackingId === record.id}
+                            setDragging={setIsDragging}
+                            clippedDuration={overflowMinutes}
+                            showStartGrabber={false}
+                            showEndGrabber={true}
+                            currentTime={currentTime}
+                          />
+                        );
+                      });
+                    })()}
+                    {dateKey === todayKey && <CurrentTimeLine currentTime={currentTime} reviewMode={state.reviewMode} />}
                   </View>
                 );
               })}
@@ -403,11 +661,15 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#111',
   },
+  dayNumberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
   reviewBadge: {
-    marginTop: 4,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
     backgroundColor: '#E5E5EA',
     justifyContent: 'center',
     alignItems: 'center',
@@ -419,18 +681,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#E0F7EC',
   },
   reviewBadgeText: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#111',
   },
   confirmButton: {
-    marginTop: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
     backgroundColor: '#FFCDD2',
   },
   confirmButtonText: {
-    fontSize: 12,
+    fontSize: 10,
     color: '#B71C1C',
     fontWeight: '600',
   },
@@ -482,12 +743,33 @@ const styles = StyleSheet.create({
     color: '#555',
   },
   trackingBlock: {
-    flex: 1,
+    width: '100%',
+    height: '100%',
     borderRadius: 8,
     backgroundColor: 'rgba(244, 67, 54, 0.2)',
     borderWidth: 1,
     borderColor: 'rgba(244, 67, 54, 0.6)',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  trackingBlockActive: {
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+  },
+  trackingActiveIndicator: {
+    position: 'absolute',
+    bottom: -1,
+    left: -1,
+    right: -1,
+    height: 2,
+    flexDirection: 'row',
+    justifyContent: 'space-evenly',
+    alignItems: 'center',
+  },
+  trackingActiveDash: {
+    width: 8,
+    height: 2,
+    backgroundColor: '#B71C1C',
   },
   trackingDurationContainer: {
     alignItems: 'center',
@@ -501,19 +783,22 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 24,
     right: 24,
-    height: GRABBER_HIT_HEIGHT,
+    height: GRABBER_HIT_AREA,
     alignItems: 'center',
     justifyContent: 'center',
   },
   grabberTop: {
-    top: -GRABBER_HIT_HEIGHT / 2,
+    // Center the hit area on the visual bar position (2/3 outside the session)
+    // Visual bar should be at: -43px from session edge
+    // Hit area is 44px tall, so position its center at -43px
+    top: -43 - GRABBER_HIT_AREA / 2,
   },
   grabberBottom: {
-    bottom: -GRABBER_HIT_HEIGHT / 2,
+    bottom: -43 - GRABBER_HIT_AREA / 2,
   },
   grabberBar: {
     width: '80%',
-    height: 12,
+    height: GRABBER_BAR_HEIGHT,
     borderRadius: 6,
     backgroundColor: '#B71C1C',
   },
@@ -549,5 +834,23 @@ const styles = StyleSheet.create({
   toastText: {
     color: '#fff',
     fontWeight: '600',
+  },
+  currentTimeLine: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    zIndex: 100,
+  },
+  currentTimeCircle: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginLeft: 4,
+  },
+  currentTimeBar: {
+    flex: 1,
+    height: 2,
   },
 });

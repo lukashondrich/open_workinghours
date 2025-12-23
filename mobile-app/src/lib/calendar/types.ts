@@ -24,6 +24,7 @@ export interface TrackingRecord {
   date: string
   startTime: string
   duration: number
+  isActive?: boolean
 }
 
 export type ConfirmedDayStatus = {
@@ -74,12 +75,14 @@ export type CalendarAction =
   | { type: "SET_WEEK"; date: Date }
   | { type: "SET_MONTH"; date: Date }
   | { type: "TOGGLE_TEMPLATE_PANEL" }
-  | { type: "TOGGLE_REVIEW_MODE" }
+  | { type: "TOGGLE_REVIEW_MODE"; trackingRecords?: Record<string, TrackingRecord> }
+  | { type: "UPDATE_TRACKING_RECORDS"; trackingRecords: Record<string, TrackingRecord> }
   | { type: "UPDATE_TRACKING_START"; id: string; startTime: string }
   | { type: "UPDATE_TRACKING_END"; id: string; endTime: string }
   | { type: "CONFIRM_DAY"; date: string; confirmedAt?: string }
   | { type: "START_EDIT_TRACKING"; id: string }
   | { type: "CANCEL_EDIT_TRACKING" }
+  | { type: "DELETE_TRACKING_RECORD"; id: string }
   | { type: "LOCK_CONFIRMED_DAYS"; dates: string[]; submissionId: string }
   | { type: "UNLOCK_CONFIRMED_DAYS"; dates: string[] }
   | {

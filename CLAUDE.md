@@ -189,13 +189,56 @@ Only when a module/feature is:
 
 ## Recent Updates
 
+### ✅ Completed 2025-12-23:
+
+1. **Calendar Review Mode Enhancements** (Mobile App Build #15 - TestFlight Verified)
+   - **Active session tracking**: Sessions appear immediately (before clock-out)
+     - Pulsing animation (0.5Hz) for visual feedback
+     - Extends to current time line (red in review, grey in planning)
+     - Auto-refreshes every 60s (detects clock-out automatically)
+     - Duration shows whole minutes
+   - **Current time line**: Accurate to the second, always visible, positioned at -4px offset
+   - **Delete functionality**: Long press → permanent database deletion
+   - **Overnight session rendering**: Sessions spanning midnight work like shift instances
+     - Both day segments show total duration (e.g., "11h")
+     - Day 1: Start grabber only (adjusts start time)
+     - Day 2: End grabber only (adjusts end time)
+   - **Continuous drag preview**: Sessions follow finger smoothly during adjustment
+   - **Improved interaction**: Grabbers always on top (zIndex: 100), click-outside to deselect
+   - **Header stability**: No height changes when toggling review mode
+     - Compact inline layout: `23 [Confirm?]` or `23 [✓]`
+   - Files: `WeekView.tsx`, `calendar-reducer.ts`, `calendar-utils.ts`, `types.ts`, `Database.ts`
+   - Testing: Verified on TestFlight ✅
+
+### ✅ Completed 2025-12-19:
+
+1. **SMTP Authentication Fix** (Email delivery working)
+   - Root cause: Incorrect Brevo SMTP key in production `.env`
+   - Fixed: Updated SMTP credentials on Hetzner server
+   - Result: Email verification now works, users can register/login ✅
+   - Impact: Database is now receiving user registrations and work events
+
+2. **Aggregation Cron Job Setup** (Production deployment)
+   - Created: `backend/run_aggregation.sh` script
+   - Deployed: Cron job scheduled (3 AM UTC daily on Hetzner)
+   - Status: Will aggregate stats once K_MIN (10+ users) threshold is met
+   - Files: `backend/run_aggregation.sh`, `/home/deploy/aggregation.log`
+
+3. **Calendar Review Mode Bug Fix** (Mobile App Build #13)
+   - Bug: Review mode showed simulated tracking data, not real geofencing sessions
+   - Root cause: `generateSimulatedTracking()` used fake data based on planned shifts
+   - Fixed: Created `loadRealTrackingRecords()` to load from `workinghours.db`
+   - Result: Review mode now displays actual clock-in/clock-out sessions ✅
+   - Files: `mobile-app/src/lib/calendar/calendar-utils.ts`, `calendar-context.tsx`, `calendar-reducer.ts`
+   - Testing: Verified on device - 5-minute session now appears as red marker
+
 ### ✅ Completed 2025-12-17:
 
 1. **Bug Report System** (POST /feedback endpoint + mobile UI)
    - Backend: `/feedback` endpoint accepts bug reports, emails to admin (see `backend/app/routers/feedback.py`)
    - Mobile: "Report Issue" button in Settings (posts app state to API)
    - Collects: user info, locations, sessions, device info
-   - ⚠️ Working but email delivery needs debugging
+   - Status: ✅ Working (email delivery fixed 2025-12-19)
 
 2. **Admin Logs Endpoint** (GET /admin/logs)
    - Backend endpoint for viewing logs (backend, aggregation, nginx)
@@ -264,24 +307,17 @@ Only when a module/feature is:
 
 ### 🔄 Pending (Next Session):
 
-1. **Debug /feedback email delivery**
-   - API works, mobile sends reports, but emails not arriving
-   - Check: email service config, background tasks, SMTP credentials
-   - Files: `backend/app/routers/feedback.py`, `backend/app/email.py`
-
-2. **Build Mobile App #13**
-   - Includes Report Issue button with API endpoint
-   - Fixed Database imports for app state collection
-   - Ready to build: `eas build --platform ios --profile production`
-
-3. **Admin Logs Dashboard UI**
+1. **Admin Logs Dashboard UI** (Backend ready, UI pending)
    - Backend endpoint ready (`GET /admin/logs`)
    - Need: Tabs (Dashboard | Logs), filters, search, download, tail mode
-   - Estimated: 2-3 hours implementation
+   - Files: `backend/app/routers/admin.py`
 
-4. **TestFlight Distribution**
-   - Test Report Issue on iPhone (Build #13)
-   - Distribute to 2 testers for real-world testing
+3. **TestFlight Distribution**
+   - Deploy Build #14 to TestFlight
+   - Test: Calendar review mode with overnight sessions
+   - Test: Delete tracking records
+   - Test: Bug report system end-to-end
+   - Distribute to testers for real-world usage
 
 ---
 
@@ -701,8 +737,9 @@ Previous: add privacy_architecture.md
 **Common Issues:**
 1. Browser APIs don't work in RN → Use Expo equivalents (`expo-crypto` not `uuid`)
 2. Google Maps needs API key → Use native maps instead
-3. Increment `buildNumber` in app.json for each TestFlight upload (current: 12, next: 13)
+3. Increment `buildNumber` in app.json for each TestFlight upload (current: 13, next: 14)
 4. TestFlight updates are manual (tap "Update")
+5. Apple Developer Portal auth errors → Usually temporary server issues, retry after 5-10 minutes
 
 **Deployment:**
 - EAS Build ($29/month) bypasses Xcode version issues
@@ -711,7 +748,7 @@ Previous: add privacy_architecture.md
 
 ---
 
-**Last Updated:** 2025-12-17
-**Status:** All 4 phases complete - Bug report system added
-**Current Focus:** Debug email delivery → Build #13 → Distribute to testers
+**Last Updated:** 2025-12-23
+**Status:** All 4 phases complete - Calendar UX improvements verified on TestFlight (Build #15)
+**Current Focus:** Real-world testing and user feedback
 **Production URL:** https://api.openworkinghours.org

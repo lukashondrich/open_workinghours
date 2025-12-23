@@ -119,7 +119,7 @@ export function timeToMinutes(time: string): number {
 
 export function formatDuration(minutes: number): string {
   const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
+  const mins = Math.round(minutes % 60);
   if (hours === 0) {
     return `${mins}min`;
   }
@@ -127,6 +127,58 @@ export function formatDuration(minutes: number): string {
     return `${hours}h`;
   }
   return `${hours}h ${mins}min`;
+}
+
+/**
+ * Load real tracking records from geofencing sessions in workinghours.db
+ *
+ * @param startDate - Start date of range (YYYY-MM-DD)
+ * @param endDate - End date of range (YYYY-MM-DD)
+ * @returns Promise of tracking records by ID
+ */
+export async function loadRealTrackingRecords(startDate: string, endDate: string): Promise<Record<string, TrackingRecord>> {
+  const { getDatabase } = await import('@/modules/geofencing/services/Database');
+  const db = await getDatabase();
+
+  // Convert date strings to ISO timestamps for query
+  const [startYear, startMonth, startDay] = startDate.split('-').map(Number);
+  const [endYear, endMonth, endDay] = endDate.split('-').map(Number);
+  const startIso = new Date(startYear, startMonth - 1, startDay, 0, 0, 0).toISOString();
+  const endIso = new Date(endYear, endMonth - 1, endDay, 23, 59, 59).toISOString();
+
+  const sessions = await db.getSessionsBetween(startIso, endIso);
+
+  const trackingRecords: Record<string, TrackingRecord> = {};
+
+  sessions.forEach((session) => {
+    const clockInDate = new Date(session.clockIn);
+
+    // For active sessions (no clock-out), use current time as end time
+    const isActive = !session.clockOut;
+    const clockOutDate = session.clockOut ? new Date(session.clockOut) : new Date();
+
+    // Extract date (YYYY-MM-DD) from clock-in time
+    const date = format(clockInDate, 'yyyy-MM-dd');
+
+    // Extract start time (HH:mm)
+    const startTime = format(clockInDate, 'HH:mm');
+
+    // Calculate duration in minutes
+    const durationMs = clockOutDate.getTime() - clockInDate.getTime();
+    const duration = Math.round(durationMs / 60000); // Convert ms to minutes
+
+    // Create tracking record
+    const trackingId = `tracking-session-${session.id}`;
+    trackingRecords[trackingId] = {
+      id: trackingId,
+      date,
+      startTime,
+      duration,
+      isActive,
+    };
+  });
+
+  return trackingRecords;
 }
 
 export function generateSimulatedTracking(instances: Record<string, ShiftInstance>): Record<string, TrackingRecord> {

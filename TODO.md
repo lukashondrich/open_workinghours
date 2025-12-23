@@ -1,7 +1,7 @@
 # Open Working Hours – High-Level TODO
 
-**Last Updated:** 2025-12-11 (Phase 3 deployment 100% complete - LIVE IN PRODUCTION)
-**Current Focus:** Phase 3 cleanup and TestFlight distribution
+**Last Updated:** 2025-12-23 (All phases complete - Calendar UX verified on TestFlight)
+**Current Focus:** Real-world testing and user feedback (Build #15)
 
 ---
 
@@ -9,10 +9,11 @@
 
 | Module | Status | Notes |
 |--------|--------|-------|
-| Module 1 – Geofencing & Tracking | ✅ Complete | Device-tested (iOS Build #8); see `blueprint.md` Section 4.1 |
+| Module 1 – Geofencing & Tracking | ✅ Complete | Device-tested (iOS Build #15); see `blueprint.md` Section 4.1 |
 | Module 2 – Privacy & Submission | ✅ Complete | Auth + daily submissions tested end-to-end |
-| Backend Redesign | ✅ Complete | Phase 1 & 2 complete; only scheduling aggregation job pending |
-| Future Modules (3-8) | ⏸️ On Hold | Pending Phase 3 deployment |
+| Backend Redesign | ✅ Complete | All phases complete; aggregation cron deployed (3 AM UTC daily) |
+| Calendar Review Mode | ✅ Enhanced | Active sessions, auto-refresh, continuous drag, stable header (Build #15) |
+| Future Modules (3-8) | ⏸️ On Hold | Pending user growth and real-world testing |
 
 ---
 
@@ -22,7 +23,7 @@
 
 **Timeline:** 6-8 weeks total
 
-### Phase 1: Backend Implementation (2-3 weeks) - 95% COMPLETE
+### Phase 1: Backend Implementation (2-3 weeks) - ✅ 100% COMPLETE
 
 **Database Schema:**
 - [x] ✅ Create `users` table (user_id, hospital_id, specialty, role_level, state_code)
@@ -52,7 +53,7 @@
 - [x] ✅ Compute sensitivity for averages
 - [x] ✅ Write aggregated stats to `stats_*` tables (UPSERT)
 - [x] ✅ Test with synthetic data (verify noise, k-anonymity)
-- [ ] Schedule periodic job (cron or Celery)
+- [x] ✅ Schedule periodic job (cron on Hetzner - 3 AM UTC daily - 2025-12-19)
 
 **Analytics Endpoints:**
 - [x] ✅ Create new `GET /stats/by-state-specialty` endpoint (k-anonymous stats)

@@ -6,7 +6,9 @@ import React, {
   useEffect,
   useRef,
   useState,
+  useCallback,
 } from 'react';
+import { format, startOfWeek, addDays } from 'date-fns';
 import type {
   CalendarState,
   CalendarAction,
@@ -17,6 +19,7 @@ import type {
 } from './types';
 import { calendarReducer, initialState } from './calendar-reducer';
 import { getCalendarStorage } from '@/modules/calendar/services/CalendarStorage';
+import { loadRealTrackingRecords } from './calendar-utils';
 
 interface CalendarContextValue {
   state: CalendarState;
@@ -26,9 +29,43 @@ interface CalendarContextValue {
 const CalendarContext = createContext<CalendarContextValue | null>(null);
 
 export function CalendarProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(calendarReducer, initialState);
+  const [state, rawDispatch] = useReducer(calendarReducer, initialState);
   const [isHydrated, setIsHydrated] = useState(false);
   const storageRef = useRef<Awaited<ReturnType<typeof getCalendarStorage>> | null>(null);
+
+  // Wrapped dispatch to handle async operations
+  const dispatch = useCallback(
+    (action: CalendarAction) => {
+      if (action.type === 'TOGGLE_REVIEW_MODE' && !state.reviewMode) {
+        // Entering review mode - load real tracking records asynchronously
+        const weekStart = startOfWeek(state.currentWeekStart, { weekStartsOn: 1 });
+        const weekEnd = addDays(weekStart, 6);
+        const startDate = format(weekStart, 'yyyy-MM-dd');
+        const endDate = format(weekEnd, 'yyyy-MM-dd');
+
+        console.log(`[CalendarProvider] Loading tracking records from ${startDate} to ${endDate}`);
+
+        loadRealTrackingRecords(startDate, endDate)
+          .then((trackingRecords) => {
+            console.log(`[CalendarProvider] Loaded ${Object.keys(trackingRecords).length} tracking records`);
+            // Dispatch with loaded tracking records
+            rawDispatch({
+              type: 'TOGGLE_REVIEW_MODE',
+              trackingRecords,
+            });
+          })
+          .catch((error) => {
+            console.error('[CalendarProvider] Failed to load tracking records:', error);
+            // Fallback to simulated tracking
+            rawDispatch(action);
+          });
+      } else {
+        // Pass through all other actions
+        rawDispatch(action);
+      }
+    },
+    [state.reviewMode, state.currentWeekStart]
+  );
 
   useEffect(() => {
     let isMounted = true;
