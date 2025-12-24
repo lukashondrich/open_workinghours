@@ -13,7 +13,7 @@ import {
   Vibration,
   Animated,
 } from 'react-native';
-import { startOfWeek, subDays, format as formatDate } from 'date-fns';
+import { startOfWeek, subDays, format as formatDate, isBefore, startOfDay } from 'date-fns';
 import { useCalendar } from '@/lib/calendar/calendar-context';
 import {
   calculateShiftDisplay,
@@ -361,6 +361,18 @@ export default function WeekView() {
   };
 
   const confirmDay = async (dateKey: string) => {
+    // Validation: Only allow confirming past days (not today, not future)
+    const dayToConfirm = startOfDay(new Date(dateKey));
+    const today = startOfDay(new Date());
+
+    if (!isBefore(dayToConfirm, today)) {
+      Alert.alert(
+        'Cannot confirm future days',
+        'You can only confirm days that are in the past. Please wait until tomorrow to confirm today.'
+      );
+      return;
+    }
+
     try {
       const trackingRecords = getTrackingForDate(dateKey);
       const record = await persistDailyActualForDate(dateKey, state.instances, trackingRecords);
@@ -470,6 +482,9 @@ export default function WeekView() {
               const isConfirmed = state.confirmedDates.has(dateKey);
               const trackingRecords = getTrackingForDate(dateKey);
               const needsReview = state.reviewMode && !isConfirmed;
+              // Can only confirm past days (not today, not future)
+              const today = startOfDay(new Date());
+              const canConfirm = isBefore(startOfDay(day), today);
               return (
                 <View key={dateKey} style={styles.dayHeader} testID={`week-day-${dateKey}`}>
                   <Text style={styles.dayName}>{formatDate(day, 'EEE')}</Text>
@@ -483,11 +498,12 @@ export default function WeekView() {
                           </View>
                         ) : (
                           <TouchableOpacity
-                            style={styles.confirmButton}
-                            onPress={() => confirmDay(dateKey)}
+                            style={[styles.confirmButton, !canConfirm && styles.confirmButtonDisabled]}
+                            onPress={() => canConfirm && confirmDay(dateKey)}
+                            disabled={!canConfirm}
                             testID={`confirm-day-${dateKey}`}
                           >
-                            <Text style={styles.confirmButtonText}>Confirm?</Text>
+                            <Text style={[styles.confirmButtonText, !canConfirm && styles.confirmButtonTextDisabled]}>Confirm?</Text>
                           </TouchableOpacity>
                         )}
                       </>
@@ -690,10 +706,17 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: '#FFCDD2',
   },
+  confirmButtonDisabled: {
+    backgroundColor: '#E5E5EA',
+    opacity: 0.5,
+  },
   confirmButtonText: {
     fontSize: 10,
     color: '#B71C1C',
     fontWeight: '600',
+  },
+  confirmButtonTextDisabled: {
+    color: '#8E8E93',
   },
   gridScroll: {
     maxHeight: 24 * HOUR_HEIGHT + 20,

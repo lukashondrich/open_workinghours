@@ -1,6 +1,8 @@
 """Integration tests for work events endpoints."""
 from __future__ import annotations
 
+from datetime import date, timedelta
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
@@ -61,6 +63,56 @@ class TestWorkEventsCreate:
         # Try to create duplicate (same date, same user)
         response2 = client.post("/work-events", json=sample_work_event, headers=auth_headers)
         assert response2.status_code == 409  # Conflict
+
+    def test_create_work_event_future_date(
+        self, client: TestClient, auth_headers: dict[str, str]
+    ):
+        """Test that future dates and today are rejected."""
+        today = date.today()
+        tomorrow = today + timedelta(days=1)
+        next_week = today + timedelta(days=7)
+
+        # Test today (should fail)
+        today_payload = {
+            "date": today.isoformat(),
+            "planned_hours": 8.0,
+            "actual_hours": 8.0,
+            "source": "manual",
+        }
+        response_today = client.post("/work-events", json=today_payload, headers=auth_headers)
+        assert response_today.status_code == 400
+        assert "future" in response_today.json()["detail"].lower() or "past" in response_today.json()["detail"].lower()
+
+        # Test tomorrow (should fail)
+        tomorrow_payload = {
+            "date": tomorrow.isoformat(),
+            "planned_hours": 8.0,
+            "actual_hours": 8.0,
+            "source": "manual",
+        }
+        response_tomorrow = client.post("/work-events", json=tomorrow_payload, headers=auth_headers)
+        assert response_tomorrow.status_code == 400
+
+        # Test next week (should fail)
+        next_week_payload = {
+            "date": next_week.isoformat(),
+            "planned_hours": 8.0,
+            "actual_hours": 8.0,
+            "source": "manual",
+        }
+        response_next_week = client.post("/work-events", json=next_week_payload, headers=auth_headers)
+        assert response_next_week.status_code == 400
+
+        # Test yesterday (should succeed)
+        yesterday = today - timedelta(days=1)
+        yesterday_payload = {
+            "date": yesterday.isoformat(),
+            "planned_hours": 8.0,
+            "actual_hours": 8.0,
+            "source": "manual",
+        }
+        response_yesterday = client.post("/work-events", json=yesterday_payload, headers=auth_headers)
+        assert response_yesterday.status_code == 201
 
 
 @pytest.mark.integration

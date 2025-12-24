@@ -15,10 +15,11 @@ backend/.venv/
 backend/build/
 backend/open_workinghours_backend.egg-info/
 backend/dev.db
-backend/app/**/__pycache__/
+backend/**/__pycache__/
 backend/**/*.pyc
 backend/.pytest_cache/
 backend/*.tar.gz
+backend/*.sh
 
 # mobile app artifacts
 mobile-app/node_modules/

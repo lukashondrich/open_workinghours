@@ -76,9 +76,30 @@ def auth_headers(client: TestClient, test_db: Session) -> dict[str, str]:
     Usage:
         response = client.get("/work-events", headers=auth_headers)
     """
+    from app.models import VerificationRequest, VerificationStatus
+    from app.security import hash_email, hash_code
+    from datetime import datetime, timedelta, timezone
+
+    email = "test@example.com"
+    code = "123456"
+    email_hash_value = hash_email(email)
+    code_hash_value = hash_code(code)
+
+    # Create a verified email verification request (bypass actual email sending)
+    verification = VerificationRequest(
+        email_hash=email_hash_value,
+        email_domain="example.com",
+        code_hash=code_hash_value,
+        status=VerificationStatus.confirmed.value,
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+        confirmed_at=datetime.now(timezone.utc),
+    )
+    test_db.add(verification)
+    test_db.commit()
+
     # Register a test user
     register_data = {
-        "email": "test@example.com",
+        "email": email,
         "hospital_id": "test-hospital",
         "specialty": "surgery",
         "role_level": "resident",
