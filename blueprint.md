@@ -399,9 +399,9 @@ weekly_submissions    # Anonymous weekly totals (to be replaced)
 
 ---
 
-### 5.2 Planned State (Privacy Architecture)
+### 5.2 Current State (Production - Privacy Architecture)
 
-**Status:** Designed, not implemented. See `BACKEND_REDESIGN_PLAN.md`.
+**Status:** ✅ Deployed to production (https://api.openworkinghours.org). See `BACKEND_REDESIGN_PLAN.md` for design details.
 
 **Two-Layer Architecture:**
 
@@ -415,23 +415,42 @@ weekly_submissions    # Anonymous weekly totals (to be replaced)
    - `stats_by_hospital_role` table (hospital, role_group, period, n_users, avg_overtime_noised)
    - Treated as anonymous: k-anonymity + noise applied
 
-**Key Changes:**
-- User authentication required (JWT)
+**Key Features:**
+- User authentication required (JWT with 30-day expiry)
 - Mobile submits raw daily events (not noisy)
-- Aggregation job runs periodically:
+- Aggregation job runs daily at 3 AM UTC:
   1. Group by dimensions (state × specialty × role × quarter)
   2. Apply k-anonymity (only publish if n_users ≥ 10)
-  3. Add Laplace noise to aggregates
+  3. Add Laplace noise to aggregates (ε=1.0)
   4. Write to `stats_*` tables
 - Dashboard queries `stats_*` only (no raw data access)
 - Right to erasure: `DELETE user → CASCADE to work_events` (stats retained as anonymous)
 
-**Timeline:** 6-8 weeks
-- Phase 1 (2-3 weeks): Backend implementation
-- Phase 2 (2-3 weeks): Mobile integration
-- Phase 3 (1 week): Deployment
+**Validation Rules:**
+- **Date validation (2025-12-24):** Work events can only be submitted for past dates
+  - Mobile UI: Confirm button disabled for today and future dates
+  - Client validation: Alert shown if bypassed
+  - Backend validation: HTTP 400 with error: "Cannot submit work events for today or future dates. Only past days can be confirmed."
+  - Files: `mobile-app/src/modules/calendar/components/WeekView.tsx:363-374`, `backend/app/routers/work_events.py:42-48`
+- Hours validation: `0 ≤ hours ≤ 24` for both planned and actual hours
+- Source validation: Must be one of `geofence`, `manual`, or `mixed`
+- Duplicate prevention: One work event per user per day (unique constraint)
 
-**Files (planned):** See `BACKEND_REDESIGN_PLAN.md` for full specification.
+**Endpoints:**
+- `POST /auth/register` - Create user account (requires verified email)
+- `POST /auth/login` - Login with email + verification code
+- `POST /work-events` - Submit daily work event (authenticated, past dates only)
+- `GET /work-events` - Retrieve user's work events (with date filters)
+- `PATCH /work-events/{id}` - Update work event
+- `DELETE /work-events/{id}` - Delete work event (right to erasure)
+- `GET /stats/by-state-specialty` - K-anonymous aggregated statistics
+- `GET /admin` - Admin dashboard (password-protected)
+
+**Database:** PostgreSQL on Hetzner (Germany) for GDPR compliance
+
+**Files:** `backend/app/routers/work_events.py`, `backend/app/routers/auth.py`, `backend/app/models.py`
+
+**Tests:** 37 tests passing (10 unit + 27 integration) - see `backend/tests/`
 
 ---
 

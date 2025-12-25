@@ -189,6 +189,30 @@ Only when a module/feature is:
 
 ## Recent Updates
 
+### ✅ Completed 2025-12-25:
+
+1. **Date Validation for Work Event Confirmations** (Production Deployed & Verified)
+   - **Requirement**: Users can only confirm days that are in the past (not today, not future)
+   - **Implementation**: Defense-in-depth with 3 validation layers
+     - **Layer 1 - Mobile UI**: Confirm button disabled (greyed out) for today and future dates
+       - Visual styling: `confirmButtonDisabled` and `confirmButtonTextDisabled` styles
+       - Uses `date-fns` `isBefore()` and `startOfDay()` for date comparison
+     - **Layer 2 - Client validation**: Alert shown if UI bypassed
+       - Alert: "Cannot confirm future days. You can only confirm days that are in the past. Please wait until tomorrow to confirm today."
+     - **Layer 3 - Backend validation**: HTTP 400 error if client bypassed
+       - Error: "Cannot submit work events for today or future dates. Only past days can be confirmed."
+       - Validates: `payload.date < datetime.now().date()`
+   - **Testing**: Production-verified with real API calls
+     - ✅ Past dates (2025-12-15): HTTP 201 Created
+     - ❌ Today (2025-12-24): HTTP 400 Bad Request
+     - ❌ Future (2025-12-31): HTTP 400 Bad Request
+   - **Files**:
+     - Mobile: `mobile-app/src/modules/calendar/components/WeekView.tsx:16,363-374,474-475,697-708`
+     - Backend: `backend/app/routers/work_events.py:7,42-48`
+     - Tests: `backend/tests/test_work_events.py:4,67-115`
+     - Test fixture: `backend/tests/conftest.py:79-113`
+   - **Documentation**: Updated `blueprint.md` Section 5.2 (Validation Rules)
+
 ### ✅ Completed 2025-12-23:
 
 1. **Calendar Review Mode Enhancements** (Mobile App Build #15 - TestFlight Verified)
@@ -748,7 +772,7 @@ Previous: add privacy_architecture.md
 
 ---
 
-**Last Updated:** 2025-12-23
-**Status:** All 4 phases complete - Calendar UX improvements verified on TestFlight (Build #15)
+**Last Updated:** 2025-12-25
+**Status:** All 4 phases complete - Date validation added and production-verified
 **Current Focus:** Real-world testing and user feedback
 **Production URL:** https://api.openworkinghours.org
