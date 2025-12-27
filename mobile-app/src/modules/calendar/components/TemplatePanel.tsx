@@ -21,6 +21,7 @@ export default function TemplatePanel() {
   const [formData, setFormData] = useState<Partial<ShiftTemplate>>({});
   const [durationHours, setDurationHours] = useState(8);
   const [durationMinutes, setDurationMinutes] = useState(0);
+  const [breakMinutes, setBreakMinutes] = useState(0);
 
   const templates = useMemo(() => Object.values(state.templates), [state.templates]);
 
@@ -37,18 +38,20 @@ export default function TemplatePanel() {
       startTime: '08:00',
       duration: 8 * 60,
       color: 'blue',
+      breakMinutes: 0,
     };
     dispatch({ type: 'ADD_TEMPLATE', template: newTemplate });
     setEditingId(newTemplate.id);
     setFormData(newTemplate);
     setDurationHours(8);
     setDurationMinutes(0);
+    setBreakMinutes(0);
   };
 
   const handleSave = () => {
     if (!editingId) return;
     const totalDuration = durationHours * 60 + durationMinutes;
-    dispatch({ type: 'UPDATE_TEMPLATE', id: editingId, template: { ...formData, duration: totalDuration } });
+    dispatch({ type: 'UPDATE_TEMPLATE', id: editingId, template: { ...formData, duration: totalDuration, breakMinutes } });
     setEditingId(null);
     setFormData({});
     handleClose();
@@ -67,6 +70,7 @@ export default function TemplatePanel() {
     setFormData(template);
     setDurationHours(Math.floor(template.duration / 60));
     setDurationMinutes(template.duration % 60);
+    setBreakMinutes(template.breakMinutes || 0);
   };
 
   const handleCancel = () => {
@@ -153,6 +157,21 @@ export default function TemplatePanel() {
                             />
                           );
                         })}
+                      </View>
+
+                      <Text style={styles.label}>Break Duration</Text>
+                      <View style={styles.breakRow}>
+                        {[0, 5, 15, 30, 45, 60].map((minutes) => (
+                          <TouchableOpacity
+                            key={minutes}
+                            style={[styles.breakButton, breakMinutes === minutes && styles.breakButtonSelected]}
+                            onPress={() => setBreakMinutes(minutes)}
+                          >
+                            <Text style={[styles.breakButtonText, breakMinutes === minutes && styles.breakButtonTextSelected]}>
+                              {minutes}m
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
                       </View>
 
                       <View style={styles.editActions}>
@@ -353,6 +372,32 @@ const styles = StyleSheet.create({
   },
   colorDotSelected: {
     borderColor: '#111',
+  },
+  breakRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 12,
+  },
+  breakButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  breakButtonSelected: {
+    backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
+  },
+  breakButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#333',
+  },
+  breakButtonTextSelected: {
+    color: '#fff',
   },
   colorPreview: {
     width: 12,

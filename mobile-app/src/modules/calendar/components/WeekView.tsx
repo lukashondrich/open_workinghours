@@ -55,6 +55,8 @@ function TrackingBadge({
   onAdjustEnd,
   onDelete,
   onToggleActive,
+  onAddBreak,
+  onClearBreak,
   active,
   setDragging,
   clippedDuration,
@@ -67,6 +69,8 @@ function TrackingBadge({
   onAdjustEnd: (id: string, deltaMinutes: number) => void;
   onDelete: (id: string) => void;
   onToggleActive: () => void;
+  onAddBreak: (id: string, minutes: number) => void;
+  onClearBreak: (id: string) => void;
   active: boolean;
   setDragging: (dragging: boolean) => void;
   clippedDuration?: number;
@@ -153,6 +157,34 @@ function TrackingBadge({
     height += dragEndDelta;
   }
 
+  // Calculate safe grabber positions (clamp to stay within day column)
+  const DAY_HEIGHT = 24 * HOUR_HEIGHT; // 1152px
+  const GRABBER_OFFSET = 43 + GRABBER_HIT_AREA / 2; // 65px - normal offset from session edge
+  const MIN_EDGE_DISTANCE = 12; // ~15 minutes (0.25h * 48px) - minimum distance from day edges
+
+  // Top grabber: should be at (topOffset - GRABBER_OFFSET), but clamped to MIN_EDGE_DISTANCE
+  const idealTopGrabberPos = topOffset - GRABBER_OFFSET;
+  const clampedTopGrabberPos = Math.max(MIN_EDGE_DISTANCE, idealTopGrabberPos);
+  const topGrabberStyle = {
+    top: clampedTopGrabberPos - topOffset, // Convert back to relative offset
+  };
+
+  // Bottom grabber: should be at (topOffset + height + GRABBER_OFFSET), but clamped to (DAY_HEIGHT - MIN_EDGE_DISTANCE)
+  const idealBottomGrabberPos = topOffset + height + GRABBER_OFFSET;
+  const clampedBottomGrabberPos = Math.min(DAY_HEIGHT - MIN_EDGE_DISTANCE, idealBottomGrabberPos);
+  const bottomGrabberStyle = {
+    bottom: -(clampedBottomGrabberPos - (topOffset + height)), // Convert to bottom offset from session bottom
+  };
+
+  // Break panel: clamp to stay within day bounds (max height = 300px)
+  const BREAK_PANEL_MAX_HEIGHT = 300;
+  const breakPanelBottom = topOffset + BREAK_PANEL_MAX_HEIGHT;
+  const overflow = breakPanelBottom - DAY_HEIGHT;
+  const breakPanelTop = overflow > 0 ? -overflow : 0; // Shift up if overflowing
+  const breakPanelStyle = {
+    top: breakPanelTop,
+  };
+
   // Show end time based on displayDuration (clipped if overflow, otherwise full)
   const endLabel = formatTimeLabel(startMinutes + displayDuration);
 
@@ -231,38 +263,65 @@ function TrackingBadge({
   );
 
   return (
-    <Pressable
-      onLongPress={handleLongPress}
-      style={{ position: 'absolute', left: 12, right: 12, top: topOffset, height, zIndex: active ? 100 : 1 }}
-    >
-      <Animated.View
-        style={[
-          styles.trackingBlock,
-          { height, opacity: pulseAnim },
-          record.isActive && styles.trackingBlockActive
-        ]}
+    <View style={{ position: 'absolute', left: 12, right: 12, top: topOffset, zIndex: active ? 100 : 1 }}>
+      <Pressable
+        onLongPress={handleLongPress}
+        style={{ height }}
       >
-        <View style={styles.trackingDurationContainer}>
-          <Text style={styles.trackingDurationText}>
-            {formatDuration(displayDuration)}
-          </Text>
-        </View>
-      </Animated.View>
-      {active && showStartGrabber && (
-        <View style={[styles.grabberContainer, styles.grabberTop]} {...startPan.panHandlers}>
-          <View style={styles.grabberBar} />
+        <Animated.View
+          style={[
+            styles.trackingBlock,
+            { height, opacity: pulseAnim },
+            record.isActive && styles.trackingBlockActive
+          ]}
+        >
+          <View style={styles.trackingDurationContainer}>
+            <Text style={styles.trackingDurationText}>
+              {formatDuration(Math.max(0, displayDuration - (record.breakMinutes || 0)))}
+            </Text>
+          </View>
+        </Animated.View>
+        {active && showStartGrabber && (
+          <View style={[styles.grabberContainer, topGrabberStyle]} {...startPan.panHandlers}>
+            <View style={styles.grabberBar} />
+          </View>
+        )}
+        {active && showEndGrabber && (
+          <View style={[styles.grabberContainer, bottomGrabberStyle]} {...endPan.panHandlers}>
+            <View style={styles.grabberBar} />
+          </View>
+        )}
+        <Text style={[styles.edgeLabel, styles.edgeLabelTop]}>{record.startTime}</Text>
+        {!record.isActive && (
+          <Text style={[styles.edgeLabel, styles.edgeLabelBottom]}>{endLabel}</Text>
+        )}
+      </Pressable>
+      {active && (
+        <View style={[styles.breakPanel, breakPanelStyle]}>
+          <Text style={styles.breakTitle}>Break (min)</Text>
+          {[5, 15, 30, 45, 60].map((min) => (
+            <TouchableOpacity
+              key={min}
+              style={styles.breakOption}
+              onPress={() => onAddBreak(record.id, min)}
+            >
+              <Text style={styles.breakOptionText}>+ {min}</Text>
+            </TouchableOpacity>
+          ))}
+          {(record.breakMinutes || 0) > 0 && (
+            <>
+              <View style={styles.breakDivider} />
+              <Text style={styles.breakTotal}>
+                Total: {formatDuration(record.breakMinutes || 0)}
+              </Text>
+              <TouchableOpacity style={styles.breakClearBtn} onPress={() => onClearBreak(record.id)}>
+                <Text style={styles.breakClearText}>Clear</Text>
+              </TouchableOpacity>
+            </>
+          )}
         </View>
       )}
-      {active && showEndGrabber && (
-        <View style={[styles.grabberContainer, styles.grabberBottom]} {...endPan.panHandlers}>
-          <View style={styles.grabberBar} />
-        </View>
-      )}
-      <Text style={[styles.edgeLabel, styles.edgeLabelTop]}>{record.startTime}</Text>
-      {!record.isActive && (
-        <Text style={[styles.edgeLabel, styles.edgeLabelBottom]}>{endLabel}</Text>
-      )}
-    </Pressable>
+    </View>
   );
 }
 
@@ -439,6 +498,62 @@ export default function WeekView() {
     }
   };
 
+  const handleAddBreak = async (id: string, additionalMinutes: number) => {
+    const record = state.trackingRecords[id];
+    if (!record) return;
+
+    const currentBreak = record.breakMinutes || 0;
+    const newBreak = currentBreak + additionalMinutes;
+
+    // Warn if break exceeds session duration
+    if (newBreak > record.duration) {
+      Alert.alert(
+        'Break exceeds session duration',
+        `Total break (${formatDuration(newBreak)}) is longer than session duration (${formatDuration(record.duration)}). Net time will be 0.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Add Anyway',
+            onPress: async () => {
+              try {
+                const { getCalendarStorage } = await import('@/modules/calendar/services/CalendarStorage');
+                const storage = await getCalendarStorage();
+                await storage.updateTrackingBreak(id, newBreak);
+                dispatch({ type: 'UPDATE_TRACKING_BREAK', id, breakMinutes: newBreak });
+              } catch (error) {
+                console.error('[WeekView] Failed to add break:', error);
+                Alert.alert('Error', 'Could not add break. Please try again.');
+              }
+            },
+          },
+        ]
+      );
+      return;
+    }
+
+    try {
+      const { getCalendarStorage } = await import('@/modules/calendar/services/CalendarStorage');
+      const storage = await getCalendarStorage();
+      await storage.updateTrackingBreak(id, newBreak);
+      dispatch({ type: 'UPDATE_TRACKING_BREAK', id, breakMinutes: newBreak });
+    } catch (error) {
+      console.error('[WeekView] Failed to add break:', error);
+      Alert.alert('Error', 'Could not add break. Please try again.');
+    }
+  };
+
+  const handleClearBreak = async (id: string) => {
+    try {
+      const { getCalendarStorage } = await import('@/modules/calendar/services/CalendarStorage');
+      const storage = await getCalendarStorage();
+      await storage.updateTrackingBreak(id, 0);
+      dispatch({ type: 'UPDATE_TRACKING_BREAK', id, breakMinutes: 0 });
+    } catch (error) {
+      console.error('[WeekView] Failed to clear break:', error);
+      Alert.alert('Error', 'Could not clear break. Please try again.');
+    }
+  };
+
   const handleInstanceLongPress = (instance: ShiftInstance) => {
     const showDeleteConfirm = () => {
       Alert.alert('Delete shift?', `Remove ${instance.name}?`, [
@@ -578,6 +693,8 @@ export default function WeekView() {
                           onToggleActive={() =>
                             setActiveTrackingId((prev) => (prev === record.id ? null : record.id))
                           }
+                          onAddBreak={handleAddBreak}
+                          onClearBreak={handleClearBreak}
                           active={activeTrackingId === record.id}
                           setDragging={setIsDragging}
                           clippedDuration={spansNextDay ? (24 * 60 - startMinutes) : undefined}
@@ -613,6 +730,8 @@ export default function WeekView() {
                             onToggleActive={() =>
                               setActiveTrackingId((prev) => (prev === record.id ? null : record.id))
                             }
+                            onAddBreak={handleAddBreak}
+                            onClearBreak={handleClearBreak}
                             active={activeTrackingId === record.id}
                             setDragging={setIsDragging}
                             clippedDuration={overflowMinutes}
@@ -839,6 +958,70 @@ const styles = StyleSheet.create({
   },
   edgeLabelBottom: {
     bottom: -EDGE_LABEL_OFFSET,
+  },
+  breakPanel: {
+    position: 'absolute',
+    left: '105%',
+    top: 0,
+    width: 100,
+    backgroundColor: '#FFF',
+    padding: 8,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 2, height: 2 },
+    shadowRadius: 4,
+    zIndex: 300,
+  },
+  breakTitle: {
+    fontSize: 9,
+    fontWeight: '600',
+    color: '#666',
+    marginBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
+  breakOption: {
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    backgroundColor: '#F8F8F8',
+    borderRadius: 4,
+    marginBottom: 4,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  breakOptionText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#000',
+    textAlign: 'center',
+  },
+  breakDivider: {
+    height: 1,
+    backgroundColor: '#E0E0E0',
+    marginVertical: 6,
+  },
+  breakTotal: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#000',
+    marginBottom: 4,
+  },
+  breakClearBtn: {
+    paddingVertical: 5,
+    backgroundColor: '#FFF',
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#B71C1C',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  breakClearText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#B71C1C',
   },
   toast: {
     position: 'absolute',

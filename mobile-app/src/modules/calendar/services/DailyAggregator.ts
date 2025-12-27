@@ -42,7 +42,13 @@ async function computeActualMinutes(
   manualRecords?: TrackingRecord[],
 ): Promise<{ minutes: number; source: DailyActual['source'] }> {
   if (manualRecords && manualRecords.length > 0) {
-    const totalMinutes = manualRecords.reduce((sum, record) => sum + record.duration, 0);
+    // Calculate net time (gross duration - breaks) for each record
+    const totalMinutes = manualRecords.reduce((sum, record) => {
+      const grossMinutes = record.duration;
+      const breakMinutes = record.breakMinutes || 0;
+      const netMinutes = Math.max(0, grossMinutes - breakMinutes);
+      return sum + netMinutes;
+    }, 0);
     return { minutes: totalMinutes, source: 'manual' };
   }
 

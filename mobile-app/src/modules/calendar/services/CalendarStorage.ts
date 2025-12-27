@@ -8,16 +8,23 @@ class CalendarStorage {
     if (this.db) return;
     this.db = await SQLite.openDatabaseAsync('calendar.db');
     await this.db.execAsync('PRAGMA foreign_keys = ON;');
-    await this.db.execAsync(
+    await this.createTables();
+    await this.runMigrations();
+  }
+
+  private async createTables() {
+    const db = this.getDb();
+    await db.execAsync(
       `CREATE TABLE IF NOT EXISTS shift_templates (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
         start_time TEXT NOT NULL,
         duration INTEGER NOT NULL,
-        color TEXT NOT NULL
+        color TEXT NOT NULL,
+        break_minutes INTEGER DEFAULT 0
       );`
     );
-    await this.db.execAsync(
+    await db.execAsync(
       `CREATE TABLE IF NOT EXISTS shift_instances (
         id TEXT PRIMARY KEY,
         template_id TEXT,
@@ -29,15 +36,16 @@ class CalendarStorage {
         name TEXT NOT NULL
       );`
     );
-    await this.db.execAsync(
+    await db.execAsync(
       `CREATE TABLE IF NOT EXISTS tracking_records (
         id TEXT PRIMARY KEY,
         date TEXT NOT NULL,
         start_time TEXT NOT NULL,
-        duration INTEGER NOT NULL
+        duration INTEGER NOT NULL,
+        break_minutes INTEGER DEFAULT 0
       );`
     );
-    await this.db.execAsync(
+    await db.execAsync(
       `CREATE TABLE IF NOT EXISTS confirmed_days (
         date TEXT PRIMARY KEY,
         status TEXT NOT NULL,
@@ -46,6 +54,62 @@ class CalendarStorage {
         notes TEXT
       );`
     );
+    await db.execAsync(
+      `CREATE TABLE IF NOT EXISTS schema_version (
+        version INTEGER PRIMARY KEY,
+        applied_at TEXT NOT NULL
+      );`
+    );
+  }
+
+  private async getSchemaVersion(): Promise<number> {
+    const db = this.getDb();
+    const result = await db.getFirstAsync<{ version: number }>(
+      'SELECT version FROM schema_version ORDER BY version DESC LIMIT 1'
+    );
+    return result?.version ?? 0;
+  }
+
+  private async setSchemaVersion(version: number) {
+    const db = this.getDb();
+    await db.runAsync(
+      'INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (?, ?)',
+      version,
+      new Date().toISOString()
+    );
+  }
+
+  private async runMigrations() {
+    const db = this.getDb();
+    const currentVersion = await this.getSchemaVersion();
+
+    // Migration 1: Add break_minutes columns
+    if (currentVersion < 1) {
+      console.log('[CalendarStorage] Running migration 1: Adding break_minutes columns');
+      try {
+        // Check if column exists in shift_templates
+        const templateCols = await db.getAllAsync<{ name: string }>(
+          "PRAGMA table_info(shift_templates)"
+        );
+        if (!templateCols.some(col => col.name === 'break_minutes')) {
+          await db.execAsync('ALTER TABLE shift_templates ADD COLUMN break_minutes INTEGER DEFAULT 0');
+        }
+
+        // Check if column exists in tracking_records
+        const trackingCols = await db.getAllAsync<{ name: string }>(
+          "PRAGMA table_info(tracking_records)"
+        );
+        if (!trackingCols.some(col => col.name === 'break_minutes')) {
+          await db.execAsync('ALTER TABLE tracking_records ADD COLUMN break_minutes INTEGER DEFAULT 0');
+        }
+
+        await this.setSchemaVersion(1);
+        console.log('[CalendarStorage] Migration 1 complete');
+      } catch (error) {
+        console.error('[CalendarStorage] Migration 1 failed:', error);
+        throw error;
+      }
+    }
   }
 
   private getDb() {
@@ -66,6 +130,7 @@ class CalendarStorage {
         startTime: row.start_time,
         duration: row.duration,
         color: row.color,
+        breakMinutes: row.break_minutes ?? 0,
       };
     });
     return templates;
@@ -100,6 +165,7 @@ class CalendarStorage {
         date: row.date,
         startTime: row.start_time,
         duration: row.duration,
+        breakMinutes: row.break_minutes ?? 0,
       };
     });
     return records;
@@ -124,12 +190,13 @@ class CalendarStorage {
     await db.runAsync('DELETE FROM shift_templates');
     for (const template of templates) {
       await db.runAsync(
-        `INSERT INTO shift_templates (id, name, start_time, duration, color) VALUES (?, ?, ?, ?, ?)`,
+        `INSERT INTO shift_templates (id, name, start_time, duration, color, break_minutes) VALUES (?, ?, ?, ?, ?, ?)`,
         template.id,
         template.name,
         template.startTime,
         template.duration,
         template.color,
+        template.breakMinutes ?? 0,
       );
     }
   }
@@ -158,13 +225,23 @@ class CalendarStorage {
     await db.runAsync('DELETE FROM tracking_records');
     for (const record of records) {
       await db.runAsync(
-        `INSERT INTO tracking_records (id, date, start_time, duration) VALUES (?, ?, ?, ?)`,
+        `INSERT INTO tracking_records (id, date, start_time, duration, break_minutes) VALUES (?, ?, ?, ?, ?)`,
         record.id,
         record.date,
         record.startTime,
         record.duration,
+        record.breakMinutes ?? 0,
       );
     }
+  }
+
+  async updateTrackingBreak(id: string, breakMinutes: number): Promise<void> {
+    const db = this.getDb();
+    await db.runAsync(
+      'UPDATE tracking_records SET break_minutes = ? WHERE id = ?',
+      breakMinutes,
+      id
+    );
   }
 
   async replaceConfirmedDays(days: Record<string, ConfirmedDayStatus>) {

@@ -42,7 +42,7 @@ export type RootStackParamList = {
 
 export type MainTabParamList = {
   Status: undefined;
-  Calendar: undefined;
+  Calendar: { targetDate?: string } | undefined;
   Settings: undefined;
 };
 

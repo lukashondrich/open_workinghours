@@ -2,8 +2,8 @@
 
 This file provides context for AI assistants (Claude) working on this project.
 
-**Last Updated:** 2025-12-15
-**Status:** Phase 3 deployed + Monitoring setup + Known verification bug
+**Last Updated:** 2025-12-27
+**Status:** Status Dashboard complete (Build #19) - Real-world testing ongoing
 
 ---
 
@@ -125,7 +125,7 @@ Only when a module/feature is:
 
 ---
 
-## Current State (2025-12-15)
+## Current State (2025-12-27)
 
 ### What Exists & Works
 
@@ -139,7 +139,7 @@ Only when a module/feature is:
 - Dark mode support
 - **Tech:** Next.js 16.0.0, React 19.2.0, TypeScript, Tailwind CSS 4.1.9
 
-✅ **React Native Mobile App** (TestFlight Build #9 - v2.0.0)
+✅ **React Native Mobile App** (TestFlight Build #19)
 
 **Module 1: Geofencing & Tracking** (Complete)
 - Background GPS geofencing with `expo-location`
@@ -162,6 +162,17 @@ Only when a module/feature is:
 - Sign out button in Settings screen
 - **Files:** `mobile-app/src/modules/auth/`, `mobile-app/src/lib/auth/`
 - **Status:** ✅ Fully tested end-to-end (register, login, submit, sign out)
+
+**Status Dashboard** (✅ Complete - Build #19)
+- 14-day rolling hours summary with bar chart visualization
+- Stacked bars: blue (actual), green (overtime), grey (unworked planned)
+- Confirmed (✓) and unconfirmed (?) day indicators
+- Next shift preview with navigation to calendar
+- Collapsed status line (replaces large location cards)
+- 60-second auto-refresh for live tracking data
+- Pulsing animation on today's bar when clocked in
+- **Files:** `mobile-app/src/modules/geofencing/services/DashboardDataService.ts`, `components/HoursSummaryWidget.tsx`, `components/NextShiftWidget.tsx`
+- **Status:** ✅ Tested on simulator
 
 ✅ **Backend (FastAPI - PostgreSQL Dev + Local SQLite)**
 - Email verification (verification codes via email)
@@ -188,6 +199,59 @@ Only when a module/feature is:
 - Use new endpoints: `GET /stats/*`, `POST /work-events`
 
 ## Recent Updates
+
+### ✅ Completed 2025-12-27:
+
+1. **Status Dashboard for Status Screen** (Mobile App Build #19 - Tested & Complete)
+   - **Feature**: New dashboard widgets on Status screen showing work hour overview
+   - **Hours Summary Widget**:
+     - 14-day rolling bar chart (no external chart library - pure React Native Views)
+     - Stacked bars: blue (actual worked), green (overtime), grey (unworked planned)
+     - ✓ (green) for confirmed days, ? (red) for unconfirmed days
+     - Summary row: Plan total, Actual total, Deviation (colored +/- hours)
+     - Pulsing animation on today's bar when actively clocked in
+     - 60-second auto-refresh for live data
+   - **Next Shift Widget**: Shows upcoming planned shift with color, date, time
+   - **Collapsed Status Line**: Compact single-line per location (replaces large cards)
+   - **Navigation**: Tap widgets to navigate to Calendar (with optional targetDate)
+   - **Files**:
+     - Service: `mobile-app/src/modules/geofencing/services/DashboardDataService.ts`
+     - Components: `HoursSummaryWidget.tsx`, `NextShiftWidget.tsx`
+     - Screen: `mobile-app/src/modules/geofencing/screens/StatusScreen.tsx`
+     - Navigation: Added `targetDate` param to `MainTabParamList['Calendar']`
+   - **Documentation**: Updated `blueprint.md` Section 4.4
+
+2. **Break Tracking for Work Sessions** (Mobile App Build #18 - Tested & Complete)
+   - **Feature**: Users can now add breaks to tracked work sessions
+   - **UI Design**: Compact vertical panel appears to the right of selected session
+     - Quick-add buttons: +5, +15, +30, +45, +60 minutes (cumulative)
+     - Total break display with clear button
+     - Smart positioning: Auto-shifts up to stay within day bounds
+     - No scrolling needed: All content visible at once
+   - **Database Changes**:
+     - Added `break_minutes` column to `shift_templates` table
+     - Added `break_minutes` column to `tracking_records` table
+     - Migration system (v1) for existing databases
+   - **Business Logic**:
+     - Breaks are cumulative (tap multiple times to add)
+     - Warning alert when break exceeds session duration
+     - Net time = gross duration - breaks
+     - Submission logic sends net time to backend
+     - Overnight sessions: Break attributed to session's start day
+   - **Template Support**: Shift templates can define default break duration (0/5/15/30/45/60)
+   - **Files**:
+     - Types: `mobile-app/src/lib/calendar/types.ts`
+     - Database: `mobile-app/src/modules/calendar/services/CalendarStorage.ts`
+     - Reducer: `mobile-app/src/lib/calendar/calendar-reducer.ts`
+     - UI: `mobile-app/src/modules/calendar/components/WeekView.tsx`, `TemplatePanel.tsx`
+     - Logic: `mobile-app/src/modules/calendar/services/DailyAggregator.ts`
+   - **Documentation**: Updated `blueprint.md` Section 3.3 (Database Schema)
+
+2. **Grabber Positioning Fix** (Mobile App Build #16-18)
+   - **Bug**: Grabbers disappeared at top/bottom of day when sessions were very early/late
+   - **Solution**: Clamped grabber positions to stay ~15min from day edges
+   - **Implementation**: Dynamic calculation similar to break panel positioning
+   - **Files**: `mobile-app/src/modules/calendar/components/WeekView.tsx`
 
 ### ✅ Completed 2025-12-25:
 
@@ -772,7 +836,7 @@ Previous: add privacy_architecture.md
 
 ---
 
-**Last Updated:** 2025-12-25
-**Status:** All 4 phases complete - Date validation added and production-verified
-**Current Focus:** Real-world testing and user feedback
+**Last Updated:** 2025-12-27
+**Status:** Status Dashboard complete (Build #19) - Real-world testing ongoing
+**Current Focus:** User feedback and additional feature requests
 **Production URL:** https://api.openworkinghours.org

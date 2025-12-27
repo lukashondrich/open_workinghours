@@ -6,6 +6,7 @@ export interface ShiftTemplate {
   duration: number // minutes
   startTime: string // HH:mm
   color: ShiftColor
+  breakMinutes?: number // minutes - default 0
 }
 
 export interface ShiftInstance {
@@ -25,6 +26,7 @@ export interface TrackingRecord {
   startTime: string
   duration: number
   isActive?: boolean
+  breakMinutes?: number // minutes - default 0
 }
 
 export type ConfirmedDayStatus = {
@@ -79,6 +81,7 @@ export type CalendarAction =
   | { type: "UPDATE_TRACKING_RECORDS"; trackingRecords: Record<string, TrackingRecord> }
   | { type: "UPDATE_TRACKING_START"; id: string; startTime: string }
   | { type: "UPDATE_TRACKING_END"; id: string; endTime: string }
+  | { type: "UPDATE_TRACKING_BREAK"; id: string; breakMinutes: number }
   | { type: "CONFIRM_DAY"; date: string; confirmedAt?: string }
   | { type: "START_EDIT_TRACKING"; id: string }
   | { type: "CANCEL_EDIT_TRACKING" }

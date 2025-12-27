@@ -235,6 +235,20 @@ export function calendarReducer(state: CalendarState, action: CalendarAction): C
         },
       };
     }
+    case 'UPDATE_TRACKING_BREAK': {
+      const record = state.trackingRecords[action.id];
+      if (!record) return state;
+      return {
+        ...state,
+        trackingRecords: {
+          ...state.trackingRecords,
+          [action.id]: {
+            ...record,
+            breakMinutes: action.breakMinutes,
+          },
+        },
+      };
+    }
     case 'CONFIRM_DAY': {
       const confirmedAt = action.confirmedAt ?? new Date().toISOString();
       const updatedStatus: Record<string, ConfirmedDayStatus> = {

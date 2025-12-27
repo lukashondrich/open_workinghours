@@ -1,25 +1,36 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  FlatList,
+  ScrollView,
   Alert,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Location from 'expo-location';
 
 import { getDatabase } from '@/modules/geofencing/services/Database';
-import { getGeofenceService } from '@/modules/geofencing/services/GeofenceService';
 import { TrackingManager } from '@/modules/geofencing/services/TrackingManager';
+import {
+  loadDashboardData,
+  DashboardData,
+} from '@/modules/geofencing/services/DashboardDataService';
 import PermissionWarningBanner from '@/modules/geofencing/components/PermissionWarningBanner';
+import HoursSummaryWidget from '@/modules/geofencing/components/HoursSummaryWidget';
+import NextShiftWidget from '@/modules/geofencing/components/NextShiftWidget';
 import type { UserLocation } from '@/modules/geofencing/types';
-import type { RootStackParamList } from '@/navigation/AppNavigator';
+import type { RootStackParamList, MainTabParamList } from '@/navigation/AppNavigator';
+import type { CompositeNavigationProp } from '@react-navigation/native';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 
-type StatusScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
+type StatusScreenNavigationProp = CompositeNavigationProp<
+  BottomTabNavigationProp<MainTabParamList, 'Status'>,
+  NativeStackNavigationProp<RootStackParamList>
+>;
 
 interface LocationStatus {
   location: UserLocation;
@@ -28,55 +39,79 @@ interface LocationStatus {
   elapsedMinutes?: number;
 }
 
+function CollapsedStatusLine({
+  status,
+  onCheckIn,
+  onCheckOut,
+}: {
+  status: LocationStatus;
+  onCheckIn: () => void;
+  onCheckOut: () => void;
+}) {
+  const { location, isCheckedIn, elapsedMinutes } = status;
+
+  const formatElapsed = (minutes: number): string => {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    if (hours > 0) {
+      return `${hours}h ${mins}m`;
+    }
+    return `${mins}m`;
+  };
+
+  return (
+    <View style={styles.statusLineCard}>
+      <View style={styles.statusLineContent}>
+        <View
+          style={[
+            styles.statusDot,
+            isCheckedIn ? styles.statusDotActive : styles.statusDotInactive,
+          ]}
+        />
+        <Text style={styles.locationName} numberOfLines={1}>
+          {location.name}
+        </Text>
+        <Text style={styles.statusText}>
+          {isCheckedIn
+            ? `Checked in${elapsedMinutes !== undefined ? ` · ${formatElapsed(elapsedMinutes)}` : ''}`
+            : 'Not checked in'}
+        </Text>
+      </View>
+      <TouchableOpacity
+        style={[
+          styles.statusButton,
+          isCheckedIn ? styles.checkOutButton : styles.checkInButton,
+        ]}
+        onPress={isCheckedIn ? onCheckOut : onCheckIn}
+      >
+        <Text style={styles.statusButtonText}>
+          {isCheckedIn ? 'Out' : 'In'}
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 export default function StatusScreen() {
   const navigation = useNavigation<StatusScreenNavigationProp>();
 
   const [locationStatuses, setLocationStatuses] = useState<LocationStatus[]>([]);
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [hasBackgroundPermission, setHasBackgroundPermission] = useState(true);
 
-  // Refresh status when screen comes into focus
-  useFocusEffect(
-    React.useCallback(() => {
-      loadLocationStatuses();
-      checkBackgroundPermission();
-    }, [])
-  );
-
-  const checkBackgroundPermission = async () => {
-    try {
-      const { status } = await Location.getBackgroundPermissionsAsync();
-      setHasBackgroundPermission(status === 'granted');
-    } catch (error) {
-      console.error('[StatusScreen] Failed to check background permission:', error);
-    }
-  };
-
-  // Update elapsed time every minute
-  useEffect(() => {
-    const interval = setInterval(() => {
-      updateElapsedTimes();
-    }, 60000); // Update every minute
-
-    return () => clearInterval(interval);
-  }, [locationStatuses]);
-
-  const loadLocationStatuses = async () => {
+  const loadAllData = useCallback(async () => {
     try {
       const db = await getDatabase();
       const locations = await db.getActiveLocations();
 
+      // Load location statuses
       const statuses: LocationStatus[] = [];
-
       for (const location of locations) {
-        // Get active session for this location
         const activeSession = await db.getActiveSession(location.id);
 
-        console.log('[StatusScreen] Location:', location.name, 'Active session:', activeSession);
-
         if (activeSession && !activeSession.clockOut) {
-          // Checked in (clockOut is null or undefined)
           const checkInDate = new Date(activeSession.clockIn);
           const now = new Date();
           const elapsedMs = now.getTime() - checkInDate.getTime();
@@ -89,64 +124,86 @@ export default function StatusScreen() {
             elapsedMinutes,
           });
         } else {
-          // Checked out
           statuses.push({
             location,
             isCheckedIn: false,
           });
         }
       }
-
       setLocationStatuses(statuses);
+
+      // Load dashboard data
+      const dashboard = await loadDashboardData();
+      setDashboardData(dashboard);
+
       setLoading(false);
       setRefreshing(false);
     } catch (error) {
-      console.error('[StatusScreen] Failed to load location statuses:', error);
-      Alert.alert('Error', 'Failed to load location statuses');
+      console.error('[StatusScreen] Failed to load data:', error);
+      Alert.alert('Error', 'Failed to load status data');
       setLoading(false);
       setRefreshing(false);
     }
+  }, []);
+
+  const checkBackgroundPermission = async () => {
+    try {
+      const { status } = await Location.getBackgroundPermissionsAsync();
+      setHasBackgroundPermission(status === 'granted');
+    } catch (error) {
+      console.error('[StatusScreen] Failed to check background permission:', error);
+    }
   };
 
-  const updateElapsedTimes = () => {
-    setLocationStatuses((prevStatuses) =>
-      prevStatuses.map((status) => {
-        if (status.isCheckedIn && status.clockInTime) {
-          const checkInDate = new Date(status.clockInTime);
-          const now = new Date();
-          const elapsedMs = now.getTime() - checkInDate.getTime();
-          const elapsedMinutes = Math.floor(elapsedMs / 60000);
+  // Refresh on screen focus
+  useFocusEffect(
+    useCallback(() => {
+      loadAllData();
+      checkBackgroundPermission();
+    }, [loadAllData])
+  );
 
-          return {
-            ...status,
-            elapsedMinutes,
-          };
-        }
-        return status;
-      })
-    );
-  };
+  // Update every 60 seconds for live data
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadAllData();
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, [loadAllData]);
+
+  // Update elapsed times every minute (for checked-in status)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setLocationStatuses((prevStatuses) =>
+        prevStatuses.map((status) => {
+          if (status.isCheckedIn && status.clockInTime) {
+            const checkInDate = new Date(status.clockInTime);
+            const now = new Date();
+            const elapsedMs = now.getTime() - checkInDate.getTime();
+            const elapsedMinutes = Math.floor(elapsedMs / 60000);
+            return { ...status, elapsedMinutes };
+          }
+          return status;
+        })
+      );
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   const handleManualCheckIn = async (locationId: string) => {
     try {
       const db = await getDatabase();
       const trackingManager = new TrackingManager(db);
-
       await trackingManager.clockIn(locationId);
-
       Alert.alert('Success', 'Manually checked in');
-      await loadLocationStatuses();
+      await loadAllData();
     } catch (error) {
-      console.error('[StatusScreen] Failed to manually check in:', error);
-
-      // If already checked in, refresh the status to show correct state
+      console.error('[StatusScreen] Failed to check in:', error);
       if (error instanceof Error && error.message.includes('Already clocked in')) {
-        Alert.alert(
-          'Already Checked In',
-          'You are already checked in at this location. Refreshing status...',
-          [{ text: 'OK', onPress: () => loadLocationStatuses() }]
-        );
-        await loadLocationStatuses();
+        Alert.alert('Already Checked In', 'You are already checked in at this location.');
+        await loadAllData();
       } else {
         Alert.alert('Error', error instanceof Error ? error.message : 'Failed to check in');
       }
@@ -157,77 +214,31 @@ export default function StatusScreen() {
     try {
       const db = await getDatabase();
       const trackingManager = new TrackingManager(db);
-
       await trackingManager.clockOut(locationId);
-
       Alert.alert('Success', 'Manually checked out');
-      await loadLocationStatuses();
+      await loadAllData();
     } catch (error) {
-      console.error('[StatusScreen] Failed to manually check out:', error);
-
-      // If not checked in, refresh the status to show correct state
+      console.error('[StatusScreen] Failed to check out:', error);
       if (error instanceof Error && error.message.includes('No active session')) {
-        Alert.alert(
-          'Not Checked In',
-          'You are not currently checked in at this location. Refreshing status...',
-          [{ text: 'OK', onPress: () => loadLocationStatuses() }]
-        );
-        await loadLocationStatuses();
+        Alert.alert('Not Checked In', 'You are not currently checked in at this location.');
+        await loadAllData();
       } else {
         Alert.alert('Error', error instanceof Error ? error.message : 'Failed to check out');
       }
     }
   };
 
-  const formatElapsedTime = (minutes: number): string => {
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    return `${hours}h ${mins}m`;
+  const handleNavigateToCalendar = () => {
+    navigation.navigate('Calendar', {});
   };
 
-  const renderLocationStatus = ({ item }: { item: LocationStatus }) => {
-    const { location, isCheckedIn, elapsedMinutes } = item;
+  const handleNavigateToCalendarWithDate = (date: string) => {
+    navigation.navigate('Calendar', { targetDate: date });
+  };
 
-    return (
-      <View style={styles.locationCard}>
-        <View style={styles.locationHeader}>
-          <Text style={styles.locationIcon}>📍</Text>
-          <Text style={styles.locationName}>{location.name}</Text>
-        </View>
-
-        <View style={styles.statusRow}>
-          <View
-            style={[
-              styles.statusIndicator,
-              isCheckedIn ? styles.statusIndicatorActive : styles.statusIndicatorInactive,
-            ]}
-          />
-          <Text style={styles.statusText}>
-            {isCheckedIn ? 'Checked In' : 'Checked Out'}
-          </Text>
-        </View>
-
-        {isCheckedIn && elapsedMinutes !== undefined && (
-          <Text style={styles.elapsedTime}>⏱️ {formatElapsedTime(elapsedMinutes)}</Text>
-        )}
-
-        <TouchableOpacity
-          style={[
-            styles.manualButton,
-            isCheckedIn ? styles.manualButtonCheckOut : styles.manualButtonCheckIn,
-          ]}
-          onPress={() =>
-            isCheckedIn
-              ? handleManualCheckOut(location.id)
-              : handleManualCheckIn(location.id)
-          }
-        >
-          <Text style={styles.manualButtonText}>
-            {isCheckedIn ? 'Check Out Now' : 'Check In Now'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-    );
+  const handleRefresh = () => {
+    setRefreshing(true);
+    loadAllData();
   };
 
   if (loading) {
@@ -255,26 +266,56 @@ export default function StatusScreen() {
       {/* Permission Warning Banner */}
       <PermissionWarningBanner visible={!hasBackgroundPermission} />
 
-      {/* Location Status List */}
-      <FlatList
-        data={locationStatuses}
-        keyExtractor={(item) => item.location.id}
-        renderItem={renderLocationStatus}
-        contentContainerStyle={styles.listContent}
-        refreshing={refreshing}
-        onRefresh={() => {
-          setRefreshing(true);
-          loadLocationStatuses();
-        }}
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
+      {/* Scrollable Content */}
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+        }
+      >
+        {/* Collapsed Status Lines */}
+        {locationStatuses.length > 0 ? (
+          <View style={styles.statusSection}>
+            {locationStatuses.map((status) => (
+              <CollapsedStatusLine
+                key={status.location.id}
+                status={status}
+                onCheckIn={() => handleManualCheckIn(status.location.id)}
+                onCheckOut={() => handleManualCheckOut(status.location.id)}
+              />
+            ))}
+          </View>
+        ) : (
+          <View style={styles.emptyLocationState}>
             <Text style={styles.emptyText}>No locations saved yet</Text>
             <Text style={styles.emptySubtext}>
               Go to Settings → Work Locations to add your first location
             </Text>
           </View>
-        }
-      />
+        )}
+
+        {/* Hours Summary Widget */}
+        {dashboardData && (
+          <HoursSummaryWidget
+            data={dashboardData.hoursSummary}
+            isLive={dashboardData.isLive}
+            onPress={handleNavigateToCalendar}
+          />
+        )}
+
+        {/* Next Shift Widget */}
+        {dashboardData && (
+          <NextShiftWidget
+            nextShift={dashboardData.nextShift}
+            onPress={() =>
+              dashboardData.nextShift
+                ? handleNavigateToCalendarWithDate(dashboardData.nextShift.date)
+                : handleNavigateToCalendar()
+            }
+          />
+        )}
+      </ScrollView>
     </View>
   );
 }
@@ -317,93 +358,92 @@ const styles = StyleSheet.create({
   settingsIcon: {
     fontSize: 24,
   },
-  listContent: {
-    padding: 20,
-  },
-  locationCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  locationHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  locationIcon: {
-    fontSize: 24,
-    marginRight: 12,
-  },
-  locationName: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#000',
+  scrollView: {
     flex: 1,
   },
-  statusRow: {
+  scrollContent: {
+    paddingVertical: 16,
+  },
+  statusSection: {
+    marginBottom: 8,
+  },
+  statusLineCard: {
+    backgroundColor: '#fff',
+    marginHorizontal: 20,
+    marginBottom: 8,
+    borderRadius: 12,
+    padding: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  statusIndicator: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: 8,
-  },
-  statusIndicatorActive: {
-    backgroundColor: '#4CAF50', // Green
-  },
-  statusIndicatorInactive: {
-    backgroundColor: '#9E9E9E', // Grey
-  },
-  statusText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#333',
-  },
-  elapsedTime: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 12,
-  },
-  manualButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
+  statusLineContent: {
+    flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
   },
-  manualButtonCheckIn: {
+  statusDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: 10,
+  },
+  statusDotActive: {
     backgroundColor: '#4CAF50',
   },
-  manualButtonCheckOut: {
+  statusDotInactive: {
+    backgroundColor: '#9E9E9E',
+  },
+  locationName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111',
+    flex: 1,
+  },
+  statusText: {
+    fontSize: 12,
+    color: '#666',
+    marginLeft: 8,
+  },
+  statusButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 6,
+    marginLeft: 8,
+  },
+  checkInButton: {
+    backgroundColor: '#4CAF50',
+  },
+  checkOutButton: {
     backgroundColor: '#FF5722',
   },
-  manualButtonText: {
+  statusButtonText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: '600',
   },
-  emptyState: {
+  emptyLocationState: {
     alignItems: 'center',
-    paddingVertical: 60,
+    paddingVertical: 32,
+    paddingHorizontal: 40,
+    marginHorizontal: 20,
+    marginBottom: 12,
+    backgroundColor: '#fff',
+    borderRadius: 12,
   },
   emptyText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
     color: '#666',
     marginBottom: 8,
   },
   emptySubtext: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#999',
     textAlign: 'center',
-    paddingHorizontal: 40,
   },
 });

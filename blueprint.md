@@ -211,6 +211,7 @@ CREATE TABLE shift_templates (
   start_time TEXT NOT NULL,          -- HH:mm format
   duration_minutes INTEGER NOT NULL,
   color TEXT NOT NULL,               -- "blue", "green", "amber", etc.
+  break_minutes INTEGER DEFAULT 0,   -- Break duration (added v1 migration)
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -229,6 +230,7 @@ CREATE TABLE shift_instances (
 );
 
 -- Tracked times (geofence or manual)
+-- Note: Calendar module uses tracking_records table in calendar.db
 CREATE TABLE tracked_times (
   id TEXT PRIMARY KEY,
   instance_id TEXT,
@@ -236,6 +238,7 @@ CREATE TABLE tracked_times (
   clock_in DATETIME NOT NULL,
   clock_out DATETIME,
   duration_minutes INTEGER,
+  break_minutes INTEGER DEFAULT 0,   -- Break duration (added v1 migration)
   location_id TEXT NOT NULL,
   tracking_method TEXT NOT NULL,     -- "geofence_auto" | "manual_entry"
   is_reviewed BOOLEAN DEFAULT 0,
@@ -357,6 +360,110 @@ weekly_submission_queue  # Submission queue (Module 2)
 - Phase 3: Hard cutover deployment (breaking change)
 
 **Blocked On:** Backend implementation (Phase 1 not started)
+
+---
+
+### 4.3 Calendar & Break Tracking ✅ Complete
+
+**Purpose:** Shift planning and break management for accurate working hour reporting.
+
+**Status:** Implemented and tested (Build #18).
+
+**Features:**
+
+1. **Shift Templates** (Build #9)
+   - Reusable shift patterns with name, start time, duration, color
+   - Drag-and-drop to create instances on calendar
+   - Break duration field (0/5/15/30/45/60 minutes)
+   - Stored in `shift_templates` table
+
+2. **Tracking Records** (Build #13)
+   - Manual and geofence-based time tracking
+   - Review mode: Compare planned vs tracked time
+   - Edit session start/end times with grabbers
+   - Delete sessions via long-press
+   - Stored in `tracking_records` table (calendar.db)
+
+3. **Break Tracking** (Build #18) ✅ NEW
+   - **UI**: Compact vertical panel appears right of selected session
+   - **Input**: Quick-add buttons (+5, +15, +30, +45, +60 min)
+   - **Logic**: Cumulative breaks (tap multiple times)
+   - **Validation**: Warning when break exceeds session duration
+   - **Display**: Net time = gross duration - breaks
+   - **Submission**: Daily totals subtract breaks before sending to backend
+   - **Templates**: Default break duration configurable per template
+   - **Database**: `break_minutes` column in both tables (v1 migration)
+
+4. **Smart UI Positioning**
+   - Grabbers clamped to stay within day bounds (~15min from edges)
+   - Break panel auto-shifts up to avoid bottom overflow
+   - All controls stay touchable and visible
+
+**Files:**
+- Components: `mobile-app/src/modules/calendar/components/WeekView.tsx`, `TemplatePanel.tsx`
+- Database: `mobile-app/src/modules/calendar/services/CalendarStorage.ts`
+- Logic: `mobile-app/src/modules/calendar/services/DailyAggregator.ts`
+- State: `mobile-app/src/lib/calendar/calendar-reducer.ts`
+
+**Database Migration:**
+- Migration v1: Added `break_minutes INTEGER DEFAULT 0` to `shift_templates` and `tracking_records`
+- Backward compatible: Existing records default to 0 breaks
+
+---
+
+### 4.4 Status Dashboard ✅ Complete
+
+**Purpose:** Overview of working hours on the Status screen with 14-day rolling summary and next shift preview.
+
+**Status:** Implemented and tested (Build #19).
+
+**Features:**
+
+1. **Collapsed Status Line**
+   - Compact single-line display per location
+   - Shows: location name, check-in status, elapsed time
+   - Green dot (checked in) or grey dot (not checked in)
+   - Quick In/Out buttons for manual clock-in/out
+
+2. **Hours Summary Widget**
+   - Rolling 14-day bar chart visualization
+   - Stacked bars showing actual vs planned hours:
+     - Blue (bottom): Actual hours worked
+     - Green (top): Overtime (actual > planned)
+     - Grey (top): Unworked planned hours (actual < planned)
+   - Status indicators below each bar:
+     - ✓ (green): Confirmed day
+     - ? (red): Unconfirmed day
+   - Summary row: Plan total, Actual total, Deviation (+/- hours)
+   - Pulsing animation on today's bar when actively clocked in
+   - 60-second auto-refresh for live data
+   - Tap to navigate to Calendar
+
+3. **Next Shift Widget**
+   - Shows upcoming planned shift from calendar
+   - Displays: day name, date, time range, shift name, color dot
+   - Empty state: "No shifts planned" with prompt to open calendar
+   - Tap to navigate to Calendar at that date
+
+**Files:**
+- Service: `mobile-app/src/modules/geofencing/services/DashboardDataService.ts`
+- Components: `mobile-app/src/modules/geofencing/components/HoursSummaryWidget.tsx`, `NextShiftWidget.tsx`
+- Screen: `mobile-app/src/modules/geofencing/screens/StatusScreen.tsx`
+
+**Data Flow:**
+```
+DashboardDataService.loadDashboardData()
+  ├── CalendarStorage.loadInstances()     → Planned shifts (14 days)
+  ├── CalendarStorage.loadConfirmedDays() → Confirmation status
+  ├── Database.getSessionsBetween()       → Tracking sessions
+  └── Database.getActiveSession()         → Live clock-in status
+
+Returns: { hoursSummary, nextShift, isLive }
+```
+
+**Navigation:**
+- Tapping Hours Summary Widget → Calendar tab
+- Tapping Next Shift Widget → Calendar tab with targetDate param (scrolls to that week)
 
 ---
 
