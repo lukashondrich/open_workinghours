@@ -1,4 +1,4 @@
-export type ShiftColor = "blue" | "green" | "amber" | "rose" | "purple" | "cyan"
+export type ShiftColor = "teal" | "blue" | "green" | "amber" | "rose" | "purple" | "cyan"
 
 export interface ShiftTemplate {
   id: string

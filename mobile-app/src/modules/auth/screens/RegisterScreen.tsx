@@ -7,15 +7,14 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
-  TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
 } from 'react-native';
+import { colors, spacing, fontSize, fontWeight } from '@/theme';
+import { Button, Input, InfoBox } from '@/components/ui';
 import { useAuth } from '@/lib/auth/auth-context';
 import { AuthService } from '../services/AuthService';
 
@@ -98,10 +97,9 @@ export default function RegisterScreen({ email, onLoginPress }: RegisterScreenPr
 
           <Text style={styles.emailLabel}>Email: {email}</Text>
 
-          <Text style={styles.label}>Hospital ID</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="e.g., Charité-Berlin, UKE-Hamburg"
+          <Input
+            label="Hospital ID"
+            placeholder="e.g., Charite-Berlin, UKE-Hamburg"
             value={hospitalId}
             onChangeText={setHospitalId}
             autoCapitalize="none"
@@ -110,9 +108,8 @@ export default function RegisterScreen({ email, onLoginPress }: RegisterScreenPr
             testID="hospital-input"
           />
 
-          <Text style={styles.label}>Specialty</Text>
-          <TextInput
-            style={styles.input}
+          <Input
+            label="Specialty"
             placeholder="e.g., Internal Medicine, Surgery, Pediatrics"
             value={specialty}
             onChangeText={setSpecialty}
@@ -121,9 +118,8 @@ export default function RegisterScreen({ email, onLoginPress }: RegisterScreenPr
             testID="specialty-input"
           />
 
-          <Text style={styles.label}>Role Level</Text>
-          <TextInput
-            style={styles.input}
+          <Input
+            label="Role Level"
             placeholder="e.g., Resident, Attending, Fellow"
             value={roleLevel}
             onChangeText={setRoleLevel}
@@ -132,9 +128,8 @@ export default function RegisterScreen({ email, onLoginPress }: RegisterScreenPr
             testID="role-input"
           />
 
-          <Text style={styles.label}>State Code (Optional)</Text>
-          <TextInput
-            style={styles.input}
+          <Input
+            label="State Code (Optional)"
             placeholder="e.g., BW, BY, BE (leave blank if unknown)"
             value={stateCode}
             onChangeText={setStateCode}
@@ -144,30 +139,32 @@ export default function RegisterScreen({ email, onLoginPress }: RegisterScreenPr
             testID="state-input"
           />
 
-          <TouchableOpacity
-            style={[styles.button, loading && styles.buttonDisabled]}
+          <Button
             onPress={handleRegister}
+            loading={loading}
             disabled={loading}
+            fullWidth
             testID="register-button"
+            style={styles.registerButton}
           >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.buttonText}>Create Account</Text>
-            )}
-          </TouchableOpacity>
+            Create Account
+          </Button>
 
           <View style={styles.footer}>
             <Text style={styles.footerText}>Already have an account?</Text>
-            <TouchableOpacity onPress={onLoginPress} disabled={loading}>
-              <Text style={styles.linkText}>Log in</Text>
-            </TouchableOpacity>
+            <Button
+              variant="ghost"
+              onPress={onLoginPress}
+              disabled={loading}
+            >
+              Log in
+            </Button>
           </View>
 
-          <Text style={styles.privacyHint}>
+          <InfoBox variant="info" style={styles.privacyInfo}>
             By creating an account, you agree to our privacy policy. Your work hours will be
             aggregated with other users (k-anonymity ≥10) before being published.
-          </Text>
+          </InfoBox>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -177,7 +174,7 @@ export default function RegisterScreen({ email, onLoginPress }: RegisterScreenPr
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: colors.background.default,
   },
   scrollContent: {
     flexGrow: 1,
@@ -185,78 +182,40 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     justifyContent: 'center',
-    paddingHorizontal: 32,
-    paddingVertical: 24,
+    paddingHorizontal: spacing.xxxl,
+    paddingVertical: spacing.xxl,
   },
   title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#111',
-    marginBottom: 8,
+    fontSize: fontSize.xxl,
+    fontWeight: fontWeight.bold,
+    color: colors.text.primary,
+    marginBottom: spacing.sm,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#5F6D7E',
-    marginBottom: 24,
+    fontSize: fontSize.md,
+    color: colors.text.secondary,
+    marginBottom: spacing.xxl,
   },
   emailLabel: {
-    fontSize: 14,
-    color: '#8E8E93',
-    marginBottom: 24,
+    fontSize: fontSize.sm,
+    color: colors.text.tertiary,
+    marginBottom: spacing.xxl,
   },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#111',
-    marginBottom: 8,
-    marginTop: 12,
-  },
-  input: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#E5E5EA',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
-    color: '#111',
-  },
-  button: {
-    backgroundColor: '#007AFF',
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 24,
-  },
-  buttonDisabled: {
-    backgroundColor: '#A7C8FF',
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+  registerButton: {
+    marginTop: spacing.md,
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 24,
-    gap: 8,
+    marginTop: spacing.xxl,
+    gap: spacing.sm,
   },
   footerText: {
-    fontSize: 14,
-    color: '#5F6D7E',
+    fontSize: fontSize.sm,
+    color: colors.text.secondary,
   },
-  linkText: {
-    color: '#007AFF',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  privacyHint: {
-    fontSize: 12,
-    color: '#8E8E93',
-    textAlign: 'center',
-    marginTop: 24,
-    lineHeight: 18,
+  privacyInfo: {
+    marginTop: spacing.xxl,
   },
 });

@@ -7,6 +7,9 @@ import {
   ScrollView,
 } from 'react-native';
 
+import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
+import { Card } from '@/components/ui';
+
 export default function NotificationsScreen() {
   const [checkInNotifications, setCheckInNotifications] = useState(true);
   const [checkOutNotifications, setCheckOutNotifications] = useState(true);
@@ -14,25 +17,25 @@ export default function NotificationsScreen() {
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.settingRow}>
+        <Card style={styles.settingCard}>
           <Text style={styles.settingLabel}>Check-in notifications</Text>
           <Switch
             value={checkInNotifications}
             onValueChange={setCheckInNotifications}
-            trackColor={{ false: '#D0D0D0', true: '#4CAF50' }}
-            thumbColor="#fff"
+            trackColor={{ false: colors.grey[300], true: colors.primary[500] }}
+            thumbColor={colors.white}
           />
-        </View>
+        </Card>
 
-        <View style={styles.settingRow}>
+        <Card style={styles.settingCard}>
           <Text style={styles.settingLabel}>Check-out notifications</Text>
           <Switch
             value={checkOutNotifications}
             onValueChange={setCheckOutNotifications}
-            trackColor={{ false: '#D0D0D0', true: '#4CAF50' }}
-            thumbColor="#fff"
+            trackColor={{ false: colors.grey[300], true: colors.primary[500] }}
+            thumbColor={colors.white}
           />
-        </View>
+        </Card>
 
         <Text style={styles.hint}>
           Receive notifications when you automatically check in or out of your work locations
@@ -45,35 +48,27 @@ export default function NotificationsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: colors.background.default,
   },
   scrollContent: {
-    padding: 20,
+    padding: spacing.xl,
   },
-  settingRow: {
+  settingCard: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    marginBottom: spacing.md,
   },
   settingLabel: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#000',
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.medium,
+    color: colors.text.primary,
     flex: 1,
   },
   hint: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 16,
+    fontSize: fontSize.sm,
+    color: colors.text.secondary,
+    marginTop: spacing.lg,
     lineHeight: 20,
   },
 });

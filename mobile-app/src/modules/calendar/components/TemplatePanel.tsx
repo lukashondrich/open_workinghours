@@ -9,11 +9,15 @@ import {
   ScrollView,
   TouchableWithoutFeedback,
 } from 'react-native';
+import { Plus } from 'lucide-react-native';
+
+import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/theme';
 import { useCalendar } from '@/lib/calendar/calendar-context';
 import type { ShiftColor, ShiftTemplate } from '@/lib/calendar/types';
 import { getColorPalette } from '@/lib/calendar/calendar-utils';
 
-const COLORS: ShiftColor[] = ['blue', 'green', 'amber', 'rose', 'purple', 'cyan'];
+// Include teal as the first/default color option
+const COLORS: ShiftColor[] = ['teal', 'blue', 'green', 'amber', 'rose', 'purple'];
 
 export default function TemplatePanel() {
   const { state, dispatch } = useCalendar();
@@ -37,7 +41,7 @@ export default function TemplatePanel() {
       name: 'New Shift',
       startTime: '08:00',
       duration: 8 * 60,
-      color: 'blue',
+      color: 'teal', // Default to brand color
       breakMinutes: 0,
     };
     dispatch({ type: 'ADD_TEMPLATE', template: newTemplate });
@@ -87,13 +91,14 @@ export default function TemplatePanel() {
           <View style={styles.header}>
             <Text style={styles.headerTitle}>Shift Templates</Text>
             <TouchableOpacity style={styles.addButton} onPress={handleCreate} testID="template-add">
-              <Text style={styles.addButtonText}>+ New</Text>
+              <Plus size={16} color={colors.white} />
+              <Text style={styles.addButtonText}>New</Text>
             </TouchableOpacity>
           </View>
 
           <ScrollView style={styles.content}>
             {templates.length === 0 && (
-              <Text style={styles.emptyText}>No templates yet. Tap “New” to create one.</Text>
+              <Text style={styles.emptyText}>No templates yet. Tap "New" to create one.</Text>
             )}
 
             {templates.map((template, index) => {
@@ -110,6 +115,7 @@ export default function TemplatePanel() {
                         value={formData.name || ''}
                         onChangeText={(value) => setFormData({ ...formData, name: value })}
                         placeholder="Name"
+                        placeholderTextColor={colors.text.tertiary}
                       />
                       <View style={styles.row}>
                         <View style={styles.flexItem}>
@@ -119,6 +125,7 @@ export default function TemplatePanel() {
                             value={formData.startTime || ''}
                             onChangeText={(value) => setFormData({ ...formData, startTime: value })}
                             placeholder="08:00"
+                            placeholderTextColor={colors.text.tertiary}
                           />
                         </View>
                         <View style={[styles.flexItem, styles.durationGroup]}>
@@ -130,6 +137,7 @@ export default function TemplatePanel() {
                               value={String(durationHours)}
                               onChangeText={(value) => setDurationHours(Number(value) || 0)}
                               placeholder="h"
+                              placeholderTextColor={colors.text.tertiary}
                             />
                             <TextInput
                               style={[styles.input, styles.durationInput]}
@@ -139,6 +147,7 @@ export default function TemplatePanel() {
                                 setDurationMinutes(Math.min(55, Number(value) || 0))
                               }
                               placeholder="m"
+                              placeholderTextColor={colors.text.tertiary}
                             />
                           </View>
                         </View>
@@ -230,120 +239,128 @@ const styles = StyleSheet.create({
   },
   panel: {
     maxHeight: '80%',
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    paddingBottom: 24,
+    backgroundColor: colors.background.paper,
+    borderTopLeftRadius: borderRadius.xl,
+    borderTopRightRadius: borderRadius.xl,
+    paddingBottom: spacing.xxl,
   },
   header: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 12,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA',
+    borderBottomColor: colors.border.default,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111',
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.semibold,
+    color: colors.text.primary,
   },
   addButton: {
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
+    backgroundColor: colors.primary[500],
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
   },
   addButtonText: {
-    color: '#fff',
-    fontWeight: '500',
+    color: colors.white,
+    fontWeight: fontWeight.medium,
   },
   content: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.md,
   },
   emptyText: {
     textAlign: 'center',
-    color: '#8E8E93',
-    marginTop: 20,
+    color: colors.text.tertiary,
+    marginTop: spacing.xl,
   },
   card: {
     borderWidth: 1,
-    borderColor: '#E5E5EA',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 12,
+    borderColor: colors.border.default,
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+    marginBottom: spacing.md,
   },
   cardArmed: {
-    borderColor: '#007AFF',
+    borderColor: colors.primary[500],
+    borderWidth: 2,
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   templateLabel: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: spacing.md,
   },
   templateName: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semibold,
+    color: colors.text.primary,
   },
   metaText: {
-    color: '#8E8E93',
-    fontSize: 12,
+    color: colors.text.tertiary,
+    fontSize: fontSize.xs,
   },
   editText: {
-    color: '#007AFF',
-    fontWeight: '500',
+    color: colors.primary[500],
+    fontWeight: fontWeight.medium,
   },
   primaryButton: {
-    backgroundColor: '#007AFF',
-    paddingVertical: 10,
-    borderRadius: 8,
+    backgroundColor: colors.primary[500],
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.md,
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
   primaryButtonActive: {
-    backgroundColor: '#34C759',
+    backgroundColor: colors.primary[600],
   },
   primaryButtonText: {
-    color: '#fff',
-    fontWeight: '600',
+    color: colors.white,
+    fontWeight: fontWeight.semibold,
   },
   secondaryButton: {
-    marginTop: 8,
-    paddingVertical: 10,
-    borderRadius: 8,
+    marginTop: spacing.sm,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.md,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E5E5EA',
+    borderColor: colors.border.default,
+    flex: 1,
   },
   secondaryButtonText: {
-    color: '#111',
-    fontWeight: '500',
+    color: colors.text.primary,
+    fontWeight: fontWeight.medium,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#E5E5EA',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    marginBottom: 8,
+    borderColor: colors.border.default,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    marginBottom: spacing.sm,
+    fontSize: fontSize.md,
+    color: colors.text.primary,
   },
   label: {
-    fontSize: 12,
-    color: '#8E8E93',
-    marginBottom: 4,
+    fontSize: fontSize.xs,
+    color: colors.text.tertiary,
+    marginBottom: spacing.xs,
   },
   row: {
     flexDirection: 'row',
-    gap: 12,
+    gap: spacing.md,
   },
   flexItem: {
     flex: 1,
@@ -353,51 +370,51 @@ const styles = StyleSheet.create({
   },
   durationInputs: {
     flexDirection: 'row',
-    gap: 8,
+    gap: spacing.sm,
   },
   durationInput: {
     flex: 1,
   },
   colorRow: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 12,
+    gap: spacing.md,
+    marginBottom: spacing.md,
   },
   colorDot: {
     width: 28,
     height: 28,
     borderRadius: 14,
     borderWidth: 2,
-    borderColor: 'transparent',
+    borderColor: colors.transparent,
   },
   colorDotSelected: {
-    borderColor: '#111',
+    borderColor: colors.text.primary,
   },
   breakRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 12,
+    gap: spacing.sm,
+    marginBottom: spacing.md,
   },
   breakButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    backgroundColor: '#F5F5F5',
-    borderRadius: 8,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    backgroundColor: colors.grey[100],
+    borderRadius: borderRadius.md,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: colors.border.default,
   },
   breakButtonSelected: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
+    backgroundColor: colors.primary[500],
+    borderColor: colors.primary[500],
   },
   breakButtonText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#333',
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    color: colors.text.primary,
   },
   breakButtonTextSelected: {
-    color: '#fff',
+    color: colors.white,
   },
   colorPreview: {
     width: 12,
@@ -406,6 +423,6 @@ const styles = StyleSheet.create({
   },
   editActions: {
     flexDirection: 'row',
-    gap: 12,
+    gap: spacing.md,
   },
 });

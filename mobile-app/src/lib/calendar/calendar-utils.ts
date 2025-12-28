@@ -23,6 +23,13 @@ export function generateTimeSlots(): string[] {
 }
 
 const COLOR_MAP = {
+  // Primary brand color (hospital teal/green)
+  teal: {
+    bg: '#E6F5F1',
+    border: '#96D6C8',
+    text: '#134532',
+    dot: '#2E8B6B',
+  },
   blue: {
     bg: '#E3F2FD',
     border: '#90CAF9',
@@ -38,7 +45,7 @@ const COLOR_MAP = {
   amber: {
     bg: '#FFF8E1',
     border: '#FFE082',
-    text: '#FF6F00',
+    text: '#E65100',
     dot: '#FF8F00',
   },
   rose: {
@@ -53,6 +60,7 @@ const COLOR_MAP = {
     text: '#4A148C',
     dot: '#8E24AA',
   },
+  // Keep cyan for backwards compatibility, but prefer teal
   cyan: {
     bg: '#E0F7FA',
     border: '#80DEEA',
@@ -62,6 +70,13 @@ const COLOR_MAP = {
 } as const;
 
 const CLASS_MAP = {
+  // Primary brand color (hospital teal/green)
+  teal: {
+    bg: 'bg-teal-100 dark:bg-teal-950',
+    border: 'border-teal-400 dark:border-teal-600',
+    text: 'text-teal-900 dark:text-teal-100',
+    dot: 'bg-teal-500',
+  },
   blue: {
     bg: 'bg-blue-100 dark:bg-blue-950',
     border: 'border-blue-400 dark:border-blue-600',

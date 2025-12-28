@@ -3,12 +3,15 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   ScrollView,
   Linking,
   Alert,
 } from 'react-native';
 import * as Location from 'expo-location';
+import { CheckCircle2, XCircle, HelpCircle } from 'lucide-react-native';
+
+import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
+import { Button, Card, InfoBox } from '@/components/ui';
 
 interface PermissionStatus {
   foreground: 'granted' | 'denied' | 'unknown';
@@ -74,30 +77,40 @@ export default function PermissionsScreen() {
   };
 
   const renderPermissionStatus = (label: string, status: 'granted' | 'denied' | 'unknown') => {
+    const getStatusIcon = () => {
+      switch (status) {
+        case 'granted':
+          return <CheckCircle2 size={24} color={colors.primary[500]} />;
+        case 'denied':
+          return <XCircle size={24} color={colors.error.main} />;
+        default:
+          return <HelpCircle size={24} color={colors.text.tertiary} />;
+      }
+    };
+
+    const getStatusText = () => {
+      switch (status) {
+        case 'granted':
+          return { text: 'Granted', color: colors.primary[500] };
+        case 'denied':
+          return { text: 'Denied', color: colors.error.main };
+        default:
+          return { text: 'Unknown', color: colors.text.tertiary };
+      }
+    };
+
+    const statusInfo = getStatusText();
+
     return (
-      <View style={styles.permissionRow}>
+      <Card style={styles.permissionCard}>
         <Text style={styles.permissionLabel}>{label}</Text>
         <View style={styles.statusContainer}>
-          {status === 'granted' && (
-            <>
-              <Text style={styles.statusIconGranted}>✅</Text>
-              <Text style={styles.statusTextGranted}>Granted</Text>
-            </>
-          )}
-          {status === 'denied' && (
-            <>
-              <Text style={styles.statusIconDenied}>❌</Text>
-              <Text style={styles.statusTextDenied}>Denied</Text>
-            </>
-          )}
-          {status === 'unknown' && (
-            <>
-              <Text style={styles.statusIconUnknown}>❓</Text>
-              <Text style={styles.statusTextUnknown}>Unknown</Text>
-            </>
-          )}
+          {getStatusIcon()}
+          <Text style={[styles.statusText, { color: statusInfo.color }]}>
+            {statusInfo.text}
+          </Text>
         </View>
-      </View>
+      </Card>
     );
   };
 
@@ -109,31 +122,22 @@ export default function PermissionsScreen() {
 
         {permissions.background === 'denied' && (
           <View style={styles.requestButtonContainer}>
-            <TouchableOpacity
-              style={styles.requestButton}
-              onPress={handleRequestPermission}
-            >
-              <Text style={styles.requestButtonText}>Request Permission</Text>
-            </TouchableOpacity>
+            <Button onPress={handleRequestPermission} fullWidth>
+              Request Permission
+            </Button>
 
-            <TouchableOpacity
-              style={styles.settingsButton}
-              onPress={handleOpenSettings}
-            >
-              <Text style={styles.settingsButtonText}>Open Settings</Text>
-            </TouchableOpacity>
+            <Button variant="outline" onPress={handleOpenSettings} fullWidth>
+              Open Settings
+            </Button>
           </View>
         )}
 
-        <View style={styles.infoBox}>
-          <Text style={styles.infoIcon}>ℹ️</Text>
-          <Text style={styles.infoText}>
-            Background location is required for automatic tracking. Without it, you can only use
-            manual check-in/out.
-            {'\n\n'}
-            To enable: Settings → [App] → Location → Always Allow
-          </Text>
-        </View>
+        <InfoBox variant="info" style={styles.infoBox}>
+          Background location is required for automatic tracking. Without it, you can only use
+          manual check-in/out.
+          {'\n\n'}
+          To enable: Settings → [App] → Location → Always Allow
+        </InfoBox>
       </ScrollView>
     </View>
   );
@@ -142,102 +146,34 @@ export default function PermissionsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: colors.background.default,
   },
   scrollContent: {
-    padding: 20,
+    padding: spacing.xl,
   },
-  permissionRow: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+  permissionCard: {
+    marginBottom: spacing.md,
   },
   permissionLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#000',
-    marginBottom: 8,
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semibold,
+    color: colors.text.primary,
+    marginBottom: spacing.sm,
   },
   statusContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: spacing.sm,
   },
-  statusIconGranted: {
-    fontSize: 20,
-    marginRight: 8,
-  },
-  statusTextGranted: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#4CAF50',
-  },
-  statusIconDenied: {
-    fontSize: 20,
-    marginRight: 8,
-  },
-  statusTextDenied: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#F44336',
-  },
-  statusIconUnknown: {
-    fontSize: 20,
-    marginRight: 8,
-  },
-  statusTextUnknown: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#999',
+  statusText: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.medium,
   },
   requestButtonContainer: {
-    marginTop: 20,
-  },
-  requestButton: {
-    backgroundColor: '#007AFF',
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  requestButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  settingsButton: {
-    backgroundColor: '#fff',
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#007AFF',
-  },
-  settingsButtonText: {
-    color: '#007AFF',
-    fontSize: 16,
-    fontWeight: '600',
+    marginTop: spacing.xl,
+    gap: spacing.md,
   },
   infoBox: {
-    flexDirection: 'row',
-    backgroundColor: '#E3F2FD',
-    borderRadius: 12,
-    padding: 16,
-    marginTop: 20,
-  },
-  infoIcon: {
-    fontSize: 20,
-    marginRight: 12,
-  },
-  infoText: {
-    flex: 1,
-    fontSize: 14,
-    color: '#1976D2',
-    lineHeight: 20,
+    marginTop: spacing.xl,
   },
 });

@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  TextInput,
-  TouchableOpacity,
   StyleSheet,
   Alert,
   ActivityIndicator,
@@ -11,11 +9,15 @@ import {
 import MapView, { Circle, Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import * as Crypto from 'expo-crypto';
+import { Minus, Plus } from 'lucide-react-native';
+
+import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
+import { Button, Input } from '@/components/ui';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import { getDatabase } from '@/modules/geofencing/services/Database';
 import { getGeofenceService } from '@/modules/geofencing/services/GeofenceService';
 import MapControls from '@/modules/geofencing/components/MapControls';
-import * as Crypto from 'expo-crypto';
 import type { UserLocation } from '@/modules/geofencing/types';
 
 type SetupScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Setup'>;
@@ -23,6 +25,10 @@ type SetupScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, '
 interface Props {
   navigation: SetupScreenNavigationProp;
 }
+
+// Map circle colors using primary theme color
+const MAP_CIRCLE_STROKE = 'rgba(46, 139, 107, 0.6)';
+const MAP_CIRCLE_FILL = 'rgba(46, 139, 107, 0.2)';
 
 export default function SetupScreen({ navigation }: Props) {
   const mapRef = React.useRef<MapView>(null);
@@ -233,7 +239,7 @@ export default function SetupScreen({ navigation }: Props) {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
+        <ActivityIndicator size="large" color={colors.primary[500]} />
         <Text style={styles.loadingText}>Getting your location...</Text>
         <Text style={styles.loadingHint}>This may take a few seconds</Text>
       </View>
@@ -260,8 +266,8 @@ export default function SetupScreen({ navigation }: Props) {
           <Circle
             center={region}
             radius={radius}
-            strokeColor="rgba(0, 122, 255, 0.5)"
-            fillColor="rgba(0, 122, 255, 0.2)"
+            strokeColor={MAP_CIRCLE_STROKE}
+            fillColor={MAP_CIRCLE_FILL}
             strokeWidth={2}
           />
         </MapView>
@@ -275,39 +281,43 @@ export default function SetupScreen({ navigation }: Props) {
       />
 
       <View style={styles.controls} testID="setup-controls">
-        <Text style={styles.label}>Location Name</Text>
-        <TextInput
-          style={styles.input}
+        <Input
+          label="Location Name"
           placeholder="e.g., UCSF Medical Center"
           value={name}
           onChangeText={setName}
           autoCapitalize="words"
           testID="input-location-name"
+          containerStyle={styles.inputContainer}
         />
 
         <Text style={styles.label}>Geofence Radius: {radius}m</Text>
         <View style={styles.radiusControls}>
-          <TouchableOpacity
-            style={styles.radiusButton}
+          <Button
+            variant="secondary"
             onPress={decreaseRadius}
             disabled={radius <= 100}
+            icon={<Minus size={20} color={colors.text.primary} />}
+            style={styles.radiusButton}
             testID="radius-decrease"
           >
-            <Text style={styles.radiusButtonText}>−</Text>
-          </TouchableOpacity>
+            {''}
+          </Button>
 
           <View style={styles.radiusDisplay}>
             <Text style={styles.radiusText}>{radius}m</Text>
           </View>
 
-          <TouchableOpacity
-            style={styles.radiusButton}
+          <Button
+            variant="secondary"
             onPress={increaseRadius}
             disabled={radius >= 1000}
+            icon={<Plus size={20} color={colors.text.primary} />}
+            style={styles.radiusButton}
             testID="radius-increase"
           >
-            <Text style={styles.radiusButtonText}>+</Text>
-          </TouchableOpacity>
+            {''}
+          </Button>
         </View>
 
         <Text style={styles.hint}>
@@ -315,19 +325,15 @@ export default function SetupScreen({ navigation }: Props) {
           the automatic tracking zone.
         </Text>
 
-        <TouchableOpacity
-          style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+        <Button
           onPress={handleSave}
+          loading={saving}
           disabled={saving || !name.trim()}
+          fullWidth
           testID="save-location-button"
-          accessibilityLabel="Save location"
         >
-          {saving ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.saveButtonText}>Save Location</Text>
-          )}
-        </TouchableOpacity>
+          Save Location
+        </Button>
       </View>
     </View>
   );
@@ -344,91 +350,61 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: colors.background.paper,
   },
   loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#666',
+    marginTop: spacing.lg,
+    fontSize: fontSize.md,
+    color: colors.text.secondary,
   },
   loadingHint: {
-    marginTop: 8,
-    fontSize: 14,
-    color: '#999',
+    marginTop: spacing.sm,
+    fontSize: fontSize.sm,
+    color: colors.text.tertiary,
   },
   map: {
     flex: 1,
   },
   controls: {
-    backgroundColor: '#fff',
-    padding: 20,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
+    backgroundColor: colors.background.paper,
+    padding: spacing.xl,
+    borderTopLeftRadius: borderRadius.xl,
+    borderTopRightRadius: borderRadius.xl,
+    ...shadows.lg,
+  },
+  inputContainer: {
+    marginBottom: spacing.md,
   },
   label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    marginBottom: 20,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    color: colors.text.primary,
+    marginBottom: spacing.sm,
   },
   radiusControls: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   radiusButton: {
     width: 50,
     height: 50,
-    borderRadius: 25,
-    backgroundColor: '#007AFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  radiusButtonText: {
-    color: '#fff',
-    fontSize: 24,
-    fontWeight: 'bold',
+    borderRadius: borderRadius.full,
+    paddingHorizontal: 0,
   },
   radiusDisplay: {
-    marginHorizontal: 30,
+    marginHorizontal: spacing.xxxl,
   },
   radiusText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.bold,
+    color: colors.text.primary,
   },
   hint: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 20,
+    fontSize: fontSize.xs,
+    color: colors.text.secondary,
+    marginBottom: spacing.xl,
     lineHeight: 18,
-  },
-  saveButton: {
-    backgroundColor: '#007AFF',
-    padding: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  saveButtonDisabled: {
-    backgroundColor: '#ccc',
-  },
-  saveButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
   },
 });

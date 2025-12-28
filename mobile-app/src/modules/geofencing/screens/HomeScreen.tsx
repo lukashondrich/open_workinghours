@@ -15,7 +15,9 @@ import RBSheet from 'react-native-raw-bottom-sheet';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Location from 'expo-location';
+import { MapPin, Plus } from 'lucide-react-native';
 
+import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
 import { getDatabase } from '@/modules/geofencing/services/Database';
 import { getGeofenceService } from '@/modules/geofencing/services/GeofenceService';
 import MapControls from '@/modules/geofencing/components/MapControls';
@@ -26,6 +28,10 @@ type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const MAX_LOCATIONS = 5;
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+// Map circle colors using primary theme color
+const MAP_CIRCLE_STROKE = 'rgba(46, 139, 107, 0.6)'; // primary[500] with alpha
+const MAP_CIRCLE_FILL = 'rgba(46, 139, 107, 0.2)';
 
 export default function HomeScreen() {
   const navigation = useNavigation<HomeScreenNavigationProp>();
@@ -247,7 +253,7 @@ export default function HomeScreen() {
         onLongPress={() => handleLocationLongPress(item)}
         delayLongPress={500}
       >
-        <Text style={styles.locationIcon}>📍</Text>
+        <MapPin size={24} color={isSelected ? colors.primary[500] : colors.text.secondary} />
         <Text style={styles.locationName}>{item.name}</Text>
       </TouchableOpacity>
     );
@@ -280,8 +286,8 @@ export default function HomeScreen() {
                 longitude: selectedLocation.longitude,
               }}
               radius={selectedLocation.radiusMeters}
-              strokeColor="rgba(0, 122, 255, 0.5)"
-              fillColor="rgba(0, 122, 255, 0.2)"
+              strokeColor={MAP_CIRCLE_STROKE}
+              fillColor={MAP_CIRCLE_FILL}
               strokeWidth={2}
             />
           </>
@@ -306,21 +312,24 @@ export default function HomeScreen() {
             backgroundColor: 'rgba(0,0,0,0.3)',
           },
           draggableIcon: {
-            backgroundColor: '#000',
+            backgroundColor: colors.grey[400],
             width: 50,
           },
           container: {
-            borderTopLeftRadius: 20,
-            borderTopRightRadius: 20,
+            borderTopLeftRadius: borderRadius.xl,
+            borderTopRightRadius: borderRadius.xl,
           },
         }}
       >
         <View style={styles.bottomSheetContent}>
           {/* Header */}
           <View style={styles.bottomSheetHeader}>
-            <Text style={styles.bottomSheetTitle}>
-              📍 My Locations ({locations.length}/{MAX_LOCATIONS})
-            </Text>
+            <View style={styles.headerRow}>
+              <MapPin size={20} color={colors.primary[500]} />
+              <Text style={styles.bottomSheetTitle}>
+                My Locations ({locations.length}/{MAX_LOCATIONS})
+              </Text>
+            </View>
           </View>
 
           {/* Location List */}
@@ -349,7 +358,8 @@ export default function HomeScreen() {
             onPress={handleAddLocation}
             disabled={locations.length >= MAX_LOCATIONS}
           >
-            <Text style={styles.addButtonText}>+ Add New Location</Text>
+            <Plus size={20} color={colors.white} />
+            <Text style={styles.addButtonText}>Add New Location</Text>
           </TouchableOpacity>
         </View>
       </RBSheet>
@@ -366,74 +376,79 @@ const styles = StyleSheet.create({
   },
   bottomSheetContent: {
     flex: 1,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.xl,
   },
   bottomSheetHeader: {
-    paddingVertical: 15,
+    paddingVertical: spacing.lg,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: colors.border.default,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
   },
   bottomSheetTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#000',
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.bold,
+    color: colors.text.primary,
   },
   locationList: {
-    paddingVertical: 15,
+    paddingVertical: spacing.lg,
   },
   locationCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#F5F5F5',
-    borderRadius: 12,
-    marginBottom: 10,
+    padding: spacing.lg,
+    backgroundColor: colors.grey[100],
+    borderRadius: borderRadius.lg,
+    marginBottom: spacing.md,
     borderWidth: 2,
-    borderColor: 'transparent',
+    borderColor: colors.transparent,
+    gap: spacing.md,
   },
   locationCardSelected: {
-    borderColor: '#007AFF',
-    backgroundColor: '#E3F2FD',
-  },
-  locationIcon: {
-    fontSize: 24,
-    marginRight: 12,
+    borderColor: colors.primary[500],
+    backgroundColor: colors.primary[50],
   },
   locationName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#000',
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semibold,
+    color: colors.text.primary,
     flex: 1,
   },
   addButton: {
-    backgroundColor: '#007AFF',
-    paddingVertical: 16,
-    borderRadius: 12,
+    backgroundColor: colors.primary[500],
+    paddingVertical: spacing.lg,
+    borderRadius: borderRadius.lg,
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: spacing.md,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: spacing.sm,
   },
   addButtonDisabled: {
-    backgroundColor: '#CCCCCC',
+    backgroundColor: colors.grey[400],
   },
   addButtonText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: 'bold',
+    color: colors.white,
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
   },
   emptyState: {
     alignItems: 'center',
     paddingVertical: 40,
   },
   emptyText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#666',
-    marginBottom: 8,
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semibold,
+    color: colors.text.secondary,
+    marginBottom: spacing.sm,
   },
   emptySubtext: {
-    fontSize: 14,
-    color: '#999',
+    fontSize: fontSize.sm,
+    color: colors.text.tertiary,
     textAlign: 'center',
   },
 });

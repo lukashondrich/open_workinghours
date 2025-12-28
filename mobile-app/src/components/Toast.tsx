@@ -1,5 +1,6 @@
 import React from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
+import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
 
 type ToastProps = {
   visible: boolean;
@@ -42,23 +43,21 @@ export function Toast({ visible, message, testID }: ToastProps) {
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    bottom: 32,
+    bottom: spacing.xxxl,
     left: 0,
     right: 0,
     alignItems: 'center',
   },
   toast: {
-    backgroundColor: '#111',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
+    backgroundColor: colors.grey[900],
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.lg,
+    ...shadows.lg,
   },
   text: {
-    color: '#fff',
-    fontWeight: '600',
+    color: colors.white,
+    fontWeight: fontWeight.semibold,
+    fontSize: fontSize.sm,
   },
 });

@@ -14,7 +14,9 @@ import MapView, { Circle, Marker, Region } from 'react-native-maps';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Location from 'expo-location';
+import { MapPin, Plus, ChevronUp, ChevronDown } from 'lucide-react-native';
 
+import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
 import { getDatabase } from '@/modules/geofencing/services/Database';
 import { getGeofenceService } from '@/modules/geofencing/services/GeofenceService';
 import MapControls from '@/modules/geofencing/components/MapControls';
@@ -27,6 +29,10 @@ const MAX_LOCATIONS = 5;
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const COLLAPSED_PANEL_HEIGHT = 88;
 const EXPANDED_PANEL_HEIGHT = Math.min(SCREEN_HEIGHT * 0.5, 360);
+
+// Map circle colors using primary theme color
+const MAP_CIRCLE_STROKE = 'rgba(46, 139, 107, 0.6)';
+const MAP_CIRCLE_FILL = 'rgba(46, 139, 107, 0.2)';
 
 export default function LocationsListScreen() {
   const navigation = useNavigation<LocationsListScreenNavigationProp>();
@@ -243,7 +249,7 @@ export default function LocationsListScreen() {
         onLongPress={() => handleLocationLongPress(item)}
         delayLongPress={500}
       >
-        <Text style={styles.locationIcon}>📍</Text>
+        <MapPin size={24} color={isSelected ? colors.primary[500] : colors.text.secondary} />
         <View style={styles.locationInfo}>
           <Text style={styles.locationName}>{item.name}</Text>
           <Text style={styles.locationRadius}>{item.radiusMeters}m radius</Text>
@@ -281,8 +287,8 @@ export default function LocationsListScreen() {
                 longitude: location.longitude,
               }}
               radius={location.radiusMeters}
-              strokeColor="rgba(0, 122, 255, 0.5)"
-              fillColor="rgba(0, 122, 255, 0.2)"
+              strokeColor={MAP_CIRCLE_STROKE}
+              fillColor={MAP_CIRCLE_FILL}
               strokeWidth={2}
             />
           </React.Fragment>
@@ -307,7 +313,11 @@ export default function LocationsListScreen() {
           <Text style={styles.panelTitle}>
             Locations ({locations.length}/{MAX_LOCATIONS})
           </Text>
-          <Text style={styles.panelToggle}>{isPanelExpanded ? '▾' : '▴'}</Text>
+          {isPanelExpanded ? (
+            <ChevronDown size={20} color={colors.text.secondary} />
+          ) : (
+            <ChevronUp size={20} color={colors.text.secondary} />
+          )}
         </TouchableOpacity>
 
         {isPanelExpanded ? (
@@ -337,7 +347,8 @@ export default function LocationsListScreen() {
               onPress={handleAddLocation}
               disabled={locations.length >= MAX_LOCATIONS}
             >
-              <Text style={styles.addButtonText}>+ Add New Location</Text>
+              <Plus size={20} color={colors.white} />
+              <Text style={styles.addButtonText}>Add New Location</Text>
             </TouchableOpacity>
           </>
         ) : (
@@ -360,106 +371,99 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
-    paddingHorizontal: 20,
-    paddingBottom: 16,
+    backgroundColor: colors.background.paper,
+    borderTopLeftRadius: borderRadius.xl,
+    borderTopRightRadius: borderRadius.xl,
+    ...shadows.lg,
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.lg,
   },
   panelHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 14,
+    paddingVertical: spacing.lg,
   },
   panelHeaderExpanded: {
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: colors.border.default,
   },
   panelTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#000',
-  },
-  panelToggle: {
-    fontSize: 18,
-    color: '#666',
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.bold,
+    color: colors.text.primary,
   },
   panelHint: {
     textAlign: 'center',
-    paddingVertical: 16,
-    color: '#777',
+    paddingVertical: spacing.lg,
+    color: colors.text.tertiary,
+    fontSize: fontSize.sm,
   },
   panelList: {
     flex: 1,
   },
   locationList: {
-    paddingVertical: 15,
+    paddingVertical: spacing.lg,
   },
   locationCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#F5F5F5',
-    borderRadius: 12,
-    marginBottom: 10,
+    padding: spacing.lg,
+    backgroundColor: colors.grey[100],
+    borderRadius: borderRadius.lg,
+    marginBottom: spacing.md,
     borderWidth: 2,
-    borderColor: 'transparent',
+    borderColor: colors.transparent,
+    gap: spacing.md,
   },
   locationCardSelected: {
-    borderColor: '#007AFF',
-    backgroundColor: '#E3F2FD',
-  },
-  locationIcon: {
-    fontSize: 24,
-    marginRight: 12,
+    borderColor: colors.primary[500],
+    backgroundColor: colors.primary[50],
   },
   locationInfo: {
     flex: 1,
   },
   locationName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#000',
-    marginBottom: 4,
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semibold,
+    color: colors.text.primary,
+    marginBottom: spacing.xs,
   },
   locationRadius: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: fontSize.sm,
+    color: colors.text.secondary,
   },
   addButton: {
-    backgroundColor: '#007AFF',
-    paddingVertical: 16,
-    borderRadius: 12,
+    backgroundColor: colors.primary[500],
+    paddingVertical: spacing.lg,
+    borderRadius: borderRadius.lg,
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: spacing.md,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: spacing.sm,
   },
   addButtonDisabled: {
-    backgroundColor: '#CCCCCC',
+    backgroundColor: colors.grey[400],
   },
   addButtonText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: 'bold',
+    color: colors.white,
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
   },
   emptyState: {
     alignItems: 'center',
     paddingVertical: 40,
   },
   emptyText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#666',
-    marginBottom: 8,
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semibold,
+    color: colors.text.secondary,
+    marginBottom: spacing.sm,
   },
   emptySubtext: {
-    fontSize: 14,
-    color: '#999',
+    fontSize: fontSize.sm,
+    color: colors.text.tertiary,
     textAlign: 'center',
   },
 });

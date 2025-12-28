@@ -7,15 +7,14 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
-  TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
 } from 'react-native';
+import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/theme';
+import { Button, Input } from '@/components/ui';
 import { AuthService } from '../services/AuthService';
 
 interface EmailVerificationScreenProps {
@@ -92,9 +91,8 @@ export default function EmailVerificationScreen({
 
           {!codeSent ? (
             <>
-              <Text style={styles.label}>Email Address</Text>
-              <TextInput
-                style={styles.input}
+              <Input
+                label="Email Address"
                 placeholder="your.email@example.com"
                 value={email}
                 onChangeText={setEmail}
@@ -105,18 +103,15 @@ export default function EmailVerificationScreen({
                 testID="email-input"
               />
 
-              <TouchableOpacity
-                style={[styles.button, loading && styles.buttonDisabled]}
+              <Button
                 onPress={handleSendCode}
+                loading={loading}
                 disabled={loading}
+                fullWidth
                 testID="send-code-button"
               >
-                {loading ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text style={styles.buttonText}>Send Verification Code</Text>
-                )}
-              </TouchableOpacity>
+                Send Verification Code
+              </Button>
 
               <Text style={styles.hint}>
                 You'll receive a 6-digit verification code via email
@@ -124,13 +119,10 @@ export default function EmailVerificationScreen({
             </>
           ) : (
             <>
-              <Text style={styles.label}>Verification Code</Text>
-              <Text style={styles.hint}>
-                Code sent to {email}
-              </Text>
+              <Text style={styles.hint}>Code sent to {email}</Text>
 
-              <TextInput
-                style={styles.input}
+              <Input
+                label="Verification Code"
                 placeholder="Enter verification code"
                 value={code}
                 onChangeText={setCode}
@@ -140,39 +132,38 @@ export default function EmailVerificationScreen({
                 testID="code-input"
               />
 
-              <TouchableOpacity
-                style={[styles.button, loading && styles.buttonDisabled]}
+              <Button
                 onPress={handleVerifyCode}
+                loading={loading}
                 disabled={loading}
+                fullWidth
                 testID="verify-code-button"
               >
-                {loading ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text style={styles.buttonText}>Verify Code</Text>
-                )}
-              </TouchableOpacity>
+                Verify Code
+              </Button>
 
-              <TouchableOpacity
-                style={styles.linkButton}
-                onPress={() => {
-                  setCodeSent(false);
-                  setCode('');
-                }}
-                disabled={loading}
-                testID="change-email-button"
-              >
-                <Text style={styles.linkText}>Change email address</Text>
-              </TouchableOpacity>
+              <View style={styles.linkContainer}>
+                <Button
+                  variant="ghost"
+                  onPress={() => {
+                    setCodeSent(false);
+                    setCode('');
+                  }}
+                  disabled={loading}
+                  testID="change-email-button"
+                >
+                  Change email address
+                </Button>
 
-              <TouchableOpacity
-                style={styles.linkButton}
-                onPress={handleSendCode}
-                disabled={loading}
-                testID="resend-code-button"
-              >
-                <Text style={styles.linkText}>Resend code</Text>
-              </TouchableOpacity>
+                <Button
+                  variant="ghost"
+                  onPress={handleSendCode}
+                  disabled={loading}
+                  testID="resend-code-button"
+                >
+                  Resend code
+                </Button>
+              </View>
             </>
           )}
         </View>
@@ -184,7 +175,7 @@ export default function EmailVerificationScreen({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: colors.background.default,
   },
   scrollContent: {
     flexGrow: 1,
@@ -192,68 +183,31 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     justifyContent: 'center',
-    paddingHorizontal: 32,
-    paddingVertical: 48,
+    paddingHorizontal: spacing.xxxl,
+    paddingVertical: spacing.section,
   },
   title: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#111',
-    marginBottom: 8,
+    fontSize: fontSize.xxxl,
+    fontWeight: fontWeight.bold,
+    color: colors.text.primary,
+    marginBottom: spacing.sm,
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: 16,
-    color: '#5F6D7E',
-    marginBottom: 48,
+    fontSize: fontSize.md,
+    color: colors.text.secondary,
+    marginBottom: spacing.section,
     textAlign: 'center',
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#111',
-    marginBottom: 8,
-  },
-  input: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#E5E5EA',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
-    color: '#111',
-    marginBottom: 16,
-  },
-  button: {
-    backgroundColor: '#007AFF',
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  buttonDisabled: {
-    backgroundColor: '#A7C8FF',
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
   },
   hint: {
-    fontSize: 13,
-    color: '#8E8E93',
+    fontSize: fontSize.sm,
+    color: colors.text.tertiary,
     textAlign: 'center',
-    marginTop: 8,
-    marginBottom: 16,
+    marginTop: spacing.sm,
+    marginBottom: spacing.lg,
   },
-  linkButton: {
-    paddingVertical: 8,
+  linkContainer: {
     alignItems: 'center',
-  },
-  linkText: {
-    color: '#007AFF',
-    fontSize: 14,
-    fontWeight: '500',
+    marginTop: spacing.md,
   },
 });

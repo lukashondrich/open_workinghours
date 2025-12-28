@@ -3,11 +3,13 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   ScrollView,
   Alert,
 } from 'react-native';
 import { format, parseISO } from 'date-fns';
+
+import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
+import { Button, Card, InfoBox } from '@/components/ui';
 import { getDatabase } from '@/modules/geofencing/services/Database';
 import { getGeofenceService } from '@/modules/geofencing/services/GeofenceService';
 import type { DailySubmissionRecord } from '@/modules/geofencing/types';
@@ -114,7 +116,10 @@ export default function DataPrivacyScreen() {
     }
     try {
       setIsProcessingQueue(true);
-      await DailySubmissionService.retryFailedSubmissions();
+      // Retry each failed submission
+      for (const entry of failed) {
+        await DailySubmissionService.retrySubmission(entry.id);
+      }
       Alert.alert('Retry queued', 'Failed submissions were re-sent.');
       loadDataSummary();
     } catch (error) {
@@ -133,7 +138,7 @@ export default function DataPrivacyScreen() {
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.summaryCard}>
+        <Card style={styles.summaryCard}>
           <Text style={styles.summaryTitle}>Stored Data</Text>
 
           <View style={styles.summaryRow}>
@@ -145,9 +150,9 @@ export default function DataPrivacyScreen() {
             <Text style={styles.summaryLabel}>Work Sessions:</Text>
             <Text style={styles.summaryValue}>{dataSummary.sessionCount}</Text>
           </View>
-        </View>
+        </Card>
 
-        <View style={styles.summaryCard}>
+        <Card style={styles.summaryCard}>
           <Text style={styles.summaryTitle}>Daily Submissions</Text>
           <Text style={styles.submissionExplainer}>
             When you confirm a day in the calendar, it's automatically submitted to the backend (authenticated).
@@ -188,44 +193,40 @@ export default function DataPrivacyScreen() {
           )}
           {failedCount > 0 && (
             <View style={styles.queueActions}>
-              <TouchableOpacity
-                style={[styles.secondaryButton, isProcessingQueue && styles.secondaryButtonDisabled]}
+              <Button
+                variant="outline"
                 onPress={handleRetryFailed}
+                loading={isProcessingQueue}
                 disabled={isProcessingQueue}
+                fullWidth
               >
-                <Text style={styles.secondaryButtonText}>
-                  {isProcessingQueue ? 'Retrying…' : 'Retry Failed'}
-                </Text>
-              </TouchableOpacity>
+                {isProcessingQueue ? 'Retrying...' : 'Retry Failed'}
+              </Button>
             </View>
           )}
-        </View>
+        </Card>
 
-        <TouchableOpacity
-          style={styles.deleteButton}
+        <Button
+          variant="danger"
           onPress={handleDeleteAllData}
+          fullWidth
+          style={styles.deleteButton}
         >
-          <Text style={styles.deleteButtonText}>Delete All Data</Text>
-        </TouchableOpacity>
+          Delete All Data
+        </Button>
 
-        <View style={styles.warningBox}>
-          <Text style={styles.warningIcon}>⚠️</Text>
-          <Text style={styles.warningText}>
-            Warning: This action cannot be undone. All locations and work history will be
-            permanently deleted.
-          </Text>
-        </View>
+        <InfoBox variant="warning" style={styles.warningBox}>
+          Warning: This action cannot be undone. All locations and work history will be
+          permanently deleted.
+        </InfoBox>
 
-        <View style={styles.infoBox}>
-          <Text style={styles.infoIcon}>ℹ️</Text>
-          <Text style={styles.infoText}>
-            Your GPS location never leaves your phone. All work sessions are stored locally with encryption.
-            {'\n\n'}
-            When you confirm a day, only your hours (planned and actual) are shared. Your data is combined with at least 10 other users and mathematically protected before any statistics are published.
-            {'\n\n'}
-            This keeps your personal data private while enabling collective insights.
-          </Text>
-        </View>
+        <InfoBox variant="info" style={styles.infoBox}>
+          Your GPS location never leaves your phone. All work sessions are stored locally with encryption.
+          {'\n\n'}
+          When you confirm a day, only your hours (planned and actual) are shared. Your data is combined with at least 10 other users and mathematically protected before any statistics are published.
+          {'\n\n'}
+          This keeps your personal data private while enabling collective insights.
+        </InfoBox>
       </ScrollView>
     </View>
   );
@@ -234,152 +235,88 @@ export default function DataPrivacyScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: colors.background.default,
   },
   scrollContent: {
-    padding: 20,
+    padding: spacing.xl,
   },
   summaryCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    marginBottom: spacing.xl,
   },
   summaryTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#000',
-    marginBottom: 16,
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.semibold,
+    color: colors.text.primary,
+    marginBottom: spacing.lg,
   },
   summaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   summaryLabel: {
-    fontSize: 16,
-    color: '#666',
+    fontSize: fontSize.md,
+    color: colors.text.secondary,
   },
   summaryValue: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#000',
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semibold,
+    color: colors.text.primary,
   },
   summaryValueWarning: {
-    color: '#C62828',
+    color: colors.error.main,
   },
   deleteButton: {
-    backgroundColor: '#F44336',
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  deleteButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    marginBottom: spacing.xl,
   },
   warningBox: {
-    flexDirection: 'row',
-    backgroundColor: '#FFEBEE',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
-  },
-  warningIcon: {
-    fontSize: 20,
-    marginRight: 12,
-  },
-  warningText: {
-    flex: 1,
-    fontSize: 14,
-    color: '#C62828',
-    lineHeight: 20,
+    marginBottom: spacing.xl,
   },
   infoBox: {
-    flexDirection: 'row',
-    backgroundColor: '#E3F2FD',
-    borderRadius: 12,
-    padding: 16,
-  },
-  infoIcon: {
-    fontSize: 20,
-    marginRight: 12,
-  },
-  infoText: {
-    flex: 1,
-    fontSize: 14,
-    color: '#1976D2',
-    lineHeight: 20,
+    marginBottom: spacing.xl,
   },
   queueEmptyText: {
-    marginTop: 12,
-    color: '#666',
-    fontSize: 14,
+    marginTop: spacing.md,
+    color: colors.text.secondary,
+    fontSize: fontSize.sm,
   },
   queueRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#EFEFF4',
+    borderBottomColor: colors.grey[200],
   },
   queueWeek: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#111',
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semibold,
+    color: colors.text.primary,
   },
   queueStatus: {
-    fontSize: 13,
-    color: '#666',
+    fontSize: fontSize.sm,
+    color: colors.text.secondary,
   },
   queueHoursContainer: {
     alignItems: 'flex-end',
   },
   queueHours: {
-    fontSize: 13,
-    color: '#444',
+    fontSize: fontSize.sm,
+    color: colors.text.secondary,
     textAlign: 'right',
   },
   submissionExplainer: {
-    fontSize: 13,
-    color: '#666',
-    marginBottom: 12,
+    fontSize: fontSize.sm,
+    color: colors.text.secondary,
+    marginBottom: spacing.md,
     fontStyle: 'italic',
   },
   queueActions: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 12,
+    marginTop: spacing.md,
   },
   queueList: {
     maxHeight: 200,
-    marginTop: 8,
-  },
-  secondaryButton: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#007AFF',
-    borderRadius: 10,
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-  secondaryButtonText: {
-    color: '#007AFF',
-    fontWeight: '600',
-  },
-  secondaryButtonDisabled: {
-    opacity: 0.5,
-  },
-  unlockButton: {
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
 });

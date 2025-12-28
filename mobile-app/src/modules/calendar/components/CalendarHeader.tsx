@@ -1,6 +1,9 @@
 import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { addDays, addWeeks, format, startOfWeek, subWeeks, addMonths, subMonths } from 'date-fns';
+import { ChevronLeft, ChevronRight } from 'lucide-react-native';
+
+import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/theme';
 import { useCalendar } from '@/lib/calendar/calendar-context';
 
 export default function CalendarHeader() {
@@ -72,10 +75,10 @@ export default function CalendarHeader() {
       <View style={styles.bottomRow}>
         <View style={styles.navigation}>
           <TouchableOpacity style={styles.navButton} onPress={handlePrev}>
-            <Text style={styles.navButtonText}>◀</Text>
+            <ChevronLeft size={20} color={colors.text.primary} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.navButton} onPress={handleNext}>
-            <Text style={styles.navButtonText}>▶</Text>
+            <ChevronRight size={20} color={colors.text.primary} />
           </TouchableOpacity>
         </View>
 
@@ -118,51 +121,51 @@ export default function CalendarHeader() {
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: '#fff',
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.lg,
+    backgroundColor: colors.background.paper,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA',
+    borderBottomColor: colors.border.default,
   },
   topRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   label: {
-    fontSize: 12,
+    fontSize: fontSize.xs,
     letterSpacing: 3,
     textTransform: 'uppercase',
-    color: '#8E8E93',
+    color: colors.text.tertiary,
   },
   title: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: '#111',
+    fontSize: fontSize.xxl,
+    fontWeight: fontWeight.semibold,
+    color: colors.text.primary,
   },
   viewToggle: {
     flexDirection: 'row',
     borderWidth: 1,
-    borderColor: '#E5E5EA',
-    borderRadius: 24,
+    borderColor: colors.border.default,
+    borderRadius: borderRadius.xxl,
     overflow: 'hidden',
   },
   segment: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: '#fff',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.background.paper,
   },
   segmentActive: {
-    backgroundColor: '#111',
+    backgroundColor: colors.primary[500],
   },
   segmentText: {
-    fontSize: 14,
-    color: '#8E8E93',
+    fontSize: fontSize.sm,
+    color: colors.text.tertiary,
   },
   segmentTextActive: {
-    color: '#fff',
-    fontWeight: '600',
+    color: colors.white,
+    fontWeight: fontWeight.semibold,
   },
   bottomRow: {
     flexDirection: 'row',
@@ -171,78 +174,74 @@ const styles = StyleSheet.create({
   },
   navigation: {
     flexDirection: 'row',
-    gap: 8,
+    gap: spacing.sm,
   },
   navButton: {
     width: 40,
     height: 40,
-    borderRadius: 8,
+    borderRadius: borderRadius.md,
     borderWidth: 1,
-    borderColor: '#E5E5EA',
+    borderColor: colors.border.default,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  navButtonText: {
-    fontSize: 18,
-    color: '#111',
-  },
   actions: {
     flexDirection: 'row',
-    gap: 12,
+    gap: spacing.md,
   },
   actionButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.md,
     borderWidth: 1,
-    borderColor: '#E5E5EA',
+    borderColor: colors.border.default,
   },
   actionButtonActive: {
-    backgroundColor: '#FFE4E6',
-    borderColor: '#FF5A5F',
+    backgroundColor: colors.error.light,
+    borderColor: colors.error.main,
   },
   actionButtonText: {
-    color: '#111',
-    fontWeight: '500',
+    color: colors.text.primary,
+    fontWeight: fontWeight.medium,
   },
   actionButtonTextActive: {
-    color: '#B71C1C',
+    color: colors.error.dark,
   },
   primaryButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
-    backgroundColor: '#007AFF',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.primary[500],
   },
   primaryButtonText: {
-    color: '#fff',
-    fontWeight: '600',
+    color: colors.white,
+    fontWeight: fontWeight.semibold,
   },
   submissionContainer: {
-    marginTop: 16,
-    padding: 16,
-    borderRadius: 12,
-    backgroundColor: '#F5F7FF',
+    marginTop: spacing.lg,
+    padding: spacing.lg,
+    borderRadius: borderRadius.lg,
+    backgroundColor: colors.primary[50],
   },
   submissionInfo: {
     flex: 1,
   },
   submissionLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#3A4B9F',
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    color: colors.primary[700],
     textTransform: 'uppercase',
   },
   submissionStatus: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111',
-    marginTop: 4,
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semibold,
+    color: colors.text.primary,
+    marginTop: spacing.xs,
   },
   submissionHint: {
-    marginTop: 4,
-    color: '#5F6D7E',
-    fontSize: 12,
+    marginTop: spacing.xs,
+    color: colors.text.secondary,
+    fontSize: fontSize.xs,
     lineHeight: 18,
   },
 });

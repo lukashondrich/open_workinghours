@@ -12,7 +12,9 @@ import {
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Location from 'expo-location';
+import { Settings } from 'lucide-react-native';
 
+import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
 import { getDatabase } from '@/modules/geofencing/services/Database';
 import { TrackingManager } from '@/modules/geofencing/services/TrackingManager';
 import {
@@ -244,7 +246,7 @@ export default function StatusScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
+        <ActivityIndicator size="large" color={colors.primary[500]} />
         <Text style={styles.loadingText}>Loading status...</Text>
       </View>
     );
@@ -259,7 +261,7 @@ export default function StatusScreen() {
           style={styles.settingsButton}
           onPress={() => navigation.navigate('Settings')}
         >
-          <Text style={styles.settingsIcon}>⚙️</Text>
+          <Settings size={24} color={colors.text.primary} />
         </TouchableOpacity>
       </View>
 
@@ -271,7 +273,11 @@ export default function StatusScreen() {
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={colors.primary[500]}
+          />
         }
       >
         {/* Collapsed Status Lines */}
@@ -323,63 +329,56 @@ export default function StatusScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: colors.background.default,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F5F5F5',
+    backgroundColor: colors.background.default,
   },
   loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#666',
+    marginTop: spacing.lg,
+    fontSize: fontSize.md,
+    color: colors.text.secondary,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: spacing.xl,
     paddingTop: 60,
-    paddingBottom: 16,
-    backgroundColor: '#fff',
+    paddingBottom: spacing.lg,
+    backgroundColor: colors.background.paper,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: colors.border.default,
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#000',
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.bold,
+    color: colors.text.primary,
   },
   settingsButton: {
-    padding: 8,
-  },
-  settingsIcon: {
-    fontSize: 24,
+    padding: spacing.sm,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingVertical: 16,
+    paddingVertical: spacing.lg,
   },
   statusSection: {
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   statusLineCard: {
-    backgroundColor: '#fff',
-    marginHorizontal: 20,
-    marginBottom: 8,
-    borderRadius: 12,
-    padding: 12,
+    backgroundColor: colors.background.paper,
+    marginHorizontal: spacing.xl,
+    marginBottom: spacing.sm,
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
-    elevation: 2,
+    ...shadows.sm,
   },
   statusLineContent: {
     flex: 1,
@@ -390,60 +389,60 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    marginRight: 10,
+    marginRight: spacing.sm,
   },
   statusDotActive: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: colors.primary[500],
   },
   statusDotInactive: {
-    backgroundColor: '#9E9E9E',
+    backgroundColor: colors.grey[400],
   },
   locationName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#111',
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    color: colors.text.primary,
     flex: 1,
   },
   statusText: {
-    fontSize: 12,
-    color: '#666',
-    marginLeft: 8,
+    fontSize: fontSize.xs,
+    color: colors.text.secondary,
+    marginLeft: spacing.sm,
   },
   statusButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    borderRadius: 6,
-    marginLeft: 8,
+    paddingVertical: spacing.sm - 2,
+    paddingHorizontal: spacing.md + 2,
+    borderRadius: borderRadius.sm,
+    marginLeft: spacing.sm,
   },
   checkInButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: colors.primary[500],
   },
   checkOutButton: {
-    backgroundColor: '#FF5722',
+    backgroundColor: colors.error.main,
   },
   statusButtonText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
+    color: colors.white,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
   },
   emptyLocationState: {
     alignItems: 'center',
-    paddingVertical: 32,
+    paddingVertical: spacing.xxxl,
     paddingHorizontal: 40,
-    marginHorizontal: 20,
-    marginBottom: 12,
-    backgroundColor: '#fff',
-    borderRadius: 12,
+    marginHorizontal: spacing.xl,
+    marginBottom: spacing.md,
+    backgroundColor: colors.background.paper,
+    borderRadius: borderRadius.lg,
   },
   emptyText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#666',
-    marginBottom: 8,
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semibold,
+    color: colors.text.secondary,
+    marginBottom: spacing.sm,
   },
   emptySubtext: {
-    fontSize: 13,
-    color: '#999',
+    fontSize: fontSize.sm,
+    color: colors.text.tertiary,
     textAlign: 'center',
   },
 });

@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   Animated,
 } from 'react-native';
+import { ChevronRight } from 'lucide-react-native';
+import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
 import type { DailyHoursData } from '../services/DashboardDataService';
 
 interface HoursSummaryWidgetProps {
@@ -76,7 +78,7 @@ function Bar({ day, maxMinutes, isLive }: BarProps) {
   const overtime = Math.max(0, actual - planned);
   const overtimeHeight = overtime * scale;
 
-  // Base actual = actual time up to planned amount (blue portion)
+  // Base actual = actual time up to planned amount (primary portion)
   const baseActual = Math.min(actual, planned);
   const baseActualHeight = baseActual * scale;
 
@@ -99,7 +101,7 @@ function Bar({ day, maxMinutes, isLive }: BarProps) {
         {/* Stacked bar - using column-reverse so first item is at bottom */}
         {hasData && (
           <View style={styles.barStack}>
-            {/* 1. Blue (actual worked) - rendered at bottom due to column-reverse */}
+            {/* 1. Primary (actual worked) - rendered at bottom due to column-reverse */}
             {baseActualHeight > 0 && (
               <View
                 style={[
@@ -110,7 +112,7 @@ function Bar({ day, maxMinutes, isLive }: BarProps) {
               />
             )}
 
-            {/* 2a. Green (overtime) - above blue if actual > planned */}
+            {/* 2a. Success/overtime - above primary if actual > planned */}
             {overtimeHeight > 0 && (
               <View
                 style={[
@@ -121,7 +123,7 @@ function Bar({ day, maxMinutes, isLive }: BarProps) {
               />
             )}
 
-            {/* 2b. Grey (unworked planned) - above blue if actual < planned */}
+            {/* 2b. Grey (unworked planned) - above primary if actual < planned */}
             {unworkedHeight > 0 && (
               <View
                 style={[
@@ -158,7 +160,7 @@ export default function HoursSummaryWidget({
     60 // Minimum 1 hour scale to prevent tiny bars
   );
 
-  const deviationColor = data.deviation >= 0 ? '#4CAF50' : '#FF3B30';
+  const deviationColor = data.deviation >= 0 ? colors.warning.main : colors.error.main;
 
   return (
     <TouchableOpacity
@@ -169,7 +171,7 @@ export default function HoursSummaryWidget({
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Last 14 Days</Text>
-        <Text style={styles.chevron}>›</Text>
+        <ChevronRight size={20} color={colors.text.tertiary} />
       </View>
 
       {/* Bar Chart */}
@@ -206,38 +208,29 @@ export default function HoursSummaryWidget({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginHorizontal: 20,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: colors.background.paper,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    marginHorizontal: spacing.xl,
+    marginBottom: spacing.md,
+    ...shadows.md,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   title: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#111',
-  },
-  chevron: {
-    fontSize: 20,
-    color: '#8E8E93',
-    fontWeight: '300',
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    color: colors.text.primary,
   },
   chartContainer: {
     flexDirection: 'row',
     height: CHART_HEIGHT + 20, // Chart height + indicator space
     alignItems: 'flex-end',
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   barContainer: {
     flex: 1,
@@ -261,13 +254,13 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   actualBar: {
-    backgroundColor: '#007AFF',
+    backgroundColor: colors.primary[500],
   },
   overtimeBar: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: colors.warning.main, // Amber/orange for overtime
   },
   unworkedBar: {
-    backgroundColor: '#E0E0E0',
+    backgroundColor: colors.grey[300],
   },
   indicatorRow: {
     height: 14,
@@ -277,44 +270,44 @@ const styles = StyleSheet.create({
   },
   checkmark: {
     fontSize: 9,
-    color: '#4CAF50',
-    fontWeight: '600',
+    color: colors.primary[500],
+    fontWeight: fontWeight.semibold,
   },
   questionMark: {
     fontSize: 9,
-    color: '#FF3B30',
-    fontWeight: '600',
+    color: colors.error.main,
+    fontWeight: fontWeight.semibold,
   },
   summaryRow: {
     flexDirection: 'row',
     justifyContent: 'flex-start',
     alignItems: 'center',
-    paddingTop: 12,
+    paddingTop: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
-    gap: 24,
+    borderTopColor: colors.grey[200],
+    gap: spacing.xxl,
   },
   summaryItem: {
     alignItems: 'flex-start',
   },
   summaryLabel: {
     fontSize: 10,
-    color: '#8E8E93',
+    color: colors.text.tertiary,
     marginBottom: 2,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   summaryValue: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111',
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semibold,
+    color: colors.text.primary,
   },
   summaryDeviation: {
     flex: 1,
     alignItems: 'flex-end',
   },
   summaryDeviationValue: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.bold,
   },
 });

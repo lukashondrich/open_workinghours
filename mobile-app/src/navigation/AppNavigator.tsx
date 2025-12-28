@@ -3,6 +3,9 @@ import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { BarChart3, Calendar, Settings } from 'lucide-react-native';
+
+import { colors, fontSize, fontWeight } from '@/theme';
 
 // Screens
 import SetupScreen from '@/modules/geofencing/screens/SetupScreen';
@@ -53,12 +56,12 @@ function MainTabs() {
   return (
     <Tab.Navigator
       screenOptions={{
-        tabBarActiveTintColor: '#007AFF',
-        tabBarInactiveTintColor: '#8E8E93',
+        tabBarActiveTintColor: colors.primary[500],
+        tabBarInactiveTintColor: colors.grey[500],
         tabBarStyle: {
-          backgroundColor: '#fff',
+          backgroundColor: colors.background.paper,
           borderTopWidth: 1,
-          borderTopColor: '#E0E0E0',
+          borderTopColor: colors.border.default,
         },
         headerShown: false,
       }}
@@ -67,7 +70,9 @@ function MainTabs() {
         name="Status"
         component={StatusScreen}
         options={{
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>📊</Text>,
+          tabBarIcon: ({ color, size }) => (
+            <BarChart3 size={size || 24} color={color} />
+          ),
           tabBarTestID: 'tab-status',
         }}
       />
@@ -75,7 +80,9 @@ function MainTabs() {
         name="Calendar"
         component={CalendarScreen}
         options={{
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>📅</Text>,
+          tabBarIcon: ({ color, size }) => (
+            <Calendar size={size || 24} color={color} />
+          ),
           tabBarTestID: 'tab-calendar',
         }}
       />
@@ -83,7 +90,9 @@ function MainTabs() {
         name="Settings"
         component={SettingsScreen}
         options={{
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>⚙️</Text>,
+          tabBarIcon: ({ color, size }) => (
+            <Settings size={size || 24} color={color} />
+          ),
           tabBarTestID: 'tab-settings',
         }}
       />
@@ -94,7 +103,7 @@ function MainTabs() {
 function LoadingScreen() {
   return (
     <View style={styles.loadingContainer}>
-      <ActivityIndicator size="large" color="#007AFF" />
+      <ActivityIndicator size="large" color={colors.primary[500]} />
       <Text style={styles.loadingText}>Loading...</Text>
     </View>
   );
@@ -113,11 +122,11 @@ function AuthStack() {
       screenOptions={{
         headerShown: true,
         headerStyle: {
-          backgroundColor: '#fff',
+          backgroundColor: colors.background.paper,
         },
-        headerTintColor: '#007AFF',
+        headerTintColor: colors.primary[500],
         headerTitleStyle: {
-          fontWeight: '600',
+          fontWeight: fontWeight.semibold,
         },
       }}
     >
@@ -194,11 +203,11 @@ export default function AppNavigator() {
         screenOptions={{
           headerShown: true,
           headerStyle: {
-            backgroundColor: '#fff',
+            backgroundColor: colors.background.paper,
           },
-          headerTintColor: '#007AFF',
+          headerTintColor: colors.primary[500],
           headerTitleStyle: {
-            fontWeight: '600',
+            fontWeight: fontWeight.semibold,
           },
         }}
       >
@@ -252,11 +261,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F5F5F5',
+    backgroundColor: colors.background.default,
   },
   loadingText: {
     marginTop: 16,
-    fontSize: 16,
-    color: '#666',
+    fontSize: fontSize.md,
+    color: colors.text.secondary,
   },
 });

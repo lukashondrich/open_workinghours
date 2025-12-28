@@ -2,18 +2,20 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
   StyleSheet,
   Alert,
   ActivityIndicator,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
+import { Circle, Bot, Hand } from 'lucide-react-native';
+
+import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
+import { Button, Card, Badge } from '@/components/ui';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import { getDatabase } from '@/modules/geofencing/services/Database';
 import { TrackingManager } from '@/modules/geofencing/services/TrackingManager';
 import type { UserLocation, TrackingSession } from '@/modules/geofencing/types';
-import { formatDistanceToNow } from 'date-fns';
 
 type TrackingScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Tracking'>;
 type TrackingScreenRouteProp = RouteProp<RootStackParamList, 'Tracking'>;
@@ -118,7 +120,7 @@ export default function TrackingScreen({ navigation, route }: Props) {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
+        <ActivityIndicator size="large" color={colors.primary[500]} />
       </View>
     );
   }
@@ -132,54 +134,61 @@ export default function TrackingScreen({ navigation, route }: Props) {
       </View>
 
       <View style={styles.statusContainer}>
-        <View style={[styles.statusBadge, isTracking ? styles.statusActive : styles.statusInactive]}>
-          <Text style={styles.statusIcon}>{isTracking ? '🟢' : '⚪'}</Text>
-          <Text style={styles.statusText}>
-            {isTracking ? 'Currently Working' : 'Not Tracking'}
-          </Text>
-        </View>
+        <Badge
+          variant={isTracking ? 'success' : 'default'}
+          size="md"
+          icon={<Circle size={16} color={isTracking ? colors.primary[500] : colors.grey[400]} fill={isTracking ? colors.primary[500] : 'transparent'} />}
+          style={styles.statusBadge}
+        >
+          {isTracking ? 'Currently Working' : 'Not Tracking'}
+        </Badge>
 
         {isTracking && activeSession && (
-          <View style={styles.sessionInfo}>
+          <Card style={styles.sessionCard}>
             <Text style={styles.sessionLabel}>Clocked in</Text>
             <Text style={styles.sessionTime}>
               {new Date(activeSession.clockIn).toLocaleTimeString()}
             </Text>
             <Text style={styles.elapsedTime}>{elapsedTime}</Text>
-            <Text style={styles.sessionHint}>
-              {activeSession.trackingMethod === 'geofence_auto'
-                ? '🤖 Automatically tracked'
-                : '✋ Manually clocked in'}
-            </Text>
-          </View>
+            <View style={styles.trackingMethodRow}>
+              {activeSession.trackingMethod === 'geofence_auto' ? (
+                <>
+                  <Bot size={16} color={colors.text.secondary} />
+                  <Text style={styles.sessionHint}>Automatically tracked</Text>
+                </>
+              ) : (
+                <>
+                  <Hand size={16} color={colors.text.secondary} />
+                  <Text style={styles.sessionHint}>Manually clocked in</Text>
+                </>
+              )}
+            </View>
+          </Card>
         )}
       </View>
 
       <View style={styles.controls}>
         {isTracking ? (
-          <TouchableOpacity
-            style={[styles.button, styles.buttonClockOut, actionLoading && styles.buttonDisabled]}
+          <Button
+            variant="danger"
             onPress={handleClockOut}
+            loading={actionLoading}
             disabled={actionLoading}
+            fullWidth
+            size="lg"
           >
-            {actionLoading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.buttonText}>Clock Out</Text>
-            )}
-          </TouchableOpacity>
+            Clock Out
+          </Button>
         ) : (
-          <TouchableOpacity
-            style={[styles.button, styles.buttonClockIn, actionLoading && styles.buttonDisabled]}
+          <Button
             onPress={handleClockIn}
+            loading={actionLoading}
             disabled={actionLoading}
+            fullWidth
+            size="lg"
           >
-            {actionLoading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.buttonText}>Clock In</Text>
-            )}
-          </TouchableOpacity>
+            Clock In
+          </Button>
         )}
 
         <Text style={styles.hint}>
@@ -188,9 +197,9 @@ export default function TrackingScreen({ navigation, route }: Props) {
             : 'Enter the geofence area to automatically clock in'}
         </Text>
 
-        <TouchableOpacity style={styles.historyButton} onPress={handleViewHistory}>
-          <Text style={styles.historyButtonText}>View Work History</Text>
-        </TouchableOpacity>
+        <Button variant="ghost" onPress={handleViewHistory}>
+          View Work History
+        </Button>
       </View>
     </View>
   );
@@ -199,118 +208,76 @@ export default function TrackingScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.background.default,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.background.default,
   },
   header: {
-    backgroundColor: '#fff',
-    padding: 20,
+    backgroundColor: colors.background.paper,
+    padding: spacing.xl,
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: colors.border.default,
   },
   locationName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
+    fontSize: fontSize.xxl,
+    fontWeight: fontWeight.bold,
+    color: colors.text.primary,
   },
   statusContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: spacing.xl,
   },
   statusBadge: {
-    flexDirection: 'row',
+    marginBottom: spacing.xxxl,
+  },
+  sessionCard: {
     alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 30,
-    marginBottom: 30,
-  },
-  statusActive: {
-    backgroundColor: '#e8f5e9',
-  },
-  statusInactive: {
-    backgroundColor: '#f5f5f5',
-  },
-  statusIcon: {
-    fontSize: 24,
-    marginRight: 8,
-  },
-  statusText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-  },
-  sessionInfo: {
-    alignItems: 'center',
+    width: '100%',
+    padding: spacing.xxl,
   },
   sessionLabel: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 4,
+    fontSize: fontSize.sm,
+    color: colors.text.secondary,
+    marginBottom: spacing.xs,
   },
   sessionTime: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
+    fontSize: fontSize.xxxl,
+    fontWeight: fontWeight.bold,
+    color: colors.text.primary,
+    marginBottom: spacing.sm,
   },
   elapsedTime: {
-    fontSize: 20,
-    color: '#007AFF',
-    fontWeight: '600',
-    marginBottom: 8,
+    fontSize: fontSize.xl,
+    color: colors.primary[500],
+    fontWeight: fontWeight.semibold,
+    marginBottom: spacing.sm,
+  },
+  trackingMethodRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
   },
   sessionHint: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: fontSize.sm,
+    color: colors.text.secondary,
   },
   controls: {
-    backgroundColor: '#fff',
-    padding: 20,
+    backgroundColor: colors.background.paper,
+    padding: spacing.xl,
     borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
-  },
-  button: {
-    padding: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  buttonClockIn: {
-    backgroundColor: '#4CAF50',
-  },
-  buttonClockOut: {
-    backgroundColor: '#f44336',
-  },
-  buttonDisabled: {
-    backgroundColor: '#ccc',
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
+    borderTopColor: colors.border.default,
   },
   hint: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: fontSize.xs,
+    color: colors.text.tertiary,
     textAlign: 'center',
-    marginBottom: 16,
+    marginVertical: spacing.lg,
     lineHeight: 18,
-  },
-  historyButton: {
-    padding: 12,
-    alignItems: 'center',
-  },
-  historyButtonText: {
-    color: '#007AFF',
-    fontSize: 16,
-    fontWeight: '600',
   },
 });

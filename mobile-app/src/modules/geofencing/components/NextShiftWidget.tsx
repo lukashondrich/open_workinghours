@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { format, parseISO, isToday, isTomorrow } from 'date-fns';
+import { ChevronRight } from 'lucide-react-native';
+import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
 import { getColorPalette } from '@/lib/calendar/calendar-utils';
 import type { NextShiftData } from '../services/DashboardDataService';
 
@@ -37,7 +39,7 @@ export default function NextShiftWidget({
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Next Shift</Text>
-        <Text style={styles.chevron}>›</Text>
+        <ChevronRight size={20} color={colors.text.tertiary} />
       </View>
 
       {nextShift ? (
@@ -47,7 +49,7 @@ export default function NextShiftWidget({
             <View
               style={[
                 styles.colorDot,
-                { backgroundColor: palette?.dot || '#007AFF' },
+                { backgroundColor: palette?.dot || colors.primary[500] },
               ]}
             />
             <Text style={styles.dateText}>{formatShiftDate(nextShift.date)}</Text>
@@ -71,72 +73,63 @@ export default function NextShiftWidget({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginHorizontal: 20,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: colors.background.paper,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    marginHorizontal: spacing.xl,
+    marginBottom: spacing.md,
+    ...shadows.md,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   title: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#111',
-  },
-  chevron: {
-    fontSize: 20,
-    color: '#8E8E93',
-    fontWeight: '300',
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    color: colors.text.primary,
   },
   shiftInfo: {
-    paddingTop: 4,
+    paddingTop: spacing.xs,
   },
   dateRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: spacing.sm,
   },
   colorDot: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    marginRight: 8,
+    marginRight: spacing.sm,
   },
   dateText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#111',
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semibold,
+    color: colors.text.primary,
   },
   shiftName: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: fontSize.sm,
+    color: colors.text.secondary,
     marginBottom: 2,
   },
   timeRange: {
-    fontSize: 13,
-    color: '#8E8E93',
+    fontSize: fontSize.sm,
+    color: colors.text.tertiary,
   },
   emptyState: {
-    paddingVertical: 8,
+    paddingVertical: spacing.sm,
     alignItems: 'center',
   },
   emptyText: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 4,
+    fontSize: fontSize.sm,
+    color: colors.text.secondary,
+    marginBottom: spacing.xs,
   },
   emptyHint: {
-    fontSize: 12,
-    color: '#8E8E93',
+    fontSize: fontSize.xs,
+    color: colors.text.tertiary,
   },
 });

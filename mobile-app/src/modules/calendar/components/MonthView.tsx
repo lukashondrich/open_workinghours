@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { format, startOfMonth, endOfMonth, startOfWeek, addDays, isSameDay } from 'date-fns';
+
+import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/theme';
 import { useCalendar } from '@/lib/calendar/calendar-context';
 import { getMonthDays, formatDateKey, getColorPalette } from '@/lib/calendar/calendar-utils';
 
@@ -118,18 +120,18 @@ export default function MonthView() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
+    padding: spacing.lg,
   },
   weekdayRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   weekdayLabel: {
     flex: 1,
     textAlign: 'center',
-    fontSize: 12,
-    color: '#8E8E93',
+    fontSize: fontSize.xs,
+    color: colors.text.tertiary,
   },
   grid: {
     flexDirection: 'row',
@@ -139,29 +141,29 @@ const styles = StyleSheet.create({
     width: `${100 / 7}%`,
     aspectRatio: 1,
     alignItems: 'center',
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.md,
   },
   dayCellMuted: {
     opacity: 0.4,
   },
   dayCellToday: {
-    backgroundColor: 'rgba(0,122,255,0.1)',
+    backgroundColor: colors.primary[50],
   },
   dayCellConfirmed: {
-    backgroundColor: 'rgba(76, 175, 80, 0.15)',
+    backgroundColor: colors.primary[100],
   },
   dayLabel: {
-    fontSize: 14,
-    marginBottom: 4,
-    color: '#111',
+    fontSize: fontSize.sm,
+    marginBottom: spacing.xs,
+    color: colors.text.primary,
   },
   dayLabelMuted: {
-    color: '#9E9E9E',
+    color: colors.grey[500],
   },
   dayLabelConfirmed: {
-    color: '#1B5E20',
-    fontWeight: '700',
+    color: colors.primary[800],
+    fontWeight: fontWeight.bold,
   },
   dotRow: {
     flexDirection: 'row',
@@ -176,9 +178,9 @@ const styles = StyleSheet.create({
     margin: 1,
   },
   trackedDot: {
-    backgroundColor: '#F44336',
+    backgroundColor: colors.error.main,
   },
   confirmedDot: {
-    backgroundColor: '#2E7D32',
+    backgroundColor: colors.primary[600],
   },
 });

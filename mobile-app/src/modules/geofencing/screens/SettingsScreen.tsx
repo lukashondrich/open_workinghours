@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
-  TouchableOpacity,
   ScrollView,
   Alert,
   ActivityIndicator,
@@ -11,6 +9,18 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import {
+  MapPin,
+  Bell,
+  Lock,
+  Trash2,
+  Bug,
+  LogOut,
+} from 'lucide-react-native';
+
+import { colors, spacing } from '@/theme';
+import { ListItem } from '@/components/ui';
+import { Button } from '@/components/ui';
 import type { RootStackParamList } from '@/navigation/AppNavigator';
 import { useAuth } from '@/lib/auth/auth-context';
 import { reportIssue } from '@/lib/utils/reportIssue';
@@ -20,33 +30,35 @@ type SettingsScreenNavigationProp = NativeStackNavigationProp<RootStackParamList
 interface SettingsItem {
   id: string;
   title: string;
-  icon: string;
+  icon: React.ReactNode;
   screen: keyof RootStackParamList;
 }
+
+const ICON_SIZE = 24;
 
 const settingsItems: SettingsItem[] = [
   {
     id: '1',
     title: 'Work Locations',
-    icon: '📍',
+    icon: <MapPin size={ICON_SIZE} color={colors.primary[500]} />,
     screen: 'LocationsList',
   },
   {
     id: '2',
     title: 'Notifications',
-    icon: '🔔',
+    icon: <Bell size={ICON_SIZE} color={colors.primary[500]} />,
     screen: 'Notifications',
   },
   {
     id: '3',
     title: 'Permissions',
-    icon: '🔒',
+    icon: <Lock size={ICON_SIZE} color={colors.primary[500]} />,
     screen: 'Permissions',
   },
   {
     id: '4',
     title: 'Data & Privacy',
-    icon: '🗑️',
+    icon: <Trash2 size={ICON_SIZE} color={colors.primary[500]} />,
     screen: 'DataPrivacy',
   },
 ];
@@ -111,43 +123,43 @@ export default function SettingsScreen() {
       <View style={styles.container}>
         <ScrollView contentContainerStyle={styles.scrollContent}>
           {settingsItems.map((item) => (
-            <TouchableOpacity
+            <ListItem
               key={item.id}
-              style={styles.settingsItem}
+              title={item.title}
+              icon={item.icon}
               onPress={() => handleItemPress(item.screen)}
-            >
-              <View style={styles.itemLeft}>
-                <Text style={styles.itemIcon}>{item.icon}</Text>
-                <Text style={styles.itemTitle}>{item.title}</Text>
-              </View>
-              <Text style={styles.itemChevron}>›</Text>
-            </TouchableOpacity>
+            />
           ))}
 
           {/* Report Issue Button */}
-          <TouchableOpacity
-            style={styles.reportIssueButton}
-            onPress={handleReportIssue}
-            disabled={isReporting}
-          >
+          <View style={styles.actionSection}>
             {isReporting ? (
-              <ActivityIndicator color="#007AFF" size="small" />
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator color={colors.primary[500]} size="small" />
+              </View>
             ) : (
-              <>
-                <Text style={styles.reportIssueIcon}>🐛</Text>
-                <Text style={styles.reportIssueText}>Report Issue</Text>
-              </>
+              <Button
+                variant="outline"
+                onPress={handleReportIssue}
+                icon={<Bug size={20} color={colors.primary[500]} />}
+                fullWidth
+              >
+                Report Issue
+              </Button>
             )}
-          </TouchableOpacity>
+          </View>
 
           {/* Sign Out Button */}
-          <TouchableOpacity
-            style={styles.signOutButton}
-            onPress={handleSignOut}
-          >
-            <Text style={styles.signOutIcon}>🚪</Text>
-            <Text style={styles.signOutText}>Sign Out</Text>
-          </TouchableOpacity>
+          <View style={styles.signOutSection}>
+            <Button
+              variant="danger"
+              onPress={handleSignOut}
+              icon={<LogOut size={20} color={colors.white} />}
+              fullWidth
+            >
+              Sign Out
+            </Button>
+          </View>
         </ScrollView>
       </View>
     </SafeAreaView>
@@ -157,88 +169,26 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: colors.background.default,
   },
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: colors.background.default,
   },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 32,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xxxl,
   },
-  settingsItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+  actionSection: {
+    marginTop: spacing.xxl,
   },
-  itemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  itemIcon: {
-    fontSize: 24,
-    marginRight: 16,
-  },
-  itemTitle: {
-    fontSize: 18,
-    fontWeight: '500',
-    color: '#000',
-  },
-  itemChevron: {
-    fontSize: 28,
-    color: '#C0C0C0',
-  },
-  reportIssueButton: {
-    flexDirection: 'row',
+  loadingContainer: {
+    height: 48,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 20,
-    marginTop: 24,
-    borderWidth: 1,
-    borderColor: '#007AFF',
-    minHeight: 64,
   },
-  reportIssueIcon: {
-    fontSize: 24,
-    marginRight: 12,
-  },
-  reportIssueText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#007AFF',
-  },
-  signOutButton: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 20,
-    marginTop: 12,
-    borderWidth: 1,
-    borderColor: '#FF3B30',
-  },
-  signOutIcon: {
-    fontSize: 24,
-    marginRight: 12,
-  },
-  signOutText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#FF3B30',
+  signOutSection: {
+    marginTop: spacing.md,
   },
 });
