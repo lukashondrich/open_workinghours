@@ -1,7 +1,7 @@
 # Open Working Hours – High-Level TODO
 
-**Last Updated:** 2025-12-25 (Date validation added - Production verified)
-**Current Focus:** Real-world testing and user feedback (Build #15)
+**Last Updated:** 2025-12-30 (Dossier website created)
+**Current Focus:** Website content completion + union outreach preparation
 
 ---
 
@@ -9,11 +9,53 @@
 
 | Module | Status | Notes |
 |--------|--------|-------|
-| Module 1 – Geofencing & Tracking | ✅ Complete | Device-tested (iOS Build #15); see `blueprint.md` Section 4.1 |
+| Module 1 – Geofencing & Tracking | ✅ Complete | Device-tested (iOS Build #19); see `blueprint.md` Section 4.1 |
 | Module 2 – Privacy & Submission | ✅ Complete | Auth + daily submissions tested end-to-end |
 | Backend Redesign | ✅ Complete | All phases complete; aggregation cron deployed (3 AM UTC daily) |
-| Calendar Review Mode | ✅ Enhanced | Active sessions, auto-refresh, continuous drag, stable header (Build #15) |
+| Calendar Review Mode | ✅ Enhanced | Active sessions, auto-refresh, continuous drag, stable header (Build #19) |
+| Status Dashboard | ✅ Complete | 14-day hours overview, next shift widget (Build #19) |
+| Dossier Website | 🔄 In Progress | Structure complete, content placeholders remain |
 | Future Modules (3-8) | ⏸️ On Hold | Pending user growth and real-world testing |
+
+---
+
+## Current Priority: Dossier Website
+
+**Goal:** Complete website for union/association outreach
+
+### Website Structure - ✅ COMPLETE
+
+- [x] Set up Astro 5 + Tailwind CSS 4
+- [x] Create English pages (/, /product, /privacy, /team, /imprint, /privacy-policy)
+- [x] Create German pages (/de, /de/product, /de/privacy, /de/team)
+- [x] Implement bilingual navigation with language switcher
+- [x] Write narrative content (Problem → Analysis → Solution)
+- [x] Create detailed image generation prompts for diagrams
+
+### Website Content - ⏳ PENDING (Owner Action Required)
+
+- [ ] **Team page**: Fill in founder name, bio, photo
+- [ ] **Team page**: Add confirmed advisor names, titles, photos
+- [ ] **Imprint**: Add legal name and address
+- [ ] **Privacy Policy**: Add legal name, address, update date
+- [ ] **App screenshots**: Take 6 screenshots from mobile app
+  - Status Dashboard (with demo data)
+  - Calendar Week View
+  - Shift Templates
+  - Location Setup
+  - Active Tracking
+  - Settings
+- [ ] **Diagrams**: Generate from prompts
+  - System Overview (iconic, 3-element flow)
+  - Data Flow (technical, 3-layer architecture)
+  - Dashboard mockup (bar chart visualization)
+
+### Website Deployment - ⏳ PENDING
+
+- [ ] Configure Vercel project for `website/` directory
+- [ ] Set up custom domain (openworkinghours.org)
+- [ ] Test production build
+- [ ] Deploy to production
 
 ---
 

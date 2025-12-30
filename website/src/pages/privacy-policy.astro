@@ -1,0 +1,166 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Privacy Policy" description="Privacy policy for Open Working Hours - how we collect, use, and protect your personal data under GDPR.">
+  <div class="max-w-3xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
+    <header class="mb-8">
+      <h1 class="text-gray-900">Privacy Policy</h1>
+      <p class="text-gray-500 text-sm mt-2">Datenschutzerklärung gemäß DSGVO</p>
+      <p class="text-gray-500 text-sm">Last updated: [Date]</p>
+    </header>
+
+    <div class="prose text-gray-700 space-y-8">
+      <!-- Overview -->
+      <section>
+        <h2 class="text-lg font-semibold text-gray-900 mb-3">1. Overview</h2>
+        <p class="text-gray-600">
+          This privacy policy explains how Open Working Hours ("we", "us", "our") collects, uses, and protects your personal data when you use our website and mobile application. We are committed to protecting your privacy and complying with the General Data Protection Regulation (GDPR).
+        </p>
+      </section>
+
+      <!-- Controller -->
+      <section>
+        <h2 class="text-lg font-semibold text-gray-900 mb-3">2. Data Controller</h2>
+        <p class="text-gray-600">
+          The data controller responsible for this website and app is:
+        </p>
+        <p class="text-gray-600 mt-2">
+          [Full Legal Name]<br />
+          [Street Address]<br />
+          [Postal Code] [City]<br />
+          Germany<br />
+          Email: <a href="mailto:contact@openworkinghours.org">contact@openworkinghours.org</a>
+        </p>
+      </section>
+
+      <!-- Data collected -->
+      <section>
+        <h2 class="text-lg font-semibold text-gray-900 mb-3">3. Data We Collect</h2>
+
+        <h3 class="font-medium text-gray-800 mt-4 mb-2">3.1 Website</h3>
+        <p class="text-gray-600 text-sm">
+          This website does not use cookies or tracking technologies. We do not collect personal data through the website unless you contact us directly via email.
+        </p>
+
+        <h3 class="font-medium text-gray-800 mt-4 mb-2">3.2 Mobile Application</h3>
+        <p class="text-gray-600 text-sm">
+          When you use the Open Working Hours mobile app, we collect:
+        </p>
+        <ul class="text-gray-600 text-sm list-disc ml-4 mt-2 space-y-1">
+          <li><strong>Email address:</strong> Used for account verification only. Not stored in operational databases after verification.</li>
+          <li><strong>Working hours data:</strong> Daily start/end times and break durations that you confirm.</li>
+          <li><strong>Demographic information:</strong> Federal state (Bundesland), medical specialty, and role level (voluntarily provided).</li>
+          <li><strong>Usage token:</strong> A randomly generated identifier used to link your submissions.</li>
+        </ul>
+
+        <h3 class="font-medium text-gray-800 mt-4 mb-2">3.3 Data We Do Not Collect</h3>
+        <ul class="text-gray-600 text-sm list-disc ml-4 space-y-1">
+          <li>Your name (beyond email verification)</li>
+          <li>Your employer or hospital name</li>
+          <li>Precise GPS coordinates (geofencing is processed locally on your device)</li>
+          <li>IP addresses (not stored in server logs)</li>
+          <li>Device identifiers or advertising IDs</li>
+        </ul>
+      </section>
+
+      <!-- Legal basis -->
+      <section>
+        <h2 class="text-lg font-semibold text-gray-900 mb-3">4. Legal Basis for Processing</h2>
+        <p class="text-gray-600 text-sm">
+          We process your data based on:
+        </p>
+        <ul class="text-gray-600 text-sm list-disc ml-4 mt-2 space-y-1">
+          <li><strong>Consent (Art. 6(1)(a) GDPR):</strong> You actively confirm your working hours data before submission.</li>
+          <li><strong>Legitimate interest (Art. 6(1)(f) GDPR):</strong> Creating aggregated statistics about working conditions in healthcare.</li>
+        </ul>
+      </section>
+
+      <!-- Purpose -->
+      <section>
+        <h2 class="text-lg font-semibold text-gray-900 mb-3">5. Purpose of Data Processing</h2>
+        <p class="text-gray-600 text-sm">
+          Your data is used exclusively to:
+        </p>
+        <ul class="text-gray-600 text-sm list-disc ml-4 mt-2 space-y-1">
+          <li>Verify your account via email</li>
+          <li>Store your confirmed working hours for your personal review</li>
+          <li>Generate anonymized, aggregated statistics about healthcare working conditions</li>
+        </ul>
+        <p class="text-gray-600 text-sm mt-2">
+          Individual data is never published or shared. Only aggregated statistics with at least 10 contributors per group are made public.
+        </p>
+      </section>
+
+      <!-- Data storage -->
+      <section>
+        <h2 class="text-lg font-semibold text-gray-900 mb-3">6. Data Storage and Security</h2>
+        <p class="text-gray-600 text-sm">
+          Your data is stored on servers located in Germany (Hetzner, Nuremberg). All data is encrypted in transit (TLS 1.3) and at rest. Access is restricted to authorized personnel only.
+        </p>
+        <p class="text-gray-600 text-sm mt-2">
+          Personal data is retained as long as your account exists. Aggregated statistics (which contain no personal data) are retained indefinitely.
+        </p>
+      </section>
+
+      <!-- Your rights -->
+      <section>
+        <h2 class="text-lg font-semibold text-gray-900 mb-3">7. Your Rights</h2>
+        <p class="text-gray-600 text-sm">
+          Under the GDPR, you have the following rights:
+        </p>
+        <ul class="text-gray-600 text-sm list-disc ml-4 mt-2 space-y-1">
+          <li><strong>Right of access (Art. 15):</strong> You can request a copy of your personal data.</li>
+          <li><strong>Right to rectification (Art. 16):</strong> You can correct inaccurate data.</li>
+          <li><strong>Right to erasure (Art. 17):</strong> You can delete your account and all associated data.</li>
+          <li><strong>Right to data portability (Art. 20):</strong> You can export your data in JSON format.</li>
+          <li><strong>Right to object (Art. 21):</strong> You can object to processing based on legitimate interest.</li>
+          <li><strong>Right to lodge a complaint:</strong> You can file a complaint with your local data protection authority.</li>
+        </ul>
+        <p class="text-gray-600 text-sm mt-2">
+          To exercise these rights, use the in-app settings or contact us at <a href="mailto:contact@openworkinghours.org">contact@openworkinghours.org</a>.
+        </p>
+      </section>
+
+      <!-- Third parties -->
+      <section>
+        <h2 class="text-lg font-semibold text-gray-900 mb-3">8. Third-Party Services</h2>
+        <p class="text-gray-600 text-sm">
+          <strong>Website hosting:</strong> This website is hosted on [Vercel/Netlify]. The hosting provider may process server logs containing IP addresses. We have configured our hosting to minimize data collection.
+        </p>
+        <p class="text-gray-600 text-sm mt-2">
+          <strong>Email delivery:</strong> Verification emails are sent via [Brevo/SendGrid]. Email addresses are processed only for sending the verification code and are not retained by the email provider.
+        </p>
+        <p class="text-gray-600 text-sm mt-2">
+          We do not use analytics, advertising, or social media tracking on this website or in the app.
+        </p>
+      </section>
+
+      <!-- Changes -->
+      <section>
+        <h2 class="text-lg font-semibold text-gray-900 mb-3">9. Changes to This Policy</h2>
+        <p class="text-gray-600 text-sm">
+          We may update this privacy policy from time to time. Changes will be posted on this page with an updated revision date. For significant changes affecting your rights, we will notify you via the app.
+        </p>
+      </section>
+
+      <!-- Contact -->
+      <section>
+        <h2 class="text-lg font-semibold text-gray-900 mb-3">10. Contact</h2>
+        <p class="text-gray-600 text-sm">
+          If you have questions about this privacy policy or your data, contact us at:
+        </p>
+        <p class="text-gray-600 text-sm mt-2">
+          Email: <a href="mailto:contact@openworkinghours.org">contact@openworkinghours.org</a>
+        </p>
+      </section>
+
+      <!-- Note for filling -->
+      <section class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-8">
+        <p class="text-yellow-800 text-sm">
+          <strong>Note:</strong> This is a template based on GDPR requirements. Replace all bracketed [placeholders] with your actual information. Have this policy reviewed by a legal professional before publishing to ensure compliance with German and EU data protection law.
+        </p>
+      </section>
+    </div>
+  </div>
+</Layout>

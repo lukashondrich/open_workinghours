@@ -3,7 +3,7 @@
  * Creates 14 days of varied planned/actual hours for testing
  */
 
-import { subDays, format, addMinutes } from 'date-fns';
+import { subDays, addDays, format, addMinutes } from 'date-fns';
 import * as Crypto from 'expo-crypto';
 import { getDatabase } from '@/modules/geofencing/services/Database';
 import { getCalendarStorage } from '@/modules/calendar/services/CalendarStorage';
@@ -11,24 +11,25 @@ import type { ShiftTemplate, ShiftInstance, ConfirmedDayStatus } from '@/lib/cal
 
 // Test data patterns for 14 days (index 0 = 13 days ago, index 13 = today)
 // Format: [plannedMinutes, actualMinutes, isConfirmed]
+// Realistic pattern: Mix of normal days, overtime, undertime, weekends
 const TEST_DATA: Array<[number, number, boolean]> = [
-  // Week 2 ago (days 13-7 ago)
-  [480, 510, true],   // Day 13: 8h planned, 8.5h actual (overtime), confirmed
-  [480, 480, true],   // Day 12: 8h planned, 8h actual (exact), confirmed
-  [480, 420, true],   // Day 11: 8h planned, 7h actual (undertime), confirmed
-  [0, 0, true],       // Day 10: Weekend - no work, confirmed
-  [0, 0, true],       // Day 9: Weekend - no work, confirmed
-  [480, 540, true],   // Day 8: 8h planned, 9h actual (overtime), confirmed
-  [480, 450, true],   // Day 7: 8h planned, 7.5h actual (undertime), confirmed
+  // Week 2 ago (Mon-Sun, days 13-7 ago)
+  [480, 540, true],   // Mon: 8h planned, 9h actual (overtime), confirmed
+  [480, 510, true],   // Tue: 8h planned, 8.5h actual (overtime), confirmed
+  [480, 480, true],   // Wed: 8h planned, 8h actual (exact), confirmed
+  [480, 570, true],   // Thu: 8h planned, 9.5h actual (overtime), confirmed
+  [480, 420, true],   // Fri: 8h planned, 7h actual (left early), confirmed
+  [0, 0, true],       // Sat: Weekend - no work
+  [0, 0, true],       // Sun: Weekend - no work
 
-  // Last week (days 6-0 ago)
-  [480, 600, true],   // Day 6: 8h planned, 10h actual (big overtime), confirmed
-  [480, 480, true],   // Day 5: 8h planned, 8h actual (exact), confirmed
-  [480, 495, true],   // Day 4: 8h planned, 8.25h actual (slight overtime), confirmed
-  [0, 0, false],      // Day 3: Weekend - no work, unconfirmed
-  [0, 120, false],    // Day 2: No planned shift but 2h actual (unplanned work), unconfirmed
-  [480, 360, false],  // Day 1: 8h planned, 6h actual (undertime), unconfirmed
-  [480, 180, false],  // Day 0 (today): 8h planned, 3h actual so far (in progress)
+  // Last week + today (Mon-Sun, days 6-0 ago)
+  [480, 660, true],   // Mon: 8h planned, 11h actual (big overtime day), confirmed
+  [480, 540, true],   // Tue: 8h planned, 9h actual (overtime), confirmed
+  [480, 495, true],   // Wed: 8h planned, 8.25h actual (slight overtime), confirmed
+  [480, 450, false],  // Thu: 8h planned, 7.5h actual (undertime), unconfirmed
+  [480, 525, false],  // Fri: 8h planned, 8.75h actual (overtime), unconfirmed
+  [0, 0, false],      // Sat: Weekend - no work
+  [480, 210, false],  // Sun (today): 8h planned, 3.5h actual so far (in progress - on call)
 ];
 
 // Shift templates
@@ -144,6 +145,35 @@ export async function seedDashboardTestData() {
       };
     }
   }
+
+  // Add future shifts for NextShiftWidget
+  // Tomorrow: Day shift
+  const tomorrow = addDays(today, 1);
+  const tomorrowKey = format(tomorrow, 'yyyy-MM-dd');
+  instances.push({
+    id: `instance-${tomorrowKey}`,
+    templateId: TEMPLATES[0].id,
+    date: tomorrowKey,
+    startTime: '08:00',
+    duration: 480,
+    endTime: '16:00',
+    color: 'blue',
+    name: 'Day Shift',
+  });
+
+  // Day after tomorrow: Late shift
+  const dayAfter = addDays(today, 2);
+  const dayAfterKey = format(dayAfter, 'yyyy-MM-dd');
+  instances.push({
+    id: `instance-${dayAfterKey}`,
+    templateId: TEMPLATES[1].id,
+    date: dayAfterKey,
+    startTime: '14:00',
+    duration: 480,
+    endTime: '22:00',
+    color: 'purple',
+    name: 'Late Shift',
+  });
 
   await storage.replaceInstances(instances);
   await storage.replaceConfirmedDays(confirmedDays);

@@ -10,7 +10,7 @@ w# Open Working Hours – System Blueprint v2.0
 
 ## 1. Purpose & Scope
 
-The Open Working Hours platform enables healthcare workers to track and report their working hours transparently while maintaining strong privacy guarantees. The system consists of three main components:
+The Open Working Hours platform enables healthcare workers to track and report their working hours transparently while maintaining strong privacy guarantees. The system consists of four main components:
 
 ### 1.1 React Native Mobile App (iOS/Android) **[Primary Interface]**
 Healthcare workers use this app to:
@@ -39,6 +39,18 @@ Minimal API server that:
 - Stores **only** anonymized, noisy data
 
 **Does NOT store**: GPS coordinates, daily shift times, templates, individual clock-in/out events.
+
+### 1.4 Astro Dossier Website **[Outreach & Trust]**
+Static website for outreach to unions, professional associations, and interest groups:
+- Project overview with Problem → Analysis → Solution narrative
+- Product demonstration (screenshots, dashboard preview)
+- Privacy principles and data flow explanation
+- Team and advisor information
+- German legal pages (Impressum, Datenschutzerklärung)
+
+**Key characteristic**: **Bilingual (EN/DE), no JavaScript shipped, purely informational.**
+
+**Location**: `website/` directory
 
 ---
 
@@ -1223,7 +1235,131 @@ See `TODO.md` tasks 337-360 for detailed list. Key enhancements:
 
 ---
 
-## 12. Getting Help
+## 12. Dossier Website (Astro)
+
+### 12.1 Purpose
+
+The dossier website serves as a trust anchor for outreach to:
+- Medical professional associations (Ärztekammern, Marburger Bund)
+- Unions and interest groups
+- Healthcare policy stakeholders
+- Data protection officers evaluating the platform
+
+**Design philosophy**: Neutral, factual, "dossier" style. No conversion funnels, no aggressive CTAs.
+
+### 12.2 Technology Stack
+
+```json
+{
+  "framework": "Astro 5",
+  "styling": "Tailwind CSS 4",
+  "fonts": "Inter (Google Fonts)",
+  "javascript": "Zero JS shipped by default",
+  "hosting": "Static (Vercel/Netlify)"
+}
+```
+
+### 12.3 Site Structure
+
+| Route | Purpose |
+|-------|---------|
+| `/` | Project Dossier - Problem → Analysis → Solution |
+| `/product` | App screenshots, how it works, dashboard preview |
+| `/privacy` | Privacy principles, collected/not collected data |
+| `/team` | Founder and advisor information |
+| `/imprint` | German Impressum (legal requirement) |
+| `/privacy-policy` | GDPR privacy policy |
+| `/de/*` | German translations of all pages |
+
+### 12.4 Narrative Structure (Dossier Page)
+
+The main page follows a deliberate narrative arc:
+
+1. **Problem** - Human cost of overwork (workers and patients bear burden)
+2. **Analysis** - Why it persists (information gap, not rule gap)
+3. **Solution** - What Open Working Hours provides
+4. **Principles** - Design guardrails (low friction, not employer tool, privacy by design)
+
+This structure mirrors how unions, courts, and policymakers reason.
+
+### 12.5 Diagram Strategy
+
+Two distinct diagrams serve different audiences:
+
+| Diagram | Page | Style | Purpose |
+|---------|------|-------|---------|
+| System Overview | Dossier (/) | Iconic, minimal | "Get the idea in 3 seconds" |
+| Data Flow | Privacy (/privacy) | Technical, detailed | "Trust the architecture" |
+
+**Visual style**: Light blue (#60A5FA) line art on white/grid background. Reference: 1Password security diagrams, Apple privacy illustrations.
+
+### 12.6 Bilingual Support
+
+- English pages at `/`, `/product`, `/privacy`, `/team`
+- German pages at `/de`, `/de/product`, `/de/privacy`, `/de/team`
+- Language switcher in navigation (EN ↔ DE)
+- Legal pages (`/imprint`, `/privacy-policy`) are language-neutral
+
+### 12.7 Files
+
+```
+website/
+├── src/
+│   ├── layouts/
+│   │   ├── Layout.astro      # English layout
+│   │   └── LayoutDE.astro    # German layout
+│   ├── components/
+│   │   ├── DiagramPlaceholder.astro
+│   │   └── ScreenshotPlaceholder.astro
+│   ├── pages/
+│   │   ├── index.astro       # EN Dossier
+│   │   ├── product.astro     # EN Product
+│   │   ├── privacy.astro     # EN Privacy
+│   │   ├── team.astro        # EN Team
+│   │   ├── imprint.astro     # Impressum
+│   │   ├── privacy-policy.astro
+│   │   └── de/               # German versions
+│   │       ├── index.astro
+│   │       ├── product.astro
+│   │       ├── privacy.astro
+│   │       └── team.astro
+│   └── styles/
+│       └── global.css        # Tailwind + custom tokens
+├── public/
+│   └── favicon.svg
+├── astro.config.mjs
+├── package.json
+└── README.md
+```
+
+### 12.8 Deployment
+
+```bash
+cd website
+npm install
+npm run build    # Outputs to ./dist
+npm run preview  # Local preview
+```
+
+Deploy `./dist` to any static host (Vercel, Netlify, GitHub Pages).
+
+### 12.9 Content Placeholders (To Fill)
+
+Before production launch:
+
+| Item | Location | Status |
+|------|----------|--------|
+| Founder name, bio, photo | `/team` | Placeholder |
+| Advisor names, photos | `/team` | Placeholder |
+| Legal name, address | `/imprint`, `/privacy-policy` | Template |
+| App screenshots (6) | `/product` | Placeholder boxes |
+| System Overview diagram | `/`, `/de` | Prompt ready |
+| Data Flow diagram | `/privacy`, `/de/privacy` | Prompt ready |
+| Dashboard mockup | `/product`, `/de/product` | Prompt ready |
+
+---
+
+## 13. Getting Help
 
 ### Common Issues
 

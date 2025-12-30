@@ -1,0 +1,111 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Team" description="Meet the people behind Open Working Hours - building privacy-first tools for healthcare transparency.">
+  <div class="max-w-4xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
+    <!-- Header -->
+    <header class="mb-12">
+      <h1 class="text-gray-900 mb-4">Team</h1>
+      <p class="text-xl text-gray-600 max-w-2xl">
+        Open Working Hours is built by people who believe healthcare workers deserve better tools and better data.
+      </p>
+    </header>
+
+    <!-- Founder -->
+    <section class="mb-16">
+      <h2 class="text-gray-900 mb-6">Founder</h2>
+      <div class="flex flex-col sm:flex-row gap-6">
+        <!-- Photo placeholder -->
+        <div class="flex-shrink-0">
+          <div class="w-32 h-32 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400 text-sm">
+            Photo
+          </div>
+        </div>
+        <!-- Bio -->
+        <div class="flex-1">
+          <h3 class="text-gray-900 text-xl mb-2">[Founder Name]</h3>
+          <p class="text-gray-600 mb-4">
+            [2-3 sentence bio: professional background, relevant experience, motivation for building this project. Example: "Software engineer with a background in healthcare IT. Previously worked on clinical decision support systems at [Company]. Started Open Working Hours after seeing firsthand how difficult it is to get reliable data on physician working conditions."]
+          </p>
+          <ul class="space-y-1 text-sm text-gray-600">
+            <li class="flex items-center gap-2">
+              <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+              </svg>
+              [Proof point 1, e.g., "Software Engineer, focus on privacy-by-design"]
+            </li>
+            <li class="flex items-center gap-2">
+              <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+              </svg>
+              [Proof point 2, e.g., "Built iOS app from prototype to TestFlight"]
+            </li>
+            <li class="flex items-center gap-2">
+              <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+              </svg>
+              [Proof point 3, e.g., "Background in healthcare IT systems"]
+            </li>
+          </ul>
+          <!-- Optional: LinkedIn -->
+          <div class="mt-4">
+            <a href="#" class="text-sm text-gray-500 hover:text-gray-700 inline-flex items-center gap-1">
+              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+              </svg>
+              LinkedIn
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Advisors -->
+    <section class="mb-12">
+      <h2 class="text-gray-900 mb-6">Advisors</h2>
+
+      <div class="space-y-6">
+        <!-- Advisor 1 -->
+        <div class="flex gap-4 p-4 bg-gray-50 rounded-lg">
+          <div class="flex-shrink-0">
+            <div class="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center text-gray-400 text-xs">
+              Photo
+            </div>
+          </div>
+          <div>
+            <h3 class="font-semibold text-gray-900">[Advisor Name]</h3>
+            <p class="text-sm text-gray-500 mb-1">[Title/Role]</p>
+            <p class="text-sm text-gray-600">[One sentence on how they contribute, e.g., "Provides clinical perspective on physician workflows and validates product assumptions."]</p>
+          </div>
+        </div>
+
+        <!-- Advisor 2 -->
+        <div class="flex gap-4 p-4 bg-gray-50 rounded-lg">
+          <div class="flex-shrink-0">
+            <div class="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center text-gray-400 text-xs">
+              Photo
+            </div>
+          </div>
+          <div>
+            <h3 class="font-semibold text-gray-900">[Advisor Name]</h3>
+            <p class="text-sm text-gray-500 mb-1">[Title/Role]</p>
+            <p class="text-sm text-gray-600">[One sentence on how they contribute, e.g., "Advises on data privacy regulations and GDPR compliance strategy."]</p>
+          </div>
+        </div>
+
+        <!-- Placeholder for more advisors -->
+        <p class="text-sm text-gray-500 italic">
+          Additional advisory relationships are being formalized.
+        </p>
+      </div>
+    </section>
+
+    <!-- Contact -->
+    <section class="border-t border-gray-100 pt-8">
+      <p class="text-gray-600">
+        Interested in contributing or advising? Reach out at <a href="mailto:contact@openworkinghours.org" class="text-blue-600 hover:text-blue-700">contact@openworkinghours.org</a>
+      </p>
+    </section>
+  </div>
+</Layout>

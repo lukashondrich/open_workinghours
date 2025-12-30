@@ -265,8 +265,8 @@ export default function StatusScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Permission Warning Banner */}
-      <PermissionWarningBanner visible={!hasBackgroundPermission} />
+      {/* Permission Warning Banner - disabled for screenshots */}
+      <PermissionWarningBanner visible={false /* !hasBackgroundPermission */} />
 
       {/* Scrollable Content */}
       <ScrollView

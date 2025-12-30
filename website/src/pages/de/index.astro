@@ -1,0 +1,210 @@
+---
+import LayoutDE from '../../layouts/LayoutDE.astro';
+import DiagramPlaceholder from '../../components/DiagramPlaceholder.astro';
+---
+
+<LayoutDE title="Projektdossier">
+  <div class="max-w-4xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
+    <!-- Header -->
+    <header class="mb-12">
+      <div class="flex items-center gap-3 mb-4">
+        <h1 class="text-gray-900">Open Working Hours</h1>
+        <span class="px-2.5 py-0.5 text-xs font-medium bg-blue-50 text-blue-700 rounded-full">
+          Closed Beta
+        </span>
+      </div>
+      <p class="text-xl text-gray-600 max-w-2xl">
+        Datenschutzkonforme Infrastruktur zur Dokumentation und Aggregation realer Arbeitsbedingungen im Gesundheitswesen.
+      </p>
+    </header>
+
+    <!-- Problemstellung -->
+    <section class="mb-12">
+      <h2 class="text-gray-900 mb-4">Problemstellung</h2>
+      <div class="prose text-gray-700 space-y-4">
+        <p>
+          Chronische Überlastung im Gesundheitswesen hat konkrete menschliche Folgen. Beschäftigte tragen sie in Form von Erschöpfung, gesundheitlichen Langzeitfolgen und beruflicher Abwanderung. Patientinnen und Patienten sind erhöhten Risiken ausgesetzt, etwa durch höhere Fehleranfälligkeit, eingeschränkte Versorgungsqualität und reduzierte Kontinuität der Behandlung.
+        </p>
+        <p>
+          Diese Belastungen werden faktisch verlagert:
+        </p>
+        <ul class="space-y-2 ml-4">
+          <li>Sie fließen nur begrenzt in Personalplanung und organisatorische Entscheidungen ein.</li>
+          <li>Sie werden lediglich teilweise über Vorfallmeldungen oder individuelle Beschwerden sichtbar.</li>
+          <li>Sie liegen selten als systematische Evidenz für rechtliche, regulatorische oder tarifliche Kontexte vor.</li>
+        </ul>
+        <p>
+          In der Folge können belastende und potenziell unsichere Arbeitsbedingungen fortbestehen, selbst dort, wo formale Schutzregelungen existieren.
+        </p>
+      </div>
+    </section>
+
+    <!-- Analytische Einordnung -->
+    <section class="mb-12">
+      <h2 class="text-gray-900 mb-4">Analytische Einordnung</h2>
+      <div class="prose text-gray-700 space-y-4">
+        <p>
+          Die Persistenz dieser Situation ist weniger ein Mangel an Regeln als ein Mangel an nutzbarer Information.
+        </p>
+        <p>
+          Arbeitszeitrechtliche Vorgaben, Arbeitsschutzregelungen und Mitbestimmungsinstrumente bestehen. Ihre Wirksamkeit setzt jedoch voraus, dass tatsächliche Arbeitszeiten und Belastungen empirisch nachvollziehbar dokumentiert werden können.
+        </p>
+        <p>
+          In der Praxis fehlt es an:
+        </p>
+        <ul class="space-y-2 ml-4">
+          <li>aggregierten und überprüfbaren Daten zu realen Arbeitsmustern</li>
+          <li>unabhängiger Erfassung jenseits arbeitgeberseitiger Dokumentation</li>
+          <li>datenschutzkonformen Mechanismen zur systemischen Auswertung</li>
+        </ul>
+        <p>
+          Ohne diese Grundlagen:
+        </p>
+        <ul class="space-y-2 ml-4">
+          <li>bleiben individuelle Meldungen vereinzelte Einzelfälle</li>
+          <li>fehlen Gewerkschaften und Berufsverbänden belastbare Daten für Verhandlungen</li>
+          <li>können Aufsichts- und Kontrollinstanzen keine strukturellen Muster erkennen</li>
+          <li>ist eine sachliche Bewertung der Umsetzung bestehender Regelungen kaum möglich</li>
+        </ul>
+        <p>
+          Das Defizit ist infrastruktureller Natur.
+        </p>
+      </div>
+    </section>
+
+    <!-- Lösung -->
+    <section class="mb-12">
+      <h2 class="text-gray-900 mb-4">Lösung</h2>
+      <div class="prose text-gray-700 space-y-4">
+        <p>
+          Open Working Hours stellt diese Infrastruktur bereit. Die Plattform ermöglicht es Beschäftigten im Gesundheitswesen, ihre tatsächlichen Arbeitszeiten niedrigschwellig zu dokumentieren. Die Daten werden ausschließlich aggregiert und datenschutzkonform ausgewertet, sodass systemische Erkenntnisse entstehen, ohne einzelne Personen offenzulegen.
+        </p>
+      </div>
+      <ul class="mt-6 space-y-3 text-gray-700">
+        <li class="flex gap-3">
+          <span class="text-gray-400 select-none">1.</span>
+          <span><strong>Was es ist:</strong> Eine mobile App zur einfachen Erfassung realer Arbeitszeiten im klinischen Alltag.</span>
+        </li>
+        <li class="flex gap-3">
+          <span class="text-gray-400 select-none">2.</span>
+          <span><strong>Für wen:</strong> Ärzt:innen, Pflegekräfte und weitere Beschäftigte im Gesundheitswesen, die zur sachlichen Transparenz über Arbeitsbedingungen beitragen möchten.</span>
+        </li>
+        <li class="flex gap-3">
+          <span class="text-gray-400 select-none">3.</span>
+          <span><strong>Ergebnis:</strong> Aggregierte, anonymisierte Statistiken zu Arbeitsmustern – z. B. nach Region, Fachrichtung und Tätigkeitsbereich.</span>
+        </li>
+        <li class="flex gap-3">
+          <span class="text-gray-400 select-none">4.</span>
+          <span><strong>Status:</strong> iOS-App in geschlossener Beta. Backend-Infrastruktur produktiv. Pilotpartner werden gesucht.</span>
+        </li>
+      </ul>
+    </section>
+
+    <!-- Diagram: Systemübersicht -->
+    <section class="mb-12">
+      <DiagramPlaceholder
+        label="Systemübersicht"
+        description={`IMAGE GENERATION PROMPT — Konzeptionelles Flussdiagramm (Vereinfacht/Ikonisch)
+
+STIL:
+Minimal, abstrakt, fast logo-artig. Klare Linienzeichnung in einem einzigen Blauton (#3B82F6) auf weißem Hintergrund. Denke an: Apple Keynote-Diagramme, Stripes einfache Illustrationen. Ultra-clean, kein Durcheinander. Sollte in 3 Sekunden verstanden werden.
+
+KOMPOSITION (drei einfache Icons in einer horizontalen Reihe, verbunden durch Pfeile):
+
+1. LINKES ICON: Einfache Smartphone-Silhouette mit einem kleinen Zifferblatt darin
+   - Repräsentiert: Einzelner Nutzer, der seine Stunden erfasst
+   - KEINE Beschriftungen, KEINE technischen Details
+
+2. MITTLERES ICON: Abstrakte Wolken- oder Kreisform mit mehreren kleinen Punkten, die zu einem konvergieren
+   - Repräsentiert: Viele Einzelne → zusammen aggregiert
+   - Visuelle Metapher: "viele werden eins" (Konvergenz)
+
+3. RECHTES ICON: Einfaches Balkendiagramm (3-4 Balken unterschiedlicher Höhe)
+   - Repräsentiert: Öffentliche Statistikausgabe
+   - Cleanes, minimales Diagramm-Symbol
+
+PFEILE:
+- Einfache, elegante Pfeile, die die drei Icons verbinden
+- Keine Beschriftungen auf Pfeilen (abstrakt halten)
+- Pfeilstil: dünn, mit dezenter Pfeilspitze
+
+OPTIONALER EINZELNER SLOGAN (unter dem Diagramm):
+"Individueller Beitrag → Kollektive Erkenntnis"
+(oder gar kein Text — das Visuelle sprechen lassen)
+
+KERNKONZEPT:
+Dies ist KEIN technisches Architekturdiagramm. Es ist eine konzeptionelle Illustration der IDEE:
+- Viele Menschen tragen privat bei
+- Daten werden kombiniert/aggregiert
+- Ergebnis sind öffentliche, anonyme Statistiken
+
+Die Botschaft: "Dein Beitrag zählt, deine Privatsphäre ist geschützt, das Ergebnis hilft allen."
+
+VISUELLE QUALITÄTEN:
+- Großzügiger Weißraum
+- Perfekte horizontale Ausrichtung
+- Icons sollten ausgewogen und harmonisch wirken
+- Könnte fast ein Logo oder App-Icon-Set sein
+
+DIMENSIONEN: Breitformat (16:9), aber der eigentliche Inhalt ist zentriert und kompakt.
+
+NICHT ENTHALTEN:
+- Technische Beschriftungen (kein "TLS", "k-Anonymität", "verschlüsselt")
+- Server/Datenbank-Bildsprache
+- Schloss-Icons oder Sicherheitssymbole (die für die Datenschutz-Seite aufheben)
+- Mehrere Farben
+- Komplexe Details
+- Textbeschriftungen auf einzelnen Elementen`}
+      />
+    </section>
+
+    <!-- Prinzipien -->
+    <section class="mb-12">
+      <h2 class="text-gray-900 mb-4">Prinzipien</h2>
+      <ul class="space-y-3 text-gray-700">
+        <li class="flex gap-3">
+          <span class="text-blue-500 mt-1">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </span>
+          <span><strong>Niedrige Einstiegshürde:</strong> Entwickelt für den Klinikalltag. Automatisierte Erfassung per Geofencing, manuelle Eingabe in wenigen Sekunden.</span>
+        </li>
+        <li class="flex gap-3">
+          <span class="text-blue-500 mt-1">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </span>
+          <span><strong>Kein Arbeitgeber-Tool:</strong> Die Daten gehören den Nutzenden. Kein Zugriff für Arbeitgeber, keine Überwachung.</span>
+        </li>
+        <li class="flex gap-3">
+          <span class="text-blue-500 mt-1">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </span>
+          <span><strong>Datenschutz durch Design:</strong> Einzeldaten werden niemals veröffentlicht. Ausschließlich aggregierte Auswertungen mit k-Anonymität.</span>
+        </li>
+        <li class="flex gap-3">
+          <span class="text-blue-500 mt-1">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </span>
+          <span><strong>Nutzerkontrolle:</strong> Vollständiger Datenexport und Löschmöglichkeiten. DSGVO-konform.</span>
+        </li>
+      </ul>
+    </section>
+
+    <!-- Weiterführend -->
+    <section class="border-t border-gray-100 pt-8">
+      <h3 class="text-gray-500 text-sm font-medium uppercase tracking-wide mb-4">Weiterführend</h3>
+      <div class="flex flex-wrap gap-x-8 gap-y-2 text-gray-700">
+        <a href="/de/product" class="hover:text-blue-600">Produktdemo ansehen</a>
+        <a href="/de/privacy" class="hover:text-blue-600">Datenschutzprinzipien lesen</a>
+        <a href="/de/team" class="hover:text-blue-600">Projektteam kennenlernen</a>
+      </div>
+    </section>
+  </div>
+</LayoutDE>

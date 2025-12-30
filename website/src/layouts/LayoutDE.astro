@@ -1,0 +1,85 @@
+---
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description = 'Datenschutzkonforme Infrastruktur zur Dokumentation von Arbeitsbedingungen im Gesundheitswesen' } = Astro.props;
+const currentPath = Astro.url.pathname;
+
+const navItems = [
+  { href: '/de', label: 'Dossier' },
+  { href: '/de/product', label: 'Produkt' },
+  { href: '/de/privacy', label: 'Datenschutz' },
+  { href: '/de/team', label: 'Team' },
+];
+---
+
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={description} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <title>{title} | Open Working Hours</title>
+  </head>
+  <body class="min-h-screen flex flex-col bg-white">
+    <!-- Navigation -->
+    <header class="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-gray-100">
+      <nav class="max-w-4xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+        <a href="/de" class="font-semibold text-gray-900 hover:text-gray-900">
+          Open Working Hours
+        </a>
+        <div class="flex items-center gap-4">
+          <ul class="flex items-center gap-1 sm:gap-2">
+            {navItems.map((item) => (
+              <li>
+                <a
+                  href={item.href}
+                  class:list={[
+                    'px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
+                    currentPath === item.href || (item.href === '/de' && currentPath === '/de/')
+                      ? 'bg-gray-100 text-gray-900'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  ]}
+                >
+                  {item.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+          <!-- Language Switcher -->
+          <a href="/" class="text-xs text-gray-400 hover:text-gray-600 border-l border-gray-200 pl-4">
+            EN
+          </a>
+        </div>
+      </nav>
+    </header>
+
+    <!-- Main content -->
+    <main class="flex-1">
+      <slot />
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-gray-100 mt-16">
+      <div class="max-w-4xl mx-auto px-4 sm:px-6 py-8">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div class="text-sm text-gray-500">
+            Kontakt: <a href="mailto:contact@openworkinghours.org" class="text-gray-700 hover:text-gray-900">contact@openworkinghours.org</a>
+          </div>
+          <nav class="flex gap-6 text-sm">
+            <a href="/imprint" class="text-gray-500 hover:text-gray-700">Impressum</a>
+            <a href="/privacy-policy" class="text-gray-500 hover:text-gray-700">Datenschutzerklärung</a>
+          </nav>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

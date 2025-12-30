@@ -2,8 +2,8 @@
 
 This file provides context for AI assistants (Claude) working on this project.
 
-**Last Updated:** 2025-12-27
-**Status:** Status Dashboard complete (Build #19) - Real-world testing ongoing
+**Last Updated:** 2025-12-30
+**Status:** Dossier website created - Preparing for union outreach
 
 ---
 
@@ -11,26 +11,34 @@ This file provides context for AI assistants (Claude) working on this project.
 
 **Open Working Hours** is a privacy-first platform for healthcare workers to track and report working hours transparently while complying with GDPR.
 
-### Architecture (3 Components)
+### Architecture (4 Components)
 
-1. **Next.js Web Dashboard** (deployed to Vercel)
+1. **Astro Dossier Website** (NEW - in `website/` directory)
+   - Project dossier for union/association outreach
+   - Bilingual (English + German)
+   - Static site, zero JavaScript
+   - Problem → Analysis → Solution narrative
+   - Location: `website/` directory
+
+2. **Next.js Web Dashboard** (deployed to Vercel)
    - Public analytics and reporting
    - Calendar planning interface
    - Email verification flow
    - Location: Root of this repo
 
-2. **React Native Mobile App** (in development)
+3. **React Native Mobile App** (TestFlight Build #19)
    - Primary user interface
-   - Geofencing-based automatic tracking ✅ Working (Module 1 complete)
-   - Calendar with shift planning ✅ Working
-   - Privacy-protected submissions 🔄 Redesigning (Module 2)
-   - Local-first data storage (SQLite + encryption)
+   - Geofencing-based automatic tracking ✅ Complete
+   - Calendar with shift planning ✅ Complete
+   - Status Dashboard with 14-day overview ✅ Complete
+   - Daily submission to backend ✅ Complete
    - Location: `mobile-app/` directory
 
-3. **FastAPI Backend** (partial implementation)
+4. **FastAPI Backend** (Production on Hetzner)
    - Email verification ✅ Working
-   - Anonymous weekly submissions ✅ Working (deprecated)
-   - Server-side aggregation with k-anonymity 🔴 Planning (redesign)
+   - User authentication (JWT) ✅ Working
+   - Work events CRUD ✅ Working
+   - K-anonymity aggregation ✅ Working (cron daily 3 AM UTC)
    - Location: `backend/` directory
 
 ---
@@ -114,20 +122,33 @@ Only when a module/feature is:
 | File | Purpose | Status |
 |------|---------|--------|
 | `blueprint.md` | System architecture (completed modules) | ✅ Current |
-| `TODO.md` | Active work tracking (backend redesign tasks) | ✅ Current |
+| `TODO.md` | Active work tracking (website + future tasks) | ✅ Current |
 | `privacy_architecture.md` | Privacy/GDPR design specification | ✅ Current |
-| `BACKEND_REDESIGN_PLAN.md` | Backend redesign planning (active) | 🔴 Planning |
 | `CLAUDE.md` | This file - AI assistant context | ✅ Current |
 | `README.md` | User-facing setup guide | ✅ Current |
+| `website/README.md` | Dossier website setup and content guide | ✅ New |
+| `BACKEND_REDESIGN_PLAN.md` | Backend redesign planning | ✅ Complete |
 | `integration-testing-plan.md` | E2E testing strategy (Detox) | ⏸️ On hold |
 | `docs/e2e-status.md` | E2E implementation status | ⏸️ On hold |
 | `archive/` | Archived planning docs (Module 1, old Module 2) | 📦 Reference |
 
 ---
 
-## Current State (2025-12-27)
+## Current State (2025-12-30)
 
 ### What Exists & Works
+
+✅ **Astro Dossier Website** (NEW - Ready for content)
+- Bilingual site structure (English + German)
+- 10 pages total (6 EN + 4 DE)
+- Problem → Analysis → Solution narrative
+- Privacy principles with data flow explanation
+- Team and advisor placeholders
+- German legal pages (Impressum, Datenschutzerklärung templates)
+- Detailed image generation prompts for 3 diagrams
+- **Tech:** Astro 5, Tailwind CSS 4, Inter font
+- **Location:** `website/` directory
+- **Status:** Structure complete, awaiting content (photos, screenshots, diagrams)
 
 ✅ **Next.js Web Dashboard** (Production on Vercel)
 - Calendar with shift planning (drag-and-drop, templates)
@@ -199,6 +220,41 @@ Only when a module/feature is:
 - Use new endpoints: `GET /stats/*`, `POST /work-events`
 
 ## Recent Updates
+
+### ✅ Completed 2025-12-30:
+
+1. **Dossier Website for Union Outreach** (Astro - Structure Complete)
+   - **Purpose**: Trust anchor for outreach to medical associations, unions, and interest groups
+   - **Tech Stack**: Astro 5, Tailwind CSS 4, Inter font, zero JavaScript shipped
+   - **Pages Created**:
+     - `/` - Project Dossier (Problem → Analysis → Solution narrative)
+     - `/product` - App screenshots and dashboard preview
+     - `/privacy` - Privacy principles and data flow
+     - `/team` - Founder and advisor placeholders
+     - `/imprint` - German Impressum template
+     - `/privacy-policy` - GDPR privacy policy template
+     - `/de/*` - German translations of all content pages
+   - **Bilingual**: Full EN/DE support with language switcher
+   - **Diagram Prompts**: Detailed image generation prompts for:
+     - System Overview (iconic, minimal - for Dossier page)
+     - Data Flow (technical, 3-layer - for Privacy page)
+     - Dashboard Mockup (bar chart - for Product page)
+   - **Files**: `website/` directory
+   - **Documentation**: Updated `blueprint.md` Section 12, `TODO.md`, `website/README.md`
+   - **Status**: Structure complete, awaiting content (photos, screenshots, generated diagrams)
+
+2. **Demo Data Seeding for Screenshots** (Mobile App)
+   - Added "Load Demo Data" button in Settings screen
+   - Creates 14 days of realistic planned/actual hours
+   - Includes mix of overtime, undertime, confirmed/unconfirmed days
+   - Future shifts for Next Shift widget
+   - **Files**: `mobile-app/src/test-utils/seedDashboardData.ts`, `SettingsScreen.tsx`
+   - **Status**: Hidden for clean screenshots (can be re-enabled by uncommenting)
+
+3. **Temporary Screenshot Mode Adjustments** (Mobile App)
+   - Disabled permission warning banner (for clean screenshots)
+   - Hidden demo data buttons (for clean Settings screenshot)
+   - **Note**: Re-enable before production build
 
 ### ✅ Completed 2025-12-27:
 

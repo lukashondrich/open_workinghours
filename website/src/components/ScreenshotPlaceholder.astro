@@ -1,0 +1,25 @@
+---
+interface Props {
+  label: string;
+  description?: string;
+}
+
+const { label, description } = Astro.props;
+---
+
+<div class="screenshot-placeholder-wrapper">
+  <div class="screenshot-placeholder">
+    <div class="text-center px-4">
+      <div class="text-sm font-medium text-gray-500 mb-1">{label}</div>
+      {description && <div class="text-xs text-gray-400">{description}</div>}
+    </div>
+  </div>
+</div>
+
+<style>
+  .screenshot-placeholder-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+</style>

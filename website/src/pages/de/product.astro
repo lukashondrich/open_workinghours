@@ -1,0 +1,175 @@
+---
+import LayoutDE from '../../layouts/LayoutDE.astro';
+import ScreenshotPlaceholder from '../../components/ScreenshotPlaceholder.astro';
+import DiagramPlaceholder from '../../components/DiagramPlaceholder.astro';
+---
+
+<LayoutDE title="Produkt" description="Die Open Working Hours App – Screenshots und Funktionsübersicht zur Arbeitszeiterfassung im Gesundheitswesen.">
+  <div class="max-w-4xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
+    <!-- Header -->
+    <header class="mb-12">
+      <h1 class="text-gray-900 mb-4">Produkt</h1>
+      <p class="text-xl text-gray-600 max-w-2xl">
+        Eine native iOS-App, entwickelt für die Realität im Gesundheitswesen: lange Schichten, unvorhersehbare Dienstzeiten und wenig Zeit für administrative Aufgaben.
+      </p>
+    </header>
+
+    <!-- Screenshots Section -->
+    <section class="mb-16">
+      <h2 class="text-gray-900 mb-6">App-Einblicke</h2>
+      <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 sm:gap-6">
+        <ScreenshotPlaceholder
+          label="Statusübersicht"
+          description="14-Tage-Übersicht: geplant vs. tatsächlich"
+        />
+        <ScreenshotPlaceholder
+          label="Kalender – Wochenansicht"
+          description="Dienste planen, Zeiten prüfen"
+        />
+        <ScreenshotPlaceholder
+          label="Schichtvorlagen"
+          description="Wiederverwendbare Dienstmuster"
+        />
+        <ScreenshotPlaceholder
+          label="Standort-Setup"
+          description="Geofencing-Zonen einrichten"
+        />
+        <ScreenshotPlaceholder
+          label="Aktive Erfassung"
+          description="Echtzeit-Anzeige laufender Erfassung"
+        />
+        <ScreenshotPlaceholder
+          label="Einstellungen"
+          description="Datenschutz, Export"
+        />
+      </div>
+    </section>
+
+    <!-- Auf einen Blick -->
+    <section class="mb-16">
+      <div class="grid sm:grid-cols-3 gap-6">
+        <div class="p-6 bg-gray-50 rounded-lg">
+          <div class="text-2xl font-semibold text-gray-900 mb-1">&lt; 1 Min</div>
+          <div class="text-gray-600">Täglicher Zeitaufwand</div>
+        </div>
+        <div class="p-6 bg-gray-50 rounded-lg">
+          <div class="text-2xl font-semibold text-gray-900 mb-1">Automatisch</div>
+          <div class="text-gray-600">Geofencing-basierte Erfassung</div>
+        </div>
+        <div class="p-6 bg-gray-50 rounded-lg">
+          <div class="text-2xl font-semibold text-gray-900 mb-1">Offline-fähig</div>
+          <div class="text-gray-600">Funktioniert ohne Internet</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- So funktioniert es -->
+    <section class="mb-16">
+      <h2 class="text-gray-900 mb-6">So funktioniert es</h2>
+      <div class="space-y-8">
+        <div class="flex gap-4">
+          <div class="flex-shrink-0 w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-semibold text-sm">
+            1
+          </div>
+          <div>
+            <h3 class="text-gray-900 mb-1">Arbeitszeiten erfassen</h3>
+            <p class="text-gray-600">
+              Richten Sie eine Geofence-Zone um Ihren Arbeitsplatz ein. Die App erkennt automatisch, wann Sie kommen und gehen. Alternativ ist eine manuelle Erfassung mit einem Fingertipp möglich.
+            </p>
+          </div>
+        </div>
+        <div class="flex gap-4">
+          <div class="flex-shrink-0 w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-semibold text-sm">
+            2
+          </div>
+          <div>
+            <h3 class="text-gray-900 mb-1">Prüfen und bestätigen</h3>
+            <p class="text-gray-600">
+              Am Ende des Tages prüfen Sie Ihre erfassten Zeiten in der Kalenderansicht, vergleichen sie mit geplanten Diensten und passen sie bei Bedarf an. Anschließend bestätigen Sie den Tag.
+            </p>
+          </div>
+        </div>
+        <div class="flex gap-4">
+          <div class="flex-shrink-0 w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-semibold text-sm">
+            3
+          </div>
+          <div>
+            <h3 class="text-gray-900 mb-1">Zu aggregierten Auswertungen beitragen</h3>
+            <p class="text-gray-600">
+              Bestätigte Daten werden verschlüsselt an das Backend übertragen und dort mit Daten anderer Beschäftigter aggregiert. Es werden ausschließlich anonymisierte Statistiken erzeugt.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Dashboard-Vorschau -->
+    <section class="mb-16">
+      <h2 class="text-gray-900 mb-6">Öffentliche Dashboard-Vorschau</h2>
+      <p class="text-gray-600 mb-6">
+        Aggregierte Daten werden in einem öffentlichen Dashboard dargestellt. So können Arbeitsmuster nach Region und Fachrichtung sichtbar gemacht werden – ohne Rückschluss auf Einzelpersonen.
+      </p>
+      <DiagramPlaceholder
+        label="Dashboard-Beispiel"
+        description={`IMAGE GENERATION PROMPT — Öffentliche Dashboard-Statistik-Visualisierung
+
+STIL:
+Klare, minimale Datenvisualisierung-Mockup. Moderne Dashboard-Ästhetik ähnlich Analytics-Tools (Stripe Dashboard, Linear, Vercel Analytics). Helles Theme mit dezenten Schatten. Professionell, aber nicht corporate. Das Ziel ist, wie ein echter, funktionaler Dashboard-Screenshot auszusehen — keine abstrakte Illustration.
+
+KOMPOSITION:
+Ein horizontales Balkendiagramm mit dem Titel "Durchschnittliche Wochenarbeitszeit nach Fachrichtung"
+
+DIAGRAMM-ELEMENTE:
+- Titel oben: "Durchschnittliche Wochenarbeitszeit nach Fachrichtung"
+- Untertitel: "Letzte 30 Tage · Deutschland"
+- 5 horizontale Balken mit Beschriftungen:
+  1. "Chirurgie" — 52,3h (längster Balken, ca. 85% Breite)
+  2. "Innere Medizin" — 48,7h
+  3. "Notfallmedizin" — 51,2h
+  4. "Anästhesiologie" — 47,1h
+  5. "Pädiatrie" — 45,8h (kürzester Balken)
+- Y-Achse: Fachrichtungsnamen (linksbündig)
+- X-Achse: Stundenskala (0 bis 60h)
+- Balkenfarbe: Blau (#3B82F6) mit leichter Transparenz
+- Referenzlinie bei 40h (beschriftet "Vertragliche Arbeitszeit") — gestrichelte graue Linie
+
+FUSSZEILEN-ANNOTATION:
+Kleiner Text unter dem Diagramm: "Anzeige nur bei n ≥ 10 Beitragenden pro Gruppe"
+Datenschutz-Indikator-Icon (Schild oder Schloss) neben der Annotation
+
+VISUELLE DETAILS:
+- Abgerundete Balkenenden
+- Dezente Rasterlinien (sehr hellgrau)
+- Klare serifenlose Typografie (Inter oder ähnlich)
+- Weißer Hintergrund mit sehr dezentem Kartenschatten
+- Großzügiger Weißraum
+
+ZENTRALE BOTSCHAFT:
+- Dies sind ECHTE, aggregierte Daten (keine Einzeldatensätze)
+- Die Daten zeigen systemische Muster (Überstunden nach Fachrichtung)
+- Datenschutz ist eingebaut (Mindestgruppengröße angezeigt)
+- Professionelle, vertrauenswürdige, neutrale Präsentation
+
+DIMENSIONEN: Extra-Breitformat (21:9), simuliert ein Dashboard-Panel.
+
+NICHT ENTHALTEN: Kreisdiagramme, komplexe mehrachsige Diagramme, 3D-Effekte, Stockfoto-Elemente, Firmenbranding, Dark Mode.`}
+        aspectRatio="21/9"
+      />
+    </section>
+
+    <!-- Plattform & Status -->
+    <section class="border-t border-gray-100 pt-8">
+      <div class="flex flex-wrap gap-6 text-sm text-gray-600">
+        <div>
+          <span class="font-medium text-gray-900">Plattform:</span> iOS (TestFlight)
+        </div>
+        <div>
+          <span class="font-medium text-gray-900">Status:</span> Geschlossene Beta
+        </div>
+        <div>
+          <span class="font-medium text-gray-900">Android:</span> Geplant
+        </div>
+      </div>
+    </section>
+  </div>
+</LayoutDE>

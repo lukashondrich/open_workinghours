@@ -1,0 +1,175 @@
+---
+import Layout from '../layouts/Layout.astro';
+import ScreenshotPlaceholder from '../components/ScreenshotPlaceholder.astro';
+import DiagramPlaceholder from '../components/DiagramPlaceholder.astro';
+---
+
+<Layout title="Product" description="See the Open Working Hours app in action - screenshots and demo of the working hours tracking system.">
+  <div class="max-w-4xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
+    <!-- Header -->
+    <header class="mb-12">
+      <h1 class="text-gray-900 mb-4">Product</h1>
+      <p class="text-xl text-gray-600 max-w-2xl">
+        A native iOS app designed for the realities of healthcare work: long shifts, unpredictable schedules, and limited time for administrative tasks.
+      </p>
+    </header>
+
+    <!-- Screenshots Section -->
+    <section class="mb-16">
+      <h2 class="text-gray-900 mb-6">App Screenshots</h2>
+      <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 sm:gap-6">
+        <ScreenshotPlaceholder
+          label="Status Dashboard"
+          description="14-day hours overview with planned vs actual"
+        />
+        <ScreenshotPlaceholder
+          label="Calendar Week View"
+          description="Plan shifts, review tracked time"
+        />
+        <ScreenshotPlaceholder
+          label="Shift Templates"
+          description="Reusable shift patterns"
+        />
+        <ScreenshotPlaceholder
+          label="Location Setup"
+          description="Geofence configuration"
+        />
+        <ScreenshotPlaceholder
+          label="Active Tracking"
+          description="Real-time session display"
+        />
+        <ScreenshotPlaceholder
+          label="Settings"
+          description="Privacy controls, export"
+        />
+      </div>
+    </section>
+
+    <!-- UX Callouts -->
+    <section class="mb-16">
+      <div class="grid sm:grid-cols-3 gap-6">
+        <div class="p-6 bg-gray-50 rounded-lg">
+          <div class="text-2xl font-semibold text-gray-900 mb-1">&lt; 1 min</div>
+          <div class="text-gray-600">Daily time investment</div>
+        </div>
+        <div class="p-6 bg-gray-50 rounded-lg">
+          <div class="text-2xl font-semibold text-gray-900 mb-1">Automatic</div>
+          <div class="text-gray-600">Geofence-based tracking</div>
+        </div>
+        <div class="p-6 bg-gray-50 rounded-lg">
+          <div class="text-2xl font-semibold text-gray-900 mb-1">Offline-first</div>
+          <div class="text-gray-600">Works without internet</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- How it works -->
+    <section class="mb-16">
+      <h2 class="text-gray-900 mb-6">How it works</h2>
+      <div class="space-y-8">
+        <div class="flex gap-4">
+          <div class="flex-shrink-0 w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-semibold text-sm">
+            1
+          </div>
+          <div>
+            <h3 class="text-gray-900 mb-1">Record your shifts</h3>
+            <p class="text-gray-600">
+              Set up a geofence around your workplace. The app automatically detects when you arrive and leave, or log manually with a single tap.
+            </p>
+          </div>
+        </div>
+        <div class="flex gap-4">
+          <div class="flex-shrink-0 w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-semibold text-sm">
+            2
+          </div>
+          <div>
+            <h3 class="text-gray-900 mb-1">Review and confirm</h3>
+            <p class="text-gray-600">
+              At the end of each day, review your tracked hours in the calendar view. Compare against your planned shifts. Adjust if needed, then confirm.
+            </p>
+          </div>
+        </div>
+        <div class="flex gap-4">
+          <div class="flex-shrink-0 w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-semibold text-sm">
+            3
+          </div>
+          <div>
+            <h3 class="text-gray-900 mb-1">Contribute to aggregate insights</h3>
+            <p class="text-gray-600">
+              Confirmed data is submitted securely to our backend, where it's aggregated with data from other healthcare workers. Only anonymized statistics are ever published.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Mini Dashboard Preview -->
+    <section class="mb-16">
+      <h2 class="text-gray-900 mb-6">Public Dashboard Preview</h2>
+      <p class="text-gray-600 mb-6">
+        Aggregated data is displayed on a public dashboard, allowing stakeholders to see working patterns across regions and specialties. Individual data is never shown.
+      </p>
+      <DiagramPlaceholder
+        label="Dashboard Mockup"
+        description={`IMAGE GENERATION PROMPT — Public Dashboard Statistics Visualization
+
+STYLE:
+Clean, minimal data visualization mockup. Modern dashboard aesthetic similar to analytics tools (Stripe Dashboard, Linear, Vercel Analytics). Light theme with subtle shadows. Professional but not corporate. The goal is to look like a real, functional dashboard screenshot — not an abstract illustration.
+
+COMPOSITION:
+A horizontal bar chart showing "Average Weekly Hours by Specialty"
+
+CHART ELEMENTS:
+- Title at top: "Average Weekly Hours by Medical Specialty"
+- Subtitle: "Last 30 days · Germany"
+- 5 horizontal bars with labels:
+  1. "Surgery" — 52.3h (longest bar, extends ~85% width)
+  2. "Internal Medicine" — 48.7h
+  3. "Emergency Medicine" — 51.2h
+  4. "Anesthesiology" — 47.1h
+  5. "Pediatrics" — 45.8h (shortest bar)
+- Y-axis: Specialty names (left-aligned)
+- X-axis: Hours scale (0 to 60h)
+- Bar color: Blue (#3B82F6) with slight transparency
+- Reference line at 40h (labeled "Contracted hours") — dashed grey line
+
+FOOTER ANNOTATION:
+Small text below chart: "Data shown only when n ≥ 10 contributors per group"
+Privacy indicator icon (shield or lock) next to the annotation
+
+VISUAL DETAILS:
+- Rounded bar ends
+- Subtle grid lines (very light grey)
+- Clean sans-serif typography (Inter or similar)
+- White background with very subtle card shadow
+- Generous whitespace
+
+KEY MESSAGE TO CONVEY:
+- This is REAL, aggregated data (not individual records)
+- The data reveals systemic patterns (overtime across specialties)
+- Privacy is built-in (minimum group size shown)
+- Professional, trustworthy, neutral presentation
+
+DIMENSIONS: Extra-wide format (21:9), simulating a dashboard panel.
+
+DO NOT INCLUDE: Pie charts, complex multi-axis charts, 3D effects, stock photo elements, corporate branding, dark mode.`}
+        aspectRatio="21/9"
+      />
+    </section>
+
+    <!-- Platform status -->
+    <section class="border-t border-gray-100 pt-8">
+      <div class="flex flex-wrap gap-6 text-sm text-gray-600">
+        <div>
+          <span class="font-medium text-gray-900">Platform:</span> iOS (TestFlight)
+        </div>
+        <div>
+          <span class="font-medium text-gray-900">Status:</span> Closed Beta
+        </div>
+        <div>
+          <span class="font-medium text-gray-900">Android:</span> Planned
+        </div>
+      </div>
+    </section>
+  </div>
+</Layout>

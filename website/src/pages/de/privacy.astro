@@ -1,0 +1,226 @@
+---
+import LayoutDE from '../../layouts/LayoutDE.astro';
+import DiagramPlaceholder from '../../components/DiagramPlaceholder.astro';
+---
+
+<LayoutDE title="Datenschutz" description="Datenschutzprinzipien von Open Working Hours – Privacy by Design, k-Anonymität und DSGVO-Konformität.">
+  <div class="max-w-4xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
+    <!-- Header -->
+    <header class="mb-12">
+      <h1 class="text-gray-900 mb-4">Datenschutz &amp; Schutzkonzept</h1>
+      <p class="text-xl text-gray-600 max-w-2xl">
+        Datenschutz ist kein nachträglicher Zusatz, sondern die Grundlage der gesamten Architektur von Open Working Hours.
+      </p>
+    </header>
+
+    <!-- Datenschutz durch Design -->
+    <section class="mb-12">
+      <h2 class="text-gray-900 mb-6">Datenschutz durch Design</h2>
+      <ul class="space-y-4 text-gray-700">
+        <li class="flex gap-3">
+          <span class="text-blue-500 mt-0.5 flex-shrink-0">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+          </span>
+          <div>
+            <strong>Datenminimierung:</strong> Es werden nur Daten erhoben, die für die Aggregation erforderlich sind. Keine Namen, keine exakten Standortdaten, keine Arbeitgeberkennungen.
+          </div>
+        </li>
+        <li class="flex gap-3">
+          <span class="text-blue-500 mt-0.5 flex-shrink-0">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+          </span>
+          <div>
+            <strong>Pseudonymisierung:</strong> Nutzende werden über zufällige Tokens identifiziert, nicht über personenbezogene Merkmale. E-Mail-Adressen dienen ausschließlich der Verifikation und sind nicht Teil der operativen Datensätze.
+          </div>
+        </li>
+        <li class="flex gap-3">
+          <span class="text-blue-500 mt-0.5 flex-shrink-0">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+          </span>
+          <div>
+            <strong>Verschlüsselung bei Übertragung:</strong> Die Kommunikation zwischen App und Server erfolgt ausschließlich über TLS 1.3. Daten werden auch serverseitig verschlüsselt gespeichert.
+          </div>
+        </li>
+        <li class="flex gap-3">
+          <span class="text-blue-500 mt-0.5 flex-shrink-0">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+          </span>
+          <div>
+            <strong>K-Anonymität:</strong> Statistiken werden nur veröffentlicht, wenn mindestens 10 Personen zu einer Gruppe beitragen (k ≥ 10). Kleinere Gruppen werden vollständig unterdrückt.
+          </div>
+        </li>
+        <li class="flex gap-3">
+          <span class="text-blue-500 mt-0.5 flex-shrink-0">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+          </span>
+          <div>
+            <strong>Nutzerkontrolle:</strong> Vollständiger Datenexport und Löschung jederzeit möglich. Löschungen sind dauerhaft und betreffen alle zugehörigen Datensätze.
+          </div>
+        </li>
+        <li class="flex gap-3">
+          <span class="text-blue-500 mt-0.5 flex-shrink-0">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+          </span>
+          <div>
+            <strong>Kein Arbeitgeberzugang:</strong> Open Working Hours ist kein Arbeitgeber-Tool. Arbeitgeber haben keinen Zugriff auf Daten und können keinen Zugriff beantragen.
+          </div>
+        </li>
+      </ul>
+    </section>
+
+    <!-- Welche Daten erfasst werden -->
+    <section class="mb-12">
+      <h2 class="text-gray-900 mb-6">Welche Daten erfasst werden</h2>
+      <div class="grid md:grid-cols-2 gap-6">
+        <div class="bg-green-50 border border-green-100 rounded-lg p-6">
+          <h3 class="text-green-800 font-semibold mb-4 flex items-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+            Erfasst
+          </h3>
+          <ul class="space-y-2 text-green-900 text-sm">
+            <li>Bestätigte tägliche Arbeitszeit</li>
+            <li>Pausendauer</li>
+            <li>Bundesland</li>
+            <li>Fachrichtung (kategorisiert)</li>
+            <li>Tätigkeitsniveau (z.B. Weiterbildung, Facharzt)</li>
+            <li>Anonymer Nutzungstoken</li>
+          </ul>
+        </div>
+        <div class="bg-red-50 border border-red-100 rounded-lg p-6">
+          <h3 class="text-red-800 font-semibold mb-4 flex items-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            Nicht erfasst
+          </h3>
+          <ul class="space-y-2 text-red-900 text-sm">
+            <li>Name</li>
+            <li>Krankenhaus- oder Arbeitgebername</li>
+            <li>Exakte Standortkoordinaten</li>
+            <li>IP-Adressen (werden nicht gespeichert)</li>
+            <li>Geräte-IDs</li>
+            <li>Kontakte, Kalender oder andere App-Daten</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Schutz vor Re-Identifikation -->
+    <section class="mb-12">
+      <h2 class="text-gray-900 mb-6">Schutz vor Re-Identifikation</h2>
+      <p class="text-gray-600 mb-4">
+        Auch aggregierte Daten können bei kleinen Gruppen Risiken bergen. Daher werden mehrere Schutzmaßnahmen kombiniert:
+      </p>
+      <ul class="space-y-3 text-gray-700 ml-4">
+        <li class="flex gap-3">
+          <span class="text-gray-400">•</span>
+          <span><strong>Mindestgruppengröße:</strong> k ≥ 10</span>
+        </li>
+        <li class="flex gap-3">
+          <span class="text-gray-400">•</span>
+          <span><strong>Zellenunterdrückung:</strong> Gruppen unterhalb der Schwelle werden vollständig ausgeblendet</span>
+        </li>
+        <li class="flex gap-3">
+          <span class="text-gray-400">•</span>
+          <span><strong>Statistisches Rauschen:</strong> Kalibriertes Rauschen (Laplace-Mechanismus, ε = 1.0) zum Schutz vor Rückschlussangriffen</span>
+        </li>
+      </ul>
+    </section>
+
+    <!-- Datenfluss-Diagramm -->
+    <section class="mb-12">
+      <DiagramPlaceholder
+        label="Datenfluss"
+        description={`IMAGE GENERATION PROMPT — Datenschutz-Architektur / Datenfluss-Diagramm
+
+STIL:
+Technische Blueprint-Illustration. Hellblaue (#60A5FA) Linienzeichnung auf dezent gerastertem Hintergrund (#E0F2FE). Klar, präzise, minimal. Referenz: 1Password Security-Whitepaper-Diagramme, Sicherheitsarchitektur-Dokumentation. Flache, technische Zeichenästhetik mit klarer visueller Hierarchie.
+
+KOMPOSITION (drei separate Ebenen/Zonen, von links nach rechts):
+
+EBENE 1 — "IHR GERÄT" (ganz links, heller Hintergrund):
+- Smartphone-Icon mit kleinem Datenbank-Zylinder darin
+- Schloss/Vorhängeschloss-Symbol als Overlay
+- Beschriftung: "Lokale Speicherung (verschlüsselt)"
+- Visuelle Abgrenzung: gestrichelte Rechteck-Umrandung
+
+EBENE 2 — "SICHERES BACKEND" (Mitte, leicht dunklerer Hintergrund):
+- Server/Cloud-Icon
+- ZWEI separate Datencontainer dargestellt:
+  a) "Rohdaten"-Tabellen-Icon mit Label "(pseudonymisiert)" — Einzeldatensätze
+  b) "Aggregierte Statistiken"-Tabellen-Icon mit Label "(anonym)" — gruppierte Statistiken
+- Pfeil von Rohdaten → Aggregierte Statistiken (interne Verarbeitung)
+- Schild-Icon für Sicherheit
+- Beschriftung unten: "Einzeldatensätze bleiben hier"
+
+EBENE 3 — "ÖFFENTLICHES DASHBOARD" (ganz rechts):
+- Einfaches Balkendiagramm-Icon
+- Beschriftung: "Nur aggregierte Statistiken"
+- Kein Schloss-Symbol (Daten sind öffentlich, aber anonym)
+
+PFEILE ZWISCHEN EBENEN:
+- Ebene 1 → Ebene 2: Pfeil beschriftet "TLS 1.3 verschlüsselt"
+- Ebene 2 → Ebene 3: Pfeil beschriftet "k-anonymisiert (n≥10)"
+
+ZENTRALE VISUELLE KONZEPTE:
+- Klare Trennung zwischen privater, verarbeitender und öffentlicher Zone
+- Individuelle Daten erreichen NIEMALS Ebene 3 (visuell deutlich machen)
+- Aggregation ist die Schlüsseltransformation (viele → wenige)
+- Verschlüsselung schützt Daten bei der Übertragung
+- Pseudonym ≠ anonym (unterschiedliche Stufen zeigen)
+
+WICHTIGE ANNOTATION:
+Kleiner Texthinweis: "Einzeldatensätze verlassen niemals das Backend"
+
+DIMENSIONEN: Breitformat (16:7), geeignet für volle Seitenbreite.
+
+FARBKODIERUNG (optional):
+- Ebene 1: Hellster Blauton
+- Ebene 2: Mittlerer Blauton
+- Ebene 3: Weiß/neutral
+
+NICHT ENTHALTEN: Fotos, realistische Personen, Rot/Warnfarben, komplexes 3D, dunkle Themes.`}
+        aspectRatio="16/7"
+      />
+    </section>
+
+    <!-- Datenexport & Löschung -->
+    <section class="mb-12">
+      <h2 class="text-gray-900 mb-6">Datenexport &amp; Löschung</h2>
+      <p class="text-gray-600 mb-4">
+        Die DSGVO gewährt umfassende Rechte – wir setzen sie praktisch um.
+      </p>
+      <div class="bg-gray-50 rounded-lg p-6 space-y-4">
+        <div>
+          <h3 class="font-semibold text-gray-900">Export</h3>
+          <p class="text-gray-600 text-sm">Download aller übermittelten Daten im JSON-Format direkt in der App.</p>
+        </div>
+        <div>
+          <h3 class="font-semibold text-gray-900">Löschung</h3>
+          <p class="text-gray-600 text-sm">Kontolöschung über die App. Alle personenbezogenen Daten und Ereignisse werden dauerhaft entfernt. Bereits aggregierte Statistiken (ohne Personenbezug) bleiben erhalten.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Link zur formalen Datenschutzerklärung -->
+    <section class="border-t border-gray-100 pt-8">
+      <p class="text-gray-600">
+        Weitere rechtliche Details finden sich in der formalen <a href="/privacy-policy" class="text-blue-600 hover:text-blue-700">Datenschutzerklärung</a>.
+      </p>
+    </section>
+  </div>
+</LayoutDE>
