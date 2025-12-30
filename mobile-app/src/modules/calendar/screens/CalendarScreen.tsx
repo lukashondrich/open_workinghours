@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, RouteProp } from '@react-navigation/native';
 import { startOfWeek, parseISO } from 'date-fns';
 import { CalendarProvider, useCalendar } from '@/lib/calendar/calendar-context';
+import { ZoomProvider } from '@/lib/calendar/zoom-context';
 import CalendarHeader from '../components/CalendarHeader';
 import WeekView from '../components/WeekView';
 import MonthView from '../components/MonthView';
@@ -45,7 +46,9 @@ export default function CalendarScreen() {
 
   return (
     <CalendarProvider>
-      <CalendarLayout targetDate={targetDate} />
+      <ZoomProvider>
+        <CalendarLayout targetDate={targetDate} />
+      </ZoomProvider>
     </CalendarProvider>
   );
 }

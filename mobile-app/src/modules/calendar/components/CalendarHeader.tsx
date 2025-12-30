@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { addDays, addWeeks, format, startOfWeek, subWeeks, addMonths, subMonths } from 'date-fns';
+import { addDays, addWeeks, format, startOfWeek, subWeeks, addMonths, subMonths, getISOWeek } from 'date-fns';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/theme';
@@ -10,6 +10,7 @@ export default function CalendarHeader() {
   const { state, dispatch } = useCalendar();
   const weekStart = startOfWeek(state.currentWeekStart, { weekStartsOn: 1 });
   const weekEnd = addDays(weekStart, 6);
+  const weekNumber = getISOWeek(weekStart);
   const weekRangeLabel = `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d')}`;
   const monthLabel = format(state.currentMonth, 'LLLL yyyy');
   const title = state.view === 'week' ? weekRangeLabel : monthLabel;
@@ -37,6 +38,10 @@ export default function CalendarHeader() {
     }
   };
 
+  const handleToday = () => {
+    dispatch({ type: 'SET_WEEK', date: startOfWeek(new Date(), { weekStartsOn: 1 }) });
+  };
+
   const toggleTemplatePanel = () => {
     dispatch({ type: 'TOGGLE_TEMPLATE_PANEL' });
   };
@@ -52,10 +57,17 @@ export default function CalendarHeader() {
   return (
     <View style={styles.container}>
       <View style={styles.topRow}>
-        <View>
+        <TouchableOpacity onPress={handleToday} activeOpacity={0.7}>
           <Text style={styles.label}>Planning Calendar</Text>
-          <Text style={styles.title}>{title}</Text>
-        </View>
+          <View style={styles.titleRow}>
+            <Text style={styles.title}>{title}</Text>
+            {state.view === 'week' && (
+              <View style={styles.weekBadge}>
+                <Text style={styles.weekBadgeText}>W{weekNumber}</Text>
+              </View>
+            )}
+          </View>
+        </TouchableOpacity>
         <View style={styles.viewToggle}>
           <TouchableOpacity
             style={[styles.segment, state.view === 'week' && styles.segmentActive]}
@@ -143,6 +155,22 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xxl,
     fontWeight: fontWeight.semibold,
     color: colors.text.primary,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  weekBadge: {
+    backgroundColor: colors.grey[200],
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: borderRadius.sm,
+  },
+  weekBadgeText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    color: colors.text.secondary,
   },
   viewToggle: {
     flexDirection: 'row',

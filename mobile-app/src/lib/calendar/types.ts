@@ -75,6 +75,8 @@ export type CalendarAction =
   | { type: "MOVE_INSTANCE_UP"; id: string }
   | { type: "MOVE_INSTANCE_DOWN"; id: string }
   | { type: "SET_WEEK"; date: Date }
+  | { type: "PREV_WEEK" }
+  | { type: "NEXT_WEEK" }
   | { type: "SET_MONTH"; date: Date }
   | { type: "TOGGLE_TEMPLATE_PANEL" }
   | { type: "TOGGLE_REVIEW_MODE"; trackingRecords?: Record<string, TrackingRecord> }

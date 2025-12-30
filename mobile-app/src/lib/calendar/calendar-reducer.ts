@@ -1,3 +1,4 @@
+import { addWeeks, subWeeks } from 'date-fns';
 import type { CalendarState, CalendarAction, ShiftInstance, ConfirmedDayStatus } from './types';
 import { generateSimulatedTracking } from './calendar-utils';
 
@@ -172,6 +173,10 @@ export function calendarReducer(state: CalendarState, action: CalendarAction): C
     }
     case 'SET_WEEK':
       return { ...state, currentWeekStart: action.date };
+    case 'PREV_WEEK':
+      return { ...state, currentWeekStart: subWeeks(state.currentWeekStart, 1) };
+    case 'NEXT_WEEK':
+      return { ...state, currentWeekStart: addWeeks(state.currentWeekStart, 1) };
     case 'SET_MONTH':
       return { ...state, currentMonth: action.date };
     case 'TOGGLE_TEMPLATE_PANEL':

@@ -3,7 +3,7 @@
 This file provides context for AI assistants (Claude) working on this project.
 
 **Last Updated:** 2025-12-30
-**Status:** Dossier website created - Preparing for union outreach
+**Status:** Calendar zoom & navigation complete - Ready for TestFlight
 
 ---
 
@@ -195,6 +195,21 @@ Only when a module/feature is:
 - **Files:** `mobile-app/src/modules/geofencing/services/DashboardDataService.ts`, `components/HoursSummaryWidget.tsx`, `components/NextShiftWidget.tsx`
 - **Status:** ✅ Tested on simulator
 
+**Calendar Zoom & Navigation** (✅ Complete - 2025-12-30)
+- Pinch-to-zoom with focal point (content under fingers stays stable, like maps)
+- Dynamic minimum zoom (calendar fills viewport exactly at min)
+- Double-tap to toggle between 1.0x and previous zoom level
+- Free zoom (no snap to presets)
+- Progressive disclosure (fewer hour markers, compact headers at low zoom)
+- Haptic feedback on zoom limits and week navigation
+- Swipe navigation between weeks (overscroll or fast flick at edges)
+- Week number display in header (e.g., "W1", "W52")
+- Tappable title to jump to current week
+- Animated week transitions (200ms slide)
+- **Files:** `zoom-context.tsx`, `WeekView.tsx`, `CalendarHeader.tsx`, `calendar-reducer.ts`
+- **Dependencies:** `react-native-gesture-handler`, `expo-haptics`
+- **Documentation:** See `blueprint.md` Section 3.4
+
 ✅ **Backend (FastAPI - PostgreSQL Dev + Local SQLite)**
 - Email verification (verification codes via email)
 - Authentication (JWT with 30-day expiry)
@@ -223,7 +238,33 @@ Only when a module/feature is:
 
 ### ✅ Completed 2025-12-30:
 
-1. **Dossier Website for Union Outreach** (Astro - Structure Complete)
+1. **Calendar Zoom & Navigation Feature** (Mobile App - Complete)
+   - **Zoom Features**:
+     - Pinch-to-zoom with focal point (like maps - content under fingers stays stable)
+     - Dynamic minimum zoom (calculated so calendar fills viewport exactly)
+     - Double-tap to toggle between 1.0x and previous zoom level
+     - Free zoom (no snap to presets)
+     - Haptic feedback when hitting zoom limits
+   - **Navigation Features**:
+     - Swipe past edge to navigate weeks (60px overscroll threshold)
+     - Fast flick at edge to navigate weeks (velocity-based trigger)
+     - Animated week transitions (200ms slide left/right)
+     - Tappable title to jump to current week
+     - Week number badge in header (e.g., "W1", "W52")
+   - **Progressive Disclosure**:
+     - Hour markers reduce at low zoom (every 4h at minimal, every 2h at compact)
+     - Day names hidden at low zoom
+     - Confirm button shows "?" instead of "Confirm?" at low zoom
+   - **Tech**: `react-native-gesture-handler`, `expo-haptics`
+   - **Files**:
+     - Zoom context: `mobile-app/src/lib/calendar/zoom-context.tsx`
+     - WeekView: `mobile-app/src/modules/calendar/components/WeekView.tsx`
+     - CalendarHeader: `mobile-app/src/modules/calendar/components/CalendarHeader.tsx`
+     - Reducer: `mobile-app/src/lib/calendar/calendar-reducer.ts`
+   - **Documentation**: See `blueprint.md` Section 3.4
+   - **Testing**: Simulator tested (Option+drag to simulate pinch, haptics on device only)
+
+2. **Dossier Website for Union Outreach** (Astro - Structure Complete)
    - **Purpose**: Trust anchor for outreach to medical associations, unions, and interest groups
    - **Tech Stack**: Astro 5, Tailwind CSS 4, Inter font, zero JavaScript shipped
    - **Pages Created**:
@@ -892,7 +933,7 @@ Previous: add privacy_architecture.md
 
 ---
 
-**Last Updated:** 2025-12-27
-**Status:** Status Dashboard complete (Build #19) - Real-world testing ongoing
-**Current Focus:** User feedback and additional feature requests
+**Last Updated:** 2025-12-30
+**Status:** Calendar zoom & navigation complete with all polish features
+**Current Focus:** Ready for TestFlight build, user testing
 **Production URL:** https://api.openworkinghours.org

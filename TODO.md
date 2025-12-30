@@ -1,7 +1,7 @@
 # Open Working Hours – High-Level TODO
 
-**Last Updated:** 2025-12-30 (Dossier website created)
-**Current Focus:** Website content completion + union outreach preparation
+**Last Updated:** 2025-12-30 (Calendar zoom & navigation complete)
+**Current Focus:** Website content completion + TestFlight build preparation
 
 ---
 
@@ -13,6 +13,7 @@
 | Module 2 – Privacy & Submission | ✅ Complete | Auth + daily submissions tested end-to-end |
 | Backend Redesign | ✅ Complete | All phases complete; aggregation cron deployed (3 AM UTC daily) |
 | Calendar Review Mode | ✅ Enhanced | Active sessions, auto-refresh, continuous drag, stable header (Build #19) |
+| Calendar Zoom & Navigation | ✅ Complete | Focal point zoom, swipe weeks, animated transitions, haptics; see `blueprint.md` Section 3.4 |
 | Status Dashboard | ✅ Complete | 14-day hours overview, next shift widget (Build #19) |
 | Dossier Website | 🔄 In Progress | Structure complete, content placeholders remain |
 | Future Modules (3-8) | ⏸️ On Hold | Pending user growth and real-world testing |

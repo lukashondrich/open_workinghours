@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import Constants from 'expo-constants';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Notifications from 'expo-notifications';
 import AppNavigator from '@/navigation/AppNavigator';
 import { AuthProvider } from '@/lib/auth/auth-context';
@@ -105,12 +106,14 @@ export default function App() {
   }
 
   return (
-    <SafeAreaProvider>
-      <AuthProvider>
-        <AppNavigator />
-        <StatusBar style="auto" />
-      </AuthProvider>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <AuthProvider>
+          <AppNavigator />
+          <StatusBar style="auto" />
+        </AuthProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
 

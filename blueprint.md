@@ -282,6 +282,94 @@ CREATE TABLE submission_history (
 );
 ```
 
+### 3.4 Calendar Zoom & Navigation Feature
+
+**Purpose:** Allow users to pinch-to-zoom the weekly calendar view and swipe between weeks for fluid navigation.
+
+**Status:** ✅ Complete (2025-12-30)
+
+**Implementation:**
+
+```
+mobile-app/src/lib/calendar/
+├── zoom-context.tsx          # Zoom state, utilities, focal point math
+├── calendar-reducer.ts       # PREV_WEEK/NEXT_WEEK actions
+└── types.ts                  # Action type definitions
+
+mobile-app/src/modules/calendar/components/
+├── WeekView.tsx              # Pinch/swipe gestures, animations
+└── CalendarHeader.tsx        # Week number, tappable title
+```
+
+**Zoom Parameters:**
+
+| Parameter | Value | Description |
+|-----------|-------|-------------|
+| MIN_ZOOM | Dynamic | Calculated so calendar fills viewport exactly |
+| MAX_ZOOM | 1.5 | Accessibility zoom (72px/hour, 180px/day) |
+| BASE_HOUR_HEIGHT | 48px | Default hour height at 1.0x |
+| BASE_DAY_WIDTH | 120px | Default day column width at 1.0x |
+
+**Zoom Gestures:**
+
+| Gesture | Action |
+|---------|--------|
+| Pinch | Free zoom with focal point (content under fingers stays stable) |
+| Double-tap | Toggle between 1.0x and previous zoom level |
+| Pinch to limit | Haptic feedback when hitting min/max zoom |
+
+**Week Navigation:**
+
+| Gesture | Action |
+|---------|--------|
+| Swipe past edge | Navigate to prev/next week (60px threshold) |
+| Fast flick at edge | Navigate to prev/next week (velocity > 1.5) |
+| Tap title | Jump to current week (today) |
+
+**Progressive Disclosure:**
+
+| Zoom Level | Hour Markers | Day Name | Confirm Button |
+|------------|--------------|----------|----------------|
+| minimal (≤0.3x) | Every 4 hours | Hidden | "?" icon |
+| compact (≤0.6x) | Every 2 hours | Hidden | "?" icon |
+| normal (≤1.1x) | Every hour | Visible | "Confirm?" |
+| detailed (>1.1x) | Every hour | Visible | "Confirm?" |
+
+**Animation Details:**
+
+| Animation | Duration | Easing |
+|-----------|----------|--------|
+| Double-tap zoom | 200ms | Ease-out cubic |
+| Week transition (slide out) | 200ms | Linear |
+| Week transition (slide in) | 200ms | Linear |
+
+**Header Features:**
+- Week number badge (e.g., "W1", "W52") displayed next to date range
+- Tappable title area to return to current week
+- Navigation arrows for prev/next week
+
+**Key Files:**
+- `zoom-context.tsx` - ZoomProvider, useZoom, calculateMinZoom, calculateFocalPointScroll, getDisclosureLevel
+- `WeekView.tsx` - Pinch/double-tap gestures, swipe detection, slide animation, progressive disclosure
+- `CalendarHeader.tsx` - Week number display, tappable title
+- `calendar-reducer.ts` - PREV_WEEK/NEXT_WEEK reducer cases
+
+**Dependencies:**
+- `react-native-gesture-handler` - Pinch and tap gestures
+- `expo-haptics` - Haptic feedback on zoom limits and navigation
+
+**Design Decisions:**
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| Zoom type | Uniform (both axes) | Maintains 1:1 space-to-time ratio |
+| Snap behavior | No snap (free zoom) | More natural feel, users prefer continuous control |
+| Min zoom | Dynamic (viewport-based) | Calendar fills screen exactly at minimum |
+| Focal point | Real-time adjustment | Content under fingers stays stable (like maps) |
+| Week animation | Slide left/right | Clear directional feedback for time navigation |
+| Today navigation | Tappable title | No extra UI element, common calendar pattern |
+| Haptic feedback | Light (limits), Medium (navigation) | Tactile confirmation without being intrusive |
+
 ---
 
 ## 4. Mobile App Implementation Status
