@@ -5,6 +5,9 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
 } from 'react-native';
 import MapView, { Circle, Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
@@ -13,6 +16,7 @@ import * as Crypto from 'expo-crypto';
 import { Minus, Plus } from 'lucide-react-native';
 
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
+import { t } from '@/lib/i18n';
 import { Button, Input } from '@/components/ui';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import { getDatabase } from '@/modules/geofencing/services/Database';
@@ -59,9 +63,9 @@ export default function SetupScreen({ navigation }: Props) {
       if (!foregroundGranted) {
         console.log('[SetupScreen] Foreground permission denied');
         Alert.alert(
-          'Permission Required',
-          'Location permission is required to set up geofencing.',
-          [{ text: 'OK' }]
+          t('setup.permissionRequiredTitle'),
+          t('setup.permissionRequiredMessage'),
+          [{ text: t('common.ok') }]
         );
         setLoading(false);
         return;
@@ -92,23 +96,23 @@ export default function SetupScreen({ navigation }: Props) {
         console.warn('[SetupScreen] Failed to get location, using default:', locationError);
         // Use default location (San Francisco) if GPS fails
         Alert.alert(
-          'Location Unavailable',
-          'Could not get your current location. You can manually position the map.',
-          [{ text: 'OK' }]
+          t('setup.locationUnavailableTitle'),
+          t('setup.locationUnavailableMessage'),
+          [{ text: t('common.ok') }]
         );
       }
 
       setLoading(false);
     } catch (error) {
       console.error('[SetupScreen] Error in permission/location request:', error);
-      Alert.alert('Error', 'Failed to initialize location services');
+      Alert.alert(t('common.error'), t('setup.initializationFailed'));
       setLoading(false);
     }
   };
 
   const handleSave = async () => {
     if (!name.trim()) {
-      Alert.alert('Missing Information', 'Please enter a location name');
+      Alert.alert(t('setup.missingInfoTitle'), t('setup.missingInfoMessage'));
       return;
     }
 
@@ -124,16 +128,16 @@ export default function SetupScreen({ navigation }: Props) {
         // Show alert with option to continue anyway (useful for simulator testing)
         const shouldContinue = await new Promise<boolean>((resolve) => {
           Alert.alert(
-            'Background Permission Required',
-            'Background location permission is required for automatic tracking. You can continue anyway, but automatic clock-in/out will not work.\n\nTo enable: Settings → [App] → Location → Always Allow',
+            t('setup.backgroundPermissionTitle'),
+            t('setup.backgroundPermissionMessage'),
             [
               {
-                text: 'Cancel',
+                text: t('common.cancel'),
                 style: 'cancel',
                 onPress: () => resolve(false),
               },
               {
-                text: 'Continue Anyway',
+                text: t('setup.continueAnyway'),
                 onPress: () => resolve(true),
               },
             ]
@@ -186,7 +190,7 @@ export default function SetupScreen({ navigation }: Props) {
       }
     } catch (error) {
       console.error('Error saving location:', error);
-      Alert.alert('Error', 'Failed to save location. Please try again.');
+      Alert.alert(t('common.error'), t('setup.saveFailed'));
       setSaving(false);
     }
   };
@@ -232,7 +236,7 @@ export default function SetupScreen({ navigation }: Props) {
       mapRef.current?.animateToRegion(newRegion, 500);
     } catch (error) {
       console.error('[SetupScreen] Failed to get current location:', error);
-      Alert.alert('Error', 'Failed to get your location');
+      Alert.alert(t('common.error'), t('setup.getLocationFailed'));
     }
   };
 
@@ -240,8 +244,8 @@ export default function SetupScreen({ navigation }: Props) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary[500]} />
-        <Text style={styles.loadingText}>Getting your location...</Text>
-        <Text style={styles.loadingHint}>This may take a few seconds</Text>
+        <Text style={styles.loadingText}>{t('setup.gettingLocation')}</Text>
+        <Text style={styles.loadingHint}>{t('setup.gettingLocationHint')}</Text>
       </View>
     );
   }
@@ -280,61 +284,71 @@ export default function SetupScreen({ navigation }: Props) {
         onMyLocation={handleMyLocation}
       />
 
-      <View style={styles.controls} testID="setup-controls">
-        <Input
-          label="Location Name"
-          placeholder="e.g., UCSF Medical Center"
-          value={name}
-          onChangeText={setName}
-          autoCapitalize="words"
-          testID="input-location-name"
-          containerStyle={styles.inputContainer}
-        />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardAvoidingView}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      >
+        <ScrollView
+          style={styles.controlsScroll}
+          contentContainerStyle={styles.controls}
+          keyboardShouldPersistTaps="handled"
+          bounces={false}
+        >
+          <Input
+            label={t('setup.locationName')}
+            placeholder={t('setup.locationNamePlaceholder')}
+            value={name}
+            onChangeText={setName}
+            autoCapitalize="words"
+            testID="input-location-name"
+            containerStyle={styles.inputContainer}
+          />
 
-        <Text style={styles.label}>Geofence Radius: {radius}m</Text>
-        <View style={styles.radiusControls}>
-          <Button
-            variant="secondary"
-            onPress={decreaseRadius}
-            disabled={radius <= 100}
-            icon={<Minus size={20} color={colors.text.primary} />}
-            style={styles.radiusButton}
-            testID="radius-decrease"
-          >
-            {''}
-          </Button>
+          <Text style={styles.label}>{t('setup.geofenceRadius', { radius })}</Text>
+          <View style={styles.radiusControls}>
+            <Button
+              variant="secondary"
+              onPress={decreaseRadius}
+              disabled={radius <= 100}
+              icon={<Minus size={20} color={colors.text.primary} />}
+              style={styles.radiusButton}
+              testID="radius-decrease"
+            >
+              {''}
+            </Button>
 
-          <View style={styles.radiusDisplay}>
-            <Text style={styles.radiusText}>{radius}m</Text>
+            <View style={styles.radiusDisplay}>
+              <Text style={styles.radiusText}>{radius}m</Text>
+            </View>
+
+            <Button
+              variant="secondary"
+              onPress={increaseRadius}
+              disabled={radius >= 1000}
+              icon={<Plus size={20} color={colors.text.primary} />}
+              style={styles.radiusButton}
+              testID="radius-increase"
+            >
+              {''}
+            </Button>
           </View>
 
+          <Text style={styles.hint}>
+            {t('setup.mapHint')}
+          </Text>
+
           <Button
-            variant="secondary"
-            onPress={increaseRadius}
-            disabled={radius >= 1000}
-            icon={<Plus size={20} color={colors.text.primary} />}
-            style={styles.radiusButton}
-            testID="radius-increase"
+            onPress={handleSave}
+            loading={saving}
+            disabled={saving || !name.trim()}
+            fullWidth
+            testID="save-location-button"
           >
-            {''}
+            {t('setup.saveLocation')}
           </Button>
-        </View>
-
-        <Text style={styles.hint}>
-          Drag the map to position the marker at your workplace. The circle shows
-          the automatic tracking zone.
-        </Text>
-
-        <Button
-          onPress={handleSave}
-          loading={saving}
-          disabled={saving || !name.trim()}
-          fullWidth
-          testID="save-location-button"
-        >
-          Save Location
-        </Button>
-      </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -365,12 +379,17 @@ const styles = StyleSheet.create({
   map: {
     flex: 1,
   },
-  controls: {
+  keyboardAvoidingView: {
     backgroundColor: colors.background.paper,
-    padding: spacing.xl,
     borderTopLeftRadius: borderRadius.xl,
     borderTopRightRadius: borderRadius.xl,
     ...shadows.lg,
+  },
+  controlsScroll: {
+    maxHeight: 320,
+  },
+  controls: {
+    padding: spacing.xl,
   },
   inputContainer: {
     marginBottom: spacing.md,

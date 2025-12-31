@@ -8,6 +8,8 @@ import {
   TextInput,
   ScrollView,
   TouchableWithoutFeedback,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Plus } from 'lucide-react-native';
 
@@ -15,6 +17,7 @@ import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/theme';
 import { useCalendar } from '@/lib/calendar/calendar-context';
 import type { ShiftColor, ShiftTemplate } from '@/lib/calendar/types';
 import { getColorPalette } from '@/lib/calendar/calendar-utils';
+import { t } from '@/lib/i18n';
 
 // Include teal as the first/default color option
 const COLORS: ShiftColor[] = ['teal', 'blue', 'green', 'amber', 'rose', 'purple'];
@@ -38,7 +41,7 @@ export default function TemplatePanel() {
   const handleCreate = () => {
     const newTemplate: ShiftTemplate = {
       id: `template-${Date.now()}`,
-      name: 'New Shift',
+      name: t('calendar.templates.newShift'),
       startTime: '08:00',
       duration: 8 * 60,
       color: 'teal', // Default to brand color
@@ -84,154 +87,165 @@ export default function TemplatePanel() {
 
   return (
     <Modal animationType="slide" transparent visible={state.templatePanelOpen} onRequestClose={handleClose}>
-      <TouchableWithoutFeedback onPress={handleClose}>
-        <View style={styles.overlay}>
-          <TouchableWithoutFeedback onPress={() => {}}>
-            <View style={styles.panel}>
-          <View style={styles.header}>
-            <Text style={styles.headerTitle}>Shift Templates</Text>
-            <TouchableOpacity style={styles.addButton} onPress={handleCreate} testID="template-add">
-              <Plus size={16} color={colors.white} />
-              <Text style={styles.addButtonText}>New</Text>
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView style={styles.content}>
-            {templates.length === 0 && (
-              <Text style={styles.emptyText}>No templates yet. Tap "New" to create one.</Text>
-            )}
-
-            {templates.map((template, index) => {
-              const isEditing = editingId === template.id;
-              const palette = getColorPalette(template.color);
-              const isArmed = state.armedTemplateId === template.id;
-
-              return (
-                <View key={template.id} style={[styles.card, isArmed && styles.cardArmed]} testID={`template-card-${template.id}`}>
-                  {isEditing ? (
-                    <View>
-                      <TextInput
-                        style={styles.input}
-                        value={formData.name || ''}
-                        onChangeText={(value) => setFormData({ ...formData, name: value })}
-                        placeholder="Name"
-                        placeholderTextColor={colors.text.tertiary}
-                      />
-                      <View style={styles.row}>
-                        <View style={styles.flexItem}>
-                          <Text style={styles.label}>Start Time</Text>
-                          <TextInput
-                            style={styles.input}
-                            value={formData.startTime || ''}
-                            onChangeText={(value) => setFormData({ ...formData, startTime: value })}
-                            placeholder="08:00"
-                            placeholderTextColor={colors.text.tertiary}
-                          />
-                        </View>
-                        <View style={[styles.flexItem, styles.durationGroup]}>
-                          <Text style={styles.label}>Duration</Text>
-                          <View style={styles.durationInputs}>
-                            <TextInput
-                              style={[styles.input, styles.durationInput]}
-                              keyboardType="number-pad"
-                              value={String(durationHours)}
-                              onChangeText={(value) => setDurationHours(Number(value) || 0)}
-                              placeholder="h"
-                              placeholderTextColor={colors.text.tertiary}
-                            />
-                            <TextInput
-                              style={[styles.input, styles.durationInput]}
-                              keyboardType="number-pad"
-                              value={String(durationMinutes)}
-                              onChangeText={(value) =>
-                                setDurationMinutes(Math.min(55, Number(value) || 0))
-                              }
-                              placeholder="m"
-                              placeholderTextColor={colors.text.tertiary}
-                            />
-                          </View>
-                        </View>
-                      </View>
-
-                      <Text style={styles.label}>Color</Text>
-                      <View style={styles.colorRow}>
-                        {COLORS.map((color) => {
-                          const paletteColor = getColorPalette(color);
-                          const isSelected = formData.color === color;
-                          return (
-                            <TouchableOpacity
-                              key={color}
-                              style={[styles.colorDot, { backgroundColor: paletteColor.dot }, isSelected && styles.colorDotSelected]}
-                              onPress={() => setFormData({ ...formData, color })}
-                            />
-                          );
-                        })}
-                      </View>
-
-                      <Text style={styles.label}>Break Duration</Text>
-                      <View style={styles.breakRow}>
-                        {[0, 5, 15, 30, 45, 60].map((minutes) => (
-                          <TouchableOpacity
-                            key={minutes}
-                            style={[styles.breakButton, breakMinutes === minutes && styles.breakButtonSelected]}
-                            onPress={() => setBreakMinutes(minutes)}
-                          >
-                            <Text style={[styles.breakButtonText, breakMinutes === minutes && styles.breakButtonTextSelected]}>
-                              {minutes}m
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-                      </View>
-
-                      <View style={styles.editActions}>
-                        <TouchableOpacity style={styles.primaryButton} onPress={handleSave} testID="template-save">
-                          <Text style={styles.primaryButtonText}>Save</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.secondaryButton} onPress={handleCancel}>
-                          <Text style={styles.secondaryButtonText}>Cancel</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  ) : (
-                    <View>
-                      <View style={styles.cardHeader}>
-                        <View style={styles.templateLabel}>
-                          <View style={[styles.colorPreview, { backgroundColor: palette.dot }]} />
-                          <View>
-                            <Text style={styles.templateName}>{template.name}</Text>
-                            <Text style={styles.metaText}>
-                              {template.startTime} • {Math.floor(template.duration / 60)}h {template.duration % 60}m
-                            </Text>
-                          </View>
-                        </View>
-                        <TouchableOpacity onPress={() => handleEdit(template)}>
-                          <Text style={styles.editText}>Edit</Text>
-                        </TouchableOpacity>
-                      </View>
-
-                      <TouchableOpacity
-                        style={[styles.primaryButton, isArmed && styles.primaryButtonActive]}
-                        onPress={() => handleArm(template.id)}
-                        testID={`template-arm-${index}`}
-                        accessibilityLabel={`template-arm-${template.id}`}
-                      >
-                        <Text style={styles.primaryButtonText}>{isArmed ? 'Armed' : 'Arm Template'}</Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardAvoidingView}
+      >
+        <TouchableWithoutFeedback onPress={handleClose}>
+          <View style={styles.overlay}>
+            <TouchableWithoutFeedback onPress={() => {}}>
+              <View style={styles.panel}>
+                <View style={styles.header}>
+                  <Text style={styles.headerTitle}>{t('calendar.templates.title')}</Text>
+                  <TouchableOpacity style={styles.addButton} onPress={handleCreate} testID="template-add">
+                    <Plus size={16} color={colors.white} />
+                    <Text style={styles.addButtonText}>{t('calendar.templates.new')}</Text>
+                  </TouchableOpacity>
                 </View>
-              );
-            })}
-          </ScrollView>
-            </View>
-          </TouchableWithoutFeedback>
-        </View>
-      </TouchableWithoutFeedback>
+
+                <ScrollView
+                  style={styles.content}
+                  keyboardShouldPersistTaps="handled"
+                >
+                  {templates.length === 0 && (
+                    <Text style={styles.emptyText}>{t('calendar.templates.empty')}</Text>
+                  )}
+
+                  {templates.map((template, index) => {
+                    const isEditing = editingId === template.id;
+                    const palette = getColorPalette(template.color);
+                    const isArmed = state.armedTemplateId === template.id;
+
+                    return (
+                      <View key={template.id} style={[styles.card, isArmed && styles.cardArmed]} testID={`template-card-${template.id}`}>
+                        {isEditing ? (
+                          <View>
+                            <TextInput
+                              style={styles.input}
+                              value={formData.name || ''}
+                              onChangeText={(value) => setFormData({ ...formData, name: value })}
+                              placeholder={t('calendar.templates.name')}
+                              placeholderTextColor={colors.text.tertiary}
+                            />
+                            <View style={styles.row}>
+                              <View style={styles.flexItem}>
+                                <Text style={styles.label}>{t('calendar.templates.startTime')}</Text>
+                                <TextInput
+                                  style={styles.input}
+                                  value={formData.startTime || ''}
+                                  onChangeText={(value) => setFormData({ ...formData, startTime: value })}
+                                  placeholder={t('calendar.templates.startTimePlaceholder')}
+                                  placeholderTextColor={colors.text.tertiary}
+                                />
+                              </View>
+                              <View style={[styles.flexItem, styles.durationGroup]}>
+                                <Text style={styles.label}>{t('calendar.templates.duration')}</Text>
+                                <View style={styles.durationInputs}>
+                                  <TextInput
+                                    style={[styles.input, styles.durationInput]}
+                                    keyboardType="number-pad"
+                                    value={String(durationHours)}
+                                    onChangeText={(value) => setDurationHours(Number(value) || 0)}
+                                    placeholder={t('calendar.templates.hoursPlaceholder')}
+                                    placeholderTextColor={colors.text.tertiary}
+                                  />
+                                  <TextInput
+                                    style={[styles.input, styles.durationInput]}
+                                    keyboardType="number-pad"
+                                    value={String(durationMinutes)}
+                                    onChangeText={(value) =>
+                                      setDurationMinutes(Math.min(55, Number(value) || 0))
+                                    }
+                                    placeholder={t('calendar.templates.minutesPlaceholder')}
+                                    placeholderTextColor={colors.text.tertiary}
+                                  />
+                                </View>
+                              </View>
+                            </View>
+
+                            <Text style={styles.label}>{t('calendar.templates.color')}</Text>
+                            <View style={styles.colorRow}>
+                              {COLORS.map((color) => {
+                                const paletteColor = getColorPalette(color);
+                                const isSelected = formData.color === color;
+                                return (
+                                  <TouchableOpacity
+                                    key={color}
+                                    style={[styles.colorDot, { backgroundColor: paletteColor.dot }, isSelected && styles.colorDotSelected]}
+                                    onPress={() => setFormData({ ...formData, color })}
+                                  />
+                                );
+                              })}
+                            </View>
+
+                            <Text style={styles.label}>{t('calendar.templates.breakDuration')}</Text>
+                            <View style={styles.breakRow}>
+                              {[0, 5, 15, 30, 45, 60].map((minutes) => (
+                                <TouchableOpacity
+                                  key={minutes}
+                                  style={[styles.breakButton, breakMinutes === minutes && styles.breakButtonSelected]}
+                                  onPress={() => setBreakMinutes(minutes)}
+                                >
+                                  <Text style={[styles.breakButtonText, breakMinutes === minutes && styles.breakButtonTextSelected]}>
+                                    {minutes}m
+                                  </Text>
+                                </TouchableOpacity>
+                              ))}
+                            </View>
+
+                            <View style={styles.editActions}>
+                              <TouchableOpacity style={styles.primaryButton} onPress={handleSave} testID="template-save">
+                                <Text style={styles.primaryButtonText}>{t('common.save')}</Text>
+                              </TouchableOpacity>
+                              <TouchableOpacity style={styles.secondaryButton} onPress={handleCancel}>
+                                <Text style={styles.secondaryButtonText}>{t('common.cancel')}</Text>
+                              </TouchableOpacity>
+                            </View>
+                          </View>
+                        ) : (
+                          <View>
+                            <View style={styles.cardHeader}>
+                              <View style={styles.templateLabel}>
+                                <View style={[styles.colorPreview, { backgroundColor: palette.dot }]} />
+                                <View>
+                                  <Text style={styles.templateName}>{template.name}</Text>
+                                  <Text style={styles.metaText}>
+                                    {template.startTime} • {Math.floor(template.duration / 60)}h {template.duration % 60}m
+                                  </Text>
+                                </View>
+                              </View>
+                              <TouchableOpacity onPress={() => handleEdit(template)}>
+                                <Text style={styles.editText}>{t('common.edit')}</Text>
+                              </TouchableOpacity>
+                            </View>
+
+                            <TouchableOpacity
+                              style={[styles.primaryButton, isArmed && styles.primaryButtonActive]}
+                              onPress={() => handleArm(template.id)}
+                              testID={`template-arm-${index}`}
+                              accessibilityLabel={`template-arm-${template.id}`}
+                            >
+                              <Text style={styles.primaryButtonText}>{isArmed ? t('calendar.templates.selected') : t('calendar.templates.select')}</Text>
+                            </TouchableOpacity>
+                          </View>
+                        )}
+                      </View>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  keyboardAvoidingView: {
+    flex: 1,
+  },
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.35)',

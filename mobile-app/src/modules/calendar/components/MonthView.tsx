@@ -5,8 +5,9 @@ import { format, startOfMonth, endOfMonth, startOfWeek, addDays, isSameDay } fro
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/theme';
 import { useCalendar } from '@/lib/calendar/calendar-context';
 import { getMonthDays, formatDateKey, getColorPalette } from '@/lib/calendar/calendar-utils';
+import { t } from '@/lib/i18n';
 
-const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const WEEKDAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
 
 function DayCell({
   date,
@@ -95,9 +96,9 @@ export default function MonthView() {
   return (
     <View style={styles.container}>
       <View style={styles.weekdayRow}>
-        {WEEKDAY_LABELS.map((label) => (
-          <Text key={label} style={styles.weekdayLabel}>
-            {label}
+        {WEEKDAY_KEYS.map((key) => (
+          <Text key={key} style={styles.weekdayLabel}>
+            {t(`common.weekdays.${key}`)}
           </Text>
         ))}
       </View>

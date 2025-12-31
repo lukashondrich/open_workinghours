@@ -17,6 +17,7 @@ import { colors, spacing, fontSize, fontWeight } from '@/theme';
 import { Button, Input, InfoBox } from '@/components/ui';
 import { useAuth } from '@/lib/auth/auth-context';
 import { AuthService } from '../services/AuthService';
+import { t } from '@/lib/i18n';
 
 interface RegisterScreenProps {
   email: string;
@@ -34,15 +35,15 @@ export default function RegisterScreen({ email, onLoginPress }: RegisterScreenPr
   const handleRegister = async () => {
     // Validation
     if (!hospitalId.trim()) {
-      Alert.alert('Hospital required', 'Please enter your hospital ID');
+      Alert.alert(t('auth.register.hospitalRequired'), t('auth.register.hospitalRequiredMessage'));
       return;
     }
     if (!specialty.trim()) {
-      Alert.alert('Specialty required', 'Please enter your medical specialty');
+      Alert.alert(t('auth.register.specialtyRequired'), t('auth.register.specialtyRequiredMessage'));
       return;
     }
     if (!roleLevel.trim()) {
-      Alert.alert('Role required', 'Please enter your role level (e.g., resident, attending)');
+      Alert.alert(t('auth.register.roleRequired'), t('auth.register.roleRequiredMessage'));
       return;
     }
 
@@ -70,15 +71,15 @@ export default function RegisterScreen({ email, onLoginPress }: RegisterScreenPr
       // Check for specific error cases
       if (errorMessage.includes('already exists')) {
         Alert.alert(
-          'Account exists',
-          'An account with this email already exists. Please use login instead.',
+          t('auth.register.accountExists'),
+          t('auth.register.accountExistsMessage'),
           [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Go to Login', onPress: onLoginPress },
+            { text: t('common.cancel'), style: 'cancel' },
+            { text: t('auth.register.goToLogin'), onPress: onLoginPress },
           ]
         );
       } else {
-        Alert.alert('Registration failed', errorMessage);
+        Alert.alert(t('auth.register.registrationFailed'), errorMessage);
       }
     } finally {
       setLoading(false);
@@ -92,14 +93,14 @@ export default function RegisterScreen({ email, onLoginPress }: RegisterScreenPr
     >
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.content}>
-          <Text style={styles.title}>Create Account</Text>
-          <Text style={styles.subtitle}>Complete your profile to start tracking hours</Text>
+          <Text style={styles.title}>{t('auth.register.title')}</Text>
+          <Text style={styles.subtitle}>{t('auth.register.subtitle')}</Text>
 
-          <Text style={styles.emailLabel}>Email: {email}</Text>
+          <Text style={styles.emailLabel}>{t('auth.register.email', { email })}</Text>
 
           <Input
-            label="Hospital ID"
-            placeholder="e.g., Charite-Berlin, UKE-Hamburg"
+            label={t('auth.register.hospitalLabel')}
+            placeholder={t('auth.register.hospitalPlaceholder')}
             value={hospitalId}
             onChangeText={setHospitalId}
             autoCapitalize="none"
@@ -109,8 +110,8 @@ export default function RegisterScreen({ email, onLoginPress }: RegisterScreenPr
           />
 
           <Input
-            label="Specialty"
-            placeholder="e.g., Internal Medicine, Surgery, Pediatrics"
+            label={t('auth.register.specialtyLabel')}
+            placeholder={t('auth.register.specialtyPlaceholder')}
             value={specialty}
             onChangeText={setSpecialty}
             autoCapitalize="words"
@@ -119,8 +120,8 @@ export default function RegisterScreen({ email, onLoginPress }: RegisterScreenPr
           />
 
           <Input
-            label="Role Level"
-            placeholder="e.g., Resident, Attending, Fellow"
+            label={t('auth.register.roleLabel')}
+            placeholder={t('auth.register.rolePlaceholder')}
             value={roleLevel}
             onChangeText={setRoleLevel}
             autoCapitalize="words"
@@ -129,8 +130,8 @@ export default function RegisterScreen({ email, onLoginPress }: RegisterScreenPr
           />
 
           <Input
-            label="State Code (Optional)"
-            placeholder="e.g., BW, BY, BE (leave blank if unknown)"
+            label={t('auth.register.stateLabel')}
+            placeholder={t('auth.register.statePlaceholder')}
             value={stateCode}
             onChangeText={setStateCode}
             autoCapitalize="characters"
@@ -147,23 +148,22 @@ export default function RegisterScreen({ email, onLoginPress }: RegisterScreenPr
             testID="register-button"
             style={styles.registerButton}
           >
-            Create Account
+            {t('auth.register.createAccount')}
           </Button>
 
           <View style={styles.footer}>
-            <Text style={styles.footerText}>Already have an account?</Text>
+            <Text style={styles.footerText}>{t('auth.register.haveAccount')}</Text>
             <Button
               variant="ghost"
               onPress={onLoginPress}
               disabled={loading}
             >
-              Log in
+              {t('auth.register.logIn')}
             </Button>
           </View>
 
           <InfoBox variant="info" style={styles.privacyInfo}>
-            By creating an account, you agree to our privacy policy. Your work hours will be
-            aggregated with other users (k-anonymity ≥10) before being published.
+            {t('auth.register.privacyNotice')}
           </InfoBox>
         </View>
       </ScrollView>

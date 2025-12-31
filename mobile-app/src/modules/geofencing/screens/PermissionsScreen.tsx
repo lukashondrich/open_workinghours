@@ -12,6 +12,7 @@ import { CheckCircle2, XCircle, HelpCircle } from 'lucide-react-native';
 
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
 import { Button, Card, InfoBox } from '@/components/ui';
+import { t } from '@/lib/i18n';
 
 interface PermissionStatus {
   foreground: 'granted' | 'denied' | 'unknown';
@@ -53,22 +54,22 @@ export default function PermissionsScreen() {
         checkPermissions();
 
         if (background.granted) {
-          Alert.alert('Success', 'Background location permission granted!');
+          Alert.alert(t('permissionsScreen.successTitle'), t('permissionsScreen.backgroundGranted'));
         } else {
           Alert.alert(
-            'Background Permission Required',
-            'Please go to Settings → [App] → Location → Always Allow to enable automatic tracking.'
+            t('permissionsScreen.backgroundRequiredTitle'),
+            t('permissionsScreen.backgroundRequiredMessage')
           );
         }
       } else {
         Alert.alert(
-          'Foreground Permission Required',
-          'Location permission is required for this app to function.'
+          t('permissionsScreen.foregroundRequiredTitle'),
+          t('permissionsScreen.foregroundRequiredMessage')
         );
       }
     } catch (error) {
       console.error('[PermissionsScreen] Failed to request permissions:', error);
-      Alert.alert('Error', 'Failed to request permissions');
+      Alert.alert(t('common.error'), t('permissionsScreen.requestFailed'));
     }
   };
 
@@ -91,11 +92,11 @@ export default function PermissionsScreen() {
     const getStatusText = () => {
       switch (status) {
         case 'granted':
-          return { text: 'Granted', color: colors.primary[500] };
+          return { text: t('permissionsScreen.granted'), color: colors.primary[500] };
         case 'denied':
-          return { text: 'Denied', color: colors.error.main };
+          return { text: t('permissionsScreen.denied'), color: colors.error.main };
         default:
-          return { text: 'Unknown', color: colors.text.tertiary };
+          return { text: t('permissionsScreen.unknown'), color: colors.text.tertiary };
       }
     };
 
@@ -117,26 +118,23 @@ export default function PermissionsScreen() {
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {renderPermissionStatus('Location (Foreground)', permissions.foreground)}
-        {renderPermissionStatus('Location (Background)', permissions.background)}
+        {renderPermissionStatus(t('permissionsScreen.foregroundLocation'), permissions.foreground)}
+        {renderPermissionStatus(t('permissionsScreen.backgroundLocation'), permissions.background)}
 
         {permissions.background === 'denied' && (
           <View style={styles.requestButtonContainer}>
             <Button onPress={handleRequestPermission} fullWidth>
-              Request Permission
+              {t('permissionsScreen.requestPermission')}
             </Button>
 
             <Button variant="outline" onPress={handleOpenSettings} fullWidth>
-              Open Settings
+              {t('permissionsScreen.openSettings')}
             </Button>
           </View>
         )}
 
         <InfoBox variant="info" style={styles.infoBox}>
-          Background location is required for automatic tracking. Without it, you can only use
-          manual check-in/out.
-          {'\n\n'}
-          To enable: Settings → [App] → Location → Always Allow
+          {t('permissionsScreen.infoBox')}
         </InfoBox>
       </ScrollView>
     </View>

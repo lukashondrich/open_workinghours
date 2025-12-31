@@ -11,6 +11,7 @@ import { RouteProp } from '@react-navigation/native';
 import { Circle, Bot, Hand } from 'lucide-react-native';
 
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
+import { t } from '@/lib/i18n';
 import { Button, Card, Badge } from '@/components/ui';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import { getDatabase } from '@/modules/geofencing/services/Database';
@@ -66,7 +67,7 @@ export default function TrackingScreen({ navigation, route }: Props) {
       setLocation(loc);
     } catch (error) {
       console.error('Error loading location:', error);
-      Alert.alert('Error', 'Failed to load location');
+      Alert.alert(t('common.error'), t('tracking.loadFailed'));
     }
   };
 
@@ -92,7 +93,7 @@ export default function TrackingScreen({ navigation, route }: Props) {
       await loadActiveSession();
     } catch (error: any) {
       console.error('Error clocking in:', error);
-      Alert.alert('Error', error.message || 'Failed to clock in');
+      Alert.alert(t('common.error'), error.message || t('tracking.clockInFailed'));
     } finally {
       setActionLoading(false);
     }
@@ -107,7 +108,7 @@ export default function TrackingScreen({ navigation, route }: Props) {
       await loadActiveSession();
     } catch (error: any) {
       console.error('Error clocking out:', error);
-      Alert.alert('Error', error.message || 'Failed to clock out');
+      Alert.alert(t('common.error'), error.message || t('tracking.clockOutFailed'));
     } finally {
       setActionLoading(false);
     }
@@ -130,7 +131,7 @@ export default function TrackingScreen({ navigation, route }: Props) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.locationName}>{location?.name || 'Unknown Location'}</Text>
+        <Text style={styles.locationName}>{location?.name || t('tracking.unknownLocation')}</Text>
       </View>
 
       <View style={styles.statusContainer}>
@@ -140,12 +141,12 @@ export default function TrackingScreen({ navigation, route }: Props) {
           icon={<Circle size={16} color={isTracking ? colors.primary[500] : colors.grey[400]} fill={isTracking ? colors.primary[500] : 'transparent'} />}
           style={styles.statusBadge}
         >
-          {isTracking ? 'Currently Working' : 'Not Tracking'}
+          {isTracking ? t('tracking.currentlyWorking') : t('tracking.notTracking')}
         </Badge>
 
         {isTracking && activeSession && (
           <Card style={styles.sessionCard}>
-            <Text style={styles.sessionLabel}>Clocked in</Text>
+            <Text style={styles.sessionLabel}>{t('tracking.clockedIn')}</Text>
             <Text style={styles.sessionTime}>
               {new Date(activeSession.clockIn).toLocaleTimeString()}
             </Text>
@@ -154,12 +155,12 @@ export default function TrackingScreen({ navigation, route }: Props) {
               {activeSession.trackingMethod === 'geofence_auto' ? (
                 <>
                   <Bot size={16} color={colors.text.secondary} />
-                  <Text style={styles.sessionHint}>Automatically tracked</Text>
+                  <Text style={styles.sessionHint}>{t('tracking.automaticallyTracked')}</Text>
                 </>
               ) : (
                 <>
                   <Hand size={16} color={colors.text.secondary} />
-                  <Text style={styles.sessionHint}>Manually clocked in</Text>
+                  <Text style={styles.sessionHint}>{t('tracking.manuallyClocked')}</Text>
                 </>
               )}
             </View>
@@ -177,7 +178,7 @@ export default function TrackingScreen({ navigation, route }: Props) {
             fullWidth
             size="lg"
           >
-            Clock Out
+            {t('tracking.clockOut')}
           </Button>
         ) : (
           <Button
@@ -187,18 +188,18 @@ export default function TrackingScreen({ navigation, route }: Props) {
             fullWidth
             size="lg"
           >
-            Clock In
+            {t('tracking.clockIn')}
           </Button>
         )}
 
         <Text style={styles.hint}>
           {isTracking
-            ? 'Leave the geofence area to automatically clock out'
-            : 'Enter the geofence area to automatically clock in'}
+            ? t('tracking.hintTracking')
+            : t('tracking.hintNotTracking')}
         </Text>
 
         <Button variant="ghost" onPress={handleViewHistory}>
-          View Work History
+          {t('tracking.viewHistory')}
         </Button>
       </View>
     </View>

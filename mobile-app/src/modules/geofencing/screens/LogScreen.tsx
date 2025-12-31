@@ -3,13 +3,14 @@ import { View, Text, StyleSheet } from 'react-native';
 import { ClipboardList } from 'lucide-react-native';
 
 import { colors, spacing, fontSize, fontWeight } from '@/theme';
+import { t } from '@/lib/i18n';
 
 export default function LogScreen() {
   return (
     <View style={styles.container}>
       <ClipboardList size={64} color={colors.grey[400]} />
-      <Text style={styles.title}>Work History Coming Soon</Text>
-      <Text style={styles.subtitle}>Your tracked work sessions will appear here</Text>
+      <Text style={styles.title}>{t('log.comingSoon')}</Text>
+      <Text style={styles.subtitle}>{t('log.comingSoonHint')}</Text>
     </View>
   );
 }

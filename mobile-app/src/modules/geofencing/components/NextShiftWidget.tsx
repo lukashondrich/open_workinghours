@@ -1,9 +1,11 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { format, parseISO, isToday, isTomorrow } from 'date-fns';
+import { de as deLocale } from 'date-fns/locale/de';
 import { ChevronRight } from 'lucide-react-native';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
 import { getColorPalette } from '@/lib/calendar/calendar-utils';
+import { t, getDateLocale } from '@/lib/i18n';
 import type { NextShiftData } from '../services/DashboardDataService';
 
 interface NextShiftWidgetProps {
@@ -13,15 +15,16 @@ interface NextShiftWidgetProps {
 
 function formatShiftDate(dateStr: string): string {
   const date = parseISO(dateStr);
+  const locale = getDateLocale() === 'de' ? deLocale : undefined;
 
   if (isToday(date)) {
-    return 'Today';
+    return t('dashboard.nextShift.today');
   }
   if (isTomorrow(date)) {
-    return 'Tomorrow';
+    return t('dashboard.nextShift.tomorrow');
   }
 
-  return format(date, 'EEEE, MMM d');
+  return format(date, 'EEEE, MMM d', { locale });
 }
 
 export default function NextShiftWidget({
@@ -38,7 +41,7 @@ export default function NextShiftWidget({
     >
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Next Shift</Text>
+        <Text style={styles.title}>{t('dashboard.nextShift.title')}</Text>
         <ChevronRight size={20} color={colors.text.tertiary} />
       </View>
 
@@ -63,8 +66,8 @@ export default function NextShiftWidget({
         </View>
       ) : (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyText}>No shifts planned</Text>
-          <Text style={styles.emptyHint}>Tap to open calendar</Text>
+          <Text style={styles.emptyText}>{t('dashboard.nextShift.noShift')}</Text>
+          <Text style={styles.emptyHint}>{t('dashboard.nextShift.tapToOpen')}</Text>
         </View>
       )}
     </TouchableOpacity>

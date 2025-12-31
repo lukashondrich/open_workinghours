@@ -17,6 +17,7 @@ import * as Location from 'expo-location';
 import { MapPin, Plus, ChevronUp, ChevronDown } from 'lucide-react-native';
 
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
+import { t } from '@/lib/i18n';
 import { getDatabase } from '@/modules/geofencing/services/Database';
 import { getGeofenceService } from '@/modules/geofencing/services/GeofenceService';
 import MapControls from '@/modules/geofencing/components/MapControls';
@@ -73,7 +74,7 @@ export default function LocationsListScreen() {
       }
     } catch (error) {
       console.error('[LocationsListScreen] Failed to load locations:', error);
-      Alert.alert('Error', 'Failed to load locations');
+      Alert.alert(t('common.error'), t('locations.loadFailed'));
     }
   };
 
@@ -116,9 +117,9 @@ export default function LocationsListScreen() {
   const handleAddLocation = () => {
     if (locations.length >= MAX_LOCATIONS) {
       Alert.alert(
-        'Maximum Locations Reached',
-        `You can only save up to ${MAX_LOCATIONS} locations.`,
-        [{ text: 'OK' }]
+        t('locations.maxReachedTitle'),
+        t('locations.maxReachedMessage', { max: MAX_LOCATIONS }),
+        [{ text: t('common.ok') }]
       );
       return;
     }
@@ -130,7 +131,7 @@ export default function LocationsListScreen() {
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         {
-          options: ['Cancel', 'Edit Location', 'Delete Location'],
+          options: [t('common.cancel'), t('locations.editLocation'), t('locations.deleteLocation')],
           destructiveButtonIndex: 2,
           cancelButtonIndex: 0,
         },
@@ -146,12 +147,12 @@ export default function LocationsListScreen() {
       // Android: Use Alert with buttons
       Alert.alert(
         location.name,
-        'Choose an action',
+        '',
         [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Edit Location', onPress: () => handleEditLocation(location) },
+          { text: t('common.cancel'), style: 'cancel' },
+          { text: t('locations.editLocation'), onPress: () => handleEditLocation(location) },
           {
-            text: 'Delete Location',
+            text: t('locations.deleteLocation'),
             style: 'destructive',
             onPress: () => handleDeleteLocation(location),
           },
@@ -163,17 +164,17 @@ export default function LocationsListScreen() {
 
   const handleEditLocation = (location: UserLocation) => {
     // TODO: Navigate to SetupScreen with edit mode
-    Alert.alert('Edit Location', `Editing ${location.name} - Coming soon!`);
+    Alert.alert(t('locations.editLocation'), t('locations.editComingSoon', { name: location.name }));
   };
 
   const handleDeleteLocation = (location: UserLocation) => {
     Alert.alert(
-      'Delete Location',
-      `Are you sure you want to delete "${location.name}"? This will also delete all tracking history for this location.`,
+      t('locations.deleteConfirmTitle'),
+      t('locations.deleteConfirmMessage', { name: location.name }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Delete',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: async () => {
             try {
@@ -189,10 +190,10 @@ export default function LocationsListScreen() {
               // Reload locations
               await loadLocations();
 
-              Alert.alert('Success', 'Location deleted');
+              Alert.alert(t('common.success'), t('locations.deleteSuccess'));
             } catch (error) {
               console.error('[LocationsListScreen] Failed to delete location:', error);
-              Alert.alert('Error', 'Failed to delete location');
+              Alert.alert(t('common.error'), t('locations.deleteFailed'));
             }
           },
         },
@@ -252,7 +253,7 @@ export default function LocationsListScreen() {
         <MapPin size={24} color={isSelected ? colors.primary[500] : colors.text.secondary} />
         <View style={styles.locationInfo}>
           <Text style={styles.locationName}>{item.name}</Text>
-          <Text style={styles.locationRadius}>{item.radiusMeters}m radius</Text>
+          <Text style={styles.locationRadius}>{t('locations.radiusLabel', { radius: item.radiusMeters })}</Text>
         </View>
       </TouchableOpacity>
     );
@@ -311,7 +312,7 @@ export default function LocationsListScreen() {
           activeOpacity={0.8}
         >
           <Text style={styles.panelTitle}>
-            Locations ({locations.length}/{MAX_LOCATIONS})
+            {t('locations.panelHeader', { count: locations.length, max: MAX_LOCATIONS })}
           </Text>
           {isPanelExpanded ? (
             <ChevronDown size={20} color={colors.text.secondary} />
@@ -331,9 +332,9 @@ export default function LocationsListScreen() {
               style={styles.panelList}
               ListEmptyComponent={
                 <View style={styles.emptyState}>
-                  <Text style={styles.emptyText}>No locations saved yet</Text>
+                  <Text style={styles.emptyText}>{t('locations.emptyTitle')}</Text>
                   <Text style={styles.emptySubtext}>
-                    Add your first work location to start tracking
+                    {t('locations.emptySubtitle')}
                   </Text>
                 </View>
               }
@@ -348,11 +349,11 @@ export default function LocationsListScreen() {
               disabled={locations.length >= MAX_LOCATIONS}
             >
               <Plus size={20} color={colors.white} />
-              <Text style={styles.addButtonText}>Add New Location</Text>
+              <Text style={styles.addButtonText}>{t('locations.addNew')}</Text>
             </TouchableOpacity>
           </>
         ) : (
-          <Text style={styles.panelHint}>Tap to view and manage your locations</Text>
+          <Text style={styles.panelHint}>{t('locations.panelHint')}</Text>
         )}
       </View>
     </View>

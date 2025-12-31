@@ -117,6 +117,7 @@ Static website for outreach to unions, professional associations, and interest g
   "storage": ["expo-sqlite (SQLCipher)", "expo-secure-store", "AsyncStorage"],
   "location": ["expo-location", "expo-task-manager"],
   "ui": ["react-native-gesture-handler", "react-native-reanimated", "react-native-maps"],
+  "i18n": ["i18n-js", "expo-localization", "date-fns/locale"],
   "utils": ["date-fns", "axios"]
 }
 ```
@@ -369,6 +370,84 @@ mobile-app/src/modules/calendar/components/
 | Week animation | Slide left/right | Clear directional feedback for time navigation |
 | Today navigation | Tappable title | No extra UI element, common calendar pattern |
 | Haptic feedback | Light (limits), Medium (navigation) | Tactile confirmation without being intrusive |
+
+---
+
+### 3.5 Internationalization (i18n) 🌍 In Progress
+
+**Purpose:** Full German translation for German healthcare workers and union outreach.
+
+**Status:** Core screens translated (90%), some secondary buttons pending.
+
+**Architecture:**
+
+```
+mobile-app/src/lib/i18n/
+├── index.ts                    # i18n setup (expo-localization + i18n-js)
+├── translations/
+│   ├── en.ts                   # English strings (~250 strings)
+│   └── de.ts                   # German translations
+```
+
+**How It Works:**
+1. `expo-localization` detects device language setting
+2. `i18n-js` provides `t('key')` function for string lookups
+3. English is fallback for missing translations
+4. Date formatting uses `date-fns` locale support
+
+**Usage Example:**
+```typescript
+import { t, getDateLocale } from '@/lib/i18n';
+import { de as deLocale } from 'date-fns/locale/de';
+
+// Text strings
+<Text>{t('calendar.header.title')}</Text>  // "Planning Calendar" or "Dienstkalender"
+
+// Date formatting
+const locale = getDateLocale() === 'de' ? deLocale : undefined;
+format(date, 'EEEE, MMM d', { locale });  // "Monday, Jan 1" or "Montag, Jan. 1"
+```
+
+**Translated Screens:**
+
+| Screen | Status | Notes |
+|--------|--------|-------|
+| Calendar (WeekView, Header, Templates) | ✅ Complete | GPS button, Dienste, Auswählen |
+| Calendar (MonthView, ShiftEditModal) | ✅ Complete | Weekday names localized |
+| Status Screen | ✅ Complete | Dashboard widgets |
+| Settings Screen | ✅ Complete | Menu items, alerts |
+| Auth Screens (Login, Register) | ✅ Complete | All form labels, alerts |
+| Work Locations | ✅ Complete | Panel, alerts, empty state |
+| Notifications | ✅ Complete | Toggle labels, hint |
+| Permissions | ✅ Complete | Status labels, buttons, info |
+| Data & Privacy | ✅ Complete | Cards, queue, alerts |
+| Setup/Onboarding | ⏳ Pending | Location setup flow |
+
+**Key German Translations:**
+
+| English | German | Context |
+|---------|--------|---------|
+| GPS (review mode) | GPS | Calendar toggle button |
+| Shifts | Dienste | Templates button |
+| Shift Templates | Dienste / Schichten | Modal title |
+| Select / Selected | Auswählen / Ausgewählt | Arm template button |
+| Confirm? | Bestätigen? | Day confirmation |
+| Check-in | Einstempeln | Status tracking |
+| Check-out | Ausstempeln | Status tracking |
+| Work Locations | Arbeitsorte | Settings menu |
+| Data & Privacy | Daten & Datenschutz | Settings menu |
+
+**Files Modified:**
+- `mobile-app/src/lib/i18n/` (new directory)
+- All calendar components (`CalendarHeader`, `WeekView`, `TemplatePanel`, `MonthView`, `ShiftEditModal`)
+- All geofencing screens (`StatusScreen`, `SettingsScreen`, `LocationsListScreen`, `NotificationsScreen`, `PermissionsScreen`, `DataPrivacyScreen`)
+- Auth screens (`LoginScreen`, `RegisterScreen`)
+- Dashboard widgets (`HoursSummaryWidget`, `NextShiftWidget`)
+
+**Testing:**
+- Change device language: Settings → General → Language → Deutsch
+- Restart app to see German UI
+- Verify date formatting (Mon → Mo, Today → Heute)
 
 ---
 

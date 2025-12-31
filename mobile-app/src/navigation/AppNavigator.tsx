@@ -6,6 +6,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { BarChart3, Calendar, Settings } from 'lucide-react-native';
 
 import { colors, fontSize, fontWeight } from '@/theme';
+import { t } from '@/lib/i18n';
 
 // Screens
 import SetupScreen from '@/modules/geofencing/screens/SetupScreen';
@@ -70,6 +71,7 @@ function MainTabs() {
         name="Status"
         component={StatusScreen}
         options={{
+          tabBarLabel: t('navigation.status'),
           tabBarIcon: ({ color, size }) => (
             <BarChart3 size={size || 24} color={color} />
           ),
@@ -80,6 +82,7 @@ function MainTabs() {
         name="Calendar"
         component={CalendarScreen}
         options={{
+          tabBarLabel: t('navigation.calendar'),
           tabBarIcon: ({ color, size }) => (
             <Calendar size={size || 24} color={color} />
           ),
@@ -90,6 +93,7 @@ function MainTabs() {
         name="Settings"
         component={SettingsScreen}
         options={{
+          tabBarLabel: t('navigation.settings'),
           tabBarIcon: ({ color, size }) => (
             <Settings size={size || 24} color={color} />
           ),
@@ -104,7 +108,7 @@ function LoadingScreen() {
   return (
     <View style={styles.loadingContainer}>
       <ActivityIndicator size="large" color={colors.primary[500]} />
-      <Text style={styles.loadingText}>Loading...</Text>
+      <Text style={styles.loadingText}>{t('common.loading')}</Text>
     </View>
   );
 }
@@ -131,7 +135,7 @@ function AuthStack() {
       }}
     >
       {mode === 'verify' && (
-        <Stack.Screen name="EmailVerification" options={{ title: 'Verify Email' }}>
+        <Stack.Screen name="EmailVerification" options={{ title: t('navigation.verifyEmail') }}>
           {() => (
             <EmailVerificationScreen
               onVerified={(verifiedEmail) => {
@@ -143,7 +147,7 @@ function AuthStack() {
         </Stack.Screen>
       )}
       {mode === 'register' && (
-        <Stack.Screen name="Register" options={{ title: 'Create Account' }}>
+        <Stack.Screen name="Register" options={{ title: t('navigation.createAccount') }}>
           {() => (
             <RegisterScreen
               email={email}
@@ -153,7 +157,7 @@ function AuthStack() {
         </Stack.Screen>
       )}
       {mode === 'login' && (
-        <Stack.Screen name="Login" options={{ title: 'Log In' }}>
+        <Stack.Screen name="Login" options={{ title: t('navigation.logIn') }}>
           {() => (
             <LoginScreen
               email={email}
@@ -219,37 +223,37 @@ export default function AppNavigator() {
         <Stack.Screen
           name="Setup"
           component={SetupScreen}
-          options={{ title: 'Add Location' }}
+          options={{ title: t('navigation.addLocation') }}
         />
         <Stack.Screen
           name="Tracking"
           component={TrackingScreen}
-          options={{ title: 'Work Tracking' }}
+          options={{ title: t('navigation.workTracking') }}
         />
         <Stack.Screen
           name="Log"
           component={LogScreen}
-          options={{ title: 'Work History' }}
+          options={{ title: t('navigation.workHistory') }}
         />
         <Stack.Screen
           name="LocationsList"
           component={LocationsListScreen}
-          options={{ title: 'Work Locations', headerBackTitle: 'Settings' }}
+          options={{ title: t('navigation.workLocations'), headerBackTitle: t('navigation.settings') }}
         />
         <Stack.Screen
           name="Notifications"
           component={NotificationsScreen}
-          options={{ title: 'Notifications', headerBackTitle: 'Settings' }}
+          options={{ title: t('navigation.notifications'), headerBackTitle: t('navigation.settings') }}
         />
         <Stack.Screen
           name="Permissions"
           component={PermissionsScreen}
-          options={{ title: 'Permissions', headerBackTitle: 'Settings' }}
+          options={{ title: t('navigation.permissions'), headerBackTitle: t('navigation.settings') }}
         />
         <Stack.Screen
           name="DataPrivacy"
           component={DataPrivacyScreen}
-          options={{ title: 'Data & Privacy', headerBackTitle: 'Settings' }}
+          options={{ title: t('navigation.dataPrivacy'), headerBackTitle: t('navigation.settings') }}
         />
       </Stack.Navigator>
     </NavigationContainer>

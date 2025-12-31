@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import type { ShiftInstance } from '@/lib/calendar/types';
+import { t } from '@/lib/i18n';
 
 interface Props {
   visible: boolean;
@@ -33,38 +34,38 @@ export default function ShiftEditModal({ visible, instance, onClose, onSave }: P
     <Modal transparent animationType="slide" visible={visible} onRequestClose={onClose}>
       <View style={styles.overlay}>
         <View style={styles.card}>
-          <Text style={styles.title}>Edit Shift</Text>
+          <Text style={styles.title}>{t('calendar.edit.title')}</Text>
 
-          <Text style={styles.label}>Name</Text>
-          <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="Shift name" />
+          <Text style={styles.label}>{t('calendar.templates.name')}</Text>
+          <TextInput style={styles.input} value={name} onChangeText={setName} placeholder={t('calendar.templates.namePlaceholder')} />
 
-          <Text style={styles.label}>Start Time (HH:MM)</Text>
-          <TextInput style={styles.input} value={startTime} onChangeText={setStartTime} placeholder="08:00" />
+          <Text style={styles.label}>{t('calendar.edit.startTimeLabel')}</Text>
+          <TextInput style={styles.input} value={startTime} onChangeText={setStartTime} placeholder={t('calendar.templates.startTimePlaceholder')} />
 
-          <Text style={styles.label}>Duration</Text>
+          <Text style={styles.label}>{t('calendar.templates.duration')}</Text>
           <View style={styles.durationRow}>
             <TextInput
               style={[styles.input, styles.durationInput]}
               keyboardType="number-pad"
               value={String(durationHours)}
               onChangeText={(value) => setDurationHours(Number(value) || 0)}
-              placeholder="Hours"
+              placeholder={t('calendar.edit.durationHours')}
             />
             <TextInput
               style={[styles.input, styles.durationInput]}
               keyboardType="number-pad"
               value={String(durationMinutes)}
               onChangeText={(value) => setDurationMinutes(Math.min(59, Number(value) || 0))}
-              placeholder="Mins"
+              placeholder={t('calendar.edit.durationMins')}
             />
           </View>
 
           <View style={styles.actions}>
             <TouchableOpacity style={styles.secondaryButton} onPress={onClose}>
-              <Text style={styles.secondaryText}>Cancel</Text>
+              <Text style={styles.secondaryText}>{t('common.cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.primaryButton} onPress={handleSave}>
-              <Text style={styles.primaryText}>Save</Text>
+              <Text style={styles.primaryText}>{t('common.save')}</Text>
             </TouchableOpacity>
           </View>
         </View>

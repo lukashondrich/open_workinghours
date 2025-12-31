@@ -9,6 +9,7 @@ import {
 
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
 import { Card } from '@/components/ui';
+import { t } from '@/lib/i18n';
 
 export default function NotificationsScreen() {
   const [checkInNotifications, setCheckInNotifications] = useState(true);
@@ -18,7 +19,7 @@ export default function NotificationsScreen() {
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Card style={styles.settingCard}>
-          <Text style={styles.settingLabel}>Check-in notifications</Text>
+          <Text style={styles.settingLabel}>{t('notificationsScreen.checkInNotifications')}</Text>
           <Switch
             value={checkInNotifications}
             onValueChange={setCheckInNotifications}
@@ -28,7 +29,7 @@ export default function NotificationsScreen() {
         </Card>
 
         <Card style={styles.settingCard}>
-          <Text style={styles.settingLabel}>Check-out notifications</Text>
+          <Text style={styles.settingLabel}>{t('notificationsScreen.checkOutNotifications')}</Text>
           <Switch
             value={checkOutNotifications}
             onValueChange={setCheckOutNotifications}
@@ -38,7 +39,7 @@ export default function NotificationsScreen() {
         </Card>
 
         <Text style={styles.hint}>
-          Receive notifications when you automatically check in or out of your work locations
+          {t('notificationsScreen.hint')}
         </Text>
       </ScrollView>
     </View>

@@ -19,8 +19,10 @@ import {
 import { GestureDetector, Gesture, GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 import { startOfWeek, subDays, format as formatDate, isBefore, startOfDay } from 'date-fns';
+import { de as deLocale } from 'date-fns/locale/de';
 
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
+import { t, getDateLocale } from '@/lib/i18n';
 import { useCalendar } from '@/lib/calendar/calendar-context';
 import {
   useZoom,
@@ -212,20 +214,20 @@ function TrackingBadge({
 
   const handleLongPress = () => {
     const showDeleteConfirm = () => {
-      Alert.alert('Delete tracking?', 'Remove this time entry?', [
-        { text: 'Cancel', style: 'cancel' },
+      Alert.alert(t('calendar.week.deleteTrackingTitle'), t('calendar.week.deleteTrackingMessage'), [
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Delete',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: () => onDelete(record.id),
         },
       ]);
     };
 
-    Alert.alert('Tracking Options', formatDuration(record.duration), [
-      { text: 'Adjust', onPress: onToggleActive },
-      { text: 'Delete', style: 'destructive', onPress: showDeleteConfirm },
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('calendar.week.trackingOptions'), formatDuration(record.duration), [
+      { text: t('common.adjust'), onPress: onToggleActive },
+      { text: t('common.delete'), style: 'destructive', onPress: showDeleteConfirm },
+      { text: t('common.cancel'), style: 'cancel' },
     ]);
   };
   const startPan = useMemo(
@@ -320,7 +322,7 @@ function TrackingBadge({
       </Pressable>
       {active && (
         <View style={[styles.breakPanel, breakPanelStyle]}>
-          <Text style={styles.breakTitle}>Break (min)</Text>
+          <Text style={styles.breakTitle}>{t('calendar.week.breakTitle')}</Text>
           {[5, 15, 30, 45, 60].map((min) => (
             <TouchableOpacity
               key={min}
@@ -334,10 +336,10 @@ function TrackingBadge({
             <>
               <View style={styles.breakDivider} />
               <Text style={styles.breakTotal}>
-                Total: {formatDuration(record.breakMinutes || 0)}
+                {t('calendar.week.breakTotal', { duration: formatDuration(record.breakMinutes || 0) })}
               </Text>
               <TouchableOpacity style={styles.breakClearBtn} onPress={() => onClearBreak(record.id)}>
-                <Text style={styles.breakClearText}>Clear</Text>
+                <Text style={styles.breakClearText}>{t('common.clear')}</Text>
               </TouchableOpacity>
             </>
           )}
@@ -705,8 +707,8 @@ export default function WeekView() {
 
     if (!isBefore(dayToConfirm, today)) {
       Alert.alert(
-        'Cannot confirm future days',
-        'You can only confirm days that are in the past. Please wait until tomorrow to confirm today.'
+        t('calendar.week.cannotConfirmFutureTitle'),
+        t('calendar.week.cannotConfirmFutureMessage')
       );
       return;
     }
@@ -726,12 +728,13 @@ export default function WeekView() {
         // Don't block confirmation on submission failure - it's queued for retry
       }
 
-      const formatted = formatDate(new Date(dateKey), 'EEEE');
-      setConfirmationMessage(`${formatted} confirmed`);
+      const locale = getDateLocale() === 'de' ? deLocale : undefined;
+      const formatted = formatDate(new Date(dateKey), 'EEEE', { locale });
+      setConfirmationMessage(t('calendar.week.dayConfirmed', { day: formatted }));
       setTimeout(() => setConfirmationMessage(null), 2000);
     } catch (error) {
       console.error('[WeekView] Failed to confirm day:', error);
-      Alert.alert('Confirmation failed', 'Could not finalize this day. Please try again.');
+      Alert.alert(t('calendar.week.confirmationFailed'), t('calendar.week.confirmationFailedMessage'));
     }
   };
 
@@ -773,7 +776,7 @@ export default function WeekView() {
       }
     } catch (error) {
       console.error('[WeekView] Failed to delete tracking session:', error);
-      Alert.alert('Delete failed', 'Could not delete this session. Please try again.');
+      Alert.alert(t('common.error'), t('calendar.week.deleteError'));
     }
   };
 
@@ -787,12 +790,12 @@ export default function WeekView() {
     // Warn if break exceeds session duration
     if (newBreak > record.duration) {
       Alert.alert(
-        'Break exceeds session duration',
-        `Total break (${formatDuration(newBreak)}) is longer than session duration (${formatDuration(record.duration)}). Net time will be 0.`,
+        t('calendar.week.breakExceedsTitle'),
+        t('calendar.week.breakExceedsMessage', { breakDuration: formatDuration(newBreak), sessionDuration: formatDuration(record.duration) }),
         [
-          { text: 'Cancel', style: 'cancel' },
+          { text: t('common.cancel'), style: 'cancel' },
           {
-            text: 'Add Anyway',
+            text: t('common.addAnyway'),
             onPress: async () => {
               try {
                 const { getCalendarStorage } = await import('@/modules/calendar/services/CalendarStorage');
@@ -801,7 +804,7 @@ export default function WeekView() {
                 dispatch({ type: 'UPDATE_TRACKING_BREAK', id, breakMinutes: newBreak });
               } catch (error) {
                 console.error('[WeekView] Failed to add break:', error);
-                Alert.alert('Error', 'Could not add break. Please try again.');
+                Alert.alert(t('common.error'), t('calendar.week.breakAddError'));
               }
             },
           },
@@ -817,7 +820,7 @@ export default function WeekView() {
       dispatch({ type: 'UPDATE_TRACKING_BREAK', id, breakMinutes: newBreak });
     } catch (error) {
       console.error('[WeekView] Failed to add break:', error);
-      Alert.alert('Error', 'Could not add break. Please try again.');
+      Alert.alert(t('common.error'), t('calendar.week.breakAddError'));
     }
   };
 
@@ -829,26 +832,26 @@ export default function WeekView() {
       dispatch({ type: 'UPDATE_TRACKING_BREAK', id, breakMinutes: 0 });
     } catch (error) {
       console.error('[WeekView] Failed to clear break:', error);
-      Alert.alert('Error', 'Could not clear break. Please try again.');
+      Alert.alert(t('common.error'), t('calendar.week.breakClearError'));
     }
   };
 
   const handleInstanceLongPress = (instance: ShiftInstance) => {
     const showDeleteConfirm = () => {
-      Alert.alert('Delete shift?', `Remove ${instance.name}?`, [
-        { text: 'Cancel', style: 'cancel' },
+      Alert.alert(t('calendar.week.deleteShiftTitle'), t('calendar.week.deleteShiftMessage', { name: instance.name }), [
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Delete',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: () => dispatch({ type: 'DELETE_INSTANCE', id: instance.id }),
         },
       ]);
     };
 
-    Alert.alert('Shift Options', instance.name, [
-      { text: 'Edit', onPress: () => setEditingInstance(instance) },
-      { text: 'Delete', style: 'destructive', onPress: showDeleteConfirm },
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('calendar.week.shiftOptions'), instance.name, [
+      { text: t('common.edit'), onPress: () => setEditingInstance(instance) },
+      { text: t('common.delete'), style: 'destructive', onPress: showDeleteConfirm },
+      { text: t('common.cancel'), style: 'cancel' },
     ]);
   };
 
@@ -892,7 +895,7 @@ export default function WeekView() {
               const canConfirm = isBefore(startOfDay(day), today);
               return (
                 <View key={dateKey} style={[styles.dayHeader, { width: dayWidth }]} testID={`week-day-${dateKey}`}>
-                  {!isCompactHeader && <Text style={styles.dayName}>{formatDate(day, 'EEE')}</Text>}
+                  {!isCompactHeader && <Text style={styles.dayName}>{formatDate(day, 'EEE', { locale: getDateLocale() === 'de' ? deLocale : undefined })}</Text>}
                   <View style={styles.dayNumberRow}>
                     <Text style={[styles.dayNumber, isCompactHeader && styles.dayNumberCompact]}>{formatDate(day, 'd')}</Text>
                     {state.reviewMode && (
@@ -917,7 +920,7 @@ export default function WeekView() {
                               !canConfirm && styles.confirmButtonTextDisabled,
                               isCompactHeader && styles.confirmButtonTextCompact,
                             ]}>
-                              {isCompactHeader ? '?' : 'Confirm?'}
+                              {isCompactHeader ? t('calendar.week.confirmShort') : t('calendar.week.confirm')}
                             </Text>
                           </TouchableOpacity>
                         )}
@@ -980,7 +983,7 @@ export default function WeekView() {
                           ]}
                         >
                           <Text style={styles.shiftName}>{instance.name}</Text>
-                          <Text style={styles.shiftTime}>Continues…</Text>
+                          <Text style={styles.shiftTime}>{t('calendar.week.continues')}</Text>
                         </View>
                       );
                     })}

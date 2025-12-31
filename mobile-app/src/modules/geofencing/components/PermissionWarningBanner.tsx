@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/navigation/AppNavigator';
+import { t } from '@/lib/i18n';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -26,14 +27,14 @@ export default function PermissionWarningBanner({ visible }: Props) {
       <View style={styles.content}>
         <Text style={styles.icon}>⚠️</Text>
         <View style={styles.textContainer}>
-          <Text style={styles.title}>Background Permission Missing</Text>
+          <Text style={styles.title}>{t('permissionWarning.title')}</Text>
           <Text style={styles.message}>
-            Automatic tracking is disabled. Enable in Settings for geofencing to work.
+            {t('permissionWarning.message')}
           </Text>
         </View>
       </View>
       <TouchableOpacity style={styles.button} onPress={handleGoToSettings}>
-        <Text style={styles.buttonText}>Go to Settings</Text>
+        <Text style={styles.buttonText}>{t('permissionWarning.goToSettings')}</Text>
       </TouchableOpacity>
     </View>
   );

@@ -1,7 +1,7 @@
 # Open Working Hours – High-Level TODO
 
-**Last Updated:** 2025-12-30 (Calendar zoom & navigation complete)
-**Current Focus:** Website content completion + TestFlight build preparation
+**Last Updated:** 2025-12-31 (German translation implemented)
+**Current Focus:** Website content completion + i18n polish + TestFlight build
 
 ---
 
@@ -15,8 +15,43 @@
 | Calendar Review Mode | ✅ Enhanced | Active sessions, auto-refresh, continuous drag, stable header (Build #19) |
 | Calendar Zoom & Navigation | ✅ Complete | Focal point zoom, swipe weeks, animated transitions, haptics; see `blueprint.md` Section 3.4 |
 | Status Dashboard | ✅ Complete | 14-day hours overview, next shift widget (Build #19) |
+| Internationalization (i18n) | 🔄 90% Complete | German translation; core screens done, some buttons pending; see `blueprint.md` Section 3.5 |
 | Dossier Website | 🔄 In Progress | Structure complete, content placeholders remain |
 | Future Modules (3-8) | ⏸️ On Hold | Pending user growth and real-world testing |
+
+---
+
+## Current Priority: Internationalization (i18n) Polish
+
+**Goal:** Complete German translation for all screens
+
+### Completed - ✅
+
+- [x] Set up i18n infrastructure (`expo-localization` + `i18n-js`)
+- [x] Create English translation file (~250 strings)
+- [x] Create German translation file
+- [x] Translate Calendar module (WeekView, CalendarHeader, TemplatePanel, MonthView, ShiftEditModal)
+- [x] Translate Status screen and dashboard widgets
+- [x] Translate Settings screen and all menu items
+- [x] Translate Auth screens (Login, Register)
+- [x] Translate secondary Settings screens (Locations, Notifications, Permissions, Data & Privacy)
+- [x] Add date-fns locale support for German date formatting
+
+### Pending - ⏳
+
+- [ ] **Setup/Onboarding screens**: Location setup flow (`SetupScreen.tsx`)
+- [ ] **Missing buttons**: Review any hardcoded strings in components
+- [ ] **Navigation titles**: Screen header titles in AppNavigator
+- [ ] **Error messages**: Any remaining hardcoded error strings
+- [ ] **Device testing**: Verify German UI on iOS device with German locale
+
+### Translation Files
+
+| File | Location |
+|------|----------|
+| English | `mobile-app/src/lib/i18n/translations/en.ts` |
+| German | `mobile-app/src/lib/i18n/translations/de.ts` |
+| i18n Setup | `mobile-app/src/lib/i18n/index.ts` |
 
 ---
 

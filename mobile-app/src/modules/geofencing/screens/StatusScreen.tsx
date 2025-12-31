@@ -12,9 +12,9 @@ import {
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Location from 'expo-location';
-import { Settings } from 'lucide-react-native';
 
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
+import { t } from '@/lib/i18n';
 import { getDatabase } from '@/modules/geofencing/services/Database';
 import { TrackingManager } from '@/modules/geofencing/services/TrackingManager';
 import {
@@ -75,8 +75,8 @@ function CollapsedStatusLine({
         </Text>
         <Text style={styles.statusText}>
           {isCheckedIn
-            ? `Checked in${elapsedMinutes !== undefined ? ` · ${formatElapsed(elapsedMinutes)}` : ''}`
-            : 'Not checked in'}
+            ? (elapsedMinutes !== undefined ? t('status.checkedInElapsed', { elapsed: formatElapsed(elapsedMinutes) }) : t('status.checkedIn'))
+            : t('status.notCheckedIn')}
         </Text>
       </View>
       <TouchableOpacity
@@ -87,7 +87,7 @@ function CollapsedStatusLine({
         onPress={isCheckedIn ? onCheckOut : onCheckIn}
       >
         <Text style={styles.statusButtonText}>
-          {isCheckedIn ? 'Out' : 'In'}
+          {isCheckedIn ? t('status.checkOut') : t('status.checkIn')}
         </Text>
       </TouchableOpacity>
     </View>
@@ -142,7 +142,7 @@ export default function StatusScreen() {
       setRefreshing(false);
     } catch (error) {
       console.error('[StatusScreen] Failed to load data:', error);
-      Alert.alert('Error', 'Failed to load status data');
+      Alert.alert(t('common.error'), t('status.failedToLoadData'));
       setLoading(false);
       setRefreshing(false);
     }
@@ -199,15 +199,15 @@ export default function StatusScreen() {
       const db = await getDatabase();
       const trackingManager = new TrackingManager(db);
       await trackingManager.clockIn(locationId);
-      Alert.alert('Success', 'Manually checked in');
+      Alert.alert(t('common.success'), t('status.manualCheckInSuccess'));
       await loadAllData();
     } catch (error) {
       console.error('[StatusScreen] Failed to check in:', error);
       if (error instanceof Error && error.message.includes('Already clocked in')) {
-        Alert.alert('Already Checked In', 'You are already checked in at this location.');
+        Alert.alert(t('status.alreadyCheckedIn'), t('status.alreadyCheckedInMessage'));
         await loadAllData();
       } else {
-        Alert.alert('Error', error instanceof Error ? error.message : 'Failed to check in');
+        Alert.alert(t('common.error'), error instanceof Error ? error.message : t('status.failedToCheckIn'));
       }
     }
   };
@@ -217,15 +217,15 @@ export default function StatusScreen() {
       const db = await getDatabase();
       const trackingManager = new TrackingManager(db);
       await trackingManager.clockOut(locationId);
-      Alert.alert('Success', 'Manually checked out');
+      Alert.alert(t('common.success'), t('status.manualCheckOutSuccess'));
       await loadAllData();
     } catch (error) {
       console.error('[StatusScreen] Failed to check out:', error);
       if (error instanceof Error && error.message.includes('No active session')) {
-        Alert.alert('Not Checked In', 'You are not currently checked in at this location.');
+        Alert.alert(t('status.notCurrentlyCheckedIn'), t('status.notCurrentlyCheckedInMessage'));
         await loadAllData();
       } else {
-        Alert.alert('Error', error instanceof Error ? error.message : 'Failed to check out');
+        Alert.alert(t('common.error'), error instanceof Error ? error.message : t('status.failedToCheckOut'));
       }
     }
   };
@@ -247,7 +247,7 @@ export default function StatusScreen() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary[500]} />
-        <Text style={styles.loadingText}>Loading status...</Text>
+        <Text style={styles.loadingText}>{t('status.loadingStatus')}</Text>
       </View>
     );
   }
@@ -256,13 +256,7 @@ export default function StatusScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Open Working Hours</Text>
-        <TouchableOpacity
-          style={styles.settingsButton}
-          onPress={() => navigation.navigate('Settings')}
-        >
-          <Settings size={24} color={colors.text.primary} />
-        </TouchableOpacity>
+        <Text style={styles.headerTitle}>{t('status.appTitle')}</Text>
       </View>
 
       {/* Permission Warning Banner - disabled for screenshots */}
@@ -294,9 +288,9 @@ export default function StatusScreen() {
           </View>
         ) : (
           <View style={styles.emptyLocationState}>
-            <Text style={styles.emptyText}>No locations saved yet</Text>
+            <Text style={styles.emptyText}>{t('status.noLocations')}</Text>
             <Text style={styles.emptySubtext}>
-              Go to Settings → Work Locations to add your first location
+              {t('status.noLocationsHint')}
             </Text>
           </View>
         )}
@@ -357,9 +351,6 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xl,
     fontWeight: fontWeight.bold,
     color: colors.text.primary,
-  },
-  settingsButton: {
-    padding: spacing.sm,
   },
   scrollView: {
     flex: 1,

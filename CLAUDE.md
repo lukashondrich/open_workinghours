@@ -2,8 +2,8 @@
 
 This file provides context for AI assistants (Claude) working on this project.
 
-**Last Updated:** 2025-12-30
-**Status:** Calendar zoom & navigation complete - Ready for TestFlight
+**Last Updated:** 2025-12-31
+**Status:** German translation 90% complete - Testing before TestFlight
 
 ---
 
@@ -134,7 +134,7 @@ Only when a module/feature is:
 
 ---
 
-## Current State (2025-12-30)
+## Current State (2025-12-31)
 
 ### What Exists & Works
 
@@ -210,6 +210,19 @@ Only when a module/feature is:
 - **Dependencies:** `react-native-gesture-handler`, `expo-haptics`
 - **Documentation:** See `blueprint.md` Section 3.4
 
+**Internationalization (i18n)** (🔄 90% Complete - 2025-12-31)
+- Full German translation for German healthcare workers and union outreach
+- Device language detection via `expo-localization`
+- Translation system using `i18n-js` with TypeScript
+- Date formatting with `date-fns` German locale support
+- ~250 strings translated across all major screens
+- **Key translations:** "GPS" (review mode), "Dienste" (shifts), "Auswählen/Ausgewählt" (arm template)
+- **Translated screens:** Calendar, Status, Settings, Auth, Locations, Notifications, Permissions, Data & Privacy
+- **Pending:** Setup/onboarding screens, some secondary buttons
+- **Files:** `mobile-app/src/lib/i18n/` (new), all screen components updated
+- **Dependencies:** `i18n-js`, `expo-localization`
+- **Documentation:** See `blueprint.md` Section 3.5
+
 ✅ **Backend (FastAPI - PostgreSQL Dev + Local SQLite)**
 - Email verification (verification codes via email)
 - Authentication (JWT with 30-day expiry)
@@ -235,6 +248,34 @@ Only when a module/feature is:
 - Use new endpoints: `GET /stats/*`, `POST /work-events`
 
 ## Recent Updates
+
+### 🔄 In Progress 2025-12-31:
+
+1. **German Translation (i18n)** (Mobile App - 90% Complete)
+   - **Purpose**: Full German localization for German healthcare workers and union outreach
+   - **Tech Stack**: `i18n-js`, `expo-localization`, `date-fns` locale support
+   - **Approach**:
+     - Device language auto-detection via `expo-localization`
+     - TypeScript translation files with nested keys (e.g., `t('calendar.header.title')`)
+     - English fallback for missing translations
+     - Date formatting with German locale (`date-fns/locale/de`)
+   - **Files Created**:
+     - `mobile-app/src/lib/i18n/index.ts` - i18n setup and `t()` function
+     - `mobile-app/src/lib/i18n/translations/en.ts` - English strings (~250)
+     - `mobile-app/src/lib/i18n/translations/de.ts` - German translations
+   - **Screens Translated**:
+     - ✅ Calendar (WeekView, CalendarHeader, TemplatePanel, MonthView, ShiftEditModal)
+     - ✅ Status Screen and Dashboard widgets
+     - ✅ Settings Screen and all menu items
+     - ✅ Auth screens (Login, Register)
+     - ✅ Work Locations, Notifications, Permissions, Data & Privacy
+     - ⏳ Setup/Onboarding screens (pending)
+   - **Key Translations**:
+     - "Enter Review" / "Exit Review" → "GPS" (simpler toggle)
+     - "Templates" → "Dienste" (shifts)
+     - "Shift Templates" → "Dienste / Schichten"
+     - "Arm Template" / "Armed" → "Auswählen" / "Ausgewählt"
+   - **Documentation**: See `blueprint.md` Section 3.5
 
 ### ✅ Completed 2025-12-30:
 
@@ -933,7 +974,7 @@ Previous: add privacy_architecture.md
 
 ---
 
-**Last Updated:** 2025-12-30
-**Status:** Calendar zoom & navigation complete with all polish features
-**Current Focus:** Ready for TestFlight build, user testing
+**Last Updated:** 2025-12-31
+**Status:** German translation 90% complete (core screens done, some buttons pending)
+**Current Focus:** Complete i18n polish, then TestFlight build
 **Production URL:** https://api.openworkinghours.org

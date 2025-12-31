@@ -17,6 +17,7 @@ import { colors, spacing, fontSize, fontWeight } from '@/theme';
 import { Button, Input } from '@/components/ui';
 import { useAuth } from '@/lib/auth/auth-context';
 import { AuthService } from '../services/AuthService';
+import { t } from '@/lib/i18n';
 
 interface LoginScreenProps {
   email: string;
@@ -32,7 +33,7 @@ export default function LoginScreen({ email: initialEmail, onRegisterPress }: Lo
 
   const handleSendCode = async () => {
     if (!email.trim()) {
-      Alert.alert('Email required', 'Please enter your email address');
+      Alert.alert(t('auth.login.emailRequired'), t('auth.login.emailRequiredMessage'));
       return;
     }
 
@@ -40,9 +41,9 @@ export default function LoginScreen({ email: initialEmail, onRegisterPress }: Lo
       setLoading(true);
       await AuthService.requestVerificationCode(email.trim());
       setCodeSent(true);
-      Alert.alert('Code sent', 'Please check your email for the verification code');
+      Alert.alert(t('auth.login.codeSentTitle'), t('auth.login.codeSentMessage'));
     } catch (error) {
-      Alert.alert('Failed to send code', error instanceof Error ? error.message : 'Unknown error');
+      Alert.alert(t('auth.login.failedToSendCode'), error instanceof Error ? error.message : 'Unknown error');
     } finally {
       setLoading(false);
     }
@@ -50,7 +51,7 @@ export default function LoginScreen({ email: initialEmail, onRegisterPress }: Lo
 
   const handleLogin = async () => {
     if (!code.trim()) {
-      Alert.alert('Code required', 'Please enter the verification code from your email');
+      Alert.alert(t('auth.login.codeRequired'), t('auth.login.codeRequiredMessage'));
       return;
     }
 
@@ -72,15 +73,15 @@ export default function LoginScreen({ email: initialEmail, onRegisterPress }: Lo
       // Check for specific error cases
       if (errorMessage.includes('not found') || errorMessage.includes('register first')) {
         Alert.alert(
-          'Account not found',
-          'No account found with this email. Please register first.',
+          t('auth.login.accountNotFound'),
+          t('auth.login.accountNotFoundMessage'),
           [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Register', onPress: onRegisterPress },
+            { text: t('common.cancel'), style: 'cancel' },
+            { text: t('auth.login.register'), onPress: onRegisterPress },
           ]
         );
       } else {
-        Alert.alert('Login failed', errorMessage);
+        Alert.alert(t('auth.login.loginFailed'), errorMessage);
       }
     } finally {
       setLoading(false);
@@ -94,14 +95,14 @@ export default function LoginScreen({ email: initialEmail, onRegisterPress }: Lo
     >
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.content}>
-          <Text style={styles.title}>Welcome Back</Text>
-          <Text style={styles.subtitle}>Log in to continue tracking hours</Text>
+          <Text style={styles.title}>{t('auth.login.title')}</Text>
+          <Text style={styles.subtitle}>{t('auth.login.subtitle')}</Text>
 
           {!codeSent ? (
             <>
               <Input
-                label="Email Address"
-                placeholder="your.email@example.com"
+                label={t('auth.login.emailLabel')}
+                placeholder={t('auth.login.emailPlaceholder')}
                 value={email}
                 onChangeText={setEmail}
                 keyboardType="email-address"
@@ -118,16 +119,16 @@ export default function LoginScreen({ email: initialEmail, onRegisterPress }: Lo
                 fullWidth
                 testID="send-code-button"
               >
-                Send Verification Code
+                {t('auth.login.sendCode')}
               </Button>
             </>
           ) : (
             <>
-              <Text style={styles.hint}>Code sent to {email}</Text>
+              <Text style={styles.hint}>{t('auth.login.codeSent', { email })}</Text>
 
               <Input
-                label="Verification Code"
-                placeholder="Enter verification code"
+                label={t('auth.login.codeLabel')}
+                placeholder={t('auth.login.codePlaceholder')}
                 value={code}
                 onChangeText={setCode}
                 autoCapitalize="none"
@@ -143,7 +144,7 @@ export default function LoginScreen({ email: initialEmail, onRegisterPress }: Lo
                 fullWidth
                 testID="login-button"
               >
-                Log In
+                {t('auth.login.logIn')}
               </Button>
 
               <View style={styles.linkContainer}>
@@ -156,7 +157,7 @@ export default function LoginScreen({ email: initialEmail, onRegisterPress }: Lo
                   disabled={loading}
                   testID="change-email-button"
                 >
-                  Change email address
+                  {t('auth.login.changeEmail')}
                 </Button>
 
                 <Button
@@ -165,20 +166,20 @@ export default function LoginScreen({ email: initialEmail, onRegisterPress }: Lo
                   disabled={loading}
                   testID="resend-code-button"
                 >
-                  Resend code
+                  {t('auth.login.resendCode')}
                 </Button>
               </View>
             </>
           )}
 
           <View style={styles.footer}>
-            <Text style={styles.footerText}>Don't have an account?</Text>
+            <Text style={styles.footerText}>{t('auth.login.noAccount')}</Text>
             <Button
               variant="ghost"
               onPress={onRegisterPress}
               disabled={loading}
             >
-              Register
+              {t('auth.login.register')}
             </Button>
           </View>
         </View>

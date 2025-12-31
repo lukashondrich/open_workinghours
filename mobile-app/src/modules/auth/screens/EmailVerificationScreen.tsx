@@ -14,6 +14,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/theme';
+import { t } from '@/lib/i18n';
 import { Button, Input } from '@/components/ui';
 import { AuthService } from '../services/AuthService';
 
@@ -33,14 +34,14 @@ export default function EmailVerificationScreen({
 
   const handleSendCode = async () => {
     if (!email.trim()) {
-      Alert.alert('Email required', 'Please enter your email address');
+      Alert.alert(t('emailVerification.emailRequired'), t('emailVerification.emailRequiredMessage'));
       return;
     }
 
     // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email.trim())) {
-      Alert.alert('Invalid email', 'Please enter a valid email address');
+      Alert.alert(t('emailVerification.invalidEmail'), t('emailVerification.invalidEmailMessage'));
       return;
     }
 
@@ -48,9 +49,9 @@ export default function EmailVerificationScreen({
       setLoading(true);
       await AuthService.requestVerificationCode(email.trim());
       setCodeSent(true);
-      Alert.alert('Code sent', 'Please check your email for the verification code');
+      Alert.alert(t('emailVerification.codeSentTitle'), t('emailVerification.codeSentMessage'));
     } catch (error) {
-      Alert.alert('Failed to send code', error instanceof Error ? error.message : 'Unknown error');
+      Alert.alert(t('emailVerification.failedToSendCode'), error instanceof Error ? error.message : t('common.error'));
     } finally {
       setLoading(false);
     }
@@ -58,7 +59,7 @@ export default function EmailVerificationScreen({
 
   const handleVerifyCode = async () => {
     if (!code.trim()) {
-      Alert.alert('Code required', 'Please enter the verification code from your email');
+      Alert.alert(t('emailVerification.codeRequired'), t('emailVerification.codeRequiredMessage'));
       return;
     }
 
@@ -70,10 +71,10 @@ export default function EmailVerificationScreen({
         // Email verified successfully, proceed to next screen
         onVerified(email.trim().toLowerCase());
       } else {
-        Alert.alert('Verification failed', result.message || 'Invalid code');
+        Alert.alert(t('emailVerification.verificationFailed'), result.message || t('emailVerification.invalidCode'));
       }
     } catch (error) {
-      Alert.alert('Verification failed', error instanceof Error ? error.message : 'Unknown error');
+      Alert.alert(t('emailVerification.verificationFailed'), error instanceof Error ? error.message : t('common.error'));
     } finally {
       setLoading(false);
     }
@@ -86,14 +87,14 @@ export default function EmailVerificationScreen({
     >
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.content}>
-          <Text style={styles.title}>Open Working Hours</Text>
-          <Text style={styles.subtitle}>Privacy-first hour tracking for healthcare workers</Text>
+          <Text style={styles.title}>{t('emailVerification.title')}</Text>
+          <Text style={styles.subtitle}>{t('emailVerification.subtitle')}</Text>
 
           {!codeSent ? (
             <>
               <Input
-                label="Email Address"
-                placeholder="your.email@example.com"
+                label={t('emailVerification.emailLabel')}
+                placeholder={t('emailVerification.emailPlaceholder')}
                 value={email}
                 onChangeText={setEmail}
                 keyboardType="email-address"
@@ -110,20 +111,20 @@ export default function EmailVerificationScreen({
                 fullWidth
                 testID="send-code-button"
               >
-                Send Verification Code
+                {t('emailVerification.sendCode')}
               </Button>
 
               <Text style={styles.hint}>
-                You'll receive a 6-digit verification code via email
+                {t('emailVerification.codeHint')}
               </Text>
             </>
           ) : (
             <>
-              <Text style={styles.hint}>Code sent to {email}</Text>
+              <Text style={styles.hint}>{t('emailVerification.codeSentTo', { email })}</Text>
 
               <Input
-                label="Verification Code"
-                placeholder="Enter verification code"
+                label={t('emailVerification.codeLabel')}
+                placeholder={t('emailVerification.codePlaceholder')}
                 value={code}
                 onChangeText={setCode}
                 autoCapitalize="none"
@@ -139,7 +140,7 @@ export default function EmailVerificationScreen({
                 fullWidth
                 testID="verify-code-button"
               >
-                Verify Code
+                {t('emailVerification.verifyCode')}
               </Button>
 
               <View style={styles.linkContainer}>
@@ -152,7 +153,7 @@ export default function EmailVerificationScreen({
                   disabled={loading}
                   testID="change-email-button"
                 >
-                  Change email address
+                  {t('emailVerification.changeEmail')}
                 </Button>
 
                 <Button
@@ -161,7 +162,7 @@ export default function EmailVerificationScreen({
                   disabled={loading}
                   testID="resend-code-button"
                 >
-                  Resend code
+                  {t('emailVerification.resendCode')}
                 </Button>
               </View>
             </>

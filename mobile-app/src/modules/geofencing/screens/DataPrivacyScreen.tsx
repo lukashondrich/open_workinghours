@@ -7,6 +7,7 @@ import {
   Alert,
 } from 'react-native';
 import { format, parseISO } from 'date-fns';
+import { de as deLocale } from 'date-fns/locale/de';
 
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
 import { Button, Card, InfoBox } from '@/components/ui';
@@ -15,6 +16,7 @@ import { getGeofenceService } from '@/modules/geofencing/services/GeofenceServic
 import type { DailySubmissionRecord } from '@/modules/geofencing/types';
 import { formatDuration } from '@/lib/calendar/calendar-utils';
 import { DailySubmissionService } from '@/modules/auth/services/DailySubmissionService';
+import { t, getDateLocale } from '@/lib/i18n';
 
 interface DataSummary {
   locationCount: number;
@@ -52,12 +54,12 @@ export default function DataPrivacyScreen() {
 
   const handleDeleteAllData = () => {
     Alert.alert(
-      'Delete All Data',
-      'Are you sure you want to delete ALL data?\n\nThis will permanently remove:\n• All work locations\n• All work sessions\n• All tracking history\n\nThis action cannot be undone.',
+      t('dataPrivacyScreen.deleteConfirmTitle'),
+      t('dataPrivacyScreen.deleteConfirmMessage'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Delete Everything',
+          text: t('dataPrivacyScreen.deleteEverything'),
           style: 'destructive',
           onPress: confirmDeleteAllData,
         },
@@ -84,15 +86,15 @@ export default function DataPrivacyScreen() {
       await db.deleteAllData();
 
       Alert.alert(
-        'Data Deleted',
-        'All data has been permanently deleted.',
-        [{ text: 'OK' }]
+        t('dataPrivacyScreen.dataDeletedTitle'),
+        t('dataPrivacyScreen.dataDeletedMessage'),
+        [{ text: t('common.ok') }]
       );
 
       loadDataSummary();
     } catch (error) {
       console.error('[DataPrivacyScreen] Failed to delete data:', error);
-      Alert.alert('Error', 'Failed to delete data. Please try again.');
+      Alert.alert(t('common.error'), t('dataPrivacyScreen.deleteFailed'));
     }
   };
 
@@ -111,7 +113,7 @@ export default function DataPrivacyScreen() {
   const handleRetryFailed = async () => {
     const failed = queueEntries.filter((entry) => entry.status === 'failed');
     if (failed.length === 0) {
-      Alert.alert('No failed submissions', 'Everything looks good!');
+      Alert.alert(t('dataPrivacyScreen.noFailedTitle'), t('dataPrivacyScreen.noFailedMessage'));
       return;
     }
     try {
@@ -120,11 +122,11 @@ export default function DataPrivacyScreen() {
       for (const entry of failed) {
         await DailySubmissionService.retrySubmission(entry.id);
       }
-      Alert.alert('Retry queued', 'Failed submissions were re-sent.');
+      Alert.alert(t('dataPrivacyScreen.retryQueued'), t('dataPrivacyScreen.retryQueuedMessage'));
       loadDataSummary();
     } catch (error) {
       console.error('[DataPrivacyScreen] Failed to retry submissions:', error);
-      Alert.alert('Retry failed', 'Could not update submissions. Try again later.');
+      Alert.alert(t('dataPrivacyScreen.retryFailedTitle'), t('dataPrivacyScreen.retryFailedMessage'));
     } finally {
       setIsProcessingQueue(false);
     }
@@ -132,59 +134,60 @@ export default function DataPrivacyScreen() {
 
   const formatDateLabel = (entry: DailySubmissionRecord) => {
     const date = parseISO(entry.date);
-    return format(date, 'MMM d, yyyy');
+    const locale = getDateLocale() === 'de' ? deLocale : undefined;
+    return format(date, 'MMM d, yyyy', { locale });
   };
 
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Card style={styles.summaryCard}>
-          <Text style={styles.summaryTitle}>Stored Data</Text>
+          <Text style={styles.summaryTitle}>{t('dataPrivacyScreen.storedData')}</Text>
 
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Work Locations:</Text>
+            <Text style={styles.summaryLabel}>{t('dataPrivacyScreen.workLocations')}</Text>
             <Text style={styles.summaryValue}>{dataSummary.locationCount}</Text>
           </View>
 
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Work Sessions:</Text>
+            <Text style={styles.summaryLabel}>{t('dataPrivacyScreen.workSessions')}</Text>
             <Text style={styles.summaryValue}>{dataSummary.sessionCount}</Text>
           </View>
         </Card>
 
         <Card style={styles.summaryCard}>
-          <Text style={styles.summaryTitle}>Daily Submissions</Text>
+          <Text style={styles.summaryTitle}>{t('dataPrivacyScreen.dailySubmissions')}</Text>
           <Text style={styles.submissionExplainer}>
-            When you confirm a day in the calendar, it's automatically submitted to the backend (authenticated).
+            {t('dataPrivacyScreen.submissionExplainer')}
           </Text>
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Pending:</Text>
+            <Text style={styles.summaryLabel}>{t('dataPrivacyScreen.pending')}</Text>
             <Text style={styles.summaryValue}>{queueCounts['pending'] ?? 0}</Text>
           </View>
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Failed:</Text>
+            <Text style={styles.summaryLabel}>{t('dataPrivacyScreen.failed')}</Text>
             <Text style={[styles.summaryValue, styles.summaryValueWarning]}>{queueCounts['failed'] ?? 0}</Text>
           </View>
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Sent:</Text>
+            <Text style={styles.summaryLabel}>{t('dataPrivacyScreen.sent')}</Text>
             <Text style={styles.summaryValue}>{queueCounts['sent'] ?? 0}</Text>
           </View>
           {queueEntries.length === 0 ? (
-            <Text style={styles.queueEmptyText}>No submissions yet. Confirm days in the Calendar to get started.</Text>
+            <Text style={styles.queueEmptyText}>{t('dataPrivacyScreen.queueEmpty')}</Text>
           ) : (
             <ScrollView style={styles.queueList} nestedScrollEnabled>
               {queueEntries.map((entry) => (
                 <View key={entry.id} style={styles.queueRow}>
                   <View>
                     <Text style={styles.queueWeek}>{formatDateLabel(entry)}</Text>
-                    <Text style={styles.queueStatus}>Status: {entry.status}</Text>
+                    <Text style={styles.queueStatus}>{t('dataPrivacyScreen.status', { status: entry.status })}</Text>
                   </View>
                   <View style={styles.queueHoursContainer}>
                     <Text style={styles.queueHours}>
-                      Planned: {entry.plannedHours.toFixed(1)}h
+                      {t('dataPrivacyScreen.plannedHours', { hours: entry.plannedHours.toFixed(1) })}
                     </Text>
                     <Text style={styles.queueHours}>
-                      Actual: {entry.actualHours.toFixed(1)}h
+                      {t('dataPrivacyScreen.actualHours', { hours: entry.actualHours.toFixed(1) })}
                     </Text>
                   </View>
                 </View>
@@ -200,7 +203,7 @@ export default function DataPrivacyScreen() {
                 disabled={isProcessingQueue}
                 fullWidth
               >
-                {isProcessingQueue ? 'Retrying...' : 'Retry Failed'}
+                {isProcessingQueue ? t('dataPrivacyScreen.retrying') : t('dataPrivacyScreen.retryFailed')}
               </Button>
             </View>
           )}
@@ -212,20 +215,15 @@ export default function DataPrivacyScreen() {
           fullWidth
           style={styles.deleteButton}
         >
-          Delete All Data
+          {t('dataPrivacyScreen.deleteAllData')}
         </Button>
 
         <InfoBox variant="warning" style={styles.warningBox}>
-          Warning: This action cannot be undone. All locations and work history will be
-          permanently deleted.
+          {t('dataPrivacyScreen.warningBox')}
         </InfoBox>
 
         <InfoBox variant="info" style={styles.infoBox}>
-          Your GPS location never leaves your phone. All work sessions are stored locally with encryption.
-          {'\n\n'}
-          When you confirm a day, only your hours (planned and actual) are shared. Your data is combined with at least 10 other users and mathematically protected before any statistics are published.
-          {'\n\n'}
-          This keeps your personal data private while enabling collective insights.
+          {t('dataPrivacyScreen.privacyInfo')}
         </InfoBox>
       </ScrollView>
     </View>

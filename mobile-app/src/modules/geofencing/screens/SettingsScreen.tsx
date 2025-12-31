@@ -21,6 +21,7 @@ import {
 } from 'lucide-react-native';
 
 import { colors, spacing, fontSize, fontWeight } from '@/theme';
+import { t } from '@/lib/i18n';
 import { ListItem } from '@/components/ui';
 import { Button } from '@/components/ui';
 import type { RootStackParamList } from '@/navigation/AppNavigator';
@@ -39,32 +40,34 @@ interface SettingsItem {
 
 const ICON_SIZE = 24;
 
-const settingsItems: SettingsItem[] = [
-  {
-    id: '1',
-    title: 'Work Locations',
-    icon: <MapPin size={ICON_SIZE} color={colors.primary[500]} />,
-    screen: 'LocationsList',
-  },
-  {
-    id: '2',
-    title: 'Notifications',
-    icon: <Bell size={ICON_SIZE} color={colors.primary[500]} />,
-    screen: 'Notifications',
-  },
-  {
-    id: '3',
-    title: 'Permissions',
-    icon: <Lock size={ICON_SIZE} color={colors.primary[500]} />,
-    screen: 'Permissions',
-  },
-  {
-    id: '4',
-    title: 'Data & Privacy',
-    icon: <Trash2 size={ICON_SIZE} color={colors.primary[500]} />,
-    screen: 'DataPrivacy',
-  },
-];
+function getSettingsItems(): SettingsItem[] {
+  return [
+    {
+      id: '1',
+      title: t('settings.workLocations'),
+      icon: <MapPin size={ICON_SIZE} color={colors.primary[500]} />,
+      screen: 'LocationsList',
+    },
+    {
+      id: '2',
+      title: t('settings.notifications'),
+      icon: <Bell size={ICON_SIZE} color={colors.primary[500]} />,
+      screen: 'Notifications',
+    },
+    {
+      id: '3',
+      title: t('settings.permissions'),
+      icon: <Lock size={ICON_SIZE} color={colors.primary[500]} />,
+      screen: 'Permissions',
+    },
+    {
+      id: '4',
+      title: t('settings.dataPrivacy'),
+      icon: <Trash2 size={ICON_SIZE} color={colors.primary[500]} />,
+      screen: 'DataPrivacy',
+    },
+  ];
+}
 
 export default function SettingsScreen() {
   const navigation = useNavigation<SettingsScreenNavigationProp>();
@@ -82,16 +85,16 @@ export default function SettingsScreen() {
       setIsReporting(true);
       await reportIssue(state.user);
       Alert.alert(
-        'Report Sent',
-        'Thank you! Your bug report has been submitted.',
-        [{ text: 'OK' }]
+        t('settings.reportSent'),
+        t('settings.reportSentMessage'),
+        [{ text: t('common.ok') }]
       );
     } catch (error) {
       console.error('[SettingsScreen] Failed to report issue:', error);
       Alert.alert(
-        'Submission Failed',
-        error instanceof Error ? error.message : 'Failed to submit bug report. Please try again or contact support.',
-        [{ text: 'OK' }]
+        t('settings.submissionFailed'),
+        error instanceof Error ? error.message : t('settings.submissionFailed'),
+        [{ text: t('common.ok') }]
       );
     } finally {
       setIsReporting(false);
@@ -100,21 +103,21 @@ export default function SettingsScreen() {
 
   const handleSignOut = () => {
     Alert.alert(
-      'Sign Out',
-      'Are you sure you want to sign out?',
+      t('settings.signOut'),
+      t('settings.signOutConfirm'),
       [
         {
-          text: 'Cancel',
+          text: t('common.cancel'),
           style: 'cancel',
         },
         {
-          text: 'Sign Out',
+          text: t('settings.signOut'),
           style: 'destructive',
           onPress: async () => {
             try {
               await signOut();
             } catch (error) {
-              Alert.alert('Error', 'Failed to sign out. Please try again.');
+              Alert.alert(t('common.error'), t('settings.signOutFailed'));
             }
           },
         },
@@ -124,23 +127,23 @@ export default function SettingsScreen() {
 
   const handleSeedDemoData = () => {
     Alert.alert(
-      'Load Demo Data',
-      'This will replace all existing data with demo data for screenshots. Continue?',
+      t('settings.loadDemoData'),
+      t('settings.loadDemoDataConfirm'),
       [
         {
-          text: 'Cancel',
+          text: t('common.cancel'),
           style: 'cancel',
         },
         {
-          text: 'Load Demo Data',
+          text: t('settings.loadDemoData'),
           onPress: async () => {
             try {
               setIsSeeding(true);
               await seedDashboardTestData();
-              Alert.alert('Success', 'Demo data loaded. Go to Status screen to see the result.');
+              Alert.alert(t('common.success'), t('settings.loadDemoDataSuccess'));
             } catch (error) {
               console.error('[SettingsScreen] Failed to seed demo data:', error);
-              Alert.alert('Error', 'Failed to load demo data.');
+              Alert.alert(t('common.error'), t('settings.loadDemoDataFailed'));
             } finally {
               setIsSeeding(false);
             }
@@ -152,24 +155,24 @@ export default function SettingsScreen() {
 
   const handleClearDemoData = () => {
     Alert.alert(
-      'Clear All Data',
-      'This will delete all locations, sessions, and calendar data. Continue?',
+      t('settings.clearAllData'),
+      t('settings.clearAllDataConfirm'),
       [
         {
-          text: 'Cancel',
+          text: t('common.cancel'),
           style: 'cancel',
         },
         {
-          text: 'Clear All',
+          text: t('settings.clearAll'),
           style: 'destructive',
           onPress: async () => {
             try {
               setIsSeeding(true);
               await clearDashboardTestData();
-              Alert.alert('Success', 'All data cleared.');
+              Alert.alert(t('common.success'), t('settings.clearAllDataSuccess'));
             } catch (error) {
               console.error('[SettingsScreen] Failed to clear data:', error);
-              Alert.alert('Error', 'Failed to clear data.');
+              Alert.alert(t('common.error'), t('settings.clearAllDataFailed'));
             } finally {
               setIsSeeding(false);
             }
@@ -178,6 +181,8 @@ export default function SettingsScreen() {
       ]
     );
   };
+
+  const settingsItems = getSettingsItems();
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -205,14 +210,14 @@ export default function SettingsScreen() {
                 icon={<Bug size={20} color={colors.primary[500]} />}
                 fullWidth
               >
-                Report Issue
+                {t('settings.reportIssue')}
               </Button>
             )}
           </View>
 
           {/* Demo Data Section - hidden for screenshots
           <View style={styles.demoSection}>
-            <Text style={styles.sectionTitle}>Demo Data (Screenshots)</Text>
+            <Text style={styles.sectionTitle}>{t('settings.demoData')}</Text>
             {isSeeding ? (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator color={colors.primary[500]} size="small" />
@@ -225,7 +230,7 @@ export default function SettingsScreen() {
                   icon={<Database size={20} color={colors.primary[500]} />}
                   fullWidth
                 >
-                  Load Demo Data
+                  {t('settings.loadDemoData')}
                 </Button>
                 <Button
                   variant="outline"
@@ -234,7 +239,7 @@ export default function SettingsScreen() {
                   fullWidth
                   style={styles.clearButton}
                 >
-                  Clear All Data
+                  {t('settings.clearAllData')}
                 </Button>
               </View>
             )}
@@ -249,7 +254,7 @@ export default function SettingsScreen() {
               icon={<LogOut size={20} color={colors.white} />}
               fullWidth
             >
-              Sign Out
+              {t('settings.signOut')}
             </Button>
           </View>
         </ScrollView>

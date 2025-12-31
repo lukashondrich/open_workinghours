@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { ChevronRight } from 'lucide-react-native';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
+import { t } from '@/lib/i18n';
 import type { DailyHoursData } from '../services/DashboardDataService';
 
 interface HoursSummaryWidgetProps {
@@ -170,7 +171,7 @@ export default function HoursSummaryWidget({
     >
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Last 14 Days</Text>
+        <Text style={styles.title}>{t('dashboard.hoursSummary.title')}</Text>
         <ChevronRight size={20} color={colors.text.tertiary} />
       </View>
 
@@ -189,11 +190,11 @@ export default function HoursSummaryWidget({
       {/* Summary Row */}
       <View style={styles.summaryRow}>
         <View style={styles.summaryItem}>
-          <Text style={styles.summaryLabel}>Plan</Text>
+          <Text style={styles.summaryLabel}>{t('dashboard.hoursSummary.plan')}</Text>
           <Text style={styles.summaryValue}>{formatHours(data.totalPlanned)}</Text>
         </View>
         <View style={styles.summaryItem}>
-          <Text style={styles.summaryLabel}>Actual</Text>
+          <Text style={styles.summaryLabel}>{t('dashboard.hoursSummary.actual')}</Text>
           <Text style={styles.summaryValue}>{formatHours(data.totalActual)}</Text>
         </View>
         <View style={[styles.summaryItem, styles.summaryDeviation]}>
