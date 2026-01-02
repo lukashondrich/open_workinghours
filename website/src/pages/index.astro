@@ -1,6 +1,5 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import DiagramPlaceholder from '../components/DiagramPlaceholder.astro';
 ---
 
 <Layout title="Project Dossier">
@@ -23,18 +22,18 @@ import DiagramPlaceholder from '../components/DiagramPlaceholder.astro';
       <h2 class="text-gray-900 mb-4">Problem</h2>
       <div class="prose text-gray-700 space-y-4">
         <p>
-          Chronic overwork in healthcare carries a real human cost. Healthcare workers absorb the burden through exhaustion, long-term health consequences, and professional burnout. Patients bear increased risk through higher error rates, reduced continuity of care, and compromised safety.
+          <strong>Chronic overwork in healthcare</strong> carries real human cost: exhaustion, long-term health damage, professional burnout. Patients face increased risk through higher error rates and compromised care quality.
         </p>
         <p>
-          These costs are largely externalized:
+          These costs are <strong>largely externalized</strong>:
         </p>
         <ul class="space-y-2 ml-4">
-          <li>They are not reflected in staffing decisions or operational planning.</li>
-          <li>They are only partially captured in incident reporting or individual complaints.</li>
-          <li>They rarely appear as systemic evidence in legal, regulatory, or bargaining contexts.</li>
+          <li><strong>Not reflected</strong> in staffing decisions or planning.</li>
+          <li><strong>Only partially</strong> captured in incident reports.</li>
+          <li><strong>Rarely appear</strong> as systemic evidence in legal or bargaining contexts.</li>
         </ul>
         <p>
-          As a result, unsafe working conditions can persist even where formal rules and protections already exist.
+          Unsafe working conditions can persist – even where formal protections exist.
         </p>
       </div>
     </section>
@@ -44,22 +43,21 @@ import DiagramPlaceholder from '../components/DiagramPlaceholder.astro';
       <h2 class="text-gray-900 mb-4">Analysis</h2>
       <div class="prose text-gray-700 space-y-4">
         <p>
-          The persistence of these conditions is not primarily a lack of rules, but a lack of usable information.
+          The problem is <strong>not missing rules, but missing information</strong>.
         </p>
         <p>
-          Working time regulations exist. Enforcement mechanisms exist. But systemic evidence of actual working patterns — aggregated, verifiable, and independent of employer reporting — is largely absent.
+          Working time regulations exist. Enforcement mechanisms exist. But <strong>systemic evidence of actual working patterns</strong> – aggregated, verifiable, independent of employer reporting – is largely absent.
         </p>
         <p>
           Without this evidence:
         </p>
         <ul class="space-y-2 ml-4">
-          <li>Individual complaints remain anecdotal and easy to dismiss.</li>
-          <li>Unions and professional associations lack data for collective bargaining.</li>
-          <li>Regulators cannot identify systemic patterns across institutions.</li>
-          <li>Policymakers cannot assess whether existing rules are being followed.</li>
+          <li><strong>Complaints remain anecdotal</strong> and easy to dismiss.</li>
+          <li><strong>Unions lack data</strong> for collective bargaining.</li>
+          <li><strong>Regulators can't identify</strong> systemic patterns.</li>
         </ul>
         <p>
-          The problem is infrastructural: there is no independent, privacy-preserving mechanism for healthcare workers to document and aggregate their actual working conditions.
+          <strong>The problem is infrastructural.</strong>
         </p>
       </div>
     </section>
@@ -69,85 +67,36 @@ import DiagramPlaceholder from '../components/DiagramPlaceholder.astro';
       <h2 class="text-gray-900 mb-4">Solution</h2>
       <div class="prose text-gray-700 space-y-4">
         <p>
-          Open Working Hours provides this infrastructure: a mobile app for healthcare professionals to document their actual working hours, with privacy-preserving aggregation that produces systemic evidence without exposing individuals.
+          <strong>Open Working Hours</strong> provides this infrastructure: a mobile app for documenting actual working hours, with privacy-preserving aggregation that produces systemic evidence.
         </p>
       </div>
-      <ul class="mt-6 space-y-3 text-gray-700">
-        <li class="flex gap-3">
-          <span class="text-gray-400 select-none">1.</span>
-          <span><strong>What it is:</strong> A mobile app for healthcare workers to document their actual working hours with minimal daily effort.</span>
-        </li>
-        <li class="flex gap-3">
-          <span class="text-gray-400 select-none">2.</span>
-          <span><strong>For whom:</strong> Physicians, nurses, and other healthcare professionals who want to contribute to transparent reporting.</span>
-        </li>
-        <li class="flex gap-3">
-          <span class="text-gray-400 select-none">3.</span>
-          <span><strong>Output:</strong> Aggregated, anonymized statistics on working patterns — by region, specialty, and role level.</span>
-        </li>
-        <li class="flex gap-3">
-          <span class="text-gray-400 select-none">4.</span>
-          <span><strong>Status:</strong> iOS app in closed beta. Backend infrastructure deployed. Seeking pilot partners.</span>
-        </li>
-      </ul>
-    </section>
 
-    <!-- Diagram: How it works -->
-    <section class="mb-12">
-      <DiagramPlaceholder
-        label="System Overview"
-        description={`IMAGE GENERATION PROMPT — Conceptual Flow Diagram (Simplified/Iconic)
-
-STYLE:
-Minimal, abstract, almost logo-like. Clean line art in a single blue tone (#3B82F6) on white background. Think: Apple keynote diagrams, Stripe's simple illustrations. Ultra-clean, no clutter. This should be understood in 3 seconds.
-
-COMPOSITION (three simple icons in a horizontal row, connected by arrows):
-
-1. LEFT ICON: Simple smartphone silhouette with a small clock face inside
-   - Represents: Individual user logging their hours
-   - NO labels, NO technical details
-
-2. CENTER ICON: Abstract cloud or circle shape containing multiple small dots converging into one
-   - Represents: Many individuals → aggregated together
-   - Visual metaphor: "many become one" (convergence)
-
-3. RIGHT ICON: Simple bar chart (3-4 bars of different heights)
-   - Represents: Public statistics output
-   - Clean, minimal chart symbol
-
-ARROWS:
-- Simple, elegant arrows connecting the three icons
-- No labels on arrows (keep it abstract)
-- Arrow style: thin, with subtle arrowhead
-
-OPTIONAL SINGLE TAGLINE (below the diagram):
-"Individual input → Collective insight"
-(or no text at all — let the visual speak)
-
-KEY CONCEPT:
-This is NOT a technical architecture diagram. It's a conceptual illustration showing the IDEA:
-- Many people contribute privately
-- Data is combined/aggregated
-- Result is public, anonymous statistics
-
-The message is: "Your contribution matters, your privacy is protected, the output helps everyone."
-
-VISUAL QUALITIES:
-- Generous whitespace
-- Perfect horizontal alignment
-- Icons should feel balanced and harmonious
-- Could almost be a logo or app icon set
-
-DIMENSIONS: Wide format (16:9), but the actual content is centered and compact.
-
-DO NOT INCLUDE:
-- Technical labels (no "TLS", "k-anonymity", "encrypted")
-- Server/database imagery
-- Lock icons or security symbols (save those for the Privacy page)
-- Multiple colors
-- Complex details
-- Text labels on individual elements`}
-      />
+      <!-- App Preview -->
+      <div class="mt-8 flex flex-col sm:flex-row gap-8 items-start">
+        <div class="sm:w-1/3 flex-shrink-0">
+          <div class="bg-gray-50 rounded-2xl overflow-hidden shadow-lg">
+            <img src="/screenshots/status-dashboard.png" alt="Status Dashboard" class="w-full h-auto" />
+          </div>
+        </div>
+        <ul class="sm:w-2/3 space-y-4 text-gray-700">
+          <li class="flex gap-3">
+            <span class="text-blue-500 font-semibold select-none">1.</span>
+            <span><strong>What it is:</strong> An iOS app for tracking actual working hours – automatically via geofencing or manually in seconds.</span>
+          </li>
+          <li class="flex gap-3">
+            <span class="text-blue-500 font-semibold select-none">2.</span>
+            <span><strong>For whom:</strong> Physicians, nurses, and healthcare professionals who want to contribute to transparency.</span>
+          </li>
+          <li class="flex gap-3">
+            <span class="text-blue-500 font-semibold select-none">3.</span>
+            <span><strong>Output:</strong> Aggregated, anonymized statistics – by region, specialty, role level.</span>
+          </li>
+          <li class="flex gap-3">
+            <span class="text-blue-500 font-semibold select-none">4.</span>
+            <span><strong>Status:</strong> iOS app in closed beta. Backend deployed. Seeking pilot partners.</span>
+          </li>
+        </ul>
+      </div>
     </section>
 
     <!-- Principles -->
@@ -160,7 +109,7 @@ DO NOT INCLUDE:
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </span>
-          <span><strong>Low friction:</strong> Designed for healthcare schedules. Geofencing automates clock-in/out; manual entry takes seconds.</span>
+          <span><strong>Low friction:</strong> Automatic tracking via geofencing. Manual entry in seconds.</span>
         </li>
         <li class="flex gap-3">
           <span class="text-blue-500 mt-1">
@@ -168,7 +117,7 @@ DO NOT INCLUDE:
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </span>
-          <span><strong>Not an employer tool:</strong> Data belongs to the individual. No employer access, no surveillance.</span>
+          <span><strong>Not an employer tool:</strong> Data belongs to users. No third-party access.</span>
         </li>
         <li class="flex gap-3">
           <span class="text-blue-500 mt-1">
@@ -176,7 +125,7 @@ DO NOT INCLUDE:
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </span>
-          <span><strong>Privacy by design:</strong> Individual data is never published. Only aggregated statistics with k-anonymity protection.</span>
+          <span><strong>Privacy by design:</strong> Individual data never published. Only aggregated statistics with k-anonymity.</span>
         </li>
         <li class="flex gap-3">
           <span class="text-blue-500 mt-1">
@@ -184,7 +133,7 @@ DO NOT INCLUDE:
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </span>
-          <span><strong>User control:</strong> Full data export and deletion rights. GDPR compliant.</span>
+          <span><strong>Full control:</strong> Data export and deletion anytime. GDPR compliant.</span>
         </li>
       </ul>
     </section>

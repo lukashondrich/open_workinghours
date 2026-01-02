@@ -1,6 +1,5 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import DiagramPlaceholder from '../components/DiagramPlaceholder.astro';
 ---
 
 <Layout title="Privacy" description="How Open Working Hours protects your data with privacy-by-design principles, k-anonymity, and GDPR compliance.">
@@ -9,7 +8,7 @@ import DiagramPlaceholder from '../components/DiagramPlaceholder.astro';
     <header class="mb-12">
       <h1 class="text-gray-900 mb-4">Privacy &amp; Protection</h1>
       <p class="text-xl text-gray-600 max-w-2xl">
-        Privacy is not an afterthought. It's the foundation of how Open Working Hours is designed and operated.
+        Open Working Hours is designed in compliance with GDPR. Privacy is not a feature added later, but an integral part of the technical architecture (Privacy by Design, Art. 25 GDPR).
       </p>
     </header>
 
@@ -92,8 +91,7 @@ import DiagramPlaceholder from '../components/DiagramPlaceholder.astro';
             Collected
           </h3>
           <ul class="space-y-2 text-green-900 text-sm">
-            <li>Daily working hours (confirmed by you)</li>
-            <li>Break duration</li>
+            <li>Daily working hours (net, after breaks)</li>
             <li>Federal state (Bundesland)</li>
             <li>Medical specialty category</li>
             <li>Role level (e.g., resident, attending)</li>
@@ -143,59 +141,13 @@ import DiagramPlaceholder from '../components/DiagramPlaceholder.astro';
 
     <!-- Diagram -->
     <section class="mb-12">
-      <DiagramPlaceholder
-        label="Data Flow Diagram"
-        description={`IMAGE GENERATION PROMPT — Privacy Architecture / Data Flow Diagram
-
-STYLE:
-Technical blueprint illustration. Light blue (#60A5FA) line art on subtle grid background (#E0F2FE). Clean, precise, minimal. Reference: 1Password security whitepaper diagrams, security architecture documentation. Flat technical drawing aesthetic with clear visual hierarchy.
-
-COMPOSITION (three distinct layers/zones, left to right):
-
-LAYER 1 — "YOUR DEVICE" (leftmost, light background):
-- Smartphone icon with small database cylinder inside
-- Lock/padlock symbol overlay
-- Label: "Local Storage (encrypted)"
-- Visual boundary: dashed rectangle enclosing this zone
-
-LAYER 2 — "SECURE BACKEND" (center, slightly darker background):
-- Server/cloud icon
-- TWO separate data containers shown:
-  a) "Raw Events" table icon with label "(pseudonymous)" — individual records
-  b) "Aggregated Stats" table icon with label "(anonymous)" — grouped statistics
-- Arrow connecting Raw Events → Aggregated Stats (internal processing)
-- Shield icon indicating security
-- Label at bottom: "Individual records stay here"
-
-LAYER 3 — "PUBLIC DASHBOARD" (rightmost):
-- Simple bar chart icon
-- Label: "Aggregated Statistics Only"
-- No lock symbol (data is public but anonymous)
-
-ARROWS BETWEEN LAYERS:
-- Layer 1 → Layer 2: Arrow labeled "TLS 1.3 encrypted"
-- Layer 2 → Layer 3: Arrow labeled "k-anonymized (n≥10)"
-
-KEY VISUAL CONCEPTS:
-- Clear separation between private, processing, and public zones
-- Individual data NEVER reaches Layer 3 (show this visually)
-- Aggregation is the key transformation (many → few)
-- Encryption protects data in transit
-- Pseudonymous ≠ anonymous (different levels shown)
-
-IMPORTANT ANNOTATION:
-Include small text note: "Individual records never leave the backend"
-
-DIMENSIONS: Wide format (16:7), suitable for full-width display.
-
-COLOR CODING (optional):
-- Layer 1: Lightest blue tint
-- Layer 2: Medium blue tint
-- Layer 3: White/neutral
-
-DO NOT INCLUDE: Photographs, realistic people, red/warning colors, complex 3D, dark themes.`}
-        aspectRatio="16/7"
-      />
+      <h2 class="text-gray-900 mb-6">Data Flow</h2>
+      <div class="bg-gray-50 rounded-lg p-6">
+        <img src="/screenshots/dataflow.png" alt="Data Flow: Your Device → Secure Backend → Public Dashboard" class="w-full h-auto" />
+      </div>
+      <p class="mt-3 text-sm text-gray-500 text-center">
+        Individual data → encrypted transmission → k-anonymized aggregation → public statistics
+      </p>
     </section>
 
     <!-- Deletion and Export -->

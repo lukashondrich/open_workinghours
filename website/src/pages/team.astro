@@ -2,13 +2,13 @@
 import Layout from '../layouts/Layout.astro';
 ---
 
-<Layout title="Team" description="Meet the people behind Open Working Hours - building privacy-first tools for healthcare transparency.">
+<Layout title="Team" description="Project responsibility and contact for Open Working Hours.">
   <div class="max-w-4xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
     <!-- Header -->
     <header class="mb-12">
       <h1 class="text-gray-900 mb-4">Team</h1>
       <p class="text-xl text-gray-600 max-w-2xl">
-        Open Working Hours is built by people who believe healthcare workers deserve better tools and better data.
+        Open Working Hours is a project for privacy-friendly collection and analysis of actual working hours in healthcare.
       </p>
     </header>
 
@@ -16,36 +16,34 @@ import Layout from '../layouts/Layout.astro';
     <section class="mb-16">
       <h2 class="text-gray-900 mb-6">Founder</h2>
       <div class="flex flex-col sm:flex-row gap-6">
-        <!-- Photo placeholder -->
+        <!-- Photo -->
         <div class="flex-shrink-0">
-          <div class="w-32 h-32 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400 text-sm">
-            Photo
-          </div>
+          <img src="/screenshots/founder.jpg" alt="Lukas Hondrich" class="w-32 h-32 object-cover rounded-lg" />
         </div>
         <!-- Bio -->
         <div class="flex-1">
-          <h3 class="text-gray-900 text-xl mb-2">[Founder Name]</h3>
+          <h3 class="text-gray-900 text-xl mb-2">Lukas Hondrich</h3>
           <p class="text-gray-600 mb-4">
-            [2-3 sentence bio: professional background, relevant experience, motivation for building this project. Example: "Software engineer with a background in healthcare IT. Previously worked on clinical decision support systems at [Company]. Started Open Working Hours after seeing firsthand how difficult it is to get reliable data on physician working conditions."]
+            Software and AI engineer focused on privacy engineering and quality/evaluation of data-driven systems. Initiated Open Working Hours to empirically capture healthcare working conditions and make them accessible as anonymity-conscious, robust metrics – without exposing individual cases or persons.
           </p>
           <ul class="space-y-1 text-sm text-gray-600">
             <li class="flex items-center gap-2">
               <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
               </svg>
-              [Proof point 1, e.g., "Software Engineer, focus on privacy-by-design"]
+              Privacy-by-Design: data minimization, pseudonymization, secure aggregation
             </li>
             <li class="flex items-center gap-2">
               <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
               </svg>
-              [Proof point 2, e.g., "Built iOS app from prototype to TestFlight"]
+              iOS app: Prototype → TestFlight (tracking & review, offline-capable)
             </li>
             <li class="flex items-center gap-2">
               <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
               </svg>
-              [Proof point 3, e.g., "Background in healthcare IT systems"]
+              Backend & statistics pipeline: collection, validation, aggregation, reporting/dashboard
             </li>
           </ul>
           <!-- Optional: LinkedIn -->
