@@ -54,6 +54,12 @@ import { DailySubmissionService } from '@/modules/auth/services/DailySubmissionS
 const DEFAULT_HOUR_HEIGHT = BASE_HOUR_HEIGHT; // 48
 const DEFAULT_DAY_WIDTH = BASE_DAY_WIDTH; // 120
 const MIN_DRAG_STEP_MINUTES = 5;
+
+// Progressive disclosure thresholds based on hourHeight (in pixels)
+// These control when text elements hide at low zoom levels
+const DISCLOSURE_FULL_HEIGHT = 48;     // >= 48px: show everything (times, names, duration, edge labels)
+const DISCLOSURE_REDUCED_HEIGHT = 24;  // >= 24px: reduced (names only for shifts, duration only for tracking)
+                                       // < 24px: minimal (color blocks only, no text)
 const GRABBER_HIT_AREA = 44; // Larger hit area for easier grabbing
 const GRABBER_BAR_HEIGHT = 12;
 const EDGE_LABEL_OFFSET = 18;
@@ -212,6 +218,10 @@ function TrackingBadge({
   // Show end time based on displayDuration (clipped if overflow, otherwise full)
   const endLabel = formatTimeLabel(startMinutes + displayDuration);
 
+  // Progressive disclosure based on hourHeight
+  const showDuration = hourHeight >= DISCLOSURE_REDUCED_HEIGHT;  // >= 24px
+  const showEdgeLabels = hourHeight >= DISCLOSURE_FULL_HEIGHT;   // >= 48px
+
   const handleLongPress = () => {
     const showDeleteConfirm = () => {
       Alert.alert(t('calendar.week.deleteTrackingTitle'), t('calendar.week.deleteTrackingMessage'), [
@@ -299,11 +309,13 @@ function TrackingBadge({
             record.isActive && styles.trackingBlockActive
           ]}
         >
-          <View style={styles.trackingDurationContainer}>
-            <Text style={styles.trackingDurationText}>
-              {formatDuration(Math.max(0, displayDuration - (record.breakMinutes || 0)))}
-            </Text>
-          </View>
+          {showDuration && (
+            <View style={styles.trackingDurationContainer}>
+              <Text style={styles.trackingDurationText}>
+                {formatDuration(Math.max(0, displayDuration - (record.breakMinutes || 0)))}
+              </Text>
+            </View>
+          )}
         </Animated.View>
         {active && showStartGrabber && (
           <View style={[styles.grabberContainer, topGrabberStyle]} {...startPan.panHandlers}>
@@ -315,8 +327,10 @@ function TrackingBadge({
             <View style={styles.grabberBar} />
           </View>
         )}
-        <Text style={[styles.edgeLabel, styles.edgeLabelTop]}>{record.startTime}</Text>
-        {!record.isActive && (
+        {showEdgeLabels && (
+          <Text style={[styles.edgeLabel, styles.edgeLabelTop]}>{record.startTime}</Text>
+        )}
+        {showEdgeLabels && !record.isActive && (
           <Text style={[styles.edgeLabel, styles.edgeLabelBottom]}>{endLabel}</Text>
         )}
       </Pressable>
@@ -360,18 +374,27 @@ function InstanceCard({
 }) {
   const palette = getColorPalette(instance.color);
   const { topOffset, height } = calculateShiftDisplay(instance.startTime, instance.duration, hourHeight);
+
+  // Progressive disclosure based on hourHeight
+  const showName = hourHeight >= DISCLOSURE_REDUCED_HEIGHT;  // >= 24px
+  const showTimes = hourHeight >= DISCLOSURE_FULL_HEIGHT;    // >= 48px
+
   return (
     <Pressable
       onLongPress={() => onLongPress(instance)}
       delayLongPress={400}
       style={[styles.shiftBlock, { top: topOffset, height, backgroundColor: palette.bg, borderColor: palette.border }]}
     >
-      <Text style={[styles.shiftName, { color: palette.text }]} numberOfLines={1}>
-        {instance.name}
-      </Text>
-      <Text style={styles.shiftTime}>
-        {instance.startTime} - {instance.endTime}
-      </Text>
+      {showName && (
+        <Text style={[styles.shiftName, { color: palette.text }]} numberOfLines={1}>
+          {instance.name}
+        </Text>
+      )}
+      {showTimes && (
+        <Text style={styles.shiftTime}>
+          {instance.startTime} - {instance.endTime}
+        </Text>
+      )}
     </Pressable>
   );
 }
@@ -974,6 +997,9 @@ export default function WeekView() {
                       const startMinutes = timeToMinutes(instance.startTime);
                       const overflowMinutes = startMinutes + instance.duration - 24 * 60;
                       const height = Math.max(20, (overflowMinutes / 60) * hourHeight);
+                      // Progressive disclosure for overflow shifts
+                      const showName = hourHeight >= DISCLOSURE_REDUCED_HEIGHT;
+                      const showTimes = hourHeight >= DISCLOSURE_FULL_HEIGHT;
                       return (
                         <View
                           key={`${instance.id}-overflow`}
@@ -982,8 +1008,8 @@ export default function WeekView() {
                             { top: 0, height, backgroundColor: '#FFF3E0', borderColor: '#FFAB91' },
                           ]}
                         >
-                          <Text style={styles.shiftName}>{instance.name}</Text>
-                          <Text style={styles.shiftTime}>{t('calendar.week.continues')}</Text>
+                          {showName && <Text style={styles.shiftName}>{instance.name}</Text>}
+                          {showTimes && <Text style={styles.shiftTime}>{t('calendar.week.continues')}</Text>}
                         </View>
                       );
                     })}
