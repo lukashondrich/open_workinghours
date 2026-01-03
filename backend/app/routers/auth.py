@@ -4,17 +4,21 @@ Part of the Privacy Architecture Redesign (Module 2).
 """
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from ..config import get_settings
 from ..database import get_db
 from ..dependencies import get_current_user
 from ..models import User, VerificationRequest, VerificationStatus
 from ..schemas import AuthTokenOut, UserLoginIn, UserOut, UserRegisterIn
 from ..security import create_user_access_token, hash_code, hash_email
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -118,8 +122,35 @@ def login_user(
     """
     email = payload.email.strip().lower()
     email_hash_value = hash_email(email)
-    code_hash_value = hash_code(payload.code)
     now = datetime.now(timezone.utc)
+
+    # Demo account bypass for Apple App Review
+    settings = get_settings()
+    if settings.demo is not None:
+        demo_email = settings.demo.email.lower()
+        demo_code = settings.demo.code
+        if email == demo_email and payload.code == demo_code:
+            logger.info("Demo account login attempt")
+            user = (
+                db.query(User)
+                .filter(User.email_hash == email_hash_value)
+                .one_or_none()
+            )
+            if user is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Demo user not found. Please run the seed script.",
+                )
+            token, expires_at = create_user_access_token(user_id=str(user.user_id))
+            logger.info(f"Demo account login successful for user {user.user_id}")
+            return AuthTokenOut(
+                access_token=token,
+                expires_at=expires_at,
+                user_id=user.user_id,
+            )
+
+    # Normal verification flow
+    code_hash_value = hash_code(payload.code)
 
     # Verify the code
     verification = (

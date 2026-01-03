@@ -27,6 +27,13 @@ class EmailSettings(BaseModel):
     use_tls: bool = True
 
 
+class DemoSettings(BaseModel):
+    """Demo account for Apple App Review. Set via DEMO__EMAIL and DEMO__CODE."""
+
+    email: EmailStr
+    code: str = Field(min_length=6, max_length=6)
+
+
 class Settings(BaseSettings):
     environment: str = Field(default="development")
     allowed_email_domains_file: Path | None = Field(default=None)
@@ -34,6 +41,7 @@ class Settings(BaseSettings):
     security: SecuritySettings
     database: DatabaseSettings
     email: EmailSettings | None = None
+    demo: DemoSettings | None = None  # Optional demo account for App Store review
 
     class Config:
         env_nested_delimiter = "__"

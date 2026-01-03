@@ -94,6 +94,82 @@ class TestAuthLogin:
         # May fail without proper verification setup - that's expected
         assert response.status_code in [200, 400, 404]
 
+    def test_demo_account_login(self, client: TestClient, test_db: Session):
+        """Test demo account bypass for Apple App Review."""
+        from app.config import get_settings
+        from app.security import hash_email
+
+        settings = get_settings()
+
+        # Skip if demo settings not configured
+        if settings.demo is None:
+            pytest.skip("Demo settings not configured (DEMO__EMAIL, DEMO__CODE)")
+
+        demo_email = settings.demo.email.lower()
+        demo_code = settings.demo.code
+
+        # First, create the demo user in the database
+        email_hash = hash_email(demo_email)
+        demo_user = User(
+            email_hash=email_hash,
+            hospital_id="demo-hospital",
+            specialty="Internal Medicine",
+            role_level="Resident",
+            state_code="BY",
+        )
+        test_db.add(demo_user)
+        test_db.commit()
+
+        # Login with demo credentials (should bypass verification)
+        login_payload = {
+            "email": demo_email,
+            "code": demo_code,
+        }
+
+        response = client.post("/auth/login", json=login_payload)
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "access_token" in data
+        assert "user_id" in data
+        assert data["token_type"] == "bearer"
+
+    def test_demo_account_wrong_code_fails(self, client: TestClient, test_db: Session):
+        """Test demo account with wrong code fails."""
+        from app.config import get_settings
+        from app.security import hash_email
+
+        settings = get_settings()
+
+        # Skip if demo settings not configured
+        if settings.demo is None:
+            pytest.skip("Demo settings not configured (DEMO__EMAIL, DEMO__CODE)")
+
+        demo_email = settings.demo.email.lower()
+
+        # Create the demo user
+        email_hash = hash_email(demo_email)
+        demo_user = User(
+            email_hash=email_hash,
+            hospital_id="demo-hospital",
+            specialty="Internal Medicine",
+            role_level="Resident",
+            state_code="BY",
+        )
+        test_db.add(demo_user)
+        test_db.commit()
+
+        # Login with wrong code (should fail normally)
+        login_payload = {
+            "email": demo_email,
+            "code": "999999",  # Wrong code
+        }
+
+        response = client.post("/auth/login", json=login_payload)
+
+        # Should fail with 401 (invalid code)
+        assert response.status_code == 401
+
 
 @pytest.mark.integration
 class TestAuthMe:
