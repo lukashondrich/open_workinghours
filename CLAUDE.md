@@ -2,8 +2,8 @@
 
 This file provides context for AI assistants (Claude) working on this project.
 
-**Last Updated:** 2025-12-31
-**Status:** German translation 90% complete - Testing before TestFlight
+**Last Updated:** 2026-01-03
+**Status:** Dossier website deployed to openworkinghours.org - i18n polish pending
 
 ---
 
@@ -13,18 +13,17 @@ This file provides context for AI assistants (Claude) working on this project.
 
 ### Architecture (4 Components)
 
-1. **Astro Dossier Website** (NEW - in `website/` directory)
+1. **Astro Dossier Website** (LIVE at openworkinghours.org)
    - Project dossier for union/association outreach
    - Bilingual (English + German)
-   - Static site, zero JavaScript
-   - Problem → Analysis → Solution narrative
+   - Static site, zero JavaScript (deployed via Vercel)
+   - 3-step product demo, privacy principles, team info
    - Location: `website/` directory
 
-2. **Next.js Web Dashboard** (deployed to Vercel)
-   - Public analytics and reporting
-   - Calendar planning interface
-   - Email verification flow
-   - Location: Root of this repo
+2. **Next.js Web Dashboard** (DEPRECATED - replaced by Astro site)
+   - Was: Public analytics and reporting dashboard
+   - Status: Code still in repo root, but no longer deployed
+   - May be repurposed for authenticated dashboard later
 
 3. **React Native Mobile App** (TestFlight Build #19)
    - Primary user interface
@@ -134,30 +133,28 @@ Only when a module/feature is:
 
 ---
 
-## Current State (2025-12-31)
+## Current State (2026-01-03)
 
 ### What Exists & Works
 
-✅ **Astro Dossier Website** (NEW - Ready for content)
+✅ **Astro Dossier Website** (LIVE at openworkinghours.org)
 - Bilingual site structure (English + German)
 - 10 pages total (6 EN + 4 DE)
-- Problem → Analysis → Solution narrative
-- Privacy principles with data flow explanation
-- Team and advisor placeholders
-- German legal pages (Impressum, Datenschutzerklärung templates)
-- Detailed image generation prompts for 3 diagrams
+- Problem → Analysis → Solution narrative with bold formatting
+- 3-step product demo (setup → shifts → results) with screenshots
+- Privacy principles with data flow diagram
+- Team page with founder photo and bio
+- Impressum and Datenschutzerklärung with real legal info
+- Public dashboard preview screenshot
 - **Tech:** Astro 5, Tailwind CSS 4, Inter font
 - **Location:** `website/` directory
-- **Status:** Structure complete, awaiting content (photos, screenshots, diagrams)
+- **Deployment:** Vercel (Root Directory: `website`)
+- **Status:** ✅ Complete and deployed (2026-01-03)
 
-✅ **Next.js Web Dashboard** (Production on Vercel)
-- Calendar with shift planning (drag-and-drop, templates)
-- Week view and month view components
-- Review mode (compare planned vs tracked)
-- Email verification UI
-- Analytics dashboard with Recharts
-- Multi-language support (English/German via next-intl)
-- Dark mode support
+⚠️ **Next.js Web Dashboard** (DEPRECATED - no longer deployed)
+- Was: Calendar planning interface, analytics dashboard
+- Status: Code still in repo root, replaced by Astro dossier site
+- May be repurposed later for authenticated analytics dashboard
 - **Tech:** Next.js 16.0.0, React 19.2.0, TypeScript, Tailwind CSS 4.1.9
 
 ✅ **React Native Mobile App** (TestFlight Build #19)
@@ -974,7 +971,9 @@ Previous: add privacy_architecture.md
 
 ---
 
-**Last Updated:** 2025-12-31
-**Status:** German translation 90% complete (core screens done, some buttons pending)
-**Current Focus:** Complete i18n polish, then TestFlight build
-**Production URL:** https://api.openworkinghours.org
+**Last Updated:** 2026-01-03
+**Status:** Dossier website deployed to openworkinghours.org
+**Current Focus:** i18n polish, then TestFlight build
+**Production URLs:**
+- Website: https://openworkinghours.org
+- Backend API: https://api.openworkinghours.org

@@ -1,7 +1,7 @@
 # Open Working Hours – High-Level TODO
 
-**Last Updated:** 2025-12-31 (German translation implemented)
-**Current Focus:** Website content completion + i18n polish + TestFlight build
+**Last Updated:** 2026-01-03 (Dossier website deployed)
+**Current Focus:** i18n polish + TestFlight build
 
 ---
 
@@ -16,7 +16,7 @@
 | Calendar Zoom & Navigation | ✅ Complete | Focal point zoom, swipe weeks, animated transitions, haptics; see `blueprint.md` Section 3.4 |
 | Status Dashboard | ✅ Complete | 14-day hours overview, next shift widget (Build #19) |
 | Internationalization (i18n) | 🔄 90% Complete | German translation; core screens done, some buttons pending; see `blueprint.md` Section 3.5 |
-| Dossier Website | 🔄 In Progress | Structure complete, content placeholders remain |
+| Dossier Website | ✅ Complete | Deployed to openworkinghours.org (Astro on Vercel) |
 | Future Modules (3-8) | ⏸️ On Hold | Pending user growth and real-world testing |
 
 ---
@@ -55,9 +55,9 @@
 
 ---
 
-## Current Priority: Dossier Website
+## Dossier Website - ✅ COMPLETE
 
-**Goal:** Complete website for union/association outreach
+**Deployed:** https://openworkinghours.org (2026-01-03)
 
 ### Website Structure - ✅ COMPLETE
 
@@ -66,32 +66,35 @@
 - [x] Create German pages (/de, /de/product, /de/privacy, /de/team)
 - [x] Implement bilingual navigation with language switcher
 - [x] Write narrative content (Problem → Analysis → Solution)
-- [x] Create detailed image generation prompts for diagrams
 
-### Website Content - ⏳ PENDING (Owner Action Required)
+### Website Content - ✅ COMPLETE
 
-- [ ] **Team page**: Fill in founder name, bio, photo
-- [ ] **Team page**: Add confirmed advisor names, titles, photos
-- [ ] **Imprint**: Add legal name and address
-- [ ] **Privacy Policy**: Add legal name, address, update date
-- [ ] **App screenshots**: Take 6 screenshots from mobile app
-  - Status Dashboard (with demo data)
+- [x] **Team page**: Founder name (Lukas Hondrich), bio, photo
+- [x] **Imprint**: Legal name and address (Karl-Marx-Straße 182, Berlin)
+- [x] **Privacy Policy**: Simplified (website collects no data)
+- [x] **App screenshots**: 6 German screenshots added
+  - Status Dashboard (14-day overview)
   - Calendar Week View
-  - Shift Templates
-  - Location Setup
-  - Active Tracking
+  - Shift Templates (Dienste)
+  - Location Setup (Geofencing)
+  - Data & Privacy screen
   - Settings
-- [ ] **Diagrams**: Generate from prompts
-  - System Overview (iconic, 3-element flow)
-  - Data Flow (technical, 3-layer architecture)
-  - Dashboard mockup (bar chart visualization)
+- [x] **Product page**: 3-step "How it works" layout (setup → shifts → results)
+- [x] **Dashboard screenshot**: Public analytics preview
+- [x] **Data flow diagram**: Added to privacy page
+- [x] **Favicon**: App logo (green clock with medical cross)
 
-### Website Deployment - ⏳ PENDING
+### Website Deployment - ✅ COMPLETE
 
-- [ ] Configure Vercel project for `website/` directory
-- [ ] Set up custom domain (openworkinghours.org)
-- [ ] Test production build
-- [ ] Deploy to production
+- [x] Configure Vercel project (Root Directory: `website`)
+- [x] Set up custom domain (openworkinghours.org + www)
+- [x] DNS configuration (CNAME + A record)
+- [x] Deploy to production
+
+### Pending (Optional)
+
+- [ ] **Advisors section**: Add when advisors are confirmed
+- [ ] **Contact form**: Add if needed for outreach
 
 ---
 

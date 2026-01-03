@@ -1422,7 +1422,8 @@ The dossier website serves as a trust anchor for outreach to:
   "styling": "Tailwind CSS 4",
   "fonts": "Inter (Google Fonts)",
   "javascript": "Zero JS shipped by default",
-  "hosting": "Static (Vercel/Netlify)"
+  "hosting": "Vercel (openworkinghours.org)",
+  "status": "LIVE (deployed 2026-01-03)"
 }
 ```
 
@@ -1449,16 +1450,16 @@ The main page follows a deliberate narrative arc:
 
 This structure mirrors how unions, courts, and policymakers reason.
 
-### 12.5 Diagram Strategy
+### 12.5 Visual Content
 
-Two distinct diagrams serve different audiences:
+| Content | Page | Description |
+|---------|------|-------------|
+| 3-step product demo | Product (/product) | Screenshots: location setup → calendar → status dashboard |
+| Data flow diagram | Privacy (/privacy) | Blueprint-style flow: Device → Backend → Dashboard |
+| Dashboard screenshot | Product (/product) | Public analytics preview |
+| App screenshots (6) | Product (/product) | German UI screenshots from mobile app |
 
-| Diagram | Page | Style | Purpose |
-|---------|------|-------|---------|
-| System Overview | Dossier (/) | Iconic, minimal | "Get the idea in 3 seconds" |
-| Data Flow | Privacy (/privacy) | Technical, detailed | "Trust the architecture" |
-
-**Visual style**: Light blue (#60A5FA) line art on white/grid background. Reference: 1Password security diagrams, Apple privacy illustrations.
+**Visual style**: Light blue line art on grid background for diagrams. App screenshots with rounded corners and subtle shadows.
 
 ### 12.6 Bilingual Support
 
@@ -1493,7 +1494,17 @@ website/
 │   └── styles/
 │       └── global.css        # Tailwind + custom tokens
 ├── public/
-│   └── favicon.svg
+│   ├── favicon.png           # App logo (green clock + medical cross)
+│   └── screenshots/          # App screenshots and diagrams
+│       ├── status-dashboard.png
+│       ├── calendar-week.png
+│       ├── shift-templates.png
+│       ├── location-setup.png
+│       ├── data-privacy.png
+│       ├── settings.png
+│       ├── dashboard.png     # Public analytics preview
+│       ├── dataflow.png      # Privacy page diagram
+│       └── founder.jpg       # Team page photo
 ├── astro.config.mjs
 ├── package.json
 └── README.md
@@ -1501,28 +1512,35 @@ website/
 
 ### 12.8 Deployment
 
+**Production:** https://openworkinghours.org (Vercel)
+
+**Vercel Configuration:**
+- Root Directory: `website`
+- Framework Preset: Astro
+- Build Command: `npm run build`
+- Output Directory: `dist`
+
+**Local Development:**
 ```bash
 cd website
 npm install
+npm run dev      # http://localhost:4321
 npm run build    # Outputs to ./dist
-npm run preview  # Local preview
+npm run preview  # Preview production build
 ```
 
-Deploy `./dist` to any static host (Vercel, Netlify, GitHub Pages).
-
-### 12.9 Content Placeholders (To Fill)
-
-Before production launch:
+### 12.9 Content Status (All Complete)
 
 | Item | Location | Status |
 |------|----------|--------|
-| Founder name, bio, photo | `/team` | Placeholder |
-| Advisor names, photos | `/team` | Placeholder |
-| Legal name, address | `/imprint`, `/privacy-policy` | Template |
-| App screenshots (6) | `/product` | Placeholder boxes |
-| System Overview diagram | `/`, `/de` | Prompt ready |
-| Data Flow diagram | `/privacy`, `/de/privacy` | Prompt ready |
-| Dashboard mockup | `/product`, `/de/product` | Prompt ready |
+| Founder name, bio, photo | `/team` | ✅ Lukas Hondrich |
+| Advisor names, photos | `/team` | ⏳ Pending (when confirmed) |
+| Legal name, address | `/imprint`, `/privacy-policy` | ✅ Complete |
+| App screenshots (6) | `/product` | ✅ German UI screenshots |
+| 3-step product demo | `/product` | ✅ Setup → Shifts → Results |
+| Data Flow diagram | `/privacy` | ✅ dataflow.png |
+| Dashboard screenshot | `/product` | ✅ dashboard.png |
+| Favicon | All pages | ✅ App logo (favicon.png) |
 
 ---
 
