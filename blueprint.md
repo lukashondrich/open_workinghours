@@ -738,6 +738,21 @@ weekly_submissions    # Anonymous weekly totals (to be replaced)
 
 **Tests:** 37 tests passing (10 unit + 27 integration) - see `backend/tests/`
 
+**Demo Account (Apple App Review):**
+
+For App Store review, a demo account bypasses email verification. Configure via environment variables (not committed to git):
+
+```bash
+# In production .env (keep these secret!)
+DEMO__EMAIL=<your-demo-email>
+DEMO__CODE=<your-6-digit-code>
+```
+
+The demo bypass is in `backend/app/routers/auth.py`. Seed the demo user with:
+```bash
+docker exec -it owh-backend python scripts/seed_demo_user.py
+```
+
 ---
 
 ## 6. Privacy Architecture (Original Design - Deprecated)
@@ -1176,13 +1191,63 @@ async def submit_weekly_report(
 
 ### 7.1 Backend (Hetzner, Germany)
 
-**Server setup:**
+**Production URL:** https://api.openworkinghours.org
+
+**Docker Deployment (Recommended):**
+
+```bash
+# SSH to server
+ssh deploy@owh-backend-prod
+
+# Navigate to backend (IMPORTANT: docker-compose.yml is here)
+cd ~/open_workinghours/backend
+
+# Pull latest code
+git pull origin main
+
+# Deploy
+docker compose down
+docker compose build --no-cache backend
+docker compose up -d
+
+# Verify
+docker ps  # Should show owh-backend and owh-postgres as "Up"
+docker logs owh-backend --tail 20  # Check for errors
+```
+
+**Environment Variables (.env):**
+
+The `.env` file uses two naming conventions:
+- `SECRET_KEY` → docker-compose maps to `SECURITY__SECRET_KEY` for the container
+- `EMAIL__*` → passed directly (already have correct prefix)
+
+```bash
+# Required in .env
+SECRET_KEY=...                    # docker-compose maps to SECURITY__SECRET_KEY
+EMAIL_HASH_SECRET=...             # docker-compose maps to SECURITY__EMAIL_HASH_SECRET
+EMAIL__SMTP_USERNAME=...
+EMAIL__SMTP_PASSWORD=...
+ADMIN_PASSWORD=...
+
+# Optional (demo account for App Store review - keep secret!)
+DEMO__EMAIL=<your-demo-email>
+DEMO__CODE=<your-6-digit-code>
+```
+
+**Common Issues:**
+
+| Problem | Cause | Solution |
+|---------|-------|----------|
+| Port 8000 already in use | Old containers running | `docker ps -a` then stop old containers |
+| `SECRET_KEY` validation error | Wrong env var name | Use `SECRET_KEY` not `SECURITY__SECRET_KEY` in .env |
+| DB password authentication failed | Volume has old password | `docker volume rm backend_postgres_data` (⚠️ loses data) |
+| Leading spaces in .env | Copy/paste issue | `sed -i 's/^[[:space:]]*//' .env` |
+
+**Legacy Setup (non-Docker):**
 ```bash
 # Hetzner Cloud Server (EU region - Falkenstein or Nuremberg)
-# Ubuntu 22.04 LTS
-# 2 vCPU, 4GB RAM (sufficient for MVP)
+# Ubuntu 22.04 LTS, 2 vCPU, 4GB RAM
 
-# Install dependencies
 apt update && apt upgrade -y
 apt install python3.11 python3-pip postgresql-15 nginx certbot -y
 
@@ -1198,15 +1263,16 @@ git clone https://github.com/yourusername/open_workinghours.git
 cd open_workinghours/backend
 pip install -r requirements.txt
 uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
+```
 
-# Nginx reverse proxy
-# /etc/nginx/sites-available/workinghours
+**Nginx reverse proxy** (`/etc/nginx/sites-available/workinghours`):
+```nginx
 server {
     listen 443 ssl;
-    server_name api.workinghours.example.com;
+    server_name api.openworkinghours.org;
 
-    ssl_certificate /etc/letsencrypt/live/api.workinghours.example.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/api.workinghours.example.com/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/api.openworkinghours.org/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/api.openworkinghours.org/privkey.pem;
 
     location / {
         proxy_pass http://localhost:8000;

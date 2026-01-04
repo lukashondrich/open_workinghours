@@ -37,6 +37,9 @@ services:
       ALLOWED_EMAIL_DOMAINS_FILE: /app/config/allowed_domains.txt
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      # Demo account for Apple App Store review (optional)
+      DEMO__EMAIL: ${DEMO__EMAIL:-}
+      DEMO__CODE: ${DEMO__CODE:-}
     ports:
       - "8000:8000"
     depends_on:

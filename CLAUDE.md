@@ -2,8 +2,8 @@
 
 This file provides context for AI assistants (Claude) working on this project.
 
-**Last Updated:** 2026-01-03
-**Status:** Dossier website deployed to openworkinghours.org - i18n polish pending
+**Last Updated:** 2026-01-04
+**Status:** Demo account for App Store review deployed
 
 ---
 
@@ -226,8 +226,9 @@ Only when a module/feature is:
 - Work events CRUD (`POST /work-events`, `GET /work-events`, etc.)
 - Privacy-preserving aggregation (k-anonymity ≥ 10 + Laplace noise ε=1.0)
 - Stats API (`GET /stats/by-state-specialty`, etc.)
-- 37 tests (10 unit + 27 integration) - all passing
-- **Status:** 95% complete (only scheduling aggregation job pending)
+- Demo account for Apple App Review (bypasses email verification)
+- 39 tests (10 unit + 29 integration) - all passing
+- **Status:** 100% complete
 - **Files:** `backend/app/`
 
 ### What's Deprecated (Old Architecture)
@@ -623,16 +624,16 @@ cd mobile-app
 
 ### Docker Deployment (Hetzner Production)
 
-**IMPORTANT:** When deploying backend changes to production, you MUST rebuild the Docker image to apply code changes.
+**IMPORTANT:** The `docker-compose.yml` is in `backend/`, not the project root.
 
 **Correct deployment process:**
 
 ```bash
 # SSH to Hetzner server
-ssh deploy@your-server-ip
+ssh deploy@owh-backend-prod
 
-# Navigate to project directory
-cd ~/open_workinghours
+# Navigate to BACKEND directory (where docker-compose.yml lives)
+cd ~/open_workinghours/backend
 
 # Pull latest changes (user handles git commands)
 # git pull origin main
@@ -646,19 +647,44 @@ docker compose build --no-cache backend
 # Start containers
 docker compose up -d
 
-# Verify backend is running
-docker compose logs backend -f
+# Verify both containers are running (not "Restarting")
+docker ps
+
+# Check logs if issues
+docker logs owh-backend --tail 30
 ```
+
+**Environment Variables (.env in backend/):**
+
+The docker-compose.yml expects specific variable names:
+```bash
+# These are MAPPED by docker-compose (use simple names, NOT SECURITY__ prefix)
+SECRET_KEY=your-64-char-secret
+EMAIL_HASH_SECRET=your-64-char-secret
+
+# These are passed directly (keep the prefix)
+EMAIL__SMTP_USERNAME=...
+EMAIL__SMTP_PASSWORD=...
+ADMIN_PASSWORD=...
+# Demo account (keep secret - not in git!)
+DEMO__EMAIL=<your-demo-email>
+DEMO__CODE=<your-6-digit-code>
+```
+
+**Common Deployment Issues:**
+
+| Problem | Cause | Solution |
+|---------|-------|----------|
+| Port 8000 already in use | Old containers from wrong folder | `docker ps -a`, stop old containers |
+| SECRET_KEY validation error | .env has `SECURITY__SECRET_KEY` | Use `SECRET_KEY` (docker-compose maps it) |
+| Container keeps restarting | Check logs | `docker logs owh-backend --tail 50` |
+| DB password auth failed | Volume has old password | `docker volume rm backend_postgres_data` ⚠️ |
+| Leading spaces in .env | Copy/paste issue | `sed -i 's/^[[:space:]]*//' .env` |
 
 **Why `--no-cache` is important:**
 - Docker caches layers during builds
 - Without `--no-cache`, Python code changes may not be picked up
 - The flag forces a complete rebuild with latest code
-
-**Common mistakes:**
-- ❌ `docker compose restart backend` - Does NOT apply code changes
-- ❌ `docker compose down && docker compose up -d` - May use cached image
-- ✅ `docker compose build --no-cache backend` - Forces rebuild with new code
 
 ---
 
@@ -971,9 +997,9 @@ Previous: add privacy_architecture.md
 
 ---
 
-**Last Updated:** 2026-01-03
-**Status:** Dossier website deployed to openworkinghours.org
-**Current Focus:** i18n polish, then TestFlight build
+**Last Updated:** 2026-01-04
+**Status:** Demo account for App Store review deployed
+**Current Focus:** TestFlight build for external testers
 **Production URLs:**
 - Website: https://openworkinghours.org
 - Backend API: https://api.openworkinghours.org
