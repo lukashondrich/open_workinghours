@@ -29,11 +29,15 @@ const navItems = [
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <title>{title} | Open Working Hours</title>
   </head>
-  <body class="min-h-screen flex flex-col bg-white">
+  <body class="min-h-screen flex flex-col">
     <!-- Navigation -->
-    <header class="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-gray-100">
-      <nav class="max-w-4xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-        <a href="/" class="font-semibold text-gray-900 hover:text-gray-900">
+    <header class="sticky top-0 z-50 bg-stone-50/95 backdrop-blur border-b border-stone-200">
+      <nav class="max-w-5xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+        <a href="/" class="flex items-center gap-2 font-semibold text-stone-900 hover:text-teal-700 transition-colors">
+          <svg class="w-6 h-6 text-teal-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10" />
+            <polyline points="12 6 12 12 16 14" />
+          </svg>
           Open Working Hours
         </a>
         <div class="flex items-center gap-4">
@@ -45,8 +49,8 @@ const navItems = [
                   class:list={[
                     'px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
                     currentPath === item.href
-                      ? 'bg-gray-100 text-gray-900'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                      ? 'bg-teal-50 text-teal-700'
+                      : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'
                   ]}
                 >
                   {item.label}
@@ -55,7 +59,7 @@ const navItems = [
             ))}
           </ul>
           <!-- Language Switcher -->
-          <a href="/de" class="text-xs text-gray-400 hover:text-gray-600 border-l border-gray-200 pl-4">
+          <a href="/de" class="text-xs font-medium text-stone-400 hover:text-teal-600 border-l border-stone-200 pl-4 transition-colors">
             DE
           </a>
         </div>
@@ -68,16 +72,49 @@ const navItems = [
     </main>
 
     <!-- Footer -->
-    <footer class="border-t border-gray-100 mt-16">
-      <div class="max-w-4xl mx-auto px-4 sm:px-6 py-8">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div class="text-sm text-gray-500">
-            For questions or collaboration: <a href="mailto:contact@openworkinghours.org" class="text-gray-700 hover:text-gray-900">contact@openworkinghours.org</a>
+    <footer class="border-t border-stone-200 bg-white mt-16">
+      <div class="max-w-5xl mx-auto px-4 sm:px-6 py-10">
+        <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-8">
+          <!-- Left: Logo and tagline -->
+          <div class="max-w-xs">
+            <div class="flex items-center gap-2 font-semibold text-stone-900 mb-2">
+              <svg class="w-5 h-5 text-teal-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
+              Open Working Hours
+            </div>
+            <p class="text-sm text-stone-500 mb-4">
+              Privacy-first infrastructure for healthcare working time documentation.
+            </p>
+            <a href="mailto:contact@openworkinghours.org" class="text-sm text-teal-600 hover:text-teal-700">
+              contact@openworkinghours.org
+            </a>
           </div>
-          <nav class="flex gap-6 text-sm">
-            <a href="/imprint" class="text-gray-500 hover:text-gray-700">Imprint</a>
-            <a href="/privacy-policy" class="text-gray-500 hover:text-gray-700">Privacy Policy</a>
-          </nav>
+
+          <!-- Right: Links -->
+          <div class="flex gap-12">
+            <div>
+              <h4 class="text-xs font-semibold text-stone-400 uppercase tracking-wide mb-3">Project</h4>
+              <nav class="flex flex-col gap-2 text-sm">
+                <a href="/product" class="text-stone-600 hover:text-stone-900">Product</a>
+                <a href="/privacy" class="text-stone-600 hover:text-stone-900">Privacy</a>
+                <a href="/team" class="text-stone-600 hover:text-stone-900">Team</a>
+              </nav>
+            </div>
+            <div>
+              <h4 class="text-xs font-semibold text-stone-400 uppercase tracking-wide mb-3">Legal</h4>
+              <nav class="flex flex-col gap-2 text-sm">
+                <a href="/imprint" class="text-stone-600 hover:text-stone-900">Imprint</a>
+                <a href="/privacy-policy" class="text-stone-600 hover:text-stone-900">Privacy Policy</a>
+              </nav>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bottom bar -->
+        <div class="mt-10 pt-6 border-t border-stone-100 text-xs text-stone-400">
+          Open source project. Not affiliated with any employer or institution.
         </div>
       </div>
     </footer>

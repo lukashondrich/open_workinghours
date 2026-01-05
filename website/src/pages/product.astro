@@ -3,45 +3,45 @@ import Layout from '../layouts/Layout.astro';
 ---
 
 <Layout title="Product" description="See the Open Working Hours app in action - screenshots and demo of the working hours tracking system.">
-  <div class="max-w-4xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
+  <div class="max-w-5xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
     <!-- Header -->
     <header class="mb-12">
-      <h1 class="text-gray-900 mb-4">Product</h1>
-      <p class="text-xl text-gray-600 max-w-2xl">
+      <h1 class="text-stone-900 mb-4">Product</h1>
+      <p class="text-xl text-stone-600 max-w-2xl">
         A native app designed for the realities of healthcare work: long shifts, unpredictable schedules, and limited time for administrative tasks.
       </p>
     </header>
 
     <!-- 3-Step Process -->
     <section class="mb-16">
-      <h2 class="text-gray-900 mb-8">How it works</h2>
+      <h2 class="text-stone-900 mb-8">How it works</h2>
       <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
         <!-- Step 1 -->
         <div class="flex flex-col items-center text-center">
-          <div class="w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center text-xl font-bold mb-4">1</div>
-          <div class="bg-gray-50 rounded-xl overflow-hidden shadow-sm mb-3 w-full max-w-[200px]">
+          <div class="w-12 h-12 rounded-full bg-teal-600 text-white flex items-center justify-center text-xl font-bold mb-4">1</div>
+          <div class="bg-stone-50 rounded-xl overflow-hidden shadow-sm mb-3 w-full max-w-[200px]">
             <img src="/screenshots/location-setup.png" alt="Set up geofencing" class="w-full h-auto" />
           </div>
-          <h3 class="font-semibold text-gray-900 mb-1">Set up your location</h3>
-          <p class="text-sm text-gray-600">Define a geofencing zone around your workplace</p>
+          <h3 class="font-semibold text-stone-900 mb-1">Set up your location</h3>
+          <p class="text-sm text-stone-600">Define a geofencing zone around your workplace</p>
         </div>
         <!-- Step 2 -->
         <div class="flex flex-col items-center text-center">
-          <div class="w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center text-xl font-bold mb-4">2</div>
-          <div class="bg-gray-50 rounded-xl overflow-hidden shadow-sm mb-3 w-full max-w-[200px]">
+          <div class="w-12 h-12 rounded-full bg-teal-600 text-white flex items-center justify-center text-xl font-bold mb-4">2</div>
+          <div class="bg-stone-50 rounded-xl overflow-hidden shadow-sm mb-3 w-full max-w-[200px]">
             <img src="/screenshots/calendar-week.png" alt="Enter shifts" class="w-full h-auto" />
           </div>
-          <h3 class="font-semibold text-gray-900 mb-1">Enter your shifts</h3>
-          <p class="text-sm text-gray-600">Add planned shifts to your calendar</p>
+          <h3 class="font-semibold text-stone-900 mb-1">Enter your shifts</h3>
+          <p class="text-sm text-stone-600">Add planned shifts to your calendar</p>
         </div>
         <!-- Step 3 -->
         <div class="flex flex-col items-center text-center">
-          <div class="w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center text-xl font-bold mb-4">3</div>
-          <div class="bg-gray-50 rounded-xl overflow-hidden shadow-sm mb-3 w-full max-w-[200px]">
+          <div class="w-12 h-12 rounded-full bg-teal-600 text-white flex items-center justify-center text-xl font-bold mb-4">3</div>
+          <div class="bg-stone-50 rounded-xl overflow-hidden shadow-sm mb-3 w-full max-w-[200px]">
             <img src="/screenshots/status-dashboard.png" alt="See results" class="w-full h-auto" />
           </div>
-          <h3 class="font-semibold text-gray-900 mb-1">See your results</h3>
-          <p class="text-sm text-gray-600">Working hours and overtime calculated automatically</p>
+          <h3 class="font-semibold text-stone-900 mb-1">See your results</h3>
+          <p class="text-sm text-stone-600">Working hours and overtime calculated automatically</p>
         </div>
       </div>
     </section>
@@ -49,43 +49,43 @@ import Layout from '../layouts/Layout.astro';
     <!-- UX Callouts -->
     <section class="mb-16">
       <div class="grid sm:grid-cols-3 gap-6">
-        <div class="p-6 bg-gray-50 rounded-lg">
-          <div class="text-2xl font-semibold text-gray-900 mb-1">&lt; 1 min</div>
-          <div class="text-gray-600">Daily time investment</div>
+        <div class="p-6 bg-stone-50 rounded-lg border border-stone-200">
+          <div class="text-2xl font-semibold text-stone-900 mb-1">&lt; 1 min</div>
+          <div class="text-stone-600">Daily time investment</div>
         </div>
-        <div class="p-6 bg-gray-50 rounded-lg">
-          <div class="text-2xl font-semibold text-gray-900 mb-1">Automatic</div>
-          <div class="text-gray-600">Geofence-based tracking</div>
+        <div class="p-6 bg-stone-50 rounded-lg border border-stone-200">
+          <div class="text-2xl font-semibold text-stone-900 mb-1">Automatic</div>
+          <div class="text-stone-600">Geofence-based tracking</div>
         </div>
-        <div class="p-6 bg-gray-50 rounded-lg">
-          <div class="text-2xl font-semibold text-gray-900 mb-1">Offline-first</div>
-          <div class="text-gray-600">Works without internet</div>
+        <div class="p-6 bg-stone-50 rounded-lg border border-stone-200">
+          <div class="text-2xl font-semibold text-stone-900 mb-1">Offline-first</div>
+          <div class="text-stone-600">Works without internet</div>
         </div>
       </div>
     </section>
 
     <!-- Mini Dashboard Preview -->
     <section class="mb-16">
-      <h2 class="text-gray-900 mb-6">Public Dashboard Preview</h2>
-      <p class="text-gray-600 mb-6">
+      <h2 class="text-stone-900 mb-6">Public Dashboard Preview</h2>
+      <p class="text-stone-600 mb-6">
         Aggregated data is displayed on a public dashboard. Working patterns can be filtered by <strong>region, specialty, and hospital</strong> – as long as individual anonymity is safeguarded.
       </p>
-      <div class="rounded-lg overflow-hidden shadow-lg border border-gray-200">
+      <div class="rounded-lg overflow-hidden shadow-lg border border-stone-200">
         <img src="/screenshots/dashboard.png" alt="Open Working Hours Dashboard" class="w-full h-auto" />
       </div>
     </section>
 
     <!-- Platform status -->
-    <section class="border-t border-gray-100 pt-8">
-      <div class="flex flex-wrap gap-6 text-sm text-gray-600">
+    <section class="border-t border-stone-200 pt-8">
+      <div class="flex flex-wrap gap-6 text-sm text-stone-600">
         <div>
-          <span class="font-medium text-gray-900">Platform:</span> iOS (TestFlight)
+          <span class="font-medium text-stone-900">Platform:</span> iOS (TestFlight)
         </div>
         <div>
-          <span class="font-medium text-gray-900">Status:</span> Closed Beta
+          <span class="font-medium text-stone-900">Status:</span> Closed Beta
         </div>
         <div>
-          <span class="font-medium text-gray-900">Android:</span> Planned
+          <span class="font-medium text-stone-900">Android:</span> Planned
         </div>
       </div>
     </section>

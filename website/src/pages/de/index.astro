@@ -3,152 +3,176 @@ import LayoutDE from '../../layouts/LayoutDE.astro';
 ---
 
 <LayoutDE title="Projektdossier">
-  <div class="max-w-4xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
-    <!-- Header -->
-    <header class="mb-12">
-      <div class="flex items-center gap-3 mb-4">
-        <h1 class="text-gray-900">Open Working Hours</h1>
-        <span class="px-2.5 py-0.5 text-xs font-medium bg-blue-50 text-blue-700 rounded-full">
-          Closed Beta
-        </span>
-      </div>
-      <p class="text-xl text-gray-600 max-w-2xl">
-        Datenschutzkonforme Infrastruktur zur Dokumentation und Aggregation realer Arbeitsbedingungen im Gesundheitswesen.
-      </p>
-    </header>
+  <!-- Hero Section -->
+  <section class="blueprint-grid-hero">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
+      <div class="grid grid-cols-1 lg:grid-cols-5 gap-10 lg:gap-12 items-center">
+        <!-- Left: Text (3 columns) -->
+        <div class="lg:col-span-3">
+          <span class="badge mb-4 inline-block">Closed Beta</span>
+          <h1 class="text-stone-900 mb-4">Open Working Hours</h1>
+          <p class="text-xl text-stone-600">
+            Datenschutzkonforme Infrastruktur zur Dokumentation und Aggregation realer Arbeitsbedingungen im Gesundheitswesen.
+          </p>
+        </div>
 
-    <!-- Problemstellung -->
-    <section class="mb-12">
-      <h2 class="text-gray-900 mb-4">Problemstellung</h2>
-      <div class="prose text-gray-700 space-y-4">
-        <p>
-          <strong>Chronische Überlastung im Gesundheitswesen</strong> hat konkrete menschliche Folgen: Erschöpfung, gesundheitliche Langzeitschäden, berufliche Abwanderung. Patient*innen tragen erhöhte Risiken durch Fehleranfälligkeit und eingeschränkte Versorgungsqualität.
-        </p>
-        <p>
-          Diese Belastungen werden <strong>faktisch externalisiert</strong>:
-        </p>
-        <ul class="space-y-2 ml-4">
-          <li>Sie fließen <strong>nicht</strong> in Personalplanung ein.</li>
-          <li>Sie erscheinen <strong>nur vereinzelt</strong> in Vorfallmeldungen.</li>
-          <li>Sie liegen <strong>selten als systemische Evidenz</strong> vor.</li>
-        </ul>
-        <p>
-          Belastende Arbeitsbedingungen können so fortbestehen – selbst wo Schutzregelungen existieren.
-        </p>
-      </div>
-    </section>
-
-    <!-- Analytische Einordnung -->
-    <section class="mb-12">
-      <h2 class="text-gray-900 mb-4">Analyse</h2>
-      <div class="prose text-gray-700 space-y-4">
-        <p>
-          Das Problem ist <strong>nicht Regelungslücke, sondern Informationslücke</strong>.
-        </p>
-        <p>
-          Arbeitszeitrecht, Arbeitsschutz, Mitbestimmung – die Instrumente existieren. Ihre Wirksamkeit setzt aber voraus, dass <strong>tatsächliche Arbeitszeiten dokumentiert und aggregiert</strong> werden können.
-        </p>
-        <p>
-          In der Praxis fehlt es an:
-        </p>
-        <ul class="space-y-2 ml-4">
-          <li><strong>Aggregierten Daten</strong> zu realen Arbeitsmustern</li>
-          <li><strong>Unabhängiger Erfassung</strong> jenseits arbeitgeberseitiger Dokumentation</li>
-          <li><strong>Datenschutzkonformen Mechanismen</strong> zur systemischen Auswertung</li>
-        </ul>
-        <p>
-          Ohne diese Grundlagen bleiben Beschwerden Einzelfälle. Gewerkschaften fehlen belastbare Daten. Aufsichtsbehörden können keine Muster erkennen.
-        </p>
-        <p>
-          <strong>Das Defizit ist infrastruktureller Natur.</strong>
-        </p>
-      </div>
-    </section>
-
-    <!-- Lösung -->
-    <section class="mb-12">
-      <h2 class="text-gray-900 mb-4">Lösung</h2>
-      <div class="prose text-gray-700 space-y-4">
-        <p>
-          <strong>Open Working Hours</strong> stellt diese Infrastruktur bereit: eine mobile App zur niedrigschwelligen Erfassung realer Arbeitszeiten, mit datenschutzkonformer Aggregation zu systemischer Evidenz.
-        </p>
-      </div>
-
-      <!-- App Preview -->
-      <div class="mt-8 flex flex-col sm:flex-row gap-8 items-start">
-        <div class="sm:w-1/3 flex-shrink-0">
-          <div class="bg-gray-50 rounded-2xl overflow-hidden shadow-lg">
-            <img src="/screenshots/status-dashboard.png" alt="Status Dashboard" class="w-full h-auto" />
+        <!-- Right: Phone Mockup (2 columns) -->
+        <div class="lg:col-span-2 flex justify-center lg:justify-end">
+          <div class="phone-mockup-small">
+            <div class="phone-screen">
+              <img
+                src="/screenshots/status-dashboard.png"
+                alt="Status Dashboard mit 14-Tage-Übersicht der Arbeitszeiten"
+              />
+            </div>
           </div>
         </div>
-        <ul class="sm:w-2/3 space-y-4 text-gray-700">
+      </div>
+    </div>
+  </section>
+
+  <!-- Problemstellung -->
+  <section class="section-alt py-12 sm:py-16">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6">
+      <div class="max-w-3xl">
+        <h2 class="text-stone-900 mb-4">Problemstellung</h2>
+        <div class="prose text-stone-700 space-y-4">
+          <p>
+            <strong>Chronische Überlastung im Gesundheitswesen</strong> hat konkrete menschliche Folgen: Erschöpfung, gesundheitliche Langzeitschäden, berufliche Abwanderung. Patient*innen tragen erhöhte Risiken durch Fehleranfälligkeit und eingeschränkte Versorgungsqualität.
+          </p>
+          <p>
+            Diese Belastungen werden <strong>faktisch externalisiert</strong>:
+          </p>
+          <ul class="space-y-2 ml-4">
+            <li>Sie fließen <strong>nicht</strong> in Personalplanung ein.</li>
+            <li>Sie erscheinen <strong>nur vereinzelt</strong> in Vorfallmeldungen.</li>
+            <li>Sie liegen <strong>selten als systemische Evidenz</strong> vor.</li>
+          </ul>
+          <p>
+            Belastende Arbeitsbedingungen können so fortbestehen – selbst wo Schutzregelungen existieren.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Analytische Einordnung -->
+  <section class="py-12 sm:py-16">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6">
+      <div class="max-w-3xl">
+        <h2 class="text-stone-900 mb-4">Analyse</h2>
+        <div class="prose text-stone-700 space-y-4">
+          <p>
+            Das Problem ist <strong>nicht Regelungslücke, sondern Informationslücke</strong>.
+          </p>
+          <p>
+            Arbeitszeitrecht, Arbeitsschutz, Mitbestimmung – die Instrumente existieren. Ihre Wirksamkeit setzt aber voraus, dass <strong>tatsächliche Arbeitszeiten dokumentiert und aggregiert</strong> werden können.
+          </p>
+          <p>
+            In der Praxis fehlt es an:
+          </p>
+          <ul class="space-y-2 ml-4">
+            <li><strong>Aggregierten Daten</strong> zu realen Arbeitsmustern</li>
+            <li><strong>Unabhängiger Erfassung</strong> jenseits arbeitgeberseitiger Dokumentation</li>
+            <li><strong>Datenschutzkonformen Mechanismen</strong> zur systemischen Auswertung</li>
+          </ul>
+          <p>
+            Ohne diese Grundlagen bleiben Beschwerden Einzelfälle. Gewerkschaften fehlen belastbare Daten. Aufsichtsbehörden können keine Muster erkennen.
+          </p>
+          <p>
+            <strong>Das Defizit ist infrastruktureller Natur.</strong>
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Lösung -->
+  <section class="section-alt py-12 sm:py-16">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6">
+      <div class="max-w-3xl">
+        <h2 class="text-stone-900 mb-4">Lösung</h2>
+        <div class="prose text-stone-700 space-y-4">
+          <p>
+            <strong>Open Working Hours</strong> stellt diese Infrastruktur bereit: eine mobile App zur niedrigschwelligen Erfassung realer Arbeitszeiten, mit datenschutzkonformer Aggregation zu systemischer Evidenz.
+          </p>
+        </div>
+
+        <!-- Solution Details -->
+        <ul class="mt-6 space-y-4 text-stone-700">
           <li class="flex gap-3">
-            <span class="text-blue-500 font-semibold select-none">1.</span>
+            <span class="text-teal-600 font-semibold select-none">1.</span>
             <span><strong>Was es ist:</strong> Eine iOS-App zur Erfassung realer Arbeitszeiten – automatisch per Geofencing oder manuell in Sekunden.</span>
           </li>
           <li class="flex gap-3">
-            <span class="text-blue-500 font-semibold select-none">2.</span>
+            <span class="text-teal-600 font-semibold select-none">2.</span>
             <span><strong>Für wen:</strong> Ärzt*innen, Pflegekräfte und weitere Beschäftigte, die zu sachlicher Transparenz beitragen möchten.</span>
           </li>
           <li class="flex gap-3">
-            <span class="text-blue-500 font-semibold select-none">3.</span>
+            <span class="text-teal-600 font-semibold select-none">3.</span>
             <span><strong>Ergebnis:</strong> Aggregierte, anonymisierte Statistiken – nach Region, Fachrichtung, Tätigkeitsbereich.</span>
           </li>
           <li class="flex gap-3">
-            <span class="text-blue-500 font-semibold select-none">4.</span>
+            <span class="text-teal-600 font-semibold select-none">4.</span>
             <span><strong>Status:</strong> iOS-App in geschlossener Beta. Backend produktiv. Pilotpartner gesucht.</span>
           </li>
         </ul>
       </div>
-    </section>
+    </div>
+  </section>
 
-    <!-- Prinzipien -->
-    <section class="mb-12">
-      <h2 class="text-gray-900 mb-4">Prinzipien</h2>
-      <ul class="space-y-3 text-gray-700">
-        <li class="flex gap-3">
-          <span class="text-blue-500 mt-1">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </span>
-          <span><strong>Niedrige Hürde:</strong> Automatische Erfassung per Geofencing. Manuelle Eingabe in Sekunden.</span>
-        </li>
-        <li class="flex gap-3">
-          <span class="text-blue-500 mt-1">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </span>
-          <span><strong>Kein Arbeitgeber-Tool:</strong> Daten gehören den Nutzenden. Kein Zugriff für Dritte.</span>
-        </li>
-        <li class="flex gap-3">
-          <span class="text-blue-500 mt-1">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </span>
-          <span><strong>Privacy by Design:</strong> Einzeldaten nie veröffentlicht. Nur aggregierte Statistiken mit k-Anonymität.</span>
-        </li>
-        <li class="flex gap-3">
-          <span class="text-blue-500 mt-1">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </span>
-          <span><strong>Volle Kontrolle:</strong> Datenexport und Löschung jederzeit. DSGVO-konform.</span>
-        </li>
-      </ul>
-    </section>
-
-    <!-- Weiterführend -->
-    <section class="border-t border-gray-100 pt-8">
-      <h3 class="text-gray-500 text-sm font-medium uppercase tracking-wide mb-4">Weiterführend</h3>
-      <div class="flex flex-wrap gap-x-8 gap-y-2 text-gray-700">
-        <a href="/de/product" class="hover:text-blue-600">Produktdemo ansehen</a>
-        <a href="/de/privacy" class="hover:text-blue-600">Datenschutzprinzipien lesen</a>
-        <a href="/de/team" class="hover:text-blue-600">Team & Kontakt</a>
+  <!-- Prinzipien -->
+  <section class="py-12 sm:py-16">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6">
+      <div class="max-w-3xl">
+        <h2 class="text-stone-900 mb-4">Prinzipien</h2>
+        <ul class="space-y-3 text-stone-700">
+          <li class="flex gap-3">
+            <span class="text-teal-600 mt-1">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </span>
+            <span><strong>Niedrige Hürde:</strong> Automatische Erfassung per Geofencing. Manuelle Eingabe in Sekunden.</span>
+          </li>
+          <li class="flex gap-3">
+            <span class="text-teal-600 mt-1">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </span>
+            <span><strong>Kein Arbeitgeber-Tool:</strong> Daten gehören den Nutzenden. Kein Zugriff für Dritte.</span>
+          </li>
+          <li class="flex gap-3">
+            <span class="text-teal-600 mt-1">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </span>
+            <span><strong>Privacy by Design:</strong> Einzeldaten nie veröffentlicht. Nur aggregierte Statistiken mit k-Anonymität.</span>
+          </li>
+          <li class="flex gap-3">
+            <span class="text-teal-600 mt-1">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </span>
+            <span><strong>Volle Kontrolle:</strong> Datenexport und Löschung jederzeit. DSGVO-konform.</span>
+          </li>
+        </ul>
       </div>
-    </section>
-  </div>
+    </div>
+  </section>
+
+  <!-- Weiterführend -->
+  <section class="border-t border-stone-200 py-8">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6">
+      <h3 class="text-stone-500 text-sm font-medium uppercase tracking-wide mb-4">Weiterführend</h3>
+      <div class="flex flex-wrap gap-x-8 gap-y-2 text-stone-700">
+        <a href="/de/product" class="hover:text-teal-600">Produktdemo ansehen</a>
+        <a href="/de/privacy" class="hover:text-teal-600">Datenschutzprinzipien lesen</a>
+        <a href="/de/team" class="hover:text-teal-600">Team & Kontakt</a>
+      </div>
+    </div>
+  </section>
 </LayoutDE>

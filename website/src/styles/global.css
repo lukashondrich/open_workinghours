@@ -1,33 +1,54 @@
 @import "tailwindcss";
 
-/* Design tokens */
+/* Design tokens - Option B: Teal + Warm Neutral */
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
 
-  /* Primary palette - trust/professional blue */
-  --color-primary-50: #eff6ff;
-  --color-primary-100: #dbeafe;
-  --color-primary-200: #bfdbfe;
-  --color-primary-500: #3b82f6;
-  --color-primary-600: #2563eb;
-  --color-primary-700: #1d4ed8;
+  /* Primary - Healthcare Teal (from mobile app) */
+  --color-teal-50: #f0fdf9;
+  --color-teal-100: #ccfbef;
+  --color-teal-200: #99f6e0;
+  --color-teal-300: #5eead4;
+  --color-teal-400: #2dd4bf;
+  --color-teal-500: #2E8B6B;
+  --color-teal-600: #287B5F;
+  --color-teal-700: #216950;
+  --color-teal-800: #1A5741;
+  --color-teal-900: #134532;
 
-  /* Blueprint diagram colors */
-  --color-blueprint: #60a5fa;
-  --color-blueprint-light: #93c5fd;
-  --color-blueprint-grid: #e0f2fe;
+  /* Warm neutrals (stone palette) */
+  --color-stone-50: #fafaf9;
+  --color-stone-100: #f5f5f4;
+  --color-stone-200: #e7e5e4;
+  --color-stone-300: #d6d3d1;
+  --color-stone-400: #a8a29e;
+  --color-stone-500: #78716c;
+  --color-stone-600: #57534e;
+  --color-stone-700: #44403c;
+  --color-stone-800: #292524;
+  --color-stone-900: #1c1917;
 
-  /* Neutral grays */
-  --color-gray-50: #f9fafb;
-  --color-gray-100: #f3f4f6;
-  --color-gray-200: #e5e7eb;
-  --color-gray-300: #d1d5db;
-  --color-gray-400: #9ca3af;
-  --color-gray-500: #6b7280;
-  --color-gray-600: #4b5563;
-  --color-gray-700: #374151;
-  --color-gray-800: #1f2937;
-  --color-gray-900: #111827;
+  /* Accent - Warm amber (from mobile app) */
+  --color-amber-400: #fbbf24;
+  --color-amber-500: #f59e0b;
+  --color-amber-600: #F57C00;
+
+  /* Legacy gray aliases for compatibility */
+  --color-gray-50: #fafaf9;
+  --color-gray-100: #f5f5f4;
+  --color-gray-200: #e7e5e4;
+  --color-gray-300: #d6d3d1;
+  --color-gray-400: #a8a29e;
+  --color-gray-500: #78716c;
+  --color-gray-600: #57534e;
+  --color-gray-700: #44403c;
+  --color-gray-800: #292524;
+  --color-gray-900: #1c1917;
+
+  /* Blueprint grid colors */
+  --color-blueprint: #2E8B6B;
+  --color-blueprint-light: rgba(46, 139, 107, 0.08);
+  --color-blueprint-grid: rgba(46, 139, 107, 0.04);
 }
 
 /* Base styles */
@@ -37,17 +58,18 @@ html {
 
 body {
   font-family: var(--font-sans);
-  color: var(--color-gray-800);
+  color: var(--color-stone-800);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: var(--color-stone-50);
 }
 
 /* Typography scale */
 h1, h2, h3, h4 {
-  font-weight: 600;
-  line-height: 1.25;
-  color: var(--color-gray-900);
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--color-stone-900);
 }
 
 h1 { font-size: 2.25rem; }
@@ -55,69 +77,183 @@ h2 { font-size: 1.5rem; }
 h3 { font-size: 1.25rem; }
 
 @media (min-width: 768px) {
-  h1 { font-size: 3rem; }
+  h1 { font-size: 2.75rem; }
   h2 { font-size: 1.875rem; }
   h3 { font-size: 1.5rem; }
 }
 
 /* Link styles */
 a {
-  color: var(--color-primary-600);
+  color: var(--color-teal-600);
   text-decoration: none;
   transition: color 0.15s ease;
 }
 
 a:hover {
-  color: var(--color-primary-700);
+  color: var(--color-teal-700);
 }
 
 /* Focus styles for accessibility */
 :focus-visible {
-  outline: 2px solid var(--color-primary-500);
+  outline: 2px solid var(--color-teal-500);
   outline-offset: 2px;
 }
 
-/* Blueprint diagram placeholder styles */
-.diagram-placeholder {
-  background-color: var(--color-blueprint-grid);
+/* Blueprint grid background */
+.blueprint-grid {
+  background-color: var(--color-stone-50);
   background-image:
-    linear-gradient(var(--color-blueprint-light) 1px, transparent 1px),
-    linear-gradient(90deg, var(--color-blueprint-light) 1px, transparent 1px);
+    linear-gradient(var(--color-blueprint-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-blueprint-grid) 1px, transparent 1px);
   background-size: 20px 20px;
-  border: 2px dashed var(--color-blueprint);
+}
+
+.blueprint-grid-hero {
+  background-color: #fafdfb;
+  background-image:
+    linear-gradient(rgba(46, 139, 107, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(46, 139, 107, 0.04) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* Phone mockup */
+.phone-mockup {
+  width: 260px;
+  background: #1f2937;
+  border-radius: 40px;
+  padding: 12px;
+  box-shadow:
+    0 25px 50px -12px rgba(0, 0, 0, 0.25),
+    0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+}
+
+.phone-mockup-small {
+  width: 200px;
+  background: #1f2937;
+  border-radius: 32px;
+  padding: 10px;
+  box-shadow:
+    0 20px 40px -12px rgba(0, 0, 0, 0.2),
+    0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+}
+
+.phone-mockup-small .phone-screen {
+  border-radius: 24px;
+}
+
+.phone-screen {
+  border-radius: 32px;
+  overflow: hidden;
+  background: white;
+}
+
+.phone-screen img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Primary button */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.875rem 1.75rem;
+  background-color: var(--color-teal-500);
+  color: white;
+  font-weight: 600;
+  font-size: 1rem;
   border-radius: 8px;
-  padding: 2rem;
-  text-align: center;
-  color: var(--color-blueprint);
+  transition: background-color 0.15s ease, transform 0.1s ease;
+  text-decoration: none;
 }
 
-.diagram-placeholder-label {
-  font-size: 0.875rem;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 0.5rem;
+.btn-primary:hover {
+  background-color: var(--color-teal-600);
+  color: white;
 }
 
-.diagram-placeholder-description {
-  font-size: 0.8125rem;
-  color: var(--color-gray-600);
-  max-width: 400px;
-  margin: 0 auto;
+.btn-primary:active {
+  transform: scale(0.98);
 }
 
-/* Screenshot placeholder */
-.screenshot-placeholder {
-  background: linear-gradient(135deg, var(--color-gray-100) 0%, var(--color-gray-200) 100%);
-  border: 1px solid var(--color-gray-300);
+/* Secondary button */
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.875rem 1.75rem;
+  background-color: transparent;
+  color: var(--color-stone-700);
+  font-weight: 600;
+  font-size: 1rem;
+  border: 2px solid var(--color-stone-300);
+  border-radius: 8px;
+  transition: all 0.15s ease;
+  text-decoration: none;
+}
+
+.btn-secondary:hover {
+  border-color: var(--color-stone-400);
+  color: var(--color-stone-800);
+}
+
+/* Feature card */
+.feature-card {
+  background: white;
+  border: 1px solid var(--color-stone-200);
   border-radius: 12px;
-  aspect-ratio: 9 / 19.5;
-  max-width: 280px;
+  padding: 1.5rem;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.feature-card:hover {
+  border-color: var(--color-teal-200);
+  box-shadow: 0 4px 12px rgba(46, 139, 107, 0.08);
+}
+
+.feature-icon {
+  width: 44px;
+  height: 44px;
+  background: linear-gradient(135deg, var(--color-teal-50) 0%, var(--color-teal-100) 100%);
+  border: 1px solid var(--color-teal-200);
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-gray-400);
-  font-size: 0.875rem;
+  margin-bottom: 1rem;
+  color: var(--color-teal-600);
+}
+
+/* Section styles */
+.section-alt {
+  background: white;
+}
+
+/* Check icon list */
+.check-list li {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.check-icon {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  background: var(--color-teal-50);
+  border: 1px solid var(--color-teal-200);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 2px;
+}
+
+.check-icon svg {
+  width: 12px;
+  height: 12px;
+  color: var(--color-teal-600);
 }
 
 /* Utility for prose content */
@@ -139,5 +275,67 @@ a:hover {
 }
 
 .prose li::marker {
-  color: var(--color-gray-400);
+  color: var(--color-stone-400);
+}
+
+/* Subtle divider */
+.divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, var(--color-stone-200) 50%, transparent 100%);
+}
+
+/* Badge */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 9999px;
+  background: var(--color-teal-50);
+  color: var(--color-teal-700);
+  border: 1px solid var(--color-teal-200);
+}
+
+/* Diagram placeholder (kept for compatibility) */
+.diagram-placeholder {
+  background-color: var(--color-teal-50);
+  background-image:
+    linear-gradient(rgba(46, 139, 107, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(46, 139, 107, 0.1) 1px, transparent 1px);
+  background-size: 20px 20px;
+  border: 2px dashed var(--color-teal-300);
+  border-radius: 8px;
+  padding: 2rem;
+  text-align: center;
+  color: var(--color-teal-600);
+}
+
+.diagram-placeholder-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+}
+
+.diagram-placeholder-description {
+  font-size: 0.8125rem;
+  color: var(--color-stone-600);
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+/* Screenshot placeholder */
+.screenshot-placeholder {
+  background: linear-gradient(135deg, var(--color-stone-100) 0%, var(--color-stone-200) 100%);
+  border: 1px solid var(--color-stone-300);
+  border-radius: 12px;
+  aspect-ratio: 9 / 19.5;
+  max-width: 280px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-stone-400);
+  font-size: 0.875rem;
 }
