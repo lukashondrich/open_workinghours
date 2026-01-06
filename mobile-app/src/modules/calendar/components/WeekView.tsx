@@ -16,7 +16,7 @@ import {
   NativeSyntheticEvent,
   useWindowDimensions,
 } from 'react-native';
-import { GestureDetector, Gesture, GestureHandlerRootView } from 'react-native-gesture-handler';
+import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 import { startOfWeek, subDays, format as formatDate, isBefore, startOfDay } from 'date-fns';
 import { de as deLocale } from 'date-fns/locale/de';
@@ -28,11 +28,9 @@ import {
   useZoom,
   BASE_HOUR_HEIGHT,
   BASE_DAY_WIDTH,
-  clampScale,
   getHourMarkerInterval,
   getDisclosureLevel,
   calculateMinZoom,
-  calculateFocalPointScroll,
   HEADER_HEIGHT,
 } from '@/lib/calendar/zoom-context';
 import {
@@ -429,7 +427,7 @@ function CurrentTimeLine({
 
 export default function WeekView() {
   const { state, dispatch } = useCalendar();
-  const { baseScale, currentScale, setCurrentScale, previousScale, hourHeight, dayWidth } = useZoom();
+  const { currentScale, setCurrentScale, previousScale, hourHeight, dayWidth } = useZoom();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
 
   // Track measured container height for accurate min zoom calculation
@@ -462,8 +460,14 @@ export default function WeekView() {
   const scrollX = useRef(0);
   const scrollY = useRef(0);
 
-  // Track scale at pinch start for focal point calculation
-  const scaleAtPinchStart = useRef(1);
+  // Base scale for gesture calculations
+  const baseScale = useRef(1);
+
+  // Track the last applied scale during pinch (to avoid stale closure in onEnd)
+  const lastAppliedScale = useRef(currentScale);
+
+  // Track if we already triggered haptic for zoom limit (avoid continuous feedback)
+  const hitZoomLimit = useRef(false);
 
   // Track viewport width for swipe navigation
   const [viewportWidth, setViewportWidth] = useState(screenWidth);
@@ -556,13 +560,8 @@ export default function WeekView() {
     }
   }, [isTransitioning, animateToWeek]);
 
-  // Throttle scroll updates during pinch (performance optimization)
-  const lastScrollUpdate = useRef(0);
 
-  // Track if we already triggered haptic for zoom limit (avoid continuous feedback)
-  const hitZoomLimit = useRef(false);
-
-  // Animated zoom transition helper
+  // Animated zoom transition helper (for double-tap)
   const animateZoomTo = useCallback((targetScale: number, duration: number = 200) => {
     const startScale = currentScale;
     const startTime = Date.now();
@@ -584,7 +583,7 @@ export default function WeekView() {
     };
 
     requestAnimationFrame(animate);
-  }, [currentScale, setCurrentScale, baseScale]);
+  }, [currentScale, setCurrentScale]);
   const weekStart = startOfWeek(state.currentWeekStart, { weekStartsOn: 1 });
   const weekDays = useMemo(() => getWeekDays(weekStart), [weekStart]);
   const hourMarkers = useMemo(() => generateHourMarkers(), []);
@@ -616,18 +615,18 @@ export default function WeekView() {
     [currentScale, previousScale, animateZoomTo]
   );
 
-  // Pinch gesture for zooming with focal point
+
+  // Pinch gesture for zooming (non-reanimated, uses refs to avoid stale closures)
   const pinchGesture = useMemo(() =>
     Gesture.Pinch()
       .onStart(() => {
         setIsPinching(true);
-        scaleAtPinchStart.current = currentScale;
-        hitZoomLimit.current = false; // Reset limit tracking
+        lastAppliedScale.current = currentScale;
+        hitZoomLimit.current = false;
       })
       .onUpdate((event) => {
-        const oldScale = currentScale;
         const rawScale = baseScale.current * event.scale;
-        const newScale = clampScale(rawScale, minZoom);
+        const newScale = Math.min(1.5, Math.max(minZoom, rawScale));
 
         // Haptic feedback when hitting zoom limits
         const isAtLimit = rawScale !== newScale;
@@ -635,43 +634,21 @@ export default function WeekView() {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           hitZoomLimit.current = true;
         } else if (!isAtLimit) {
-          hitZoomLimit.current = false; // Reset when back in range
+          hitZoomLimit.current = false;
         }
 
-        // Skip if scale hasn't changed meaningfully
-        if (Math.abs(newScale - oldScale) < 0.005) return;
+        // Skip if scale hasn't changed meaningfully (prevents micro-jitter)
+        if (Math.abs(newScale - lastAppliedScale.current) < 0.01) return;
 
-        // Throttle scroll updates to ~30fps for performance
-        const now = Date.now();
-        if (now - lastScrollUpdate.current < 33) {
-          setCurrentScale(newScale);
-          return;
-        }
-        lastScrollUpdate.current = now;
-
-        // Focal point zooming: keep the pinch center point stable
-        const { newScrollX, newScrollY } = calculateFocalPointScroll({
-          focalX: event.focalX,
-          focalY: event.focalY,
-          scrollX: scrollX.current,
-          scrollY: scrollY.current,
-          oldScale,
-          newScale,
-        });
-
-        // Update scale (this triggers re-render with new dimensions)
+        // Update scale
         setCurrentScale(newScale);
-
-        // Adjust scroll positions to maintain focal point
-        horizontalScrollRef.current?.scrollTo({ x: newScrollX, animated: false });
-        verticalScrollRef.current?.scrollTo({ y: newScrollY, animated: false });
+        lastAppliedScale.current = newScale;
       })
       .onEnd(() => {
-        // No snap - free zoom
-        baseScale.current = currentScale;
+        baseScale.current = lastAppliedScale.current;
         setIsPinching(false);
       }),
-    [baseScale, currentScale, setCurrentScale, minZoom]
+    [currentScale, setCurrentScale, minZoom]
   );
 
   // Compose gestures: double-tap and pinch can work together

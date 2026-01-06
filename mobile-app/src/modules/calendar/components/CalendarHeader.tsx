@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { addDays, addWeeks, format, startOfWeek, subWeeks, addMonths, subMonths, getISOWeek } from 'date-fns';
+import { addDays, format, startOfWeek, addMonths, subMonths, getISOWeek } from 'date-fns';
 import { de as deLocale } from 'date-fns/locale/de';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 
@@ -26,18 +26,28 @@ export default function CalendarHeader() {
   const confirmedCount = weekDateKeys.filter((date) => state.confirmedDayStatus[date]?.status === 'confirmed').length;
 
   const handlePrev = () => {
+    console.log('[CalendarHeader] handlePrev called, view:', state.view);
     if (state.view === 'week') {
-      dispatch({ type: 'SET_WEEK', date: subWeeks(state.currentWeekStart, 1) });
+      // Use PREV_WEEK action (same as swipe navigation) to avoid potential date calculation issues
+      console.log('[CalendarHeader] Dispatching PREV_WEEK');
+      dispatch({ type: 'PREV_WEEK' });
     } else {
-      dispatch({ type: 'SET_MONTH', date: subMonths(state.currentMonth, 1) });
+      const newDate = subMonths(state.currentMonth, 1);
+      console.log('[CalendarHeader] Navigating to previous month:', newDate.toISOString());
+      dispatch({ type: 'SET_MONTH', date: newDate });
     }
   };
 
   const handleNext = () => {
+    console.log('[CalendarHeader] handleNext called, view:', state.view);
     if (state.view === 'week') {
-      dispatch({ type: 'SET_WEEK', date: addWeeks(state.currentWeekStart, 1) });
+      // Use NEXT_WEEK action (same as swipe navigation) to avoid potential date calculation issues
+      console.log('[CalendarHeader] Dispatching NEXT_WEEK');
+      dispatch({ type: 'NEXT_WEEK' });
     } else {
-      dispatch({ type: 'SET_MONTH', date: addMonths(state.currentMonth, 1) });
+      const newDate = addMonths(state.currentMonth, 1);
+      console.log('[CalendarHeader] Navigating to next month:', newDate.toISOString());
+      dispatch({ type: 'SET_MONTH', date: newDate });
     }
   };
 

@@ -81,22 +81,22 @@ export default function SettingsScreen() {
   };
 
   const handleReportIssue = async () => {
+    console.log('[SettingsScreen] Starting bug report submission...');
     try {
       setIsReporting(true);
       await reportIssue(state.user);
-      Alert.alert(
-        t('settings.reportSent'),
-        t('settings.reportSentMessage'),
-        [{ text: t('common.ok') }]
-      );
+      console.log('[SettingsScreen] Bug report submitted successfully');
+      // Use fallback strings in case translations fail
+      const title = t('settings.reportSent') || 'Report Sent';
+      const message = t('settings.reportSentMessage') || 'Thank you for your feedback!';
+      Alert.alert(title, message, [{ text: t('common.ok') || 'OK' }]);
     } catch (error) {
       console.error('[SettingsScreen] Failed to report issue:', error);
-      Alert.alert(
-        t('settings.submissionFailed'),
-        error instanceof Error ? error.message : t('settings.submissionFailed'),
-        [{ text: t('common.ok') }]
-      );
+      const title = t('settings.submissionFailed') || 'Submission Failed';
+      const message = error instanceof Error ? error.message : title;
+      Alert.alert(title, message, [{ text: t('common.ok') || 'OK' }]);
     } finally {
+      console.log('[SettingsScreen] Resetting isReporting state');
       setIsReporting(false);
     }
   };

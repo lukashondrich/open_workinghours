@@ -29,9 +29,6 @@ interface ZoomContextValue {
   currentScale: number;
   setCurrentScale: (scale: number) => void;
 
-  // Base scale for gesture calculations
-  baseScale: React.MutableRefObject<number>;
-
   // Previous scale for double-tap toggle
   previousScale: React.MutableRefObject<number>;
 
@@ -45,9 +42,6 @@ const ZoomContext = createContext<ZoomContextValue | null>(null);
 export function ZoomProvider({ children }: { children: React.ReactNode }) {
   // Animated value for smooth transitions (not used in worklets)
   const scaleAnim = useRef(new Animated.Value(1)).current;
-
-  // Base scale for gesture calculations
-  const baseScale = useRef(1);
 
   // Previous scale for double-tap toggle (starts at 1.0 so first double-tap does nothing)
   const previousScale = useRef(1);
@@ -63,7 +57,6 @@ export function ZoomProvider({ children }: { children: React.ReactNode }) {
     scaleAnim,
     currentScale,
     setCurrentScale,
-    baseScale,
     previousScale,
     hourHeight,
     dayWidth,
