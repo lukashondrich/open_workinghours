@@ -1,9 +1,7 @@
 # Claude Context: Open Working Hours
 
-This file provides context for AI assistants (Claude) working on this project.
-
 **Last Updated:** 2026-01-07
-**Status:** Cluster F complete, ready for build #30
+**Current Build:** #30 (ready for TestFlight upload)
 
 ---
 
@@ -11,1022 +9,174 @@ This file provides context for AI assistants (Claude) working on this project.
 
 **Open Working Hours** is a privacy-first platform for healthcare workers to track and report working hours transparently while complying with GDPR.
 
-### Architecture (4 Components)
-
-1. **Astro Dossier Website** (LIVE at openworkinghours.org)
-   - Project dossier for union/association outreach
-   - Bilingual (English + German)
-   - Static site, zero JavaScript (deployed via Vercel)
-   - 3-step product demo, privacy principles, team info
-   - Location: `website/` directory
-
-2. **Next.js Web Dashboard** (DEPRECATED - replaced by Astro site)
-   - Was: Public analytics and reporting dashboard
-   - Status: Code still in repo root, but no longer deployed
-   - May be repurposed for authenticated dashboard later
-
-3. **React Native Mobile App** (TestFlight Build #19)
-   - Primary user interface
-   - Geofencing-based automatic tracking ✅ Complete
-   - Calendar with shift planning ✅ Complete
-   - Status Dashboard with 14-day overview ✅ Complete
-   - Daily submission to backend ✅ Complete
-   - Location: `mobile-app/` directory
-
-4. **FastAPI Backend** (Production on Hetzner)
-   - Email verification ✅ Working
-   - User authentication (JWT) ✅ Working
-   - Work events CRUD ✅ Working
-   - K-anonymity aggregation ✅ Working (cron daily 3 AM UTC)
-   - Location: `backend/` directory
-
----
-
-## Documentation Strategy
-
-We follow a **blueprint-centric** approach to keep documentation manageable:
-
-### Permanent Documents (Always Current)
-
-**1. blueprint.md** - System architecture & design decisions
-- **Purpose:** Single source of truth for how the system works
-- **Audience:** Developers (current & future), architects
-- **Content:** Completed modules, design rationale, schemas, data flows
-- **Update trigger:** When a module/feature is FINISHED and tested
-
-**2. TODO.md** - Active work tracking
-- **Purpose:** Track ongoing and planned work
-- **Audience:** Current developers
-- **Content:** Incomplete tasks, priorities, status
-- **Update trigger:** Daily/weekly as work progresses
-
-**3. CLAUDE.md** - AI assistant context (this file)
-- **Purpose:** Onboard AI assistants quickly to current project state
-- **Audience:** Claude, future AI assistants
-- **Content:** Current state, recent decisions, where to find things
-- **Update trigger:** After major changes or interruptions
-
-**4. README.md** - User-facing setup guide
-- **Purpose:** Help users install and run the project
-- **Audience:** End users, contributors
-- **Content:** Installation, quick start, links to other docs
-- **Update trigger:** When setup process changes
-
-**5. privacy_architecture.md** - Privacy design specification
-- **Purpose:** Define privacy/GDPR approach (legal + technical)
-- **Audience:** Developers, lawyers, auditors
-- **Content:** Privacy layers, compliance strategy, data flows
-- **Update trigger:** When privacy approach changes (rare)
-
-### Temporary Documents (Planning → Archive)
-
-**Planning docs:**
-- Created: When starting a new module/feature
-- Lifecycle: Active during development → Archive when finished
-- Examples: `BACKEND_REDESIGN_PLAN.md`, `MODULE_1_PLAN.md` (archived)
-
-**Progress tracking:**
-- Created: To track complex multi-week work
-- Lifecycle: Active during work → Delete when consolidated into blueprint
-- Examples: `UX_IMPLEMENTATION_SUMMARY.md` (archived)
-
-**Decision logs:**
-- Created: To document implementation choices during development
-- Lifecycle: Active during work → Merge into blueprint when finished
-- Examples: `MODULE_2_DECISIONS.md` (archived)
-
-### Lifecycle
+### Architecture
 
 ```
-1. Start feature → Create *_PLAN.md
-2. During work → May create *_DECISIONS.md, *_SUMMARY.md
-3. Feature complete → Extract key info into blueprint.md
-4. Archive/delete planning docs
+┌─────────────────┐       ┌─────────────────┐       ┌─────────────────┐
+│   Mobile App    │ HTTPS │    Backend      │       │    Website      │
+│   (Expo/RN)     │──────▶│   (FastAPI)     │       │    (Astro)      │
+│                 │       │                 │       │                 │
+│ • Geofencing    │       │ • Auth (JWT)    │       │ • Project info  │
+│ • Calendar      │       │ • Work events   │       │ • Privacy docs  │
+│ • Submissions   │       │ • K-anonymity   │       │ • Bilingual     │
+└────────┬────────┘       └────────┬────────┘       └────────┬────────┘
+         │                         │                         │
+     SQLite                   PostgreSQL                  Static
+    (on-device)               (Hetzner/DE)               (Vercel)
 ```
 
-### When to Update Blueprint
+### Components
 
-Only when a module/feature is:
-- ✅ Implemented
-- ✅ Tested (unit + device/integration)
-- ✅ Documented
-- ✅ Stable
+| Component | Status | Location |
+|-----------|--------|----------|
+| **React Native Mobile App** | Production (TestFlight) | `mobile-app/` |
+| **FastAPI Backend** | Production (Hetzner) | `backend/` |
+| **Astro Website** | Live (openworkinghours.org) | `website/` |
+| **Next.js Dashboard** | Deprecated | Root (unused) |
 
-**Do NOT add planned features to blueprint** - they go in `TODO.md` or `*_PLAN.md`.
+### Production URLs
 
----
-
-## Key Documents
-
-| File | Purpose | Status |
-|------|---------|--------|
-| `blueprint.md` | System architecture (completed modules) | ✅ Current |
-| `TODO.md` | Active work tracking (website + future tasks) | ✅ Current |
-| `privacy_architecture.md` | Privacy/GDPR design specification | ✅ Current |
-| `CLAUDE.md` | This file - AI assistant context | ✅ Current |
-| `README.md` | User-facing setup guide | ✅ Current |
-| `website/README.md` | Dossier website setup and content guide | ✅ New |
-| `BACKEND_REDESIGN_PLAN.md` | Backend redesign planning | ✅ Complete |
-| `docs/user-test-feedback-2026-01.md` | User test feedback & bug triage | 🔄 Active |
-| `docs/CLUSTER_C_PLAN.md` | Tracking Data UX improvements | 🔄 Planned |
-| `integration-testing-plan.md` | E2E testing strategy (Detox) | ⏸️ On hold |
-| `docs/e2e-status.md` | E2E implementation status | ⏸️ On hold |
-| `archive/` | Archived planning docs (Module 1, old Module 2) | 📦 Reference |
+- Website: https://openworkinghours.org
+- Backend API: https://api.openworkinghours.org
 
 ---
 
-## Current State (2026-01-07)
+## Current State
 
-### Active Work: User Test Feedback
+All core features complete. User test feedback (Clusters A-F) fully implemented. Ready for build #30.
 
-A physician tester (iPhone 13, iOS 18) provided feedback on 2026-01-06. Issues are organized into clusters:
-
-| Cluster | Focus | Status |
-|---------|-------|--------|
-| A | Quick bug fixes (zoom, arrows, spinner) | ✅ Fixed |
-| B | Shift instance management | Pending |
-| C | Tracking data UX (tap targets, 14-day) | ✅ Implemented |
-| D | Location setup UX | Pending |
-| E | Vacation/Sick days | ✅ Implemented |
-| F | UX polish (post-testing) | ✅ Implemented (2026-01-07) |
-
-**Cluster F improvements (2026-01-07):**
-- Photon geocoding replaces Mapbox (free, GDPR-friendly, better hospital search)
-- Healthcare results prioritized (hospital, clinic, pharmacy sorted first)
-- Double-tap to place shifts (single tap clears selection - fewer accidents)
-- Absence overlay 50% transparent (shifts visible underneath)
-- Step indicator shows "Step 1 of 3 - Find Your Workplace"
-- Work Locations screen: inverted layout (small map, prominent list)
-- Keyboard avoiding: mini-map shrinks when keyboard appears
-
-**Next build:** #30 (ready for upload)
-**Full details:** `docs/user-test-feedback-2026-01.md`
-
-### What Exists & Works
-
-✅ **Astro Dossier Website** (LIVE at openworkinghours.org)
-- Bilingual site structure (English + German)
-- 10 pages total (6 EN + 4 DE)
-- Problem → Analysis → Solution narrative with bold formatting
-- 3-step product demo (setup → shifts → results) with screenshots
-- Privacy principles with data flow diagram
-- Team page with founder photo and bio
-- Impressum and Datenschutzerklärung with real legal info
-- Public dashboard preview screenshot
-- **Tech:** Astro 5, Tailwind CSS 4, Inter font
-- **Location:** `website/` directory
-- **Deployment:** Vercel (Root Directory: `website`)
-- **Status:** ✅ Complete and deployed (2026-01-03)
-
-⚠️ **Next.js Web Dashboard** (DEPRECATED - no longer deployed)
-- Was: Calendar planning interface, analytics dashboard
-- Status: Code still in repo root, replaced by Astro dossier site
-- May be repurposed later for authenticated analytics dashboard
-- **Tech:** Next.js 16.0.0, React 19.2.0, TypeScript, Tailwind CSS 4.1.9
-
-✅ **React Native Mobile App** (TestFlight Build #19)
-
-**Module 1: Geofencing & Tracking** (Complete)
-- Background GPS geofencing with `expo-location`
-- Automatic clock-in on geofence enter, clock-out on exit
-- 5-minute exit hysteresis (prevents false clock-outs)
-- Manual clock-in/out fallback
-- Local SQLite storage (workinghours.db with encryption)
-- Unit tests (Database, GeofenceService, TrackingManager)
-- **Files:** `mobile-app/src/modules/geofencing/`
-
-**Module 2: Authentication & Submission** (✅ Complete - Tested)
-- Email verification flow (passwordless authentication)
-- User registration (hospital_id, specialty, role_level, state_code)
-- JWT token storage with expo-secure-store (encrypted)
-- Auth state management with React Context
-- Daily submission service (authenticated POST /work-events)
-- Auto-submit on day confirmation (no weekly batching)
-- Client-side noise removed (server-side k-anonymity instead)
-- Exponential backoff retry logic (1s → 32s, max 10 retries)
-- Sign out button in Settings screen
-- **Files:** `mobile-app/src/modules/auth/`, `mobile-app/src/lib/auth/`
-- **Status:** ✅ Fully tested end-to-end (register, login, submit, sign out)
-
-**Status Dashboard** (✅ Complete - Build #19)
-- 14-day rolling hours summary with bar chart visualization
-- Stacked bars: blue (actual), green (overtime), grey (unworked planned)
-- Confirmed (✓) and unconfirmed (?) day indicators
-- Next shift preview with navigation to calendar
-- Collapsed status line (replaces large location cards)
-- 60-second auto-refresh for live tracking data
-- Pulsing animation on today's bar when clocked in
-- **Files:** `mobile-app/src/modules/geofencing/services/DashboardDataService.ts`, `components/HoursSummaryWidget.tsx`, `components/NextShiftWidget.tsx`
-- **Status:** ✅ Tested on simulator
-
-**Calendar Zoom & Navigation** (✅ Complete - 2025-12-30)
-- Pinch-to-zoom with focal point (content under fingers stays stable, like maps)
-- Dynamic minimum zoom (calendar fills viewport exactly at min)
-- Double-tap to toggle between 1.0x and previous zoom level
-- Free zoom (no snap to presets)
-- Progressive disclosure (fewer hour markers, compact headers at low zoom)
-- Haptic feedback on zoom limits and week navigation
-- Swipe navigation between weeks (overscroll or fast flick at edges)
-- Week number display in header (e.g., "W1", "W52")
-- Tappable title to jump to current week
-- Animated week transitions (200ms slide)
-- **Files:** `zoom-context.tsx`, `WeekView.tsx`, `CalendarHeader.tsx`, `calendar-reducer.ts`
-- **Dependencies:** `react-native-gesture-handler`, `expo-haptics`
-- **Documentation:** See `blueprint.md` Section 3.4
-
-**Internationalization (i18n)** (🔄 90% Complete - 2025-12-31)
-- Full German translation for German healthcare workers and union outreach
-- Device language detection via `expo-localization`
-- Translation system using `i18n-js` with TypeScript
-- Date formatting with `date-fns` German locale support
-- ~250 strings translated across all major screens
-- **Key translations:** "GPS" (review mode), "Dienste" (shifts), "Auswählen/Ausgewählt" (arm template)
-- **Translated screens:** Calendar, Status, Settings, Auth, Locations, Notifications, Permissions, Data & Privacy
-- **Pending:** Setup/onboarding screens, some secondary buttons
-- **Files:** `mobile-app/src/lib/i18n/` (new), all screen components updated
-- **Dependencies:** `i18n-js`, `expo-localization`
-- **Documentation:** See `blueprint.md` Section 3.5
-
-✅ **Backend (FastAPI - PostgreSQL Dev + Local SQLite)**
-- Email verification (verification codes via email)
-- Authentication (JWT with 30-day expiry)
-- Work events CRUD (`POST /work-events`, `GET /work-events`, etc.)
-- Privacy-preserving aggregation (k-anonymity ≥ 10 + Laplace noise ε=1.0)
-- Stats API (`GET /stats/by-state-specialty`, etc.)
-- Demo account for Apple App Review (bypasses email verification)
-- 39 tests (10 unit + 29 integration) - all passing
-- **Status:** 100% complete
-- **Files:** `backend/app/`
-
-### What's Deprecated (Old Architecture)
-
-❌ **Old Module 2 Implementation** (Removed)
-- Client-side Laplace noise - **DELETED**
-- Anonymous weekly submissions - **DEPRECATED** (old endpoints still work)
-- `LaplaceNoise.ts` - **DELETED**
-- `WeeklySubmissionService.ts` - **SUPERSEDED** by `DailySubmissionService.ts`
-
-⚠️ **Old Backend Endpoints** (Deprecated but functional)
-- `GET /analytics/*` - Returns HTTP 410 with deprecation headers
-- `POST /submissions/weekly` - Returns HTTP 410 with deprecation headers
-- Sunset date: 2026-03-01
-- Use new endpoints: `GET /stats/*`, `POST /work-events`
-
-## Recent Updates
-
-### 🔄 In Progress 2025-12-31:
-
-1. **German Translation (i18n)** (Mobile App - 90% Complete)
-   - **Purpose**: Full German localization for German healthcare workers and union outreach
-   - **Tech Stack**: `i18n-js`, `expo-localization`, `date-fns` locale support
-   - **Approach**:
-     - Device language auto-detection via `expo-localization`
-     - TypeScript translation files with nested keys (e.g., `t('calendar.header.title')`)
-     - English fallback for missing translations
-     - Date formatting with German locale (`date-fns/locale/de`)
-   - **Files Created**:
-     - `mobile-app/src/lib/i18n/index.ts` - i18n setup and `t()` function
-     - `mobile-app/src/lib/i18n/translations/en.ts` - English strings (~250)
-     - `mobile-app/src/lib/i18n/translations/de.ts` - German translations
-   - **Screens Translated**:
-     - ✅ Calendar (WeekView, CalendarHeader, TemplatePanel, MonthView, ShiftEditModal)
-     - ✅ Status Screen and Dashboard widgets
-     - ✅ Settings Screen and all menu items
-     - ✅ Auth screens (Login, Register)
-     - ✅ Work Locations, Notifications, Permissions, Data & Privacy
-     - ⏳ Setup/Onboarding screens (pending)
-   - **Key Translations**:
-     - "Enter Review" / "Exit Review" → "GPS" (simpler toggle)
-     - "Templates" → "Dienste" (shifts)
-     - "Shift Templates" → "Dienste / Schichten"
-     - "Arm Template" / "Armed" → "Auswählen" / "Ausgewählt"
-   - **Documentation**: See `blueprint.md` Section 3.5
-
-### ✅ Completed 2025-12-30:
-
-1. **Calendar Zoom & Navigation Feature** (Mobile App - Complete)
-   - **Zoom Features**:
-     - Pinch-to-zoom with focal point (like maps - content under fingers stays stable)
-     - Dynamic minimum zoom (calculated so calendar fills viewport exactly)
-     - Double-tap to toggle between 1.0x and previous zoom level
-     - Free zoom (no snap to presets)
-     - Haptic feedback when hitting zoom limits
-   - **Navigation Features**:
-     - Swipe past edge to navigate weeks (60px overscroll threshold)
-     - Fast flick at edge to navigate weeks (velocity-based trigger)
-     - Animated week transitions (200ms slide left/right)
-     - Tappable title to jump to current week
-     - Week number badge in header (e.g., "W1", "W52")
-   - **Progressive Disclosure**:
-     - Hour markers reduce at low zoom (every 4h at minimal, every 2h at compact)
-     - Day names hidden at low zoom
-     - Confirm button shows "?" instead of "Confirm?" at low zoom
-   - **Tech**: `react-native-gesture-handler`, `expo-haptics`
-   - **Files**:
-     - Zoom context: `mobile-app/src/lib/calendar/zoom-context.tsx`
-     - WeekView: `mobile-app/src/modules/calendar/components/WeekView.tsx`
-     - CalendarHeader: `mobile-app/src/modules/calendar/components/CalendarHeader.tsx`
-     - Reducer: `mobile-app/src/lib/calendar/calendar-reducer.ts`
-   - **Documentation**: See `blueprint.md` Section 3.4
-   - **Testing**: Simulator tested (Option+drag to simulate pinch, haptics on device only)
-
-2. **Dossier Website for Union Outreach** (Astro - Structure Complete)
-   - **Purpose**: Trust anchor for outreach to medical associations, unions, and interest groups
-   - **Tech Stack**: Astro 5, Tailwind CSS 4, Inter font, zero JavaScript shipped
-   - **Pages Created**:
-     - `/` - Project Dossier (Problem → Analysis → Solution narrative)
-     - `/product` - App screenshots and dashboard preview
-     - `/privacy` - Privacy principles and data flow
-     - `/team` - Founder and advisor placeholders
-     - `/imprint` - German Impressum template
-     - `/privacy-policy` - GDPR privacy policy template
-     - `/de/*` - German translations of all content pages
-   - **Bilingual**: Full EN/DE support with language switcher
-   - **Diagram Prompts**: Detailed image generation prompts for:
-     - System Overview (iconic, minimal - for Dossier page)
-     - Data Flow (technical, 3-layer - for Privacy page)
-     - Dashboard Mockup (bar chart - for Product page)
-   - **Files**: `website/` directory
-   - **Documentation**: Updated `blueprint.md` Section 12, `TODO.md`, `website/README.md`
-   - **Status**: Structure complete, awaiting content (photos, screenshots, generated diagrams)
-
-2. **Demo Data Seeding for Screenshots** (Mobile App)
-   - Added "Load Demo Data" button in Settings screen
-   - Creates 14 days of realistic planned/actual hours
-   - Includes mix of overtime, undertime, confirmed/unconfirmed days
-   - Future shifts for Next Shift widget
-   - **Files**: `mobile-app/src/test-utils/seedDashboardData.ts`, `SettingsScreen.tsx`
-   - **Status**: Hidden for clean screenshots (can be re-enabled by uncommenting)
-
-3. **Temporary Screenshot Mode Adjustments** (Mobile App)
-   - Disabled permission warning banner (for clean screenshots)
-   - Hidden demo data buttons (for clean Settings screenshot)
-   - **Note**: Re-enable before production build
-
-### ✅ Completed 2025-12-27:
-
-1. **Status Dashboard for Status Screen** (Mobile App Build #19 - Tested & Complete)
-   - **Feature**: New dashboard widgets on Status screen showing work hour overview
-   - **Hours Summary Widget**:
-     - 14-day rolling bar chart (no external chart library - pure React Native Views)
-     - Stacked bars: blue (actual worked), green (overtime), grey (unworked planned)
-     - ✓ (green) for confirmed days, ? (red) for unconfirmed days
-     - Summary row: Plan total, Actual total, Deviation (colored +/- hours)
-     - Pulsing animation on today's bar when actively clocked in
-     - 60-second auto-refresh for live data
-   - **Next Shift Widget**: Shows upcoming planned shift with color, date, time
-   - **Collapsed Status Line**: Compact single-line per location (replaces large cards)
-   - **Navigation**: Tap widgets to navigate to Calendar (with optional targetDate)
-   - **Files**:
-     - Service: `mobile-app/src/modules/geofencing/services/DashboardDataService.ts`
-     - Components: `HoursSummaryWidget.tsx`, `NextShiftWidget.tsx`
-     - Screen: `mobile-app/src/modules/geofencing/screens/StatusScreen.tsx`
-     - Navigation: Added `targetDate` param to `MainTabParamList['Calendar']`
-   - **Documentation**: Updated `blueprint.md` Section 4.4
-
-2. **Break Tracking for Work Sessions** (Mobile App Build #18 - Tested & Complete)
-   - **Feature**: Users can now add breaks to tracked work sessions
-   - **UI Design**: Compact vertical panel appears to the right of selected session
-     - Quick-add buttons: +5, +15, +30, +45, +60 minutes (cumulative)
-     - Total break display with clear button
-     - Smart positioning: Auto-shifts up to stay within day bounds
-     - No scrolling needed: All content visible at once
-   - **Database Changes**:
-     - Added `break_minutes` column to `shift_templates` table
-     - Added `break_minutes` column to `tracking_records` table
-     - Migration system (v1) for existing databases
-   - **Business Logic**:
-     - Breaks are cumulative (tap multiple times to add)
-     - Warning alert when break exceeds session duration
-     - Net time = gross duration - breaks
-     - Submission logic sends net time to backend
-     - Overnight sessions: Break attributed to session's start day
-   - **Template Support**: Shift templates can define default break duration (0/5/15/30/45/60)
-   - **Files**:
-     - Types: `mobile-app/src/lib/calendar/types.ts`
-     - Database: `mobile-app/src/modules/calendar/services/CalendarStorage.ts`
-     - Reducer: `mobile-app/src/lib/calendar/calendar-reducer.ts`
-     - UI: `mobile-app/src/modules/calendar/components/WeekView.tsx`, `TemplatePanel.tsx`
-     - Logic: `mobile-app/src/modules/calendar/services/DailyAggregator.ts`
-   - **Documentation**: Updated `blueprint.md` Section 3.3 (Database Schema)
-
-2. **Grabber Positioning Fix** (Mobile App Build #16-18)
-   - **Bug**: Grabbers disappeared at top/bottom of day when sessions were very early/late
-   - **Solution**: Clamped grabber positions to stay ~15min from day edges
-   - **Implementation**: Dynamic calculation similar to break panel positioning
-   - **Files**: `mobile-app/src/modules/calendar/components/WeekView.tsx`
-
-### ✅ Completed 2025-12-25:
-
-1. **Date Validation for Work Event Confirmations** (Production Deployed & Verified)
-   - **Requirement**: Users can only confirm days that are in the past (not today, not future)
-   - **Implementation**: Defense-in-depth with 3 validation layers
-     - **Layer 1 - Mobile UI**: Confirm button disabled (greyed out) for today and future dates
-       - Visual styling: `confirmButtonDisabled` and `confirmButtonTextDisabled` styles
-       - Uses `date-fns` `isBefore()` and `startOfDay()` for date comparison
-     - **Layer 2 - Client validation**: Alert shown if UI bypassed
-       - Alert: "Cannot confirm future days. You can only confirm days that are in the past. Please wait until tomorrow to confirm today."
-     - **Layer 3 - Backend validation**: HTTP 400 error if client bypassed
-       - Error: "Cannot submit work events for today or future dates. Only past days can be confirmed."
-       - Validates: `payload.date < datetime.now().date()`
-   - **Testing**: Production-verified with real API calls
-     - ✅ Past dates (2025-12-15): HTTP 201 Created
-     - ❌ Today (2025-12-24): HTTP 400 Bad Request
-     - ❌ Future (2025-12-31): HTTP 400 Bad Request
-   - **Files**:
-     - Mobile: `mobile-app/src/modules/calendar/components/WeekView.tsx:16,363-374,474-475,697-708`
-     - Backend: `backend/app/routers/work_events.py:7,42-48`
-     - Tests: `backend/tests/test_work_events.py:4,67-115`
-     - Test fixture: `backend/tests/conftest.py:79-113`
-   - **Documentation**: Updated `blueprint.md` Section 5.2 (Validation Rules)
-
-### ✅ Completed 2025-12-23:
-
-1. **Calendar Review Mode Enhancements** (Mobile App Build #15 - TestFlight Verified)
-   - **Active session tracking**: Sessions appear immediately (before clock-out)
-     - Pulsing animation (0.5Hz) for visual feedback
-     - Extends to current time line (red in review, grey in planning)
-     - Auto-refreshes every 60s (detects clock-out automatically)
-     - Duration shows whole minutes
-   - **Current time line**: Accurate to the second, always visible, positioned at -4px offset
-   - **Delete functionality**: Long press → permanent database deletion
-   - **Overnight session rendering**: Sessions spanning midnight work like shift instances
-     - Both day segments show total duration (e.g., "11h")
-     - Day 1: Start grabber only (adjusts start time)
-     - Day 2: End grabber only (adjusts end time)
-   - **Continuous drag preview**: Sessions follow finger smoothly during adjustment
-   - **Improved interaction**: Grabbers always on top (zIndex: 100), click-outside to deselect
-   - **Header stability**: No height changes when toggling review mode
-     - Compact inline layout: `23 [Confirm?]` or `23 [✓]`
-   - Files: `WeekView.tsx`, `calendar-reducer.ts`, `calendar-utils.ts`, `types.ts`, `Database.ts`
-   - Testing: Verified on TestFlight ✅
-
-### ✅ Completed 2025-12-19:
-
-1. **SMTP Authentication Fix** (Email delivery working)
-   - Root cause: Incorrect Brevo SMTP key in production `.env`
-   - Fixed: Updated SMTP credentials on Hetzner server
-   - Result: Email verification now works, users can register/login ✅
-   - Impact: Database is now receiving user registrations and work events
-
-2. **Aggregation Cron Job Setup** (Production deployment)
-   - Created: `backend/run_aggregation.sh` script
-   - Deployed: Cron job scheduled (3 AM UTC daily on Hetzner)
-   - Status: Will aggregate stats once K_MIN (10+ users) threshold is met
-   - Files: `backend/run_aggregation.sh`, `/home/deploy/aggregation.log`
-
-3. **Calendar Review Mode Bug Fix** (Mobile App Build #13)
-   - Bug: Review mode showed simulated tracking data, not real geofencing sessions
-   - Root cause: `generateSimulatedTracking()` used fake data based on planned shifts
-   - Fixed: Created `loadRealTrackingRecords()` to load from `workinghours.db`
-   - Result: Review mode now displays actual clock-in/clock-out sessions ✅
-   - Files: `mobile-app/src/lib/calendar/calendar-utils.ts`, `calendar-context.tsx`, `calendar-reducer.ts`
-   - Testing: Verified on device - 5-minute session now appears as red marker
-
-### ✅ Completed 2025-12-17:
-
-1. **Bug Report System** (POST /feedback endpoint + mobile UI)
-   - Backend: `/feedback` endpoint accepts bug reports, emails to admin (see `backend/app/routers/feedback.py`)
-   - Mobile: "Report Issue" button in Settings (posts app state to API)
-   - Collects: user info, locations, sessions, device info
-   - Status: ✅ Working (email delivery fixed 2025-12-19)
-
-2. **Admin Logs Endpoint** (GET /admin/logs)
-   - Backend endpoint for viewing logs (backend, aggregation, nginx)
-   - Supports filtering: source, lines, search term, log level
-   - UI implementation pending (see `backend/app/routers/admin.py`)
-
-3. **Docker & Deployment Fixes**
-   - Removed obsolete `frontend` service from docker-compose.yml
-   - Fixed `.env` format (double underscores: `SECURITY__`, `EMAIL__`, `DATABASE__`)
-   - Deployed to Hetzner - backend running successfully
-
-### ✅ Completed 2025-12-15:
-
-1. **Logo & Splash Screen** (Build #11)
-   - Added logo_for_mvp.png as app icon
-   - Created proper splash screen (logo centered on white 1242x2436px canvas)
-   - App name changed to "Open Working Hours"
-   - Build number incremented to 11
-
-2. **Navigation Fix**
-   - Fixed critical bug: Users getting stuck in Add Location → Settings loop
-   - Solution: Status/Calendar/Settings tabs now ALWAYS accessible
-   - No more conditional navigation based on location setup
-   - Empty state message guides new users
-
-3. **Backend Monitoring & Admin Dashboard**
-   - Admin dashboard live at `https://api.openworkinghours.org/admin` (see `backend/ADMIN_DASHBOARD.md`)
-   - SQL monitoring queries for tester activity (see `backend/monitoring.sql`)
-   - Quick status script and aggregation cron job (see `blueprint.md` Section 7.4)
-
-4. **Verification Code Updates**
-   - 6-digit numeric codes (was 48-char base64)
-   - Fixed schema validation (min_length=6) - login now works ✅
-   - See `blueprint.md` Section 7.4 for technical details
-
-### What's Next (Current Priority)
-
-✅ **Phase 1: Backend** (100% - COMPLETE)
-- All endpoints implemented and tested
-- K-anonymity + Laplace noise working
-- 37 tests passing (10 unit + 27 integration)
-- Aggregation cron job scheduled (3 AM UTC daily)
-
-✅ **Phase 2: Mobile Integration** (100% - COMPLETE)
-- Authentication flow implemented ✅
-- Daily submission service implemented ✅
-- Client-side noise removed ✅
-- Token persistence implemented ✅
-- Sign out functionality ✅
-- Login/verification bug fixed ✅
-
-✅ **Phase 3: Deployment** (100% - LIVE IN PRODUCTION)
-- Backend live at https://api.openworkinghours.org ✅
-- PostgreSQL on Hetzner (Germany) ✅
-- Nginx + SSL (Let's Encrypt) ✅
-- Admin dashboard accessible ✅
-- Monitoring setup complete ✅
-- Mobile app Build #11 deployed and working ✅
-
-✅ **Phase 4: Monitoring & Admin** (100% - COMPLETE 2025-12-15)
-- Admin dashboard deployed and working ✅
-- Backend monitoring queries created ✅
-- Aggregation cron job configured ✅
-- Quick status check script created ✅
-- Password security enforced (environment variables) ✅
-
-### 🔄 Pending (Next Session):
-
-1. **Admin Logs Dashboard UI** (Backend ready, UI pending)
-   - Backend endpoint ready (`GET /admin/logs`)
-   - Need: Tabs (Dashboard | Logs), filters, search, download, tail mode
-   - Files: `backend/app/routers/admin.py`
-
-3. **TestFlight Distribution**
-   - Deploy Build #14 to TestFlight
-   - Test: Calendar review mode with overnight sessions
-   - Test: Delete tracking records
-   - Test: Bug report system end-to-end
-   - Distribute to testers for real-world usage
+**What's working:**
+- Geofencing with automatic clock-in/out
+- Calendar with shift templates, overlap detection, absences
+- 14-day dashboard with hours overview
+- Authentication and daily submission to backend
+- Photon geocoding for location search
+- Full German translation (i18n)
 
 ---
 
-## Privacy Architecture
+## New Here? Start Here
 
-### ⚠️ Architecture Transition
+**Reading order for new contributors:**
 
-**OLD (Deprecated):**
-- Client-side Laplace noise (ε=1.0)
-- Anonymous submissions
-- Local Differential Privacy (LDP)
-- No user accounts
+1. **This file** (CLAUDE.md) - Current state, quick overview
+2. **`docs/DOCUMENTATION_STRUCTURE.md`** - How docs are organized
+3. **Then based on your task:**
+   - Mobile work → `mobile-app/ARCHITECTURE.md`
+   - Backend work → `backend/ARCHITECTURE.md`
+   - Deployment → `docs/deployment.md`
+   - Debugging issues → `docs/debugging.md`
+   - Privacy questions → `privacy_architecture.md`
+   - Deep architecture → `blueprint.md`
 
-**NEW (Planning):**
-- Server-side aggregation with k-anonymity
-- Authenticated daily submissions (raw data)
-- User accounts with right to erasure
-- Two-layer architecture:
-  1. **Operational Layer:** `users`, `work_events` (pseudonymous, GDPR applies)
-  2. **Analytics Layer:** `stats_*` tables (k-anonymous + noised, treated as anonymous)
-
-**See:** `privacy_architecture.md` for full specification
-
-**Key Changes:**
-- Mobile submits RAW confirmed daily data (no noise)
-- Backend aggregates by state/specialty/role/period
-- Only publish cells with n_users ≥ K_MIN (e.g., 10)
-- Add Laplace noise to aggregates (not individuals)
-- Right to erasure: DELETE user → cascades to work_events
-- Stats tables retained (anonymous)
+**All docs connect back to this file** - if you're lost, return here.
 
 ---
 
-## Deployment Protection Strategy
+## Documentation
 
-### Problem
-- Web app is deployed to Vercel (production)
-- Mobile app development ongoing
-- Need to ensure mobile work doesn't break web deployment
+See `docs/DOCUMENTATION_STRUCTURE.md` for full documentation guidelines.
 
-### Solution
+### Quick Reference
 
-**File:** `.vercelignore`
-```
-mobile-app/
-```
+| Document | Purpose |
+|----------|---------|
+| `blueprint.md` | System architecture, completed modules |
+| `privacy_architecture.md` | Privacy/GDPR design |
+| `mobile-app/ARCHITECTURE.md` | Mobile app details, schemas, patterns |
+| `backend/ARCHITECTURE.md` | Backend API, database, aggregation |
+| `docs/deployment.md` | Docker, Hetzner, production deployment |
+| `docs/debugging.md` | Mobile debugging, backend logs, known gotchas |
 
-**How it works:**
-1. Vercel ignores the entire `mobile-app/` directory
-2. Web app only rebuilds when files in `app/`, `components/`, `lib/`, etc. change
-3. Mobile development can proceed without triggering deployments
-
----
-
-## Development Workflow
-
-### Current Focus
-
-```bash
-# Backend redesign (Phase 1)
-cd backend
-# Implement new schema, auth endpoints, aggregation job
-
-# Mobile app (waiting for backend)
-cd mobile-app
-# Module 1 complete, Module 2 blocked on backend
-```
-
-### Testing
-
-**Mobile:**
-- Unit tests: `npm test` (geofencing module)
-- E2E tests: Detox (on hold due to CI issues)
-- Device testing: TestFlight (iOS Build #11)
-
-**Backend:**
-- Unit tests: 10 passing
-- Integration tests: 27 passing
-- Total: 37 tests passing
-
-### Docker Deployment (Hetzner Production)
-
-**IMPORTANT:** The `docker-compose.yml` is in `backend/`, not the project root.
-
-**Correct deployment process:**
-
-```bash
-# SSH to Hetzner server
-ssh deploy@owh-backend-prod
-
-# Navigate to BACKEND directory (where docker-compose.yml lives)
-cd ~/open_workinghours/backend
-
-# Pull latest changes (user handles git commands)
-# git pull origin main
-
-# Stop containers
-docker compose down
-
-# Rebuild backend image (REQUIRED for code changes)
-docker compose build --no-cache backend
-
-# Start containers
-docker compose up -d
-
-# Verify both containers are running (not "Restarting")
-docker ps
-
-# Check logs if issues
-docker logs owh-backend --tail 30
-```
-
-**Environment Variables (.env in backend/):**
-
-The docker-compose.yml expects specific variable names:
-```bash
-# These are MAPPED by docker-compose (use simple names, NOT SECURITY__ prefix)
-SECRET_KEY=your-64-char-secret
-EMAIL_HASH_SECRET=your-64-char-secret
-
-# These are passed directly (keep the prefix)
-EMAIL__SMTP_USERNAME=...
-EMAIL__SMTP_PASSWORD=...
-ADMIN_PASSWORD=...
-# Demo account (keep secret - not in git!)
-DEMO__EMAIL=<your-demo-email>
-DEMO__CODE=<your-6-digit-code>
-```
-
-**Common Deployment Issues:**
-
-| Problem | Cause | Solution |
-|---------|-------|----------|
-| Port 8000 already in use | Old containers from wrong folder | `docker ps -a`, stop old containers |
-| SECRET_KEY validation error | .env has `SECURITY__SECRET_KEY` | Use `SECRET_KEY` (docker-compose maps it) |
-| Container keeps restarting | Check logs | `docker logs owh-backend --tail 50` |
-| DB password auth failed | Volume has old password | `docker volume rm backend_postgres_data` ⚠️ |
-| Leading spaces in .env | Copy/paste issue | `sed -i 's/^[[:space:]]*//' .env` |
-
-**Why `--no-cache` is important:**
-- Docker caches layers during builds
-- Without `--no-cache`, Python code changes may not be picked up
-- The flag forces a complete rebuild with latest code
-
----
-
-## Key Design Decisions
-
-### Data Architecture
-- **Choice:** Two-layer (Operational + Analytics)
-- **Rationale:** GDPR compliance (right to erasure), better privacy (k-anonymity)
-
-### Privacy Method
-- **Choice:** Server-side aggregation with k-anonymity + noise
-- **Rationale:** More accurate than per-user noise, flexible analytics, GDPR compliant
-- **Parameters:** K_MIN = 10, ε = 1.0, sensitivity = computed per-group
-
-### Aggregation Granularity
-- **Choice:** Mobile submits confirmed daily data (not weekly)
-- **Rationale:** Flexible for backend to aggregate at different time scales
-
-### User Authentication
-- **Choice:** JWT tokens, reuse email verification flow
-- **Rationale:** Minimal friction, already built, GDPR requires user linkage
-
-### Database
-- **Choice:** PostgreSQL (Hetzner, Germany)
-- **Rationale:** EU data residency, GDPR compliance, robust aggregation queries
-
-### Mobile Platform
-- **Choice:** React Native + Expo
-- **Rationale:** iOS + Android support, TypeScript reuse, TestFlight compatibility
-
----
-
-## Technical Concerns & Risks
-
-### Backend Redesign (Current)
-- **Timeline risk:** 6-8 weeks is optimistic, may take longer
-- **Complexity:** Aggregation job is non-trivial (k-anonymity + noise)
-- **Migration:** Hard cutover, users must create accounts, old data lost
-- **Mitigation:** Test aggregation thoroughly with synthetic data, incremental deployment
-
-### Geofencing Reliability (Module 1 - Mitigated)
-- **Concern:** iOS/Android background restrictions
-- **Status:** Tested on iOS (Build #8), works in most scenarios
-- **Fallback:** Manual clock-in/out available
-- **Outstanding:** Battery usage not yet measured
-
-### Privacy Parameters
-- **Concern:** K_MIN = 10 may be too sparse in some cells (e.g., rare specialties)
-- **Concern:** ε = 1.0 may add too much noise for small groups
-- **Decision needed:** Tune after testing with real data
-
-### Legal Compliance
-- **Concern:** DPIA (Data Protection Impact Assessment) may be required
-- **Concern:** Privacy policy needs legal review
-- **Action:** Consult GDPR lawyer before production deployment
-
----
-
-## Shared Code Between Web & Mobile
-
-### Currently Shared
-
-```typescript
-// lib/types.ts (partially shared)
-export interface ShiftTemplate { ... }
-export interface ShiftInstance { ... }
-```
-
-### Strategy
-
-**Short-term:** Copy types to mobile app, diverge as needed
-**Long-term:** Consider shared `packages/types/` if codebase grows
-
----
-
-## Git Repository Status
-
-### Branches
-
-**main**
-- Production web app (auto-deploys to Vercel)
-- Mobile app (TestFlight builds)
-- Backend (local dev only)
-
-**No dev branches** (solo developer, not needed)
-
-### Recent Commits
+### Document Lifecycle
 
 ```
-Latest: docs: consolidate planning docs into blueprint, archive completed work
-Previous: add BACKEND_REDESIGN_PLAN.md
-Previous: add privacy_architecture.md
+Start feature → Create *_PLAN.md → Complete → Extract to ARCHITECTURE.md → Archive
 ```
 
 ---
 
-## Tech Stack Details
-
-### Web App
-
-```json
-{
-  "framework": "Next.js 16.0.0",
-  "react": "19.2.0",
-  "typescript": "5.x (strict)",
-  "styling": "Tailwind CSS 4.1.9",
-  "ui": "Radix UI",
-  "charts": "Recharts 2.15.4",
-  "i18n": "next-intl 4.5.3",
-  "packageManager": "pnpm 10.20.0"
-}
-```
-
-### Mobile App
-
-```json
-{
-  "framework": "React Native 0.74",
-  "runtime": "Expo ~51.0",
-  "typescript": "5.x",
-  "navigation": "React Navigation 6",
-  "state": "Zustand-style (calendar context)",
-  "storage": "expo-sqlite (SQLite + SQLCipher planned)",
-  "location": "expo-location + expo-task-manager",
-  "maps": "react-native-maps",
-  "testing": {
-    "unit": "Jest",
-    "component": "@testing-library/react-native",
-    "e2e": "Detox (on hold)"
-  }
-}
-```
-
-### Backend
-
-```python
-{
-  "framework": "FastAPI",
-  "database": "SQLite (dev) → PostgreSQL (prod)",
-  "orm": "SQLAlchemy",
-  "validation": "Pydantic",
-  "auth": "JWT (to be implemented)",
-  "migrations": "Alembic",
-  "hosting": "Hetzner (Germany) - planned"
-}
-```
-
----
-
-## Important Constraints
-
-### Legal/Compliance
-
-1. **GDPR compliant** (German healthcare context)
-2. **Data residency:** EU only (Hetzner, Germany)
-3. **Privacy by design:** Required by law (Article 25)
-4. **Data minimization:** Required
-5. **Right to erasure:** Must implement (now possible with new architecture)
-
-### Technical
-
-1. **iOS background limitations:** Geofencing works but may fail in edge cases
-2. **Android battery optimization:** May kill background tasks (not yet tested)
-3. **SQLite performance:** Limited to on-device data (not a concern)
-4. **K-anonymity sparsity:** May suppress cells with rare specialties/hospitals
-5. **Noise variance:** ε=1.0 may be too noisy for small groups (TBD)
-
-### User Experience
-
-1. **Healthcare workers:** Busy, low tolerance for bugs
-2. **Hospital environments:** May block personal phones (geofencing may fail)
-3. **Shift work:** Irregular hours, overnight shifts
-4. **Legal requirement:** Working hour tracking (Arbeitszeitgesetz)
-5. **Account creation:** Users will need to create accounts (new requirement)
-
----
-
-## When Working on This Project
+## Do's and Don'ts
 
 ### Do's
 
-✅ **Read privacy_architecture.md first** - It defines the new approach
-✅ **Follow test-driven development** - Tests before implementation
-✅ **Test on real devices early** - Simulators lie about geofencing
-✅ **Consider privacy implications** - Every feature decision
-✅ **Keep web app stable** - It's in production
-✅ **Update docs when modules are finished** - Not while in progress
+- Read `privacy_architecture.md` first - defines the privacy approach
+- Test geofencing on real devices - simulators don't work
+- Check `mobile-app/ARCHITECTURE.md` for mobile patterns
+- Check `docs/deployment.md` for deployment process
+- Increment `buildNumber` in `app.json` for each TestFlight upload
 
 ### Don'ts
 
-❌ **Don't edit web app accidentally** - Check your working directory
-❌ **Don't skip testing** - Privacy/geofencing are too critical
-❌ **Don't assume geofencing works** - Validate on real devices
-❌ **Don't hardcode secrets** - Use environment variables
-❌ **Don't add planned features to blueprint** - Use TODO.md instead
-❌ **Don't create docs for incomplete work** - Wait until stable
+- Don't commit secrets - use environment variables
+- Don't edit web dashboard - it's deprecated
+- Don't submit today or future dates - backend rejects them
+- Don't use `react-native-reanimated` - crashes with Expo SDK 51
 
-### Questions to Always Ask
+---
 
-1. **Privacy:** Does this leak user data?
-2. **GDPR:** Does this support right to erasure?
-3. **Battery:** Will this drain battery?
-4. **Reliability:** Does this work when app is killed?
-5. **Testing:** How do I test this automatically?
-6. **Documentation:** Where should this be documented?
+## Key Constraints
+
+### Technical
+
+- **Geofencing**: Works on device only, 5-min exit hysteresis
+- **Zoom**: Ref-based (not reanimated) - "acceptable" but not 60fps
+- **iOS 18**: Week arrows fixed with PREV_WEEK/NEXT_WEEK actions
+
+### Privacy
+
+- **K-anonymity**: Groups need ≥10 users to be published
+- **Data residency**: EU only (Hetzner, Germany)
+- **Right to erasure**: User deletion cascades to work_events
+
+---
+
+## Recent Updates (Last 7 Days)
+
+### 2026-01-07: Cluster F Complete
+- Photon geocoding replaces Mapbox (free, GDPR-friendly)
+- Healthcare results prioritized in location search
+- Double-tap to place shifts (single tap clears selection)
+- Absence overlay 50% transparent
+- Step indicator: "Step 1 of 3 - Find Your Workplace"
+- Work Locations: inverted layout (small map, big list)
+
+### 2026-01-06: Clusters A, C, E Refinements
+- Zoom snapback fix (ref-based gesture handling)
+- Week navigation arrows fix
+- Sessions < 5 min filtered at recording
+- Pre-account days show "—" in 14-day overview
+- Absence drag handles added
+- TreePalm/Thermometer icons for vacation/sick
+
+---
+
+## Quick Commands
+
+```bash
+# Mobile app
+cd mobile-app
+npm start                    # Start Expo
+eas build --platform ios     # Build for TestFlight
+
+# Backend
+cd backend
+source .venv/bin/activate
+pytest -v                    # Run tests
+uvicorn app.main:app --reload  # Local dev
+
+# Deploy backend
+ssh deploy@owh-backend-prod
+cd ~/open_workinghours/backend
+docker compose down && docker compose build --no-cache backend && docker compose up -d
+```
 
 ---
 
 ## Communication Style
 
-### User Preferences
-
-- Solo developer
-- Wants modular, testable code
-- Values privacy and compliance
+- Solo developer project
+- Handles git commands personally - prepare changes, inform user to commit
 - Prefers planning before execution
-- Asks clarifying questions
-- Appreciates detailed technical analysis
-- **Handles git commands personally** - Claude should prepare changes but not execute git add/commit/push
-
-### Response Guidelines
-
-- Provide options with pros/cons
-- Explain tradeoffs clearly
-- Highlight risks early
-- Test-driven approach
-- Don't over-engineer for solo dev
-- Practical > theoretical
-- For git operations: prepare changes, then inform user to commit
-
----
-
-## Next Steps
-
-### Immediate (Current Sprint)
-
-1. **Start Backend Phase 1** (see `TODO.md`)
-   - Implement new database schema
-   - Implement auth endpoints
-   - Implement work-events endpoints
-   - Implement aggregation job
-
-2. **Test aggregation with synthetic data**
-   - Verify k-anonymity filter (n_users ≥ 10)
-   - Verify Laplace noise is applied correctly
-   - Verify sensitivity calculation
-
-3. **Document decisions** in `BACKEND_REDESIGN_PLAN.md` Section 8
-
-### Medium-term
-
-1. **Complete Backend Phase 1** (2-3 weeks)
-2. **Start Mobile Phase 2** (add auth, remove noise)
-3. **Test end-to-end** (register → submit → verify backend)
-4. **Update blueprint.md** with Module 2 (when finished)
-
-### Long-term
-
-1. **Deploy to production** (Hetzner + TestFlight)
-2. **Communicate breaking changes** to users
-3. **Monitor aggregation job** in production
-4. **Collect feedback** and iterate
-
----
-
-## Resources
-
-### Documentation
-
-- **Blueprint:** `blueprint.md` (system architecture)
-- **TODO:** `TODO.md` (active work)
-- **Privacy:** `privacy_architecture.md` (GDPR approach)
-- **Backend Plan:** `BACKEND_REDESIGN_PLAN.md` (current planning)
-- **Archive:** `archive/` (historical planning docs)
-
-### External References
-
-- Differential Privacy: https://en.wikipedia.org/wiki/Differential_privacy
-- GDPR Article 25: https://gdpr-info.eu/art-25-gdpr/
-- GDPR Article 17: https://gdpr-info.eu/art-17-gdpr/ (right to erasure)
-- Expo Location: https://docs.expo.dev/versions/latest/sdk/location/
-- React Native Geofencing: https://github.com/transistorsoft/react-native-background-geolocation
-
-### Potential Issues
-
-- iOS background location: https://developer.apple.com/documentation/corelocation/getting_the_user_s_location/handling_location_events_in_the_background
-- Android battery optimization: https://dontkillmyapp.com/
-- K-anonymity pitfalls: https://en.wikipedia.org/wiki/K-anonymity#Limitations
-
----
-
-## Mobile App Debugging
-
-**Tools:**
-- Xcode Console: Connect iPhone → Xcode → Devices → Open Console
-- Simulator first, device second (geofencing needs device)
-- Screenshots of errors are diagnostic gold
-
-**Common Issues:**
-1. Browser APIs don't work in RN → Use Expo equivalents (`expo-crypto` not `uuid`)
-2. Google Maps needs API key → Use native maps instead
-3. Increment `buildNumber` in app.json for each TestFlight upload (current: 13, next: 14)
-4. TestFlight updates are manual (tap "Update")
-5. Apple Developer Portal auth errors → Usually temporary server issues, retry after 5-10 minutes
-
-**Deployment:**
-- EAS Build ($29/month) bypasses Xcode version issues
-- Simulator ≠ Device (especially location/background tasks)
-- Test with humans for real-world scenarios (walking, battery drain)
-
----
-
-**Last Updated:** 2026-01-07
-**Status:** Cluster F complete, ready for build #30
-**Current Focus:** Testing Cluster F improvements, then Cluster B (shift management)
-**Production URLs:**
-- Website: https://openworkinghours.org
-- Backend API: https://api.openworkinghours.org
+- Values privacy and GDPR compliance
+- Practical over theoretical

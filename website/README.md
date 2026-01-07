@@ -51,28 +51,21 @@ npm run build
 # Upload contents of ./dist to any static host
 ```
 
-## Placeholders to Fill
+## Content Status
 
-Before going live, replace the following:
+All primary content is complete as of 2026-01-07:
 
-### Content Placeholders
-- **Team page:** Founder name, bio, photo, proof points
-- **Team page:** Advisor names, titles, photos, contributions
-- **Imprint:** Full legal name, address
-- **Privacy Policy:** Full legal name, address, date, hosting provider details
+| Item | Status |
+|------|--------|
+| Founder name, bio, photo | ✅ Complete |
+| Imprint (legal info) | ✅ Complete |
+| Privacy Policy | ✅ Complete |
+| App screenshots (6) | ✅ Complete |
+| Data flow diagram | ✅ Complete |
+| Dashboard screenshot | ✅ Complete |
 
-### Asset Placeholders
-- **Screenshots:** Replace 6 screenshot placeholders on `/product`
-- **Diagrams:** Commission or generate the technical diagrams described in placeholder boxes
-- **Team photos:** Add founder and advisor photos
-
-### Diagram Specifications
-
-The site includes placeholder boxes with detailed descriptions for technical diagrams. These should be created in a "blueprint" style (light blue technical drawing on grid background). See each placeholder for specific requirements:
-
-1. **System Overview** (index page) - Data flow from app to dashboard
-2. **Dashboard Mockup** (product page) - Bar chart preview
-3. **Data Flow Diagram** (privacy page) - Three-layer privacy architecture
+### Pending (when confirmed)
+- Advisor names, titles, photos, contributions
 
 ## Configuration
 

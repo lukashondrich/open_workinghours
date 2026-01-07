@@ -171,12 +171,20 @@ This must be clearly explained in the privacy notice, e.g.:
 
 ## 6. Open Points / To Be Specified
 
-- Exact values for:
-  - `K_MIN` (minimum users per cell).
-  - Laplace noise scale and overall differential-privacy budget.
-- Final list of allowed aggregation dimensions for each public view.
-- Legal review and approval of:
-  - Anonymisation claim for the Analytics Layer.
-  - Wording of privacy policy and consent text.
+### Current Working Values (2026-01-07)
+
+These values are implemented but not yet legally reviewed:
+
+| Parameter | Current Value | Status |
+|-----------|---------------|--------|
+| `K_MIN` (minimum users per cell) | 10 | Working value - may adjust based on legal review |
+| Laplace noise epsilon (ε) | 1.0 | Working value - balances privacy vs utility |
+| Aggregation dimensions | state × specialty × role × period | Implemented |
+
+### Pending Legal Review
+
+- Formal approval of anonymisation claim for the Analytics Layer
+- Final wording of privacy policy and consent text
+- Confirmation that working values meet GDPR requirements
 
 ---

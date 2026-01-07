@@ -2,7 +2,7 @@
 
 **Date:** 2026-01-06
 **Tester:** Physician (iPhone 13, iOS 18.x)
-**Status:** Triaging
+**Status:** ✅ All clusters complete (2026-01-07)
 
 ---
 
@@ -43,7 +43,7 @@
 ## Implementation Plan
 
 ### Cluster A: Quick Bug Fixes (1 session)
-**Status:** In Progress - See [CLUSTER_A_PLAN.md](./CLUSTER_A_PLAN.md)
+**Status:** ✅ Fixed - See `archive/CLUSTER_A_PLAN.md`
 
 | Issue | Effort | Fix Applied | Status |
 |-------|--------|-------------|--------|
@@ -69,17 +69,17 @@
 - Files changed: `mobile-app/src/modules/calendar/components/CalendarHeader.tsx`
 
 ### Cluster B: Shift Instance Management (2 sessions)
-**Status:** Pending
+**Status:** ✅ Implemented (2026-01-07) - See `mobile-app/ARCHITECTURE.md`
 
-| Issue | Effort | Notes |
-|-------|--------|-------|
-| Tap-to-add shifts on calendar | Medium | New interaction pattern |
-| Delete shift instances | Low | Extend existing delete pattern |
-| Overlap detection | Medium | Allow multiple if non-overlapping |
-| Template edits → update future instances | Medium | Past instances stay frozen |
+| Issue | Effort | Solution | Status |
+|-------|--------|----------|--------|
+| Tap-to-add shifts on calendar | Medium | Double-tap places armed template | ✅ Done |
+| Delete shift instances | Low | Tap → popup with Delete option | ✅ Done |
+| Overlap detection | Medium | `findOverlappingShift()` utility | ✅ Done |
+| Template edits → update future instances | Medium | UPDATE_TEMPLATE propagates to future | ✅ Done |
 
 ### Cluster C: Tracking Data UX (1 session)
-**Status:** ✅ Implemented - See [CLUSTER_C_PLAN.md](./CLUSTER_C_PLAN.md)
+**Status:** ✅ Implemented - See `archive/CLUSTER_C_PLAN.md`
 
 | Issue | Effort | Solution | Status |
 |-------|--------|----------|--------|
@@ -87,16 +87,16 @@
 | "No data yet" for pre-account days | Medium | Fetch `createdAt` from `/auth/me`, gray out pre-account days | ✅ Done |
 
 ### Cluster D: Location Setup UX (1 session)
-**Status:** Pending
+**Status:** ✅ Implemented (2026-01-07) - See `mobile-app/ARCHITECTURE.md`
 
-| Issue | Effort | Notes |
-|-------|--------|-------|
-| Location search (or clearer manual entry) | Medium | Geocoding API or better labeling |
-| Show geofences in Status screen | Low | More prominent location display |
-| Zoom controls location/clarity | Low | Move +/- or relabel |
+| Issue | Effort | Solution | Status |
+|-------|--------|----------|--------|
+| Location search | Medium | Photon geocoding with healthcare priority | ✅ Done |
+| Show geofences in Status screen | Low | Tappable locations → LocationsList | ✅ Done |
+| Zoom controls confusion | Low | Removed +/-, pinch-only zoom | ✅ Done |
 
 ### Cluster E: Day Types - Vacation/Sick
-**Status:** ✅ Implemented + Refined - See [CLUSTER_E_PLAN.md](./CLUSTER_E_PLAN.md)
+**Status:** ✅ Implemented + Refined - See `archive/CLUSTER_E_PLAN.md`
 
 | Issue | Effort | Solution | Status |
 |-------|--------|----------|--------|
@@ -118,7 +118,7 @@
 - Local only - not submitted to backend
 
 ### Cluster F: UX Polish (Post-Testing)
-**Status:** ✅ Complete - See [CLUSTER_F_PLAN.md](./CLUSTER_F_PLAN.md)
+**Status:** ✅ Complete - See `archive/CLUSTER_F_PLAN.md`
 
 | Issue | Solution | Status |
 |-------|----------|--------|
