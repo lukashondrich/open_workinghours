@@ -12,9 +12,11 @@ import {
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Location from 'expo-location';
+import { MapPin } from 'lucide-react-native';
 
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
 import { t } from '@/lib/i18n';
+import { useAuth } from '@/lib/auth/auth-context';
 import { getDatabase } from '@/modules/geofencing/services/Database';
 import { TrackingManager } from '@/modules/geofencing/services/TrackingManager';
 import {
@@ -45,10 +47,12 @@ function CollapsedStatusLine({
   status,
   onCheckIn,
   onCheckOut,
+  onLocationPress,
 }: {
   status: LocationStatus;
   onCheckIn: () => void;
   onCheckOut: () => void;
+  onLocationPress: () => void;
 }) {
   const { location, isCheckedIn, elapsedMinutes } = status;
 
@@ -63,7 +67,7 @@ function CollapsedStatusLine({
 
   return (
     <View style={styles.statusLineCard}>
-      <View style={styles.statusLineContent}>
+      <TouchableOpacity style={styles.statusLineContent} onPress={onLocationPress}>
         <View
           style={[
             styles.statusDot,
@@ -78,7 +82,7 @@ function CollapsedStatusLine({
             ? (elapsedMinutes !== undefined ? t('status.checkedInElapsed', { elapsed: formatElapsed(elapsedMinutes) }) : t('status.checkedIn'))
             : t('status.notCheckedIn')}
         </Text>
-      </View>
+      </TouchableOpacity>
       <TouchableOpacity
         style={[
           styles.statusButton,
@@ -96,6 +100,7 @@ function CollapsedStatusLine({
 
 export default function StatusScreen() {
   const navigation = useNavigation<StatusScreenNavigationProp>();
+  const { state: authState } = useAuth();
 
   const [locationStatuses, setLocationStatuses] = useState<LocationStatus[]>([]);
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
@@ -134,8 +139,8 @@ export default function StatusScreen() {
       }
       setLocationStatuses(statuses);
 
-      // Load dashboard data
-      const dashboard = await loadDashboardData();
+      // Load dashboard data (pass account creation date for accurate display)
+      const dashboard = await loadDashboardData(authState.user?.createdAt);
       setDashboardData(dashboard);
 
       setLoading(false);
@@ -146,7 +151,7 @@ export default function StatusScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [authState.user?.createdAt]);
 
   const checkBackgroundPermission = async () => {
     try {
@@ -243,6 +248,14 @@ export default function StatusScreen() {
     loadAllData();
   };
 
+  const handleAddWorkplace = () => {
+    navigation.navigate('Setup');
+  };
+
+  const handleManageLocations = () => {
+    navigation.navigate('LocationsList');
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -283,15 +296,22 @@ export default function StatusScreen() {
                 status={status}
                 onCheckIn={() => handleManualCheckIn(status.location.id)}
                 onCheckOut={() => handleManualCheckOut(status.location.id)}
+                onLocationPress={handleManageLocations}
               />
             ))}
+            <Text style={styles.tapHint}>{t('status.tapToManage')}</Text>
           </View>
         ) : (
           <View style={styles.emptyLocationState}>
+            <MapPin size={32} color={colors.text.tertiary} style={styles.emptyIcon} />
             <Text style={styles.emptyText}>{t('status.noLocations')}</Text>
             <Text style={styles.emptySubtext}>
               {t('status.noLocationsHint')}
             </Text>
+            <TouchableOpacity style={styles.addWorkplaceButton} onPress={handleAddWorkplace}>
+              <MapPin size={18} color={colors.white} />
+              <Text style={styles.addWorkplaceButtonText}>{t('status.addWorkplace')}</Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -435,5 +455,30 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     color: colors.text.tertiary,
     textAlign: 'center',
+    marginBottom: spacing.lg,
+  },
+  emptyIcon: {
+    marginBottom: spacing.md,
+  },
+  addWorkplaceButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary[500],
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xl,
+    borderRadius: borderRadius.lg,
+    gap: spacing.sm,
+  },
+  addWorkplaceButtonText: {
+    color: colors.white,
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semibold,
+  },
+  tapHint: {
+    fontSize: fontSize.xs,
+    color: colors.text.tertiary,
+    textAlign: 'center',
+    marginTop: spacing.xs,
+    marginHorizontal: spacing.xl,
   },
 });

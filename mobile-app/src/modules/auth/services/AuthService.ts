@@ -116,16 +116,11 @@ export class AuthService {
       const data = await response.json();
 
       // Backend only returns: access_token, expires_at, user_id
-      // We construct the full user object from request data + response
+      // Fetch full user info including createdAt from /auth/me
+      const userInfo = await this.getCurrentUser(data.access_token, request.email.trim().toLowerCase());
+
       return {
-        user: {
-          userId: data.user_id,
-          email: request.email.trim().toLowerCase(),
-          hospitalId: request.hospitalId,
-          specialty: request.specialty,
-          roleLevel: request.roleLevel,
-          stateCode: request.stateCode,
-        },
+        user: userInfo,
         token: data.access_token,
         expiresAt: new Date(data.expires_at),
       };
@@ -210,7 +205,7 @@ export class AuthService {
 
       const data = await response.json();
 
-      // Backend returns snake_case: user_id, hospital_id, role_level, state_code
+      // Backend returns snake_case: user_id, hospital_id, role_level, state_code, created_at
       // Backend doesn't include email, so we use the provided one
       return {
         userId: data.user_id,
@@ -219,6 +214,7 @@ export class AuthService {
         specialty: data.specialty,
         roleLevel: data.role_level,
         stateCode: data.state_code,
+        createdAt: data.created_at, // ISO 8601 format from backend
       };
     } catch (error) {
       console.error('[AuthService] Failed to get current user:', error);

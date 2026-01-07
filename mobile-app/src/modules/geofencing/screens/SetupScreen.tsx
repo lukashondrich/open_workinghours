@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,13 +7,18 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  TouchableOpacity,
+  TextInput,
+  FlatList,
+  Keyboard,
   ScrollView,
 } from 'react-native';
-import MapView, { Circle, Marker } from 'react-native-maps';
+import MapView, { Circle, Marker, Region, MapPressEvent } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RouteProp } from '@react-navigation/native';
 import * as Crypto from 'expo-crypto';
-import { Minus, Plus } from 'lucide-react-native';
+import { Minus, Plus, Search, X, ChevronLeft, MapPin } from 'lucide-react-native';
 
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
 import { t } from '@/lib/i18n';
@@ -21,43 +26,97 @@ import { Button, Input } from '@/components/ui';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import { getDatabase } from '@/modules/geofencing/services/Database';
 import { getGeofenceService } from '@/modules/geofencing/services/GeofenceService';
-import MapControls from '@/modules/geofencing/components/MapControls';
+import { searchLocations, GeocodingResult, isGeocodingAvailable, SearchOptions } from '@/modules/geofencing/services/GeocodingService';
 import type { UserLocation } from '@/modules/geofencing/types';
 
 type SetupScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Setup'>;
+type SetupScreenRouteProp = RouteProp<RootStackParamList, 'Setup'>;
 
 interface Props {
   navigation: SetupScreenNavigationProp;
+  route: SetupScreenRouteProp;
 }
 
 // Map circle colors using primary theme color
 const MAP_CIRCLE_STROKE = 'rgba(46, 139, 107, 0.6)';
 const MAP_CIRCLE_FILL = 'rgba(46, 139, 107, 0.2)';
 
-export default function SetupScreen({ navigation }: Props) {
-  const mapRef = React.useRef<MapView>(null);
+type Step = 1 | 2 | 3;
 
-  const [name, setName] = useState('');
-  const [radius, setRadius] = useState(200);
-  const [region, setRegion] = useState({
-    latitude: 37.78825,
-    longitude: -122.4324,
-    latitudeDelta: 0.01,
-    longitudeDelta: 0.01,
+interface PinCoordinate {
+  latitude: number;
+  longitude: number;
+}
+
+// Step indicator dots component
+function StepIndicator({ currentStep }: { currentStep: Step }) {
+  return (
+    <View style={styles.stepIndicator}>
+      {[1, 2, 3].map((step) => (
+        <View
+          key={step}
+          style={[
+            styles.stepDot,
+            step === currentStep && styles.stepDotActive,
+            step < currentStep && styles.stepDotCompleted,
+          ]}
+        />
+      ))}
+    </View>
+  );
+}
+
+export default function SetupScreen({ navigation, route }: Props) {
+  const mapRef = useRef<MapView>(null);
+  const searchInputRef = useRef<TextInput>(null);
+  const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Edit mode
+  const editLocation = route.params?.editLocation;
+  const isEditMode = !!editLocation;
+
+  // Step state - start at step 2 in edit mode (skip search)
+  const [step, setStep] = useState<Step>(isEditMode ? 2 : 1);
+
+  // Location data - pre-populate in edit mode
+  const [pinCoordinate, setPinCoordinate] = useState<PinCoordinate | null>(
+    editLocation ? { latitude: editLocation.latitude, longitude: editLocation.longitude } : null
+  );
+  const [radius, setRadius] = useState(editLocation?.radiusMeters ?? 200);
+  const [name, setName] = useState(editLocation?.name ?? '');
+
+  // Map region (separate from pin - allows panning without moving pin)
+  const [region, setRegion] = useState<Region>({
+    latitude: editLocation?.latitude ?? 37.78825,
+    longitude: editLocation?.longitude ?? -122.4324,
+    latitudeDelta: 0.005,
+    longitudeDelta: 0.005,
   });
-  const [loading, setLoading] = useState(true);
+
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<GeocodingResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+
+  // UI state
+  const [loading, setLoading] = useState(!isEditMode); // Skip loading in edit mode
   const [saving, setSaving] = useState(false);
 
+  // Check if geocoding is available
+  const geocodingEnabled = isGeocodingAvailable();
+
   useEffect(() => {
-    requestPermissionsAndGetLocation();
-  }, []);
+    if (!isEditMode) {
+      requestPermissionsAndGetLocation();
+    }
+  }, [isEditMode]);
 
   const requestPermissionsAndGetLocation = async () => {
     try {
       console.log('[SetupScreen] Starting location permission request...');
       const geofenceService = getGeofenceService();
 
-      // Request foreground permission first
       const foregroundGranted = await geofenceService.requestForegroundPermissions();
 
       if (!foregroundGranted) {
@@ -73,7 +132,6 @@ export default function SetupScreen({ navigation }: Props) {
 
       console.log('[SetupScreen] Getting current location...');
 
-      // Get current location with timeout
       const locationPromise = Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
       });
@@ -89,12 +147,11 @@ export default function SetupScreen({ navigation }: Props) {
         setRegion({
           latitude: location.coords.latitude,
           longitude: location.coords.longitude,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
+          latitudeDelta: 0.02,
+          longitudeDelta: 0.02,
         });
       } catch (locationError) {
         console.warn('[SetupScreen] Failed to get location, using default:', locationError);
-        // Use default location (San Francisco) if GPS fails
         Alert.alert(
           t('setup.locationUnavailableTitle'),
           t('setup.locationUnavailableMessage'),
@@ -110,89 +167,77 @@ export default function SetupScreen({ navigation }: Props) {
     }
   };
 
-  const handleSave = async () => {
-    if (!name.trim()) {
-      Alert.alert(t('setup.missingInfoTitle'), t('setup.missingInfoMessage'));
+  // Debounced search
+  const handleSearchChange = useCallback((text: string) => {
+    setSearchQuery(text);
+
+    if (searchDebounceRef.current) {
+      clearTimeout(searchDebounceRef.current);
+    }
+
+    if (!text.trim() || text.length < 3) {
+      setSearchResults([]);
+      setShowSearchResults(false);
       return;
     }
 
-    setSaving(true);
+    setIsSearching(true);
+    setShowSearchResults(true);
 
-    try {
-      const geofenceService = getGeofenceService();
+    searchDebounceRef.current = setTimeout(async () => {
+      const results = await searchLocations(text, {
+        proximity: {
+          latitude: region.latitude,
+          longitude: region.longitude,
+        },
+      });
+      setSearchResults(results);
+      setIsSearching(false);
+    }, 300);
+  }, []);
 
-      // Request background permission
-      const backgroundGranted = await geofenceService.requestBackgroundPermissions();
+  const handleSearchResultSelect = (result: GeocodingResult) => {
+    // Place pin at search result location
+    setPinCoordinate({
+      latitude: result.latitude,
+      longitude: result.longitude,
+    });
 
-      if (!backgroundGranted) {
-        // Show alert with option to continue anyway (useful for simulator testing)
-        const shouldContinue = await new Promise<boolean>((resolve) => {
-          Alert.alert(
-            t('setup.backgroundPermissionTitle'),
-            t('setup.backgroundPermissionMessage'),
-            [
-              {
-                text: t('common.cancel'),
-                style: 'cancel',
-                onPress: () => resolve(false),
-              },
-              {
-                text: t('setup.continueAnyway'),
-                onPress: () => resolve(true),
-              },
-            ]
-          );
-        });
+    // Center map on result
+    const newRegion = {
+      latitude: result.latitude,
+      longitude: result.longitude,
+      latitudeDelta: 0.01,
+      longitudeDelta: 0.01,
+    };
+    setRegion(newRegion);
+    mapRef.current?.animateToRegion(newRegion, 500);
 
-        if (!shouldContinue) {
-          setSaving(false);
-          return;
-        }
-      }
+    // Clear search
+    setSearchQuery('');
+    setSearchResults([]);
+    setShowSearchResults(false);
+    Keyboard.dismiss();
+  };
 
-      const location: UserLocation = {
-        id: Crypto.randomUUID(),
-        name: name.trim(),
-        latitude: region.latitude,
-        longitude: region.longitude,
-        radiusMeters: radius,
-        isActive: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
+  const handleMapPress = (event: MapPressEvent) => {
+    // Allow tap-to-place in step 1 and step 2
+    if (step !== 1 && step !== 2) return;
 
-      // Save to database
-      const db = await getDatabase();
-      await db.insertLocation(location);
+    const { latitude, longitude } = event.nativeEvent.coordinate;
+    setPinCoordinate({ latitude, longitude });
 
-      // Register geofence ONLY if background permission granted
-      if (backgroundGranted) {
-        try {
-          await geofenceService.registerGeofence(location);
-          console.log('[SetupScreen] Geofence registered successfully');
-        } catch (error) {
-          console.warn('[SetupScreen] Failed to register geofence:', error);
-        }
-      } else {
-        console.log('[SetupScreen] Skipping geofence registration (no background permission)');
-      }
-
-      setSaving(false);
-
-      // Check if there are other locations - navigate accordingly
-      const locations = await db.getActiveLocations();
-      if (locations.length > 1) {
-        // Multiple locations exist, go back to LocationsList
-        navigation.navigate('LocationsList');
-      } else {
-        // First location, go to MainTabs (StatusScreen)
-        navigation.navigate('MainTabs');
-      }
-    } catch (error) {
-      console.error('Error saving location:', error);
-      Alert.alert(t('common.error'), t('setup.saveFailed'));
-      setSaving(false);
+    // Clear search if active (step 1 only)
+    if (showSearchResults) {
+      setSearchQuery('');
+      setSearchResults([]);
+      setShowSearchResults(false);
     }
+  };
+
+  const handlePinDragEnd = (event: any) => {
+    const { latitude, longitude } = event.nativeEvent.coordinate;
+    setPinCoordinate({ latitude, longitude });
   };
 
   const increaseRadius = () => {
@@ -203,41 +248,137 @@ export default function SetupScreen({ navigation }: Props) {
     setRadius((prev) => Math.max(prev - 50, 100));
   };
 
-  const handleZoomIn = () => {
-    const newRegion = {
-      ...region,
-      latitudeDelta: region.latitudeDelta / 2,
-      longitudeDelta: region.longitudeDelta / 2,
-    };
-    setRegion(newRegion);
-    mapRef.current?.animateToRegion(newRegion, 300);
-  };
-
-  const handleZoomOut = () => {
-    const newRegion = {
-      ...region,
-      latitudeDelta: region.latitudeDelta * 2,
-      longitudeDelta: region.longitudeDelta * 2,
-    };
-    setRegion(newRegion);
-    mapRef.current?.animateToRegion(newRegion, 300);
-  };
-
-  const handleMyLocation = async () => {
-    try {
-      const location = await Location.getCurrentPositionAsync({});
+  const handleContinue = () => {
+    if (step === 1 && pinCoordinate) {
+      // Center map on pin for step 2
       const newRegion = {
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
+        latitude: pinCoordinate.latitude,
+        longitude: pinCoordinate.longitude,
+        latitudeDelta: 0.005,
+        longitudeDelta: 0.005,
       };
       setRegion(newRegion);
-      mapRef.current?.animateToRegion(newRegion, 500);
-    } catch (error) {
-      console.error('[SetupScreen] Failed to get current location:', error);
-      Alert.alert(t('common.error'), t('setup.getLocationFailed'));
+      mapRef.current?.animateToRegion(newRegion, 300);
+      setStep(2);
+    } else if (step === 2) {
+      setStep(3);
     }
+  };
+
+  const handleBack = () => {
+    if (step === 2) {
+      if (isEditMode) {
+        // In edit mode, go back to locations list
+        navigation.goBack();
+      } else {
+        setStep(1);
+      }
+    } else if (step === 3) {
+      setStep(2);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!name.trim() || !pinCoordinate) {
+      Alert.alert(t('setup.missingInfoTitle'), t('setup.missingInfoMessage'));
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      const geofenceService = getGeofenceService();
+      const backgroundGranted = await geofenceService.requestBackgroundPermissions();
+
+      if (!backgroundGranted) {
+        const shouldContinue = await new Promise<boolean>((resolve) => {
+          Alert.alert(
+            t('setup.backgroundPermissionTitle'),
+            t('setup.backgroundPermissionMessage'),
+            [
+              { text: t('common.cancel'), style: 'cancel', onPress: () => resolve(false) },
+              { text: t('setup.continueAnyway'), onPress: () => resolve(true) },
+            ]
+          );
+        });
+
+        if (!shouldContinue) {
+          setSaving(false);
+          return;
+        }
+      }
+
+      const db = await getDatabase();
+
+      if (isEditMode && editLocation) {
+        // Update existing location
+        await db.updateLocation(editLocation.id, {
+          name: name.trim(),
+          latitude: pinCoordinate.latitude,
+          longitude: pinCoordinate.longitude,
+          radiusMeters: radius,
+        });
+
+        // Re-register geofence with new coordinates/radius
+        if (backgroundGranted) {
+          try {
+            await geofenceService.unregisterGeofence(editLocation.id);
+            const updatedLocation = await db.getLocation(editLocation.id);
+            if (updatedLocation) {
+              await geofenceService.registerGeofence(updatedLocation);
+            }
+            console.log('[SetupScreen] Geofence updated successfully');
+          } catch (error) {
+            console.warn('[SetupScreen] Failed to update geofence:', error);
+          }
+        }
+
+        setSaving(false);
+        navigation.navigate('LocationsList');
+      } else {
+        // Create new location
+        const location: UserLocation = {
+          id: Crypto.randomUUID(),
+          name: name.trim(),
+          latitude: pinCoordinate.latitude,
+          longitude: pinCoordinate.longitude,
+          radiusMeters: radius,
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+
+        await db.insertLocation(location);
+
+        if (backgroundGranted) {
+          try {
+            await geofenceService.registerGeofence(location);
+            console.log('[SetupScreen] Geofence registered successfully');
+          } catch (error) {
+            console.warn('[SetupScreen] Failed to register geofence:', error);
+          }
+        }
+
+        setSaving(false);
+
+        const locations = await db.getActiveLocations();
+        if (locations.length > 1) {
+          navigation.navigate('LocationsList');
+        } else {
+          navigation.navigate('MainTabs');
+        }
+      }
+    } catch (error) {
+      console.error('Error saving location:', error);
+      Alert.alert(t('common.error'), t('setup.saveFailed'));
+      setSaving(false);
+    }
+  };
+
+  const clearSearch = () => {
+    setSearchQuery('');
+    setSearchResults([]);
+    setShowSearchResults(false);
   };
 
   if (loading) {
@@ -250,105 +391,263 @@ export default function SetupScreen({ navigation }: Props) {
     );
   }
 
+  // Render search results
+  const renderSearchResult = ({ item }: { item: GeocodingResult }) => (
+    <TouchableOpacity
+      style={styles.searchResultItem}
+      onPress={() => handleSearchResultSelect(item)}
+    >
+      <MapPin size={18} color={colors.text.secondary} />
+      <View style={styles.searchResultText}>
+        <Text style={styles.searchResultName} numberOfLines={1}>{item.name}</Text>
+        <Text style={styles.searchResultAddress} numberOfLines={1}>{item.address}</Text>
+      </View>
+    </TouchableOpacity>
+  );
+
   return (
     <View style={styles.container}>
-      {/* Map Container */}
-      <View style={styles.mapContainer}>
-        <MapView
-          ref={mapRef}
-          style={styles.map}
-          region={region}
-          onRegionChangeComplete={setRegion}
-          showsUserLocation
-          showsMyLocationButton={false}
-          scrollEnabled={true}
-          zoomEnabled={true}
-          pitchEnabled={false}
-          rotateEnabled={false}
-        >
-          <Marker coordinate={region} draggable />
-          <Circle
-            center={region}
-            radius={radius}
-            strokeColor={MAP_CIRCLE_STROKE}
-            fillColor={MAP_CIRCLE_FILL}
-            strokeWidth={2}
-          />
-        </MapView>
+      {/* Step Indicator */}
+      <View style={styles.headerBar}>
+        {step > 1 ? (
+          <TouchableOpacity style={styles.backButton} onPress={handleBack}>
+            <ChevronLeft size={24} color={colors.text.primary} />
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.backButtonPlaceholder} />
+        )}
+        <StepIndicator currentStep={step} />
+        <View style={styles.backButtonPlaceholder} />
       </View>
 
-      {/* Map Controls */}
-      <MapControls
-        onZoomIn={handleZoomIn}
-        onZoomOut={handleZoomOut}
-        onMyLocation={handleMyLocation}
-      />
+      {/* Step 1: Search / Tap to place */}
+      {step === 1 && (
+        <>
+          {/* Search Bar */}
+          {geocodingEnabled && (
+            <View style={styles.searchContainer}>
+              <View style={styles.searchInputWrapper}>
+                <Search size={18} color={colors.text.tertiary} style={styles.searchIcon} />
+                <TextInput
+                  ref={searchInputRef}
+                  style={styles.searchInput}
+                  placeholder={t('setup.searchPlaceholder')}
+                  placeholderTextColor={colors.text.tertiary}
+                  value={searchQuery}
+                  onChangeText={handleSearchChange}
+                  onFocus={() => searchQuery.length >= 3 && setShowSearchResults(true)}
+                  returnKeyType="search"
+                />
+                {searchQuery.length > 0 && (
+                  <TouchableOpacity onPress={clearSearch} style={styles.clearButton}>
+                    <X size={18} color={colors.text.tertiary} />
+                  </TouchableOpacity>
+                )}
+              </View>
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardAvoidingView}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-      >
-        <ScrollView
-          style={styles.controlsScroll}
-          contentContainerStyle={styles.controls}
-          keyboardShouldPersistTaps="handled"
-          bounces={false}
-        >
-          <Input
-            label={t('setup.locationName')}
-            placeholder={t('setup.locationNamePlaceholder')}
-            value={name}
-            onChangeText={setName}
-            autoCapitalize="words"
-            testID="input-location-name"
-            containerStyle={styles.inputContainer}
-          />
-
-          <Text style={styles.label}>{t('setup.geofenceRadius', { radius })}</Text>
-          <View style={styles.radiusControls}>
-            <Button
-              variant="secondary"
-              onPress={decreaseRadius}
-              disabled={radius <= 100}
-              icon={<Minus size={20} color={colors.text.primary} />}
-              style={styles.radiusButton}
-              testID="radius-decrease"
-            >
-              {''}
-            </Button>
-
-            <View style={styles.radiusDisplay}>
-              <Text style={styles.radiusText}>{radius}m</Text>
+              {/* Search Results Dropdown */}
+              {showSearchResults && (
+                <View style={styles.searchResultsContainer}>
+                  {isSearching ? (
+                    <View style={styles.searchLoading}>
+                      <ActivityIndicator size="small" color={colors.primary[500]} />
+                    </View>
+                  ) : searchResults.length > 0 ? (
+                    <FlatList
+                      data={searchResults}
+                      keyExtractor={(item) => item.id}
+                      renderItem={renderSearchResult}
+                      keyboardShouldPersistTaps="handled"
+                      style={styles.searchResultsList}
+                    />
+                  ) : (
+                    <Text style={styles.noResults}>{t('setup.searchNoResults')}</Text>
+                  )}
+                </View>
+              )}
             </View>
+          )}
 
-            <Button
-              variant="secondary"
-              onPress={increaseRadius}
-              disabled={radius >= 1000}
-              icon={<Plus size={20} color={colors.text.primary} />}
-              style={styles.radiusButton}
-              testID="radius-increase"
+          {/* Map */}
+          <View style={styles.mapContainer}>
+            <MapView
+              ref={mapRef}
+              style={styles.map}
+              region={region}
+              onRegionChangeComplete={setRegion}
+              onPress={handleMapPress}
+              showsUserLocation
+              showsMyLocationButton={false}
+              scrollEnabled={true}
+              zoomEnabled={true}
+              pitchEnabled={false}
+              rotateEnabled={false}
             >
-              {''}
-            </Button>
+              {pinCoordinate && (
+                <Marker
+                  coordinate={pinCoordinate}
+                  draggable
+                  onDragEnd={handlePinDragEnd}
+                />
+              )}
+            </MapView>
+
+            {/* Tap hint overlay */}
+            {!pinCoordinate && (
+              <View style={styles.tapHintOverlay} pointerEvents="none">
+                <View style={styles.tapHintBadge}>
+                  <Text style={styles.tapHintText}>{t('setup.tapToPlace')}</Text>
+                </View>
+              </View>
+            )}
           </View>
 
-          <Text style={styles.hint}>
-            {t('setup.mapHint')}
-          </Text>
+          {/* Continue button */}
+          <View style={styles.bottomPanel}>
+            <Text style={styles.stepTitle}>{t('setup.step1Title')}</Text>
+            <Button
+              onPress={handleContinue}
+              disabled={!pinCoordinate}
+              fullWidth
+            >
+              {t('setup.continue')}
+            </Button>
+          </View>
+        </>
+      )}
 
-          <Button
-            onPress={handleSave}
-            loading={saving}
-            disabled={saving || !name.trim()}
-            fullWidth
-            testID="save-location-button"
+      {/* Step 2: Fine-tune position + radius */}
+      {step === 2 && pinCoordinate && (
+        <>
+          <View style={styles.mapContainer}>
+            <MapView
+              ref={mapRef}
+              style={styles.map}
+              region={region}
+              onRegionChangeComplete={setRegion}
+              onPress={handleMapPress}
+              showsUserLocation
+              showsMyLocationButton={false}
+              scrollEnabled={true}
+              zoomEnabled={true}
+              pitchEnabled={false}
+              rotateEnabled={false}
+            >
+              <Marker
+                coordinate={pinCoordinate}
+                draggable
+                onDragEnd={handlePinDragEnd}
+              />
+              <Circle
+                center={pinCoordinate}
+                radius={radius}
+                strokeColor={MAP_CIRCLE_STROKE}
+                fillColor={MAP_CIRCLE_FILL}
+                strokeWidth={2}
+              />
+            </MapView>
+          </View>
+
+          <View style={styles.bottomPanel}>
+            <Text style={styles.stepTitle}>{isEditMode ? t('setup.editStep2Title') : t('setup.step2Title')}</Text>
+            <Text style={styles.stepHint}>{t('setup.dragToAdjust')}</Text>
+
+            {/* Radius controls */}
+            <Text style={styles.label}>{t('setup.geofenceRadius', { radius })}</Text>
+            <View style={styles.radiusControls}>
+              <Button
+                variant="secondary"
+                onPress={decreaseRadius}
+                disabled={radius <= 100}
+                icon={<Minus size={20} color={colors.text.primary} />}
+                style={styles.radiusButton}
+              >
+                {''}
+              </Button>
+              <View style={styles.radiusDisplay}>
+                <Text style={styles.radiusText}>{radius}m</Text>
+              </View>
+              <Button
+                variant="secondary"
+                onPress={increaseRadius}
+                disabled={radius >= 1000}
+                icon={<Plus size={20} color={colors.text.primary} />}
+                style={styles.radiusButton}
+              >
+                {''}
+              </Button>
+            </View>
+
+            <Button onPress={handleContinue} fullWidth>
+              {t('setup.continue')}
+            </Button>
+          </View>
+        </>
+      )}
+
+      {/* Step 3: Name the location */}
+      {step === 3 && pinCoordinate && (
+        <>
+          {/* Mini map preview */}
+          <View style={styles.miniMapContainer}>
+            <MapView
+              style={styles.miniMap}
+              region={{
+                latitude: pinCoordinate.latitude,
+                longitude: pinCoordinate.longitude,
+                latitudeDelta: 0.005,
+                longitudeDelta: 0.005,
+              }}
+              scrollEnabled={false}
+              zoomEnabled={false}
+              pitchEnabled={false}
+              rotateEnabled={false}
+            >
+              <Marker coordinate={pinCoordinate} />
+              <Circle
+                center={pinCoordinate}
+                radius={radius}
+                strokeColor={MAP_CIRCLE_STROKE}
+                fillColor={MAP_CIRCLE_FILL}
+                strokeWidth={2}
+              />
+            </MapView>
+          </View>
+
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.step3Panel}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 120 : 0}
           >
-            {t('setup.saveLocation')}
-          </Button>
-        </ScrollView>
-      </KeyboardAvoidingView>
+            <ScrollView
+              contentContainerStyle={styles.step3Content}
+              keyboardShouldPersistTaps="handled"
+              bounces={false}
+            >
+              <Text style={styles.stepTitle}>{isEditMode ? t('setup.editStep3Title') : t('setup.step3Title')}</Text>
+
+              <Input
+                label={t('setup.locationNameLabel')}
+                placeholder={t('setup.locationNamePlaceholder')}
+                value={name}
+                onChangeText={setName}
+                autoCapitalize="words"
+                autoFocus
+                containerStyle={styles.nameInput}
+              />
+
+              <Button
+                onPress={handleSave}
+                loading={saving}
+                disabled={saving || !name.trim()}
+                fullWidth
+              >
+                {isEditMode ? t('setup.update') : t('setup.save')}
+              </Button>
+            </ScrollView>
+          </KeyboardAvoidingView>
+        </>
+      )}
     </View>
   );
 }
@@ -356,9 +655,7 @@ export default function SetupScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  mapContainer: {
-    flex: 1,
+    backgroundColor: colors.background.default,
   },
   loadingContainer: {
     flex: 1,
@@ -376,29 +673,166 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     color: colors.text.tertiary,
   },
+
+  // Header with step indicator
+  headerBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    paddingTop: Platform.OS === 'ios' ? 50 : spacing.lg,
+    paddingBottom: spacing.md,
+    backgroundColor: colors.background.paper,
+    zIndex: 10,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  backButtonPlaceholder: {
+    width: 40,
+  },
+  stepIndicator: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  stepDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: colors.grey[300],
+  },
+  stepDotActive: {
+    backgroundColor: colors.primary[500],
+    width: 24,
+  },
+  stepDotCompleted: {
+    backgroundColor: colors.primary[300],
+  },
+
+  // Search
+  searchContainer: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 110 : 80,
+    left: spacing.lg,
+    right: spacing.lg,
+    zIndex: 20,
+  },
+  searchInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.background.paper,
+    borderRadius: borderRadius.lg,
+    paddingHorizontal: spacing.md,
+    ...shadows.md,
+  },
+  searchIcon: {
+    marginRight: spacing.sm,
+  },
+  searchInput: {
+    flex: 1,
+    height: 48,
+    fontSize: fontSize.md,
+    color: colors.text.primary,
+  },
+  clearButton: {
+    padding: spacing.sm,
+  },
+  searchResultsContainer: {
+    backgroundColor: colors.background.paper,
+    borderRadius: borderRadius.lg,
+    marginTop: spacing.xs,
+    maxHeight: 200,
+    ...shadows.md,
+  },
+  searchResultsList: {
+    maxHeight: 200,
+  },
+  searchResultItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border.default,
+    gap: spacing.sm,
+  },
+  searchResultText: {
+    flex: 1,
+  },
+  searchResultName: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    color: colors.text.primary,
+  },
+  searchResultAddress: {
+    fontSize: fontSize.xs,
+    color: colors.text.secondary,
+    marginTop: 2,
+  },
+  searchLoading: {
+    padding: spacing.lg,
+    alignItems: 'center',
+  },
+  noResults: {
+    padding: spacing.lg,
+    textAlign: 'center',
+    color: colors.text.secondary,
+    fontSize: fontSize.sm,
+  },
+
+  // Map
+  mapContainer: {
+    flex: 1,
+  },
   map: {
     flex: 1,
   },
-  keyboardAvoidingView: {
+  tapHintOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  tapHintBadge: {
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    borderRadius: borderRadius.full,
+  },
+  tapHintText: {
+    color: colors.white,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+  },
+
+  // Bottom panel
+  bottomPanel: {
     backgroundColor: colors.background.paper,
+    padding: spacing.xl,
     borderTopLeftRadius: borderRadius.xl,
     borderTopRightRadius: borderRadius.xl,
     ...shadows.lg,
   },
-  controlsScroll: {
-    maxHeight: 320,
+  stepTitle: {
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.bold,
+    color: colors.text.primary,
+    marginBottom: spacing.sm,
+    textAlign: 'center',
   },
-  controls: {
-    padding: spacing.xl,
-  },
-  inputContainer: {
-    marginBottom: spacing.md,
+  stepHint: {
+    fontSize: fontSize.sm,
+    color: colors.text.secondary,
+    marginBottom: spacing.lg,
+    textAlign: 'center',
   },
   label: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.semibold,
     color: colors.text.primary,
     marginBottom: spacing.sm,
+    textAlign: 'center',
   },
   radiusControls: {
     flexDirection: 'row',
@@ -420,10 +854,29 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.bold,
     color: colors.text.primary,
   },
-  hint: {
-    fontSize: fontSize.xs,
-    color: colors.text.secondary,
+
+  // Step 3 specific
+  miniMapContainer: {
+    height: 200,
+    margin: spacing.lg,
+    borderRadius: borderRadius.lg,
+    overflow: 'hidden',
+    ...shadows.md,
+  },
+  miniMap: {
+    flex: 1,
+  },
+  step3Panel: {
+    flex: 1,
+    backgroundColor: colors.background.paper,
+    borderTopLeftRadius: borderRadius.xl,
+    borderTopRightRadius: borderRadius.xl,
+    ...shadows.lg,
+  },
+  step3Content: {
+    padding: spacing.xl,
+  },
+  nameInput: {
     marginBottom: spacing.xl,
-    lineHeight: 18,
   },
 });

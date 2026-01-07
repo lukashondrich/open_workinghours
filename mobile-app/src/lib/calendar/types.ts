@@ -1,5 +1,34 @@
 export type ShiftColor = "teal" | "blue" | "green" | "amber" | "rose" | "purple" | "cyan"
 
+// Absence types
+export type AbsenceType = 'vacation' | 'sick'
+
+export interface AbsenceTemplate {
+  id: string
+  type: AbsenceType
+  name: string
+  color: string           // hex color for muted background
+  startTime: string | null  // HH:mm or null for full-day
+  endTime: string | null    // HH:mm or null for full-day
+  isFullDay: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface AbsenceInstance {
+  id: string
+  templateId: string | null  // null for one-off sick days
+  type: AbsenceType
+  date: string              // YYYY-MM-DD
+  startTime: string         // HH:mm
+  endTime: string           // HH:mm
+  isFullDay: boolean
+  name: string              // copied from template or "Sick Day"
+  color: string             // copied from template
+  createdAt: string
+  updatedAt: string
+}
+
 export interface ShiftTemplate {
   id: string
   name: string
@@ -35,7 +64,7 @@ export type ConfirmedDayStatus = {
   lockedSubmissionId?: string | null
 }
 
-export type AppMode = "viewing" | "template-editing" | "shift-armed" | "instance-editing"
+export type AppMode = "viewing" | "template-editing" | "shift-armed" | "instance-editing" | "absence-armed"
 export type CalendarView = "week" | "month"
 
 export interface CalendarState {
@@ -54,6 +83,12 @@ export interface CalendarState {
   confirmedDates: Set<string>
   confirmedDayStatus: Record<string, ConfirmedDayStatus>
   editingTrackingId: string | null
+  // Absence state
+  absenceTemplates: Record<string, AbsenceTemplate>
+  absenceInstances: Record<string, AbsenceInstance>
+  editingAbsenceId: string | null
+  templatePanelTab: 'shifts' | 'absences'
+  armedAbsenceTemplateId: string | null
 }
 
 export type CalendarAction =
@@ -67,6 +102,7 @@ export type CalendarAction =
   | { type: "PLACE_SHIFT"; date: string; timeSlot?: string }
   | { type: "ADD_INSTANCE"; instance: ShiftInstance }
   | { type: "UPDATE_INSTANCE"; id: string; instance: Partial<ShiftInstance> }
+  | { type: "UPDATE_INSTANCE_START_TIME"; id: string; startTime: string }
   | { type: "DELETE_INSTANCE"; id: string }
   | { type: "START_EDIT_TEMPLATE"; id: string }
   | { type: "START_EDIT_INSTANCE"; id: string }
@@ -90,6 +126,20 @@ export type CalendarAction =
   | { type: "DELETE_TRACKING_RECORD"; id: string }
   | { type: "LOCK_CONFIRMED_DAYS"; dates: string[]; submissionId: string }
   | { type: "UNLOCK_CONFIRMED_DAYS"; dates: string[] }
+  // Absence actions
+  | { type: "SET_TEMPLATE_PANEL_TAB"; tab: 'shifts' | 'absences' }
+  | { type: "LOAD_ABSENCE_TEMPLATES"; templates: AbsenceTemplate[] }
+  | { type: "ADD_ABSENCE_TEMPLATE"; template: AbsenceTemplate }
+  | { type: "UPDATE_ABSENCE_TEMPLATE"; id: string; updates: Partial<AbsenceTemplate> }
+  | { type: "DELETE_ABSENCE_TEMPLATE"; id: string }
+  | { type: "LOAD_ABSENCE_INSTANCES"; instances: AbsenceInstance[] }
+  | { type: "ADD_ABSENCE_INSTANCE"; instance: AbsenceInstance }
+  | { type: "UPDATE_ABSENCE_INSTANCE"; id: string; updates: Partial<AbsenceInstance> }
+  | { type: "DELETE_ABSENCE_INSTANCE"; id: string }
+  | { type: "START_EDIT_ABSENCE"; id: string }
+  | { type: "CANCEL_EDIT_ABSENCE" }
+  | { type: "ARM_ABSENCE"; templateId: string }
+  | { type: "DISARM_ABSENCE" }
   | {
       type: "HYDRATE_STATE"
       payload: {
@@ -97,5 +147,7 @@ export type CalendarAction =
         instances: Record<string, ShiftInstance>
         trackingRecords: Record<string, TrackingRecord>
         confirmedDayStatus?: Record<string, ConfirmedDayStatus>
+        absenceTemplates?: Record<string, AbsenceTemplate>
+        absenceInstances?: Record<string, AbsenceInstance>
       }
     }

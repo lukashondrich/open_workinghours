@@ -1,5 +1,5 @@
 import { addDays, startOfMonth, endOfMonth, eachDayOfInterval, format } from 'date-fns';
-import type { ShiftColor, ShiftInstance, TrackingRecord } from './types';
+import type { ShiftColor, ShiftInstance, TrackingRecord, AbsenceInstance } from './types';
 
 export function getWeekDays(weekStart: Date): Date[] {
   return Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -142,6 +142,44 @@ export function formatDuration(minutes: number): string {
     return `${hours}h`;
   }
   return `${hours}h ${mins}min`;
+}
+
+/**
+ * Check if a new shift would overlap with existing shifts on the same date.
+ * Returns the overlapping instance if found, null if no overlap.
+ *
+ * @param date - The date to check (YYYY-MM-DD)
+ * @param startTime - Start time of the new shift (HH:mm)
+ * @param duration - Duration in minutes
+ * @param instances - All existing instances
+ * @param excludeId - Optional instance ID to exclude (for editing existing shifts)
+ */
+export function findOverlappingShift(
+  date: string,
+  startTime: string,
+  duration: number,
+  instances: Record<string, ShiftInstance>,
+  excludeId?: string
+): ShiftInstance | null {
+  const newStart = timeToMinutes(startTime);
+  const newEnd = newStart + duration;
+
+  for (const instance of Object.values(instances)) {
+    // Skip if different date
+    if (instance.date !== date) continue;
+    // Skip if this is the instance being edited
+    if (excludeId && instance.id === excludeId) continue;
+
+    const existingStart = timeToMinutes(instance.startTime);
+    const existingEnd = existingStart + instance.duration;
+
+    // Check for any overlap: new shift starts before existing ends AND new shift ends after existing starts
+    if (newStart < existingEnd && newEnd > existingStart) {
+      return instance;
+    }
+  }
+
+  return null;
 }
 
 /**
@@ -306,4 +344,141 @@ export function getInstancesForDate(
       })
     : [];
   return { current, fromPrevious };
+}
+
+// ========================================
+// Absence Helper Functions
+// ========================================
+
+/**
+ * Get absences for a specific date
+ */
+export function getAbsencesForDate(
+  absences: Record<string, AbsenceInstance>,
+  date: string,
+): AbsenceInstance[] {
+  return Object.values(absences).filter((absence) => absence.date === date);
+}
+
+/**
+ * Calculate time overlap in minutes between two time ranges on the same day.
+ * Handles full-day absences (00:00-23:59 or null times).
+ *
+ * @param start1 - Start time of first range (HH:mm)
+ * @param end1 - End time of first range (HH:mm)
+ * @param start2 - Start time of second range (HH:mm)
+ * @param end2 - End time of second range (HH:mm)
+ * @returns Overlap duration in minutes (0 if no overlap)
+ */
+export function calculateTimeOverlapMinutes(
+  start1: string,
+  end1: string,
+  start2: string,
+  end2: string,
+): number {
+  const s1 = timeToMinutes(start1);
+  const e1 = timeToMinutes(end1);
+  const s2 = timeToMinutes(start2);
+  const e2 = timeToMinutes(end2);
+
+  const overlapStart = Math.max(s1, s2);
+  const overlapEnd = Math.min(e1, e2);
+
+  if (overlapStart >= overlapEnd) {
+    return 0;
+  }
+
+  return overlapEnd - overlapStart;
+}
+
+/**
+ * Calculate overlap between a shift and an absence on the same day.
+ *
+ * @param shift - The shift instance
+ * @param absence - The absence instance
+ * @returns Object with overlap minutes and whether shift is fully covered
+ */
+export function getShiftAbsenceOverlap(
+  shift: ShiftInstance,
+  absence: AbsenceInstance,
+): { overlapMinutes: number; isFullyOverlapped: boolean } {
+  // Different dates = no overlap
+  if (shift.date !== absence.date) {
+    return { overlapMinutes: 0, isFullyOverlapped: false };
+  }
+
+  // Calculate shift end time
+  const shiftStartMinutes = timeToMinutes(shift.startTime);
+  const shiftEndMinutes = shiftStartMinutes + shift.duration;
+  const shiftEnd = `${String(Math.floor(shiftEndMinutes / 60) % 24).padStart(2, '0')}:${String(shiftEndMinutes % 60).padStart(2, '0')}`;
+
+  // For full-day absences, use 00:00-23:59
+  const absenceStart = absence.isFullDay ? '00:00' : absence.startTime;
+  const absenceEnd = absence.isFullDay ? '23:59' : absence.endTime;
+
+  const overlapMinutes = calculateTimeOverlapMinutes(
+    shift.startTime,
+    shiftEnd,
+    absenceStart,
+    absenceEnd,
+  );
+
+  const isFullyOverlapped = overlapMinutes >= shift.duration;
+
+  return { overlapMinutes, isFullyOverlapped };
+}
+
+/**
+ * Calculate effective planned minutes for a day, accounting for absence overlaps.
+ *
+ * Formula: effectivePlanned = sum(shift durations) - sum(overlap with absences)
+ *
+ * @param shifts - Shift instances for the day
+ * @param absences - Absence instances for the day
+ * @returns Effective planned minutes after subtracting absence overlaps
+ */
+export function calculateEffectivePlannedMinutes(
+  shifts: ShiftInstance[],
+  absences: AbsenceInstance[],
+): number {
+  if (shifts.length === 0) return 0;
+  if (absences.length === 0) {
+    return shifts.reduce((total, shift) => total + shift.duration, 0);
+  }
+
+  let totalPlanned = 0;
+
+  for (const shift of shifts) {
+    let shiftMinutes = shift.duration;
+
+    // Subtract overlap with each absence
+    for (const absence of absences) {
+      const { overlapMinutes } = getShiftAbsenceOverlap(shift, absence);
+      shiftMinutes -= overlapMinutes;
+    }
+
+    // Don't go below 0
+    totalPlanned += Math.max(0, shiftMinutes);
+  }
+
+  return totalPlanned;
+}
+
+/**
+ * Check if a shift has any overlap with absences on the same day.
+ * Used for visual dimming of shifts.
+ *
+ * @param shift - The shift to check
+ * @param absences - All absence instances
+ * @returns true if shift overlaps with any absence
+ */
+export function shiftHasAbsenceOverlap(
+  shift: ShiftInstance,
+  absences: Record<string, AbsenceInstance>,
+): boolean {
+  const dayAbsences = getAbsencesForDate(absences, shift.date);
+  return dayAbsences.some((absence) => {
+    const { overlapMinutes } = getShiftAbsenceOverlap(shift, absence);
+    return overlapMinutes > 0;
+  });
 }

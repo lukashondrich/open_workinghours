@@ -2,8 +2,8 @@
 
 This file provides context for AI assistants (Claude) working on this project.
 
-**Last Updated:** 2026-01-04
-**Status:** Demo account for App Store review deployed
+**Last Updated:** 2026-01-06
+**Status:** Processing user test feedback (Cluster C planned)
 
 ---
 
@@ -127,13 +127,37 @@ Only when a module/feature is:
 | `README.md` | User-facing setup guide | ✅ Current |
 | `website/README.md` | Dossier website setup and content guide | ✅ New |
 | `BACKEND_REDESIGN_PLAN.md` | Backend redesign planning | ✅ Complete |
+| `docs/user-test-feedback-2026-01.md` | User test feedback & bug triage | 🔄 Active |
+| `docs/CLUSTER_C_PLAN.md` | Tracking Data UX improvements | 🔄 Planned |
 | `integration-testing-plan.md` | E2E testing strategy (Detox) | ⏸️ On hold |
 | `docs/e2e-status.md` | E2E implementation status | ⏸️ On hold |
 | `archive/` | Archived planning docs (Module 1, old Module 2) | 📦 Reference |
 
 ---
 
-## Current State (2026-01-03)
+## Current State (2026-01-06)
+
+### Active Work: User Test Feedback
+
+A physician tester (iPhone 13, iOS 18) provided feedback on 2026-01-06. Issues are organized into clusters:
+
+| Cluster | Focus | Status |
+|---------|-------|--------|
+| A | Quick bug fixes (zoom, arrows, spinner) | ✅ Fixed, awaiting device test |
+| B | Shift instance management | Pending |
+| C | Tracking data UX (tap targets, 14-day) | ✅ Implemented - see `docs/CLUSTER_C_PLAN.md` |
+| D | Location setup UX | Pending |
+| E | Vacation/Sick days | Needs design |
+
+**Cluster C improvements:**
+- Sessions < 5 min filtered at recording (noise reduction)
+- 8px min visual height + 20px hitSlop (less clunky, still tappable)
+- "Session Discarded" notification for short sessions
+- Duration format unified to "1h 30min" across app
+- Pre-account days show "—" in 14-day overview
+
+**Next build:** #29 (ready for upload)
+**Full details:** `docs/user-test-feedback-2026-01.md`
 
 ### What Exists & Works
 
@@ -997,9 +1021,9 @@ Previous: add privacy_architecture.md
 
 ---
 
-**Last Updated:** 2026-01-04
-**Status:** Demo account for App Store review deployed
-**Current Focus:** TestFlight build for external testers
+**Last Updated:** 2026-01-06
+**Status:** Processing user test feedback (Cluster C planned)
+**Current Focus:** Cluster C implementation (user test feedback)
 **Production URLs:**
 - Website: https://openworkinghours.org
 - Backend API: https://api.openworkinghours.org

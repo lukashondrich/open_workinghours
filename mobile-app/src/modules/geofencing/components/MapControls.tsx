@@ -2,28 +2,14 @@ import React from 'react';
 import { View, TouchableOpacity, StyleSheet, Text } from 'react-native';
 
 interface MapControlsProps {
-  onZoomIn: () => void;
-  onZoomOut: () => void;
   onMyLocation: () => void;
   bottomOffset?: number;
 }
 
 export default function MapControls({
-  onZoomIn,
-  onZoomOut,
   onMyLocation,
   bottomOffset = 340,
 }: MapControlsProps) {
-  const handleZoomIn = () => {
-    console.log('[MapControls] Zoom In pressed!');
-    onZoomIn();
-  };
-
-  const handleZoomOut = () => {
-    console.log('[MapControls] Zoom Out pressed!');
-    onZoomOut();
-  };
-
   const handleMyLocation = () => {
     console.log('[MapControls] My Location pressed!');
     onMyLocation();
@@ -31,16 +17,6 @@ export default function MapControls({
 
   return (
     <View style={[styles.container, { bottom: bottomOffset }]}>
-      {/* Zoom In */}
-      <TouchableOpacity style={styles.button} onPress={handleZoomIn}>
-        <Text style={styles.buttonText}>+</Text>
-      </TouchableOpacity>
-
-      {/* Zoom Out */}
-      <TouchableOpacity style={styles.button} onPress={handleZoomOut}>
-        <Text style={styles.buttonText}>−</Text>
-      </TouchableOpacity>
-
       {/* My Location */}
       <TouchableOpacity style={styles.button} onPress={handleMyLocation}>
         <Text style={styles.buttonText}>📍</Text>

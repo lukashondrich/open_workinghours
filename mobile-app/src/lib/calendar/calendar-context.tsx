@@ -16,6 +16,8 @@ import type {
   ShiftInstance,
   TrackingRecord,
   ConfirmedDayStatus,
+  AbsenceTemplate,
+  AbsenceInstance,
 } from './types';
 import { calendarReducer, initialState } from './calendar-reducer';
 import { getCalendarStorage } from '@/modules/calendar/services/CalendarStorage';
@@ -76,17 +78,26 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
         if (!isMounted) return;
         storageRef.current = storage;
 
-        const [templates, instances, trackingRecords, confirmedDays] = await Promise.all([
+        const [templates, instances, trackingRecords, confirmedDays, absenceTemplates, absenceInstances] = await Promise.all([
           storage.loadTemplates(),
           storage.loadInstances(),
           storage.loadTrackingRecords(),
           storage.loadConfirmedDays(),
+          storage.loadAbsenceTemplates(),
+          storage.loadAbsenceInstances(),
         ]);
 
         if (!isMounted) return;
         dispatch({
           type: 'HYDRATE_STATE',
-          payload: { templates, instances, trackingRecords, confirmedDayStatus: confirmedDays },
+          payload: {
+            templates,
+            instances,
+            trackingRecords,
+            confirmedDayStatus: confirmedDays,
+            absenceTemplates,
+            absenceInstances,
+          },
         });
       } catch (error) {
         console.error('[CalendarProvider] Failed to hydrate calendar data:', error);
@@ -136,6 +147,14 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const persistAbsenceInstances = async (instances: AbsenceInstance[]) => {
+    try {
+      await storageRef.current?.replaceAbsenceInstances(instances);
+    } catch (error) {
+      console.error('[CalendarProvider] Failed to persist absence instances:', error);
+    }
+  };
+
   useEffect(() => {
     if (!isHydrated) return;
     persistTemplates(Object.values(state.templates));
@@ -155,6 +174,11 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
     if (!isHydrated) return;
     persistConfirmedDays(state.confirmedDayStatus);
   }, [state.confirmedDayStatus, isHydrated]);
+
+  useEffect(() => {
+    if (!isHydrated) return;
+    persistAbsenceInstances(Object.values(state.absenceInstances));
+  }, [state.absenceInstances, isHydrated]);
 
   return <CalendarContext.Provider value={{ state, dispatch }}>{children}</CalendarContext.Provider>;
 }

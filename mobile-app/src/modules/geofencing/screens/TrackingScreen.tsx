@@ -5,7 +5,9 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
+import MapView, { Circle as MapCircle, Marker } from 'react-native-maps';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Circle, Bot, Hand } from 'lucide-react-native';
@@ -128,14 +130,55 @@ export default function TrackingScreen({ navigation, route }: Props) {
 
   const isTracking = activeSession !== null;
 
+  // Map circle colors
+  const MAP_CIRCLE_STROKE = 'rgba(46, 139, 107, 0.6)';
+  const MAP_CIRCLE_FILL = 'rgba(46, 139, 107, 0.2)';
+
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.locationName}>{location?.name || t('tracking.unknownLocation')}</Text>
-      </View>
+      {/* Map showing saved location */}
+      {location && (
+        <View style={styles.mapContainer}>
+          <MapView
+            style={styles.map}
+            region={{
+              latitude: location.latitude,
+              longitude: location.longitude,
+              latitudeDelta: 0.005,
+              longitudeDelta: 0.005,
+            }}
+            scrollEnabled={true}
+            zoomEnabled={true}
+            pitchEnabled={false}
+            rotateEnabled={false}
+          >
+            <Marker
+              coordinate={{
+                latitude: location.latitude,
+                longitude: location.longitude,
+              }}
+            />
+            <MapCircle
+              center={{
+                latitude: location.latitude,
+                longitude: location.longitude,
+              }}
+              radius={location.radiusMeters}
+              strokeColor={MAP_CIRCLE_STROKE}
+              fillColor={MAP_CIRCLE_FILL}
+              strokeWidth={2}
+            />
+          </MapView>
+          <View style={styles.mapOverlay}>
+            <Text style={styles.locationName}>{location.name}</Text>
+            <Text style={styles.radiusText}>{location.radiusMeters}m radius</Text>
+          </View>
+        </View>
+      )}
 
-      <View style={styles.statusContainer}>
-        <Badge
+      <ScrollView style={styles.content} contentContainerStyle={styles.contentInner}>
+        <View style={styles.statusContainer}>
+          <Badge
           variant={isTracking ? 'success' : 'default'}
           size="md"
           icon={<Circle size={16} color={isTracking ? colors.primary[500] : colors.grey[400]} fill={isTracking ? colors.primary[500] : 'transparent'} />}
@@ -166,42 +209,43 @@ export default function TrackingScreen({ navigation, route }: Props) {
             </View>
           </Card>
         )}
-      </View>
+        </View>
 
-      <View style={styles.controls}>
-        {isTracking ? (
-          <Button
-            variant="danger"
-            onPress={handleClockOut}
-            loading={actionLoading}
-            disabled={actionLoading}
-            fullWidth
-            size="lg"
-          >
-            {t('tracking.clockOut')}
+        <View style={styles.controls}>
+          {isTracking ? (
+            <Button
+              variant="danger"
+              onPress={handleClockOut}
+              loading={actionLoading}
+              disabled={actionLoading}
+              fullWidth
+              size="lg"
+            >
+              {t('tracking.clockOut')}
+            </Button>
+          ) : (
+            <Button
+              onPress={handleClockIn}
+              loading={actionLoading}
+              disabled={actionLoading}
+              fullWidth
+              size="lg"
+            >
+              {t('tracking.clockIn')}
+            </Button>
+          )}
+
+          <Text style={styles.hint}>
+            {isTracking
+              ? t('tracking.hintTracking')
+              : t('tracking.hintNotTracking')}
+          </Text>
+
+          <Button variant="ghost" onPress={handleViewHistory}>
+            {t('tracking.viewHistory')}
           </Button>
-        ) : (
-          <Button
-            onPress={handleClockIn}
-            loading={actionLoading}
-            disabled={actionLoading}
-            fullWidth
-            size="lg"
-          >
-            {t('tracking.clockIn')}
-          </Button>
-        )}
-
-        <Text style={styles.hint}>
-          {isTracking
-            ? t('tracking.hintTracking')
-            : t('tracking.hintNotTracking')}
-        </Text>
-
-        <Button variant="ghost" onPress={handleViewHistory}>
-          {t('tracking.viewHistory')}
-        </Button>
-      </View>
+        </View>
+      </ScrollView>
     </View>
   );
 }
@@ -217,25 +261,44 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.background.default,
   },
-  header: {
-    backgroundColor: colors.background.paper,
-    padding: spacing.xl,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border.default,
+  mapContainer: {
+    height: 200,
+    position: 'relative',
+  },
+  map: {
+    flex: 1,
+  },
+  mapOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    padding: spacing.md,
+    paddingRight: spacing.xl,
   },
   locationName: {
-    fontSize: fontSize.xxl,
+    fontSize: fontSize.lg,
     fontWeight: fontWeight.bold,
-    color: colors.text.primary,
+    color: colors.white,
+  },
+  radiusText: {
+    fontSize: fontSize.sm,
+    color: 'rgba(255, 255, 255, 0.8)',
+    marginTop: spacing.xs,
+  },
+  content: {
+    flex: 1,
+  },
+  contentInner: {
+    paddingBottom: spacing.xl,
   },
   statusContainer: {
-    flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
     padding: spacing.xl,
   },
   statusBadge: {
-    marginBottom: spacing.xxxl,
+    marginBottom: spacing.lg,
   },
   sessionCard: {
     alignItems: 'center',

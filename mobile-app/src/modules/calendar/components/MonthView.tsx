@@ -1,10 +1,11 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { format, startOfMonth, endOfMonth, startOfWeek, addDays, isSameDay } from 'date-fns';
+import { TreePalm, Thermometer } from 'lucide-react-native';
 
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/theme';
 import { useCalendar } from '@/lib/calendar/calendar-context';
-import { getMonthDays, formatDateKey, getColorPalette } from '@/lib/calendar/calendar-utils';
+import { getMonthDays, formatDateKey, getColorPalette, getAbsencesForDate } from '@/lib/calendar/calendar-utils';
 import { t } from '@/lib/i18n';
 
 const WEEKDAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
@@ -22,6 +23,8 @@ function DayCell({
     templateColors: string[];
     tracked: boolean;
     confirmed: boolean;
+    hasVacation: boolean;
+    hasSick: boolean;
   };
   isToday: boolean;
   isCurrentMonth: boolean;
@@ -45,11 +48,17 @@ function DayCell({
       >
         {format(date, 'd')}
       </Text>
+      {/* Row 1: Shift dots (always present for consistent layout) */}
       <View style={styles.dotRow}>
         {indicators.templateColors.map((color: string, idx: number) => (
           <View key={`${color}-${idx}`} style={[styles.dot, { backgroundColor: color }]} />
         ))}
         {indicators.tracked && <View style={[styles.dot, styles.trackedDot]} />}
+      </View>
+      {/* Row 2: Absence icons (always present for consistent layout) */}
+      <View style={styles.absenceRow}>
+        {indicators.hasVacation && <TreePalm size={10} color="#6B7280" />}
+        {indicators.hasSick && <Thermometer size={10} color="#92400E" />}
       </View>
     </TouchableOpacity>
   );
@@ -77,10 +86,17 @@ export default function MonthView() {
     const tracked = Object.values(state.trackingRecords).some((record) => record.date === dateKey);
     const confirmed = state.confirmedDates.has(dateKey);
 
+    // Check for absences
+    const absences = getAbsencesForDate(state.absenceInstances, dateKey);
+    const hasVacation = absences.some((a) => a.type === 'vacation');
+    const hasSick = absences.some((a) => a.type === 'sick');
+
     return {
       templateColors: templateColors.slice(0, 3),
       tracked,
       confirmed,
+      hasVacation,
+      hasSick,
     };
   };
 
@@ -171,6 +187,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'center',
     gap: 2,
+    minHeight: 8, // Consistent height even when no shifts
   },
   dot: {
     width: 6,
@@ -183,5 +200,12 @@ const styles = StyleSheet.create({
   },
   confirmedDot: {
     backgroundColor: colors.primary[600],
+  },
+  absenceRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 2,
+    marginTop: 2,
+    minHeight: 10, // Consistent height even when empty
   },
 });

@@ -43,7 +43,7 @@
 ## Implementation Plan
 
 ### Cluster A: Quick Bug Fixes (1 session)
-**Status:** Zoom fix tested - acceptable, others awaiting device test
+**Status:** In Progress - See [CLUSTER_A_PLAN.md](./CLUSTER_A_PLAN.md)
 
 | Issue | Effort | Fix Applied | Status |
 |-------|--------|-------------|--------|
@@ -79,12 +79,12 @@
 | Template edits → update future instances | Medium | Past instances stay frozen |
 
 ### Cluster C: Tracking Data UX (1 session)
-**Status:** Pending
+**Status:** ✅ Implemented - See [CLUSTER_C_PLAN.md](./CLUSTER_C_PLAN.md)
 
-| Issue | Effort | Notes |
-|-------|--------|-------|
-| Larger tap targets for short GPS records | Low | Minimum height + expanded hit area |
-| "No data yet" for pre-account days | Low | Check account creation date |
+| Issue | Effort | Solution | Status |
+|-------|--------|----------|--------|
+| Short GPS records hard to tap | Low | Filter < 5 min at recording + 16px min visual height | ✅ Done |
+| "No data yet" for pre-account days | Medium | Fetch `createdAt` from `/auth/me`, gray out pre-account days | ✅ Done |
 
 ### Cluster D: Location Setup UX (1 session)
 **Status:** Pending
@@ -95,15 +95,27 @@
 | Show geofences in Status screen | Low | More prominent location display |
 | Zoom controls location/clarity | Low | Move +/- or relabel |
 
-### Cluster E: Day Types - Vacation/Sick (needs design)
-**Status:** Pending - Requires Design
+### Cluster E: Day Types - Vacation/Sick
+**Status:** ✅ Implemented + Refined - See [CLUSTER_E_PLAN.md](./CLUSTER_E_PLAN.md)
 
-| Issue | Effort | Notes |
-|-------|--------|-------|
-| Vacation days | Medium-High | Day-level flag, blocks shifts |
-| Sick days | Medium-High | Same pattern as vacation |
+| Issue | Effort | Solution | Status |
+|-------|--------|----------|--------|
+| Vacation days | Medium-High | Separate Absence entity with templates | ✅ Done |
+| Sick days | Medium-High | One-off entries, full day default | ✅ Done |
+| Absence arming bug | Low | Fixed: absences now stay armed when closing panel | ✅ Done |
+| Long-press picker missing absences | Medium | Added Shifts/Absences tabs to quick picker | ✅ Done |
+| Drag handles for time adjustment | Medium | Added grabbers like tracking records | ✅ Done |
+| MonthView layout | Low | Consistent two-row layout (shifts top, absences bottom) | ✅ Done |
 
-**Design approach:** Start with day-level flags (simplest). A day can be Normal, Vacation, or Sick. Integrates with 14-day overview as "absence" rather than "0 hours".
+**Design decisions (refined):**
+- Separate `AbsenceTemplate` + `AbsenceInstance` tables (not special shift type)
+- Simplified templates: just "Vacation" and "Sick Day" (removed half-day variants)
+- Times adjustable via drag handles (same UX as tracking records)
+- Visual: muted color block + icon (TreePalm 🌴 / Thermometer 🌡️)
+- Overlap: shifts dimmed where absence overlaps, that time doesn't count toward planned
+- 14-day overview: absences reduce planned hours, icon row shows absence days
+- MonthView: consistent two-row layout (Row 1: shift dots, Row 2: absence icons)
+- Local only - not submitted to backend
 
 ---
 
@@ -185,6 +197,78 @@ We attempted to use `react-native-reanimated` for smoother 60fps pinch zoom:
 - Tested in simulator - zoom works without crashes, behavior is "acceptable"
 
 **Lesson learned:** Reanimated + Expo SDK 54 + new architecture may have compatibility issues. Revisit in future Expo SDK version.
+
+**2026-01-06 (Session 3 - Cluster C Planning):**
+- Decided to tackle Cluster C next (vs Cluster B) based on technical practicality
+- Explored codebase for both issues:
+  - GPS tap targets: Found root cause in `WeekView.tsx` - Pressable height = visual height
+  - 14-day overview: Found `DashboardDataService` hard-codes 14-day window, `createdAt` available but not used
+- Analyzed risks and tradeoffs for different approaches
+- Decided on two-part solution for GPS records:
+  1. Filter sessions < 5 min at recording time (noise reduction)
+  2. Minimum visual height of 16px (tappability)
+- Decided on graceful degradation for 14-day overview:
+  1. Fetch `createdAt` from `/auth/me` after login
+  2. Gray out pre-account days with "—" indicator
+- Created `CLUSTER_C_PLAN.md` with detailed implementation steps
+
+**2026-01-06 (Session 4 - Cluster C Implementation):**
+- Implemented all Cluster C changes with refinements based on testing:
+
+**Issue 1: Short GPS records hard to tap**
+- Added `MIN_SESSION_MINUTES = 5` constant to `TrackingManager.ts`
+- Modified `handleGeofenceExit()` and `clockOut()` to delete sessions < 5 min
+- Added "Session Discarded" notification when short session is deleted
+- Added `MIN_TRACKING_HEIGHT = 8` (reduced from 16 for less clunky look)
+- Added `MIN_TRACKING_HIT_SLOP = 20` for expanded tap target via hitSlop
+- Changed duration format from "0.3 hours" to "20min" using `formatDuration()`
+
+**Issue 2: 14-day overview for new accounts**
+- Added `createdAt?: string` to `User` interface in `auth-types.ts`
+- Added `createdAt: string` to `MeResponse` interface
+- Updated `AuthService.getCurrentUser()` to extract `created_at` from response
+- Updated `AuthService.register()` to call `getCurrentUser()` after registration
+- Added `isPreAccount: boolean` to `DailyHoursData` interface
+- Modified `loadDashboardData()` to accept `accountCreatedAt` parameter
+- Updated `Bar` component in `HoursSummaryWidget.tsx` to show "—" for pre-account days
+- Updated `HoursSummaryWidget` to use `formatDuration()` for consistent format
+- Updated `StatusScreen.tsx` to pass `authState.user?.createdAt` to `loadDashboardData()`
+
+**Files changed:**
+- `mobile-app/src/modules/geofencing/services/TrackingManager.ts`
+- `mobile-app/src/modules/calendar/components/WeekView.tsx`
+- `mobile-app/src/lib/auth/auth-types.ts`
+- `mobile-app/src/modules/auth/services/AuthService.ts`
+- `mobile-app/src/modules/geofencing/services/DashboardDataService.ts`
+- `mobile-app/src/modules/geofencing/components/HoursSummaryWidget.tsx`
+- `mobile-app/src/modules/geofencing/screens/StatusScreen.tsx`
+
+**Ready for Build #29**
+
+**2026-01-06 (Session 5 - Cluster E Refinements):**
+- Fixed absence arming bug: absences now stay armed when closing TemplatePanel (like shifts)
+- Added `absence-armed` mode to AppMode type for consistency
+- Added Shifts/Absences tabs to long-press quick picker modal
+- Changed vacation icon from Umbrella to TreePalm
+- Simplified default absence templates: removed "Half Day AM/PM", kept only "Vacation" and "Sick Day"
+- Added drag handles to AbsenceCard for adjusting start/end times:
+  - Tap absence to select (shows grabbers + primary border)
+  - Drag top grabber to adjust start time
+  - Drag bottom grabber to adjust end time
+  - Same UX as tracking records
+- Updated MonthView for consistent two-row layout:
+  - Row 1 (top): Shift dots (minHeight: 8px)
+  - Row 2 (bottom): Absence icons (minHeight: 10px)
+  - Both rows always rendered for consistent spacing
+
+**Files changed:**
+- `mobile-app/src/modules/calendar/components/WeekView.tsx` - AbsenceCard with grabbers, handlers
+- `mobile-app/src/modules/calendar/components/TemplatePanel.tsx` - Fixed arming, TreePalm icon
+- `mobile-app/src/modules/calendar/components/MonthView.tsx` - Two-row layout, TreePalm icon
+- `mobile-app/src/modules/geofencing/components/HoursSummaryWidget.tsx` - TreePalm icon
+- `mobile-app/src/modules/calendar/services/CalendarStorage.ts` - Simplified default templates
+- `mobile-app/src/lib/calendar/calendar-reducer.ts` - absence-armed mode
+- `mobile-app/src/lib/calendar/types.ts` - AppMode type updated
 
 ---
 

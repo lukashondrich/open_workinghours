@@ -1,5 +1,5 @@
-import { addWeeks, subWeeks } from 'date-fns';
-import type { CalendarState, CalendarAction, ShiftInstance, ConfirmedDayStatus } from './types';
+import { addWeeks, subWeeks, format } from 'date-fns';
+import type { CalendarState, CalendarAction, ShiftInstance, ConfirmedDayStatus, AbsenceTemplate, AbsenceInstance } from './types';
 import { generateSimulatedTracking } from './calendar-utils';
 
 function computeEndTime(startTime: string, duration: number): string {
@@ -35,6 +35,12 @@ export const initialState: CalendarState = {
   confirmedDates: new Set(),
   confirmedDayStatus: {},
   editingTrackingId: null,
+  // Absence state
+  absenceTemplates: {},
+  absenceInstances: {},
+  editingAbsenceId: null,
+  templatePanelTab: 'shifts',
+  armedAbsenceTemplateId: null,
 };
 
 export function calendarReducer(state: CalendarState, action: CalendarAction): CalendarState {
@@ -49,6 +55,8 @@ export function calendarReducer(state: CalendarState, action: CalendarAction): C
         confirmedDates: action.payload.confirmedDayStatus
           ? deriveConfirmedSet(action.payload.confirmedDayStatus)
           : state.confirmedDates,
+        absenceTemplates: action.payload.absenceTemplates ?? state.absenceTemplates,
+        absenceInstances: action.payload.absenceInstances ?? state.absenceInstances,
       };
     case 'SET_MODE':
       return { ...state, mode: action.mode };
@@ -59,21 +67,60 @@ export function calendarReducer(state: CalendarState, action: CalendarAction): C
         ...state,
         templates: { ...state.templates, [action.template.id]: action.template },
       };
-    case 'UPDATE_TEMPLATE':
+    case 'UPDATE_TEMPLATE': {
+      const oldTemplate = state.templates[action.id];
+      if (!oldTemplate) return state;
+
+      const updatedTemplate = { ...oldTemplate, ...action.template };
+      const today = format(new Date(), 'yyyy-MM-dd');
+
+      // Propagate changes to all future instances of this template
+      const updatedInstances = { ...state.instances };
+      for (const [instanceId, instance] of Object.entries(updatedInstances)) {
+        if (instance.templateId !== action.id) continue;
+        if (instance.date <= today) continue; // Skip past/today instances
+
+        // Update instance with new template values
+        updatedInstances[instanceId] = {
+          ...instance,
+          name: updatedTemplate.name,
+          startTime: updatedTemplate.startTime,
+          duration: updatedTemplate.duration,
+          endTime: computeEndTime(updatedTemplate.startTime, updatedTemplate.duration),
+          color: updatedTemplate.color,
+        };
+      }
+
       return {
         ...state,
-        templates: {
-          ...state.templates,
-          [action.id]: {
-            ...state.templates[action.id],
-            ...action.template,
-          },
-        },
+        templates: { ...state.templates, [action.id]: updatedTemplate },
+        instances: updatedInstances,
       };
+    }
     case 'DELETE_TEMPLATE': {
-      const remaining = { ...state.templates };
-      delete remaining[action.id];
-      return { ...state, templates: remaining };
+      const today = format(new Date(), 'yyyy-MM-dd');
+
+      // Remove template
+      const remainingTemplates = { ...state.templates };
+      delete remainingTemplates[action.id];
+
+      // Remove future instances, keep past ones (they become orphaned)
+      const remainingInstances = { ...state.instances };
+      for (const [instanceId, instance] of Object.entries(remainingInstances)) {
+        if (instance.templateId === action.id && instance.date > today) {
+          delete remainingInstances[instanceId];
+        }
+      }
+
+      // Disarm if this template was armed
+      const armedTemplateId = state.armedTemplateId === action.id ? null : state.armedTemplateId;
+
+      return {
+        ...state,
+        templates: remainingTemplates,
+        instances: remainingInstances,
+        armedTemplateId,
+      };
     }
     case 'ARM_SHIFT':
       return { ...state, mode: 'shift-armed', armedTemplateId: action.templateId };
@@ -117,6 +164,19 @@ export function calendarReducer(state: CalendarState, action: CalendarAction): C
         merged.endTime = computeEndTime(merged.startTime, merged.duration);
       }
       return { ...state, instances: { ...state.instances, [action.id]: merged } };
+    }
+    case 'UPDATE_INSTANCE_START_TIME': {
+      const instance = state.instances[action.id];
+      if (!instance) return state;
+      const updatedInstance = {
+        ...instance,
+        startTime: action.startTime,
+        endTime: computeEndTime(action.startTime, instance.duration),
+      };
+      return {
+        ...state,
+        instances: { ...state.instances, [action.id]: updatedInstance },
+      };
     }
     case 'DELETE_INSTANCE': {
       const remaining = { ...state.instances };
@@ -322,6 +382,106 @@ export function calendarReducer(state: CalendarState, action: CalendarAction): C
         ...state,
         trackingRecords: action.trackingRecords,
       };
+
+    // ========================================
+    // Absence Actions
+    // ========================================
+
+    case 'SET_TEMPLATE_PANEL_TAB':
+      return { ...state, templatePanelTab: action.tab };
+
+    case 'LOAD_ABSENCE_TEMPLATES': {
+      const templatesRecord: Record<string, AbsenceTemplate> = {};
+      action.templates.forEach((t) => {
+        templatesRecord[t.id] = t;
+      });
+      return { ...state, absenceTemplates: templatesRecord };
+    }
+
+    case 'ADD_ABSENCE_TEMPLATE':
+      return {
+        ...state,
+        absenceTemplates: {
+          ...state.absenceTemplates,
+          [action.template.id]: action.template,
+        },
+      };
+
+    case 'UPDATE_ABSENCE_TEMPLATE': {
+      const existing = state.absenceTemplates[action.id];
+      if (!existing) return state;
+      return {
+        ...state,
+        absenceTemplates: {
+          ...state.absenceTemplates,
+          [action.id]: { ...existing, ...action.updates },
+        },
+      };
+    }
+
+    case 'DELETE_ABSENCE_TEMPLATE': {
+      const remaining = { ...state.absenceTemplates };
+      delete remaining[action.id];
+      return { ...state, absenceTemplates: remaining };
+    }
+
+    case 'LOAD_ABSENCE_INSTANCES': {
+      const instancesRecord: Record<string, AbsenceInstance> = {};
+      action.instances.forEach((i) => {
+        instancesRecord[i.id] = i;
+      });
+      return { ...state, absenceInstances: instancesRecord };
+    }
+
+    case 'ADD_ABSENCE_INSTANCE':
+      return {
+        ...state,
+        absenceInstances: {
+          ...state.absenceInstances,
+          [action.instance.id]: action.instance,
+        },
+      };
+
+    case 'UPDATE_ABSENCE_INSTANCE': {
+      const existing = state.absenceInstances[action.id];
+      if (!existing) return state;
+      return {
+        ...state,
+        absenceInstances: {
+          ...state.absenceInstances,
+          [action.id]: { ...existing, ...action.updates },
+        },
+      };
+    }
+
+    case 'DELETE_ABSENCE_INSTANCE': {
+      const remaining = { ...state.absenceInstances };
+      delete remaining[action.id];
+      return {
+        ...state,
+        absenceInstances: remaining,
+        editingAbsenceId: state.editingAbsenceId === action.id ? null : state.editingAbsenceId,
+      };
+    }
+
+    case 'START_EDIT_ABSENCE':
+      return { ...state, editingAbsenceId: action.id };
+
+    case 'CANCEL_EDIT_ABSENCE':
+      return { ...state, editingAbsenceId: null };
+
+    case 'ARM_ABSENCE':
+      return {
+        ...state,
+        armedAbsenceTemplateId: action.templateId,
+        // Disarm any shift template
+        armedTemplateId: null,
+        mode: 'absence-armed',
+      };
+
+    case 'DISARM_ABSENCE':
+      return { ...state, armedAbsenceTemplateId: null, mode: 'viewing' };
+
     default:
       return state;
   }

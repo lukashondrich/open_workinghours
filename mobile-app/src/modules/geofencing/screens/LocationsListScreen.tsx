@@ -163,8 +163,15 @@ export default function LocationsListScreen() {
   };
 
   const handleEditLocation = (location: UserLocation) => {
-    // TODO: Navigate to SetupScreen with edit mode
-    Alert.alert(t('locations.editLocation'), t('locations.editComingSoon', { name: location.name }));
+    navigation.navigate('Setup', {
+      editLocation: {
+        id: location.id,
+        name: location.name,
+        latitude: location.latitude,
+        longitude: location.longitude,
+        radiusMeters: location.radiusMeters,
+      },
+    });
   };
 
   const handleDeleteLocation = (location: UserLocation) => {
@@ -199,26 +206,6 @@ export default function LocationsListScreen() {
         },
       ]
     );
-  };
-
-  const handleZoomIn = () => {
-    const newRegion = {
-      ...region,
-      latitudeDelta: region.latitudeDelta / 2,
-      longitudeDelta: region.longitudeDelta / 2,
-    };
-    setRegion(newRegion);
-    mapRef.current?.animateToRegion(newRegion, 300);
-  };
-
-  const handleZoomOut = () => {
-    const newRegion = {
-      ...region,
-      latitudeDelta: region.latitudeDelta * 2,
-      longitudeDelta: region.longitudeDelta * 2,
-    };
-    setRegion(newRegion);
-    mapRef.current?.animateToRegion(newRegion, 300);
   };
 
   const handleMyLocation = async () => {
@@ -298,8 +285,6 @@ export default function LocationsListScreen() {
 
       {/* Map Controls */}
       <MapControls
-        onZoomIn={handleZoomIn}
-        onZoomOut={handleZoomOut}
         onMyLocation={handleMyLocation}
         bottomOffset={panelHeight + 16}
       />

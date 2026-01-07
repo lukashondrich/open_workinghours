@@ -1,6 +1,10 @@
 import { Database } from './Database';
 import { GeofenceEventData } from './GeofenceService';
+import { formatDuration } from '@/lib/calendar/calendar-utils';
 import * as Notifications from 'expo-notifications';
+
+// Sessions shorter than this are considered noise and deleted
+const MIN_SESSION_MINUTES = 5;
 
 export class TrackingManager {
   constructor(private db: Database) {}
@@ -73,9 +77,27 @@ export class TrackingManager {
 
     // Get updated session with duration
     const completedSession = await this.db.getSession(activeSession.id);
-    const hours = completedSession?.durationMinutes
-      ? (completedSession.durationMinutes / 60).toFixed(1)
-      : '0';
+    const durationMinutes = completedSession?.durationMinutes ?? 0;
+
+    // Delete sessions that are too short (likely GPS noise)
+    if (durationMinutes < MIN_SESSION_MINUTES) {
+      console.log(
+        `[TrackingManager] Session too short (${durationMinutes} min < ${MIN_SESSION_MINUTES} min), deleting`
+      );
+      await this.db.deleteSession(activeSession.id);
+
+      // Get location name for notification
+      const location = await this.db.getLocation(event.locationId);
+      const locationName = location?.name ?? 'Unknown Location';
+
+      // Notify user that session was too short
+      await this.sendNotification(
+        'Session Discarded',
+        `Session at ${locationName} was less than ${MIN_SESSION_MINUTES} minutes and was not saved.`,
+        { discarded: true }
+      );
+      return;
+    }
 
     // Get location name
     const location = await this.db.getLocation(event.locationId);
@@ -84,7 +106,7 @@ export class TrackingManager {
     // Send notification
     await this.sendNotification(
       'Clocked Out',
-      `Clocked out from ${locationName}. Worked ${hours} hours.`,
+      `Clocked out from ${locationName}. Worked ${formatDuration(durationMinutes)}.`,
       { sessionId: activeSession.id }
     );
   }
@@ -124,17 +146,31 @@ export class TrackingManager {
 
     // Get updated session with duration
     const completedSession = await this.db.getSession(activeSession.id);
-    const hours = completedSession?.durationMinutes
-      ? (completedSession.durationMinutes / 60).toFixed(1)
-      : '0';
+    const durationMinutes = completedSession?.durationMinutes ?? 0;
 
     // Get location name
     const location = await this.db.getLocation(locationId);
     const locationName = location?.name ?? 'Unknown Location';
 
+    // Delete sessions that are too short (likely accidental clock-in)
+    if (durationMinutes < MIN_SESSION_MINUTES) {
+      console.log(
+        `[TrackingManager] Session too short (${durationMinutes} min < ${MIN_SESSION_MINUTES} min), deleting`
+      );
+      await this.db.deleteSession(activeSession.id);
+
+      // Notify user that session was too short
+      await this.sendNotification(
+        'Session Discarded',
+        `Session at ${locationName} was less than ${MIN_SESSION_MINUTES} minutes and was not saved.`,
+        { discarded: true }
+      );
+      return;
+    }
+
     await this.sendNotification(
       'Clocked Out',
-      `✋ Manually clocked out from ${locationName}. Worked ${hours} hours.`,
+      `✋ Manually clocked out from ${locationName}. Worked ${formatDuration(durationMinutes)}.`,
       { sessionId: activeSession.id }
     );
   }

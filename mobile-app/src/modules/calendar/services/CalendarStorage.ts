@@ -1,5 +1,5 @@
 import * as SQLite from 'expo-sqlite';
-import type { ShiftInstance, ShiftTemplate, TrackingRecord, ConfirmedDayStatus } from '@/lib/calendar/types';
+import type { ShiftInstance, ShiftTemplate, TrackingRecord, ConfirmedDayStatus, AbsenceTemplate, AbsenceInstance, AbsenceType } from '@/lib/calendar/types';
 
 class CalendarStorage {
   private db: SQLite.SQLiteDatabase | null = null;
@@ -107,6 +107,56 @@ class CalendarStorage {
         console.log('[CalendarStorage] Migration 1 complete');
       } catch (error) {
         console.error('[CalendarStorage] Migration 1 failed:', error);
+        throw error;
+      }
+    }
+
+    // Migration 2: Add absence tables
+    if (currentVersion < 2) {
+      console.log('[CalendarStorage] Running migration 2: Adding absence tables');
+      try {
+        await db.execAsync(`
+          CREATE TABLE IF NOT EXISTS absence_templates (
+            id TEXT PRIMARY KEY,
+            type TEXT NOT NULL CHECK (type IN ('vacation', 'sick')),
+            name TEXT NOT NULL,
+            color TEXT NOT NULL,
+            start_time TEXT,
+            end_time TEXT,
+            is_full_day INTEGER DEFAULT 1,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+          );
+        `);
+
+        await db.execAsync(`
+          CREATE TABLE IF NOT EXISTS absence_instances (
+            id TEXT PRIMARY KEY,
+            template_id TEXT,
+            type TEXT NOT NULL CHECK (type IN ('vacation', 'sick')),
+            date TEXT NOT NULL,
+            start_time TEXT NOT NULL,
+            end_time TEXT NOT NULL,
+            is_full_day INTEGER DEFAULT 1,
+            name TEXT NOT NULL,
+            color TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            FOREIGN KEY (template_id) REFERENCES absence_templates(id) ON DELETE SET NULL
+          );
+        `);
+
+        await db.execAsync(`
+          CREATE INDEX IF NOT EXISTS idx_absence_instances_date ON absence_instances(date);
+        `);
+
+        await this.setSchemaVersion(2);
+        console.log('[CalendarStorage] Migration 2 complete');
+
+        // Seed default absence templates
+        await this.seedDefaultAbsenceTemplates();
+      } catch (error) {
+        console.error('[CalendarStorage] Migration 2 failed:', error);
         throw error;
       }
     }
@@ -255,6 +305,333 @@ class CalendarStorage {
         meta.status,
         meta.confirmedAt ?? null,
         meta.lockedSubmissionId ?? null,
+      );
+    }
+  }
+
+  // ========================================
+  // Absence Templates CRUD
+  // ========================================
+
+  private async seedDefaultAbsenceTemplates() {
+    const db = this.getDb();
+    const now = new Date().toISOString();
+
+    // Only full-day templates - users can adjust times via drag handles after placing
+    const defaults: Array<{
+      id: string;
+      type: AbsenceType;
+      name: string;
+      color: string;
+      startTime: string | null;
+      endTime: string | null;
+      isFullDay: boolean;
+    }> = [
+      {
+        id: 'vacation-full-day',
+        type: 'vacation',
+        name: 'Vacation',
+        color: '#D1D5DB', // muted gray
+        startTime: null,
+        endTime: null,
+        isFullDay: true,
+      },
+      {
+        id: 'sick-full-day',
+        type: 'sick',
+        name: 'Sick Day',
+        color: '#FDE68A', // muted amber
+        startTime: null,
+        endTime: null,
+        isFullDay: true,
+      },
+    ];
+
+    for (const template of defaults) {
+      await db.runAsync(
+        `INSERT OR IGNORE INTO absence_templates
+         (id, type, name, color, start_time, end_time, is_full_day, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        template.id,
+        template.type,
+        template.name,
+        template.color,
+        template.startTime,
+        template.endTime,
+        template.isFullDay ? 1 : 0,
+        now,
+        now
+      );
+    }
+    console.log('[CalendarStorage] Seeded default absence templates');
+  }
+
+  async loadAbsenceTemplates(): Promise<Record<string, AbsenceTemplate>> {
+    const db = this.getDb();
+    const rows = await db.getAllAsync<any>('SELECT * FROM absence_templates');
+    const templates: Record<string, AbsenceTemplate> = {};
+    rows.forEach((row) => {
+      templates[row.id] = {
+        id: row.id,
+        type: row.type as AbsenceType,
+        name: row.name,
+        color: row.color,
+        startTime: row.start_time,
+        endTime: row.end_time,
+        isFullDay: row.is_full_day === 1,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      };
+    });
+    return templates;
+  }
+
+  async createAbsenceTemplate(
+    template: Omit<AbsenceTemplate, 'id' | 'createdAt' | 'updatedAt'>
+  ): Promise<AbsenceTemplate> {
+    const db = this.getDb();
+    const id = `absence-template-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const now = new Date().toISOString();
+
+    await db.runAsync(
+      `INSERT INTO absence_templates
+       (id, type, name, color, start_time, end_time, is_full_day, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      id,
+      template.type,
+      template.name,
+      template.color,
+      template.startTime,
+      template.endTime,
+      template.isFullDay ? 1 : 0,
+      now,
+      now
+    );
+
+    return {
+      id,
+      ...template,
+      createdAt: now,
+      updatedAt: now,
+    };
+  }
+
+  async updateAbsenceTemplate(id: string, updates: Partial<AbsenceTemplate>): Promise<void> {
+    const db = this.getDb();
+    const now = new Date().toISOString();
+
+    const setClauses: string[] = ['updated_at = ?'];
+    const values: any[] = [now];
+
+    if (updates.type !== undefined) {
+      setClauses.push('type = ?');
+      values.push(updates.type);
+    }
+    if (updates.name !== undefined) {
+      setClauses.push('name = ?');
+      values.push(updates.name);
+    }
+    if (updates.color !== undefined) {
+      setClauses.push('color = ?');
+      values.push(updates.color);
+    }
+    if (updates.startTime !== undefined) {
+      setClauses.push('start_time = ?');
+      values.push(updates.startTime);
+    }
+    if (updates.endTime !== undefined) {
+      setClauses.push('end_time = ?');
+      values.push(updates.endTime);
+    }
+    if (updates.isFullDay !== undefined) {
+      setClauses.push('is_full_day = ?');
+      values.push(updates.isFullDay ? 1 : 0);
+    }
+
+    values.push(id);
+    await db.runAsync(
+      `UPDATE absence_templates SET ${setClauses.join(', ')} WHERE id = ?`,
+      ...values
+    );
+  }
+
+  async deleteAbsenceTemplate(id: string): Promise<void> {
+    const db = this.getDb();
+    await db.runAsync('DELETE FROM absence_templates WHERE id = ?', id);
+  }
+
+  // ========================================
+  // Absence Instances CRUD
+  // ========================================
+
+  async loadAbsenceInstances(): Promise<Record<string, AbsenceInstance>> {
+    const db = this.getDb();
+    const rows = await db.getAllAsync<any>('SELECT * FROM absence_instances');
+    const instances: Record<string, AbsenceInstance> = {};
+    rows.forEach((row) => {
+      instances[row.id] = {
+        id: row.id,
+        templateId: row.template_id,
+        type: row.type as AbsenceType,
+        date: row.date,
+        startTime: row.start_time,
+        endTime: row.end_time,
+        isFullDay: row.is_full_day === 1,
+        name: row.name,
+        color: row.color,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      };
+    });
+    return instances;
+  }
+
+  async getAbsenceInstancesForDate(date: string): Promise<AbsenceInstance[]> {
+    const db = this.getDb();
+    const rows = await db.getAllAsync<any>(
+      'SELECT * FROM absence_instances WHERE date = ?',
+      date
+    );
+    return rows.map((row) => ({
+      id: row.id,
+      templateId: row.template_id,
+      type: row.type as AbsenceType,
+      date: row.date,
+      startTime: row.start_time,
+      endTime: row.end_time,
+      isFullDay: row.is_full_day === 1,
+      name: row.name,
+      color: row.color,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+  }
+
+  async getAbsenceInstancesForDateRange(startDate: string, endDate: string): Promise<AbsenceInstance[]> {
+    const db = this.getDb();
+    const rows = await db.getAllAsync<any>(
+      'SELECT * FROM absence_instances WHERE date >= ? AND date <= ? ORDER BY date, start_time',
+      startDate,
+      endDate
+    );
+    return rows.map((row) => ({
+      id: row.id,
+      templateId: row.template_id,
+      type: row.type as AbsenceType,
+      date: row.date,
+      startTime: row.start_time,
+      endTime: row.end_time,
+      isFullDay: row.is_full_day === 1,
+      name: row.name,
+      color: row.color,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+  }
+
+  async createAbsenceInstance(
+    instance: Omit<AbsenceInstance, 'id' | 'createdAt' | 'updatedAt'>
+  ): Promise<AbsenceInstance> {
+    const db = this.getDb();
+    const id = `absence-instance-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const now = new Date().toISOString();
+
+    await db.runAsync(
+      `INSERT INTO absence_instances
+       (id, template_id, type, date, start_time, end_time, is_full_day, name, color, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      id,
+      instance.templateId,
+      instance.type,
+      instance.date,
+      instance.startTime,
+      instance.endTime,
+      instance.isFullDay ? 1 : 0,
+      instance.name,
+      instance.color,
+      now,
+      now
+    );
+
+    return {
+      id,
+      ...instance,
+      createdAt: now,
+      updatedAt: now,
+    };
+  }
+
+  async updateAbsenceInstance(id: string, updates: Partial<AbsenceInstance>): Promise<void> {
+    const db = this.getDb();
+    const now = new Date().toISOString();
+
+    const setClauses: string[] = ['updated_at = ?'];
+    const values: any[] = [now];
+
+    if (updates.templateId !== undefined) {
+      setClauses.push('template_id = ?');
+      values.push(updates.templateId);
+    }
+    if (updates.type !== undefined) {
+      setClauses.push('type = ?');
+      values.push(updates.type);
+    }
+    if (updates.date !== undefined) {
+      setClauses.push('date = ?');
+      values.push(updates.date);
+    }
+    if (updates.startTime !== undefined) {
+      setClauses.push('start_time = ?');
+      values.push(updates.startTime);
+    }
+    if (updates.endTime !== undefined) {
+      setClauses.push('end_time = ?');
+      values.push(updates.endTime);
+    }
+    if (updates.isFullDay !== undefined) {
+      setClauses.push('is_full_day = ?');
+      values.push(updates.isFullDay ? 1 : 0);
+    }
+    if (updates.name !== undefined) {
+      setClauses.push('name = ?');
+      values.push(updates.name);
+    }
+    if (updates.color !== undefined) {
+      setClauses.push('color = ?');
+      values.push(updates.color);
+    }
+
+    values.push(id);
+    await db.runAsync(
+      `UPDATE absence_instances SET ${setClauses.join(', ')} WHERE id = ?`,
+      ...values
+    );
+  }
+
+  async deleteAbsenceInstance(id: string): Promise<void> {
+    const db = this.getDb();
+    await db.runAsync('DELETE FROM absence_instances WHERE id = ?', id);
+  }
+
+  async replaceAbsenceInstances(instances: AbsenceInstance[]) {
+    const db = this.getDb();
+    await db.runAsync('DELETE FROM absence_instances');
+    for (const instance of instances) {
+      await db.runAsync(
+        `INSERT INTO absence_instances
+         (id, template_id, type, date, start_time, end_time, is_full_day, name, color, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        instance.id,
+        instance.templateId,
+        instance.type,
+        instance.date,
+        instance.startTime,
+        instance.endTime,
+        instance.isFullDay ? 1 : 0,
+        instance.name,
+        instance.color,
+        instance.createdAt,
+        instance.updatedAt
       );
     }
   }

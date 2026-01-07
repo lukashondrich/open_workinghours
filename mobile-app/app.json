@@ -15,7 +15,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.openworkinghours.mobileapp",
-      "buildNumber": "28",
+      "buildNumber": "31",
       "config": {
         "usesNonExemptEncryption": false
       },
@@ -57,7 +57,8 @@
         }
       ],
       "expo-secure-store",
-      "expo-mail-composer"
+      "expo-mail-composer",
+      "@react-native-community/datetimepicker"
     ],
     "extra": {
       "authBaseUrl": "https://api.openworkinghours.org",

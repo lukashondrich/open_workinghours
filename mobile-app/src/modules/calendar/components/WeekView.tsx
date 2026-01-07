@@ -15,10 +15,12 @@ import {
   NativeScrollEvent,
   NativeSyntheticEvent,
   useWindowDimensions,
+  Platform,
 } from 'react-native';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import * as Haptics from 'expo-haptics';
-import { startOfWeek, subDays, format as formatDate, isBefore, startOfDay } from 'date-fns';
+import { startOfWeek, subDays, format as formatDate, isBefore, startOfDay, parse } from 'date-fns';
 import { de as deLocale } from 'date-fns/locale/de';
 
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
@@ -42,9 +44,14 @@ import {
   getWeekDays,
   timeToMinutes,
   getColorPalette,
+  findOverlappingShift,
+  getAbsencesForDate,
+  shiftHasAbsenceOverlap,
 } from '@/lib/calendar/calendar-utils';
-import type { ShiftInstance, TrackingRecord } from '@/lib/calendar/types';
-import ShiftEditModal from './ShiftEditModal';
+import type { ShiftInstance, TrackingRecord, AbsenceInstance } from '@/lib/calendar/types';
+import { getCalendarStorage } from '@/modules/calendar/services/CalendarStorage';
+import { TreePalm, Thermometer } from 'lucide-react-native';
+// ShiftEditModal removed - using native time picker for start time only
 import { persistDailyActualForDate } from '../services/DailyAggregator';
 import { DailySubmissionService } from '@/modules/auth/services/DailySubmissionService';
 
@@ -60,6 +67,8 @@ const DISCLOSURE_REDUCED_HEIGHT = 24;  // >= 24px: reduced (names only for shift
                                        // < 24px: minimal (color blocks only, no text)
 const GRABBER_HIT_AREA = 44; // Larger hit area for easier grabbing
 const GRABBER_BAR_HEIGHT = 12;
+const MIN_TRACKING_HEIGHT = 8; // Minimum visual height (smaller, less clunky)
+const MIN_TRACKING_HIT_SLOP = 20; // Expand tap target for small sessions
 const EDGE_LABEL_OFFSET = 18;
 
 function minutesFromDrag(dy: number, hourHeight: number = DEFAULT_HOUR_HEIGHT) {
@@ -185,6 +194,11 @@ function TrackingBadge({
     height += dragEndDelta;
   }
 
+  // Enforce minimum height for tappability (only for display, not during active drag)
+  if (dragStartDelta === 0 && dragEndDelta === 0) {
+    height = Math.max(MIN_TRACKING_HEIGHT, height);
+  }
+
   // Calculate safe grabber positions (clamp to stay within day column)
   const DAY_HEIGHT = 24 * hourHeight;
   const GRABBER_OFFSET = 43 + GRABBER_HIT_AREA / 2; // 65px - normal offset from session edge
@@ -299,6 +313,10 @@ function TrackingBadge({
       <Pressable
         onLongPress={handleLongPress}
         style={{ height }}
+        hitSlop={{
+          top: Math.max(0, (MIN_TRACKING_HIT_SLOP - height) / 2),
+          bottom: Math.max(0, (MIN_TRACKING_HIT_SLOP - height) / 2),
+        }}
       >
         <Animated.View
           style={[
@@ -361,16 +379,28 @@ function TrackingBadge({
   );
 }
 
+// Orphaned instance colors (when template is deleted)
+const ORPHAN_PALETTE = {
+  bg: '#F5F5F5',
+  border: '#BDBDBD',
+  text: '#757575',
+  dot: '#9E9E9E',
+};
+
 function InstanceCard({
   instance,
-  onLongPress,
+  onPress,
   hourHeight = DEFAULT_HOUR_HEIGHT,
+  isOrphaned = false,
+  isDimmed = false,
 }: {
   instance: ShiftInstance;
-  onLongPress: (instance: ShiftInstance) => void;
+  onPress: (instance: ShiftInstance) => void;
   hourHeight?: number;
+  isOrphaned?: boolean;
+  isDimmed?: boolean;
 }) {
-  const palette = getColorPalette(instance.color);
+  const palette = isOrphaned ? ORPHAN_PALETTE : getColorPalette(instance.color);
   const { topOffset, height } = calculateShiftDisplay(instance.startTime, instance.duration, hourHeight);
 
   // Progressive disclosure based on hourHeight
@@ -379,21 +409,186 @@ function InstanceCard({
 
   return (
     <Pressable
-      onLongPress={() => onLongPress(instance)}
-      delayLongPress={400}
-      style={[styles.shiftBlock, { top: topOffset, height, backgroundColor: palette.bg, borderColor: palette.border }]}
+      onPress={() => onPress(instance)}
+      style={[
+        styles.shiftBlock,
+        { top: topOffset, height, backgroundColor: palette.bg, borderColor: palette.border },
+        isDimmed && styles.shiftBlockDimmed,
+      ]}
     >
       {showName && (
-        <Text style={[styles.shiftName, { color: palette.text }]} numberOfLines={1}>
+        <Text style={[styles.shiftName, { color: palette.text }, isDimmed && styles.textDimmed]} numberOfLines={1}>
           {instance.name}
         </Text>
       )}
       {showTimes && (
-        <Text style={styles.shiftTime}>
+        <Text style={[styles.shiftTime, isOrphaned && { color: palette.text }, isDimmed && styles.textDimmed]}>
           {instance.startTime} - {instance.endTime}
         </Text>
       )}
     </Pressable>
+  );
+}
+
+function AbsenceCard({
+  absence,
+  onPress,
+  onLongPress,
+  onAdjustStart,
+  onAdjustEnd,
+  active,
+  setDragging,
+  hourHeight = DEFAULT_HOUR_HEIGHT,
+}: {
+  absence: AbsenceInstance;
+  onPress: (absence: AbsenceInstance) => void;
+  onLongPress: (absence: AbsenceInstance) => void;
+  onAdjustStart?: (id: string, deltaMinutes: number) => void;
+  onAdjustEnd?: (id: string, deltaMinutes: number) => void;
+  active?: boolean;
+  setDragging?: (dragging: boolean) => void;
+  hourHeight?: number;
+}) {
+  // Local state for live drag preview
+  const [dragStartDelta, setDragStartDelta] = useState(0);
+  const [dragEndDelta, setDragEndDelta] = useState(0);
+
+  // Calculate position based on start/end time
+  const startMinutes = timeToMinutes(absence.startTime);
+  const endMinutes = timeToMinutes(absence.endTime);
+  const durationMinutes = absence.isFullDay ? 24 * 60 : (endMinutes - startMinutes);
+
+  let topOffset = (startMinutes / 60) * hourHeight;
+  let height = Math.max(40, (durationMinutes / 60) * hourHeight);
+
+  // Apply live drag preview deltas
+  if (dragStartDelta !== 0) {
+    topOffset += dragStartDelta;
+    height -= dragStartDelta;
+  }
+  if (dragEndDelta !== 0) {
+    height += dragEndDelta;
+  }
+
+  // Progressive disclosure based on hourHeight
+  const showName = hourHeight >= DISCLOSURE_REDUCED_HEIGHT;  // >= 24px
+  const showTimes = hourHeight >= DISCLOSURE_FULL_HEIGHT;    // >= 48px
+
+  const IconComponent = absence.type === 'vacation' ? TreePalm : Thermometer;
+  const iconColor = absence.type === 'vacation' ? '#6B7280' : '#92400E';
+
+  // Calculate grabber positions
+  const DAY_HEIGHT = 24 * hourHeight;
+  const GRABBER_OFFSET = 43 + GRABBER_HIT_AREA / 2;
+  const MIN_EDGE_DISTANCE = 12;
+
+  const idealTopGrabberPos = topOffset - GRABBER_OFFSET;
+  const clampedTopGrabberPos = Math.max(MIN_EDGE_DISTANCE, idealTopGrabberPos);
+  const topGrabberStyle = { top: clampedTopGrabberPos - topOffset };
+
+  const idealBottomGrabberPos = topOffset + height + GRABBER_OFFSET;
+  const clampedBottomGrabberPos = Math.min(DAY_HEIGHT - MIN_EDGE_DISTANCE, idealBottomGrabberPos);
+  const bottomGrabberStyle = { bottom: -(clampedBottomGrabberPos - (topOffset + height)) };
+
+  const startPan = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => !!active,
+        onPanResponderGrant: () => {
+          setDragging?.(true);
+          Vibration.vibrate(15);
+        },
+        onPanResponderMove: (_evt: GestureResponderEvent, gesture: PanResponderGestureState) => {
+          setDragStartDelta(gesture.dy);
+        },
+        onPanResponderRelease: (_evt: GestureResponderEvent, gesture: PanResponderGestureState) => {
+          setDragging?.(false);
+          setDragStartDelta(0);
+          const delta = minutesFromDrag(gesture.dy, hourHeight);
+          if (delta !== 0) {
+            onAdjustStart?.(absence.id, delta);
+          }
+        },
+        onPanResponderTerminate: () => {
+          setDragging?.(false);
+          setDragStartDelta(0);
+        },
+      }),
+    [absence.id, onAdjustStart, active, setDragging, hourHeight],
+  );
+
+  const endPan = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => !!active,
+        onPanResponderGrant: () => {
+          setDragging?.(true);
+          Vibration.vibrate(15);
+        },
+        onPanResponderMove: (_evt: GestureResponderEvent, gesture: PanResponderGestureState) => {
+          setDragEndDelta(gesture.dy);
+        },
+        onPanResponderRelease: (_evt: GestureResponderEvent, gesture: PanResponderGestureState) => {
+          setDragging?.(false);
+          setDragEndDelta(0);
+          const delta = minutesFromDrag(gesture.dy, hourHeight);
+          if (delta !== 0) {
+            onAdjustEnd?.(absence.id, delta);
+          }
+        },
+        onPanResponderTerminate: () => {
+          setDragging?.(false);
+          setDragEndDelta(0);
+        },
+      }),
+    [absence.id, onAdjustEnd, active, setDragging, hourHeight],
+  );
+
+  return (
+    <View style={{ position: 'absolute', left: 4, right: 4, top: topOffset, zIndex: active ? 100 : 1 }}>
+      <Pressable
+        onPress={() => onPress(absence)}
+        onLongPress={() => onLongPress(absence)}
+        delayLongPress={500}
+        style={{ height }}
+      >
+        <View
+          style={[
+            styles.absenceBlock,
+            {
+              height,
+              backgroundColor: absence.color,
+              top: 0,
+            },
+            active && styles.absenceBlockActive,
+          ]}
+        >
+          <View style={styles.absenceContent}>
+            <IconComponent size={14} color={iconColor} />
+            {showName && (
+              <Text style={styles.absenceName} numberOfLines={1}>
+                {absence.name}
+              </Text>
+            )}
+          </View>
+          {showTimes && (
+            <Text style={styles.absenceTime}>
+              {absence.startTime} - {absence.endTime}
+            </Text>
+          )}
+        </View>
+      </Pressable>
+      {active && (
+        <View style={[styles.grabberContainer, topGrabberStyle]} {...startPan.panHandlers}>
+          <View style={styles.grabberBar} />
+        </View>
+      )}
+      {active && (
+        <View style={[styles.grabberContainer, bottomGrabberStyle]} {...endPan.panHandlers}>
+          <View style={styles.grabberBar} />
+        </View>
+      )}
+    </View>
   );
 }
 
@@ -446,11 +641,21 @@ export default function WeekView() {
   );
 
   const [activeTrackingId, setActiveTrackingId] = useState<string | null>(null);
+  const [activeAbsenceId, setActiveAbsenceId] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isPinching, setIsPinching] = useState(false);
   const [confirmationMessage, setConfirmationMessage] = useState<string | null>(null);
-  const [editingInstance, setEditingInstance] = useState<ShiftInstance | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Time picker state for editing shift start time
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [timePickerInstance, setTimePickerInstance] = useState<ShiftInstance | null>(null);
+  const [selectedTime, setSelectedTime] = useState<Date | null>(null); // For iOS picker
+
+  // Template picker state (for long-press on empty space)
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
+  const [pendingPlacementDate, setPendingPlacementDate] = useState<string | null>(null);
+  const [pickerTab, setPickerTab] = useState<'shifts' | 'absences'>('shifts');
 
   // ScrollView refs for focal point zooming
   const horizontalScrollRef = useRef<ScrollView>(null);
@@ -468,6 +673,9 @@ export default function WeekView() {
 
   // Track if we already triggered haptic for zoom limit (avoid continuous feedback)
   const hitZoomLimit = useRef(false);
+
+  // Track zoom direction to lock once committed ('in' | 'out' | null)
+  const zoomDirection = useRef<'in' | 'out' | null>(null);
 
   // Track viewport width for swipe navigation
   const [viewportWidth, setViewportWidth] = useState(screenWidth);
@@ -617,12 +825,15 @@ export default function WeekView() {
 
 
   // Pinch gesture for zooming (non-reanimated, uses refs to avoid stale closures)
+  // NOTE: currentScale intentionally NOT in deps - prevents gesture recreation mid-pinch
+  // baseScale.current persists between gestures (set in onEnd)
   const pinchGesture = useMemo(() =>
     Gesture.Pinch()
       .onStart(() => {
         setIsPinching(true);
-        lastAppliedScale.current = currentScale;
+        // Don't read from currentScale closure - baseScale.current already has correct value
         hitZoomLimit.current = false;
+        zoomDirection.current = null; // Reset direction lock for new gesture
       })
       .onUpdate((event) => {
         const rawScale = baseScale.current * event.scale;
@@ -640,15 +851,27 @@ export default function WeekView() {
         // Skip if scale hasn't changed meaningfully (prevents micro-jitter)
         if (Math.abs(newScale - lastAppliedScale.current) < 0.01) return;
 
+        // Direction locking: once committed to zoom in/out, lock that direction
+        // This prevents jittery oscillation and accidental reversals
+        if (zoomDirection.current === null && Math.abs(newScale - baseScale.current) > 0.03) {
+          // Commit to a direction once we've moved 3% from starting scale
+          zoomDirection.current = newScale > baseScale.current ? 'in' : 'out';
+        }
+
+        // Ignore scale changes in the opposite direction
+        if (zoomDirection.current === 'in' && newScale < lastAppliedScale.current) return;
+        if (zoomDirection.current === 'out' && newScale > lastAppliedScale.current) return;
+
         // Update scale
         setCurrentScale(newScale);
         lastAppliedScale.current = newScale;
       })
       .onEnd(() => {
         baseScale.current = lastAppliedScale.current;
+        zoomDirection.current = null; // Reset for next gesture
         setIsPinching(false);
       }),
-    [currentScale, setCurrentScale, minZoom]
+    [setCurrentScale, minZoom]  // currentScale removed - prevents gesture recreation mid-pinch
   );
 
   // Compose gestures: double-tap and pinch can work together
@@ -689,15 +912,109 @@ export default function WeekView() {
     return Object.values(state.trackingRecords).filter((record) => record.date === dateKey);
   };
 
-  const handleHourPress = (dateKey: string) => {
+  const handleHourPress = async (dateKey: string) => {
     // Clear active tracking selection when clicking elsewhere
     if (activeTrackingId) {
       setActiveTrackingId(null);
       return;
     }
 
+    // Clear active absence selection when clicking elsewhere
+    if (activeAbsenceId) {
+      setActiveAbsenceId(null);
+      return;
+    }
+
+    // Handle absence placement if an absence template is armed
+    if (state.armedAbsenceTemplateId) {
+      const absenceTemplate = state.absenceTemplates[state.armedAbsenceTemplateId];
+      if (absenceTemplate) {
+        const startTime = absenceTemplate.isFullDay ? '00:00' : (absenceTemplate.startTime || '00:00');
+        const endTime = absenceTemplate.isFullDay ? '23:59' : (absenceTemplate.endTime || '23:59');
+
+        const newInstance: Omit<AbsenceInstance, 'id' | 'createdAt' | 'updatedAt'> = {
+          templateId: absenceTemplate.id,
+          type: absenceTemplate.type,
+          date: dateKey,
+          startTime,
+          endTime,
+          isFullDay: absenceTemplate.isFullDay,
+          name: absenceTemplate.name,
+          color: absenceTemplate.color,
+        };
+
+        try {
+          const storage = await getCalendarStorage();
+          const created = await storage.createAbsenceInstance(newInstance);
+          dispatch({ type: 'ADD_ABSENCE_INSTANCE', instance: created });
+        } catch (error) {
+          console.error('[WeekView] Failed to create absence instance:', error);
+        }
+      }
+      return;
+    }
+
     if (!state.armedTemplateId) return;
+
+    // Check for overlap before placing shift
+    const template = state.templates[state.armedTemplateId];
+    if (template) {
+      const overlap = findOverlappingShift(
+        dateKey,
+        template.startTime,
+        template.duration,
+        state.instances
+      );
+
+      if (overlap) {
+        Alert.alert(
+          t('calendar.week.overlapTitle'),
+          t('calendar.week.overlapMessage', { name: overlap.name })
+        );
+        return;
+      }
+    }
+
     dispatch({ type: 'PLACE_SHIFT', date: dateKey });
+  };
+
+  const handleAbsencePress = (absence: AbsenceInstance) => {
+    // Toggle active state for drag handles
+    if (activeAbsenceId === absence.id) {
+      setActiveAbsenceId(null);
+    } else {
+      setActiveAbsenceId(absence.id);
+      // Deselect tracking if any
+      setActiveTrackingId(null);
+    }
+  };
+
+  const handleAbsenceLongPress = (absence: AbsenceInstance) => {
+    Alert.alert(
+      t('calendar.absences.deleteTitle') || 'Delete Absence?',
+      t('calendar.absences.deleteMessage') || 'Remove this absence?',
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('common.delete'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const storage = await getCalendarStorage();
+              await storage.deleteAbsenceInstance(absence.id);
+              dispatch({ type: 'DELETE_ABSENCE_INSTANCE', id: absence.id });
+            } catch (error) {
+              console.error('[WeekView] Failed to delete absence:', error);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // Helper to get absences for a date
+  const getAbsencesForDateKey = (dateKey: string): AbsenceInstance[] => {
+    return getAbsencesForDate(state.absenceInstances, dateKey);
   };
 
   const confirmDay = async (dateKey: string) => {
@@ -757,6 +1074,57 @@ export default function WeekView() {
     const minutes = startMinutes % 60;
     const startTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
     dispatch({ type: 'UPDATE_TRACKING_START', id, startTime });
+  };
+
+  // Absence adjustment handlers
+  const handleAdjustAbsenceStart = async (id: string, deltaMinutes: number) => {
+    const absence = state.absenceInstances[id];
+    if (!absence) return;
+
+    const startMinutes = Math.max(0, timeToMinutes(absence.startTime) + deltaMinutes);
+    const endMinutes = timeToMinutes(absence.endTime);
+
+    // Don't allow start to go past end
+    if (startMinutes >= endMinutes) return;
+
+    const hours = Math.floor(startMinutes / 60) % 24;
+    const minutes = startMinutes % 60;
+    const newStartTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+
+    // Update state and persist
+    dispatch({ type: 'UPDATE_ABSENCE_INSTANCE', id, updates: { startTime: newStartTime, isFullDay: false } });
+
+    try {
+      const storage = await getCalendarStorage();
+      await storage.updateAbsenceInstance(id, { startTime: newStartTime, isFullDay: false });
+    } catch (error) {
+      console.error('[WeekView] Failed to update absence start time:', error);
+    }
+  };
+
+  const handleAdjustAbsenceEnd = async (id: string, deltaMinutes: number) => {
+    const absence = state.absenceInstances[id];
+    if (!absence) return;
+
+    const startMinutes = timeToMinutes(absence.startTime);
+    let endMinutes = timeToMinutes(absence.endTime) + deltaMinutes;
+
+    // Clamp to valid range (after start, before midnight)
+    endMinutes = Math.max(startMinutes + 5, Math.min(24 * 60 - 1, endMinutes));
+
+    const hours = Math.floor(endMinutes / 60) % 24;
+    const minutes = endMinutes % 60;
+    const newEndTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+
+    // Update state and persist
+    dispatch({ type: 'UPDATE_ABSENCE_INSTANCE', id, updates: { endTime: newEndTime, isFullDay: false } });
+
+    try {
+      const storage = await getCalendarStorage();
+      await storage.updateAbsenceInstance(id, { endTime: newEndTime, isFullDay: false });
+    } catch (error) {
+      console.error('[WeekView] Failed to update absence end time:', error);
+    }
   };
 
   const handleDeleteTracking = async (id: string) => {
@@ -836,7 +1204,7 @@ export default function WeekView() {
     }
   };
 
-  const handleInstanceLongPress = (instance: ShiftInstance) => {
+  const handleInstancePress = (instance: ShiftInstance) => {
     const showDeleteConfirm = () => {
       Alert.alert(t('calendar.week.deleteShiftTitle'), t('calendar.week.deleteShiftMessage', { name: instance.name }), [
         { text: t('common.cancel'), style: 'cancel' },
@@ -848,24 +1216,209 @@ export default function WeekView() {
       ]);
     };
 
+    const openTimePicker = () => {
+      setTimePickerInstance(instance);
+      setSelectedTime(parse(instance.startTime, 'HH:mm', new Date()));
+      setShowTimePicker(true);
+    };
+
     Alert.alert(t('calendar.week.shiftOptions'), instance.name, [
-      { text: t('common.edit'), onPress: () => setEditingInstance(instance) },
+      { text: t('calendar.week.editStartTime'), onPress: openTimePicker },
       { text: t('common.delete'), style: 'destructive', onPress: showDeleteConfirm },
       { text: t('common.cancel'), style: 'cancel' },
     ]);
   };
 
-  const handleSaveInstance = (changes: { id: string; name: string; startTime: string; duration: number }) => {
+  const handleTimePickerChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      // Android: picker is dismissed automatically
+      setShowTimePicker(false);
+
+      if (event.type === 'set' && selectedDate && timePickerInstance) {
+        const newStartTime = formatDate(selectedDate, 'HH:mm');
+
+        // Check for overlap before updating
+        const overlap = findOverlappingShift(
+          timePickerInstance.date,
+          newStartTime,
+          timePickerInstance.duration,
+          state.instances,
+          timePickerInstance.id // Exclude self
+        );
+
+        if (overlap) {
+          Alert.alert(
+            t('calendar.week.overlapTitle'),
+            t('calendar.week.overlapMessage', { name: overlap.name })
+          );
+        } else {
+          dispatch({
+            type: 'UPDATE_INSTANCE_START_TIME',
+            id: timePickerInstance.id,
+            startTime: newStartTime,
+          });
+        }
+      }
+
+      setTimePickerInstance(null);
+      setSelectedTime(null);
+    } else {
+      // iOS: just update the selected time, don't dismiss
+      if (selectedDate) {
+        setSelectedTime(selectedDate);
+      }
+    }
+  };
+
+  const saveTimePicker = () => {
+    if (timePickerInstance && selectedTime) {
+      const newStartTime = formatDate(selectedTime, 'HH:mm');
+
+      // Check for overlap before updating
+      const overlap = findOverlappingShift(
+        timePickerInstance.date,
+        newStartTime,
+        timePickerInstance.duration,
+        state.instances,
+        timePickerInstance.id // Exclude self
+      );
+
+      if (overlap) {
+        Alert.alert(
+          t('calendar.week.overlapTitle'),
+          t('calendar.week.overlapMessage', { name: overlap.name })
+        );
+        return; // Don't close picker, let user choose different time
+      }
+
+      dispatch({
+        type: 'UPDATE_INSTANCE_START_TIME',
+        id: timePickerInstance.id,
+        startTime: newStartTime,
+      });
+    }
+    setShowTimePicker(false);
+    setTimePickerInstance(null);
+    setSelectedTime(null);
+  };
+
+  const dismissTimePicker = () => {
+    setShowTimePicker(false);
+    setTimePickerInstance(null);
+    setSelectedTime(null);
+  };
+
+  // Long-press on empty hour cell → show template picker
+  const handleHourLongPress = (dateKey: string) => {
+    const hasShifts = Object.keys(state.templates).length > 0;
+    const hasAbsences = Object.keys(state.absenceTemplates).length > 0;
+
+    // Only show picker if there are any templates
+    if (!hasShifts && !hasAbsences) {
+      Alert.alert(
+        t('calendar.templates.title'),
+        t('calendar.templates.empty')
+      );
+      return;
+    }
+
+    // Default to shifts tab if available, otherwise absences
+    setPickerTab(hasShifts ? 'shifts' : 'absences');
+    setPendingPlacementDate(dateKey);
+    setShowTemplatePicker(true);
+  };
+
+  // Template selected from picker → place shift
+  const handleTemplateSelected = (templateId: string) => {
+    if (!pendingPlacementDate) {
+      setShowTemplatePicker(false);
+      return;
+    }
+
+    const template = state.templates[templateId];
+    if (!template) {
+      setShowTemplatePicker(false);
+      setPendingPlacementDate(null);
+      return;
+    }
+
+    // Check for overlap (uses template's default start time)
+    const overlap = findOverlappingShift(
+      pendingPlacementDate,
+      template.startTime,
+      template.duration,
+      state.instances
+    );
+
+    if (overlap) {
+      Alert.alert(
+        t('calendar.week.overlapTitle'),
+        t('calendar.week.overlapMessage', { name: overlap.name })
+      );
+      // Don't close picker, let user choose different template
+      return;
+    }
+
+    // Place the shift
     dispatch({
-      type: 'UPDATE_INSTANCE',
-      id: changes.id,
-      instance: {
-        name: changes.name,
-        startTime: changes.startTime,
-        duration: changes.duration,
-      },
+      type: 'PLACE_SHIFT',
+      date: pendingPlacementDate,
+      timeSlot: template.startTime,
     });
-    setEditingInstance(null);
+
+    // Temporarily arm this template for convenience
+    dispatch({ type: 'ARM_SHIFT', templateId });
+
+    setShowTemplatePicker(false);
+    setPendingPlacementDate(null);
+  };
+
+  // Absence template selected from picker → place absence
+  const handleAbsenceTemplateSelected = async (templateId: string) => {
+    if (!pendingPlacementDate) {
+      setShowTemplatePicker(false);
+      return;
+    }
+
+    const absenceTemplate = state.absenceTemplates[templateId];
+    if (!absenceTemplate) {
+      setShowTemplatePicker(false);
+      setPendingPlacementDate(null);
+      return;
+    }
+
+    const startTime = absenceTemplate.isFullDay ? '00:00' : (absenceTemplate.startTime || '00:00');
+    const endTime = absenceTemplate.isFullDay ? '23:59' : (absenceTemplate.endTime || '23:59');
+
+    const newInstance: Omit<AbsenceInstance, 'id' | 'createdAt' | 'updatedAt'> = {
+      templateId: absenceTemplate.id,
+      type: absenceTemplate.type,
+      date: pendingPlacementDate,
+      startTime,
+      endTime,
+      isFullDay: absenceTemplate.isFullDay,
+      name: absenceTemplate.name,
+      color: absenceTemplate.color,
+    };
+
+    try {
+      const storage = await getCalendarStorage();
+      const created = await storage.createAbsenceInstance(newInstance);
+      dispatch({ type: 'ADD_ABSENCE_INSTANCE', instance: created });
+
+      // Arm this absence template for convenience (like shifts)
+      dispatch({ type: 'ARM_ABSENCE', templateId });
+    } catch (error) {
+      console.error('[WeekView] Failed to create absence instance:', error);
+    }
+
+    setShowTemplatePicker(false);
+    setPendingPlacementDate(null);
+  };
+
+  const dismissTemplatePicker = () => {
+    setShowTemplatePicker(false);
+    setPendingPlacementDate(null);
   };
 
   return (
@@ -881,6 +1434,7 @@ export default function WeekView() {
           onScrollEndDrag={handleHorizontalScrollEndDrag}
           scrollEventThrottle={16}
           bounces={true}
+          decelerationRate="fast"
         >
           <View>
             <View style={styles.headerRow}>
@@ -939,6 +1493,7 @@ export default function WeekView() {
             scrollEnabled={!isDragging && !isPinching}
             onScroll={(e) => { scrollY.current = e.nativeEvent.contentOffset.y; }}
             scrollEventThrottle={16}
+            decelerationRate="fast"
           >
             <View style={styles.gridRow}>
               <View style={styles.timeColumn}>
@@ -958,6 +1513,7 @@ export default function WeekView() {
                 const previousDateKey = dayIndex > 0 ? formatDateKey(weekDays[dayIndex - 1]) : formatDateKey(subDays(day, 1));
                 const { current, fromPrevious } = getInstancesForDate(state.instances, dateKey, previousDateKey);
                 const trackingRecords = getTrackingForDate(dateKey);
+                const absences = getAbsencesForDateKey(dateKey);
                 return (
                   <View key={dateKey} style={[styles.dayColumn, { width: dayWidth }]} testID={`week-day-column-${dateKey}`}>
                     {Array.from({ length: 24 }).map((_, hourIndex) => (
@@ -965,11 +1521,38 @@ export default function WeekView() {
                         key={hourIndex}
                         style={[styles.hourCell, { height: hourHeight }]}
                         onPress={() => handleHourPress(dateKey)}
+                        onLongPress={() => handleHourLongPress(dateKey)}
+                        delayLongPress={400}
                       />
                     ))}
-                    {current.map((instance) => (
-                      <InstanceCard key={instance.id} instance={instance} onLongPress={handleInstanceLongPress} hourHeight={hourHeight} />
+                    {/* Render absences first (behind shifts) */}
+                    {absences.map((absence) => (
+                      <AbsenceCard
+                        key={absence.id}
+                        absence={absence}
+                        onPress={handleAbsencePress}
+                        onLongPress={handleAbsenceLongPress}
+                        onAdjustStart={handleAdjustAbsenceStart}
+                        onAdjustEnd={handleAdjustAbsenceEnd}
+                        active={activeAbsenceId === absence.id}
+                        setDragging={setIsDragging}
+                        hourHeight={hourHeight}
+                      />
                     ))}
+                    {/* Render shifts with dimming if overlapped by absence */}
+                    {current.map((instance) => {
+                      const isDimmed = shiftHasAbsenceOverlap(instance, state.absenceInstances);
+                      return (
+                        <InstanceCard
+                          key={instance.id}
+                          instance={instance}
+                          onPress={handleInstancePress}
+                          hourHeight={hourHeight}
+                          isOrphaned={!state.templates[instance.templateId]}
+                          isDimmed={isDimmed}
+                        />
+                      );
+                    })}
                     {fromPrevious.map((instance) => {
                       const startMinutes = timeToMinutes(instance.startTime);
                       const overflowMinutes = startMinutes + instance.duration - 24 * 60;
@@ -977,16 +1560,30 @@ export default function WeekView() {
                       // Progressive disclosure for overflow shifts
                       const showName = hourHeight >= DISCLOSURE_REDUCED_HEIGHT;
                       const showTimes = hourHeight >= DISCLOSURE_FULL_HEIGHT;
+                      const isOrphaned = !state.templates[instance.templateId];
                       return (
                         <View
                           key={`${instance.id}-overflow`}
                           style={[
                             styles.shiftBlock,
-                            { top: 0, height, backgroundColor: '#FFF3E0', borderColor: '#FFAB91' },
+                            {
+                              top: 0,
+                              height,
+                              backgroundColor: isOrphaned ? ORPHAN_PALETTE.bg : '#FFF3E0',
+                              borderColor: isOrphaned ? ORPHAN_PALETTE.border : '#FFAB91',
+                            },
                           ]}
                         >
-                          {showName && <Text style={styles.shiftName}>{instance.name}</Text>}
-                          {showTimes && <Text style={styles.shiftTime}>{t('calendar.week.continues')}</Text>}
+                          {showName && (
+                            <Text style={[styles.shiftName, isOrphaned && { color: ORPHAN_PALETTE.text }]}>
+                              {instance.name}
+                            </Text>
+                          )}
+                          {showTimes && (
+                            <Text style={[styles.shiftTime, isOrphaned && { color: ORPHAN_PALETTE.text }]}>
+                              {t('calendar.week.continues')}
+                            </Text>
+                          )}
                         </View>
                       );
                     })}
@@ -1066,12 +1663,136 @@ export default function WeekView() {
         </View>
       </ScrollView>
       </Animated.View>
-      <ShiftEditModal
-        visible={!!editingInstance}
-        instance={editingInstance}
-        onClose={() => setEditingInstance(null)}
-        onSave={handleSaveInstance}
-      />
+
+      {/* Time picker for editing shift start time */}
+      {showTimePicker && timePickerInstance && (
+        Platform.OS === 'ios' ? (
+          <View style={styles.timePickerOverlay}>
+            <View style={styles.timePickerContainer}>
+              <View style={styles.timePickerHeader}>
+                <TouchableOpacity onPress={dismissTimePicker}>
+                  <Text style={styles.timePickerCancel}>{t('common.cancel')}</Text>
+                </TouchableOpacity>
+                <Text style={styles.timePickerTitle}>{timePickerInstance.name}</Text>
+                <TouchableOpacity onPress={saveTimePicker}>
+                  <Text style={styles.timePickerDone}>{t('common.save')}</Text>
+                </TouchableOpacity>
+              </View>
+              <DateTimePicker
+                value={selectedTime || parse(timePickerInstance.startTime, 'HH:mm', new Date())}
+                mode="time"
+                display="spinner"
+                onChange={handleTimePickerChange}
+                minuteInterval={5}
+              />
+            </View>
+          </View>
+        ) : (
+          <DateTimePicker
+            value={selectedTime || parse(timePickerInstance.startTime, 'HH:mm', new Date())}
+            mode="time"
+            display="default"
+            onChange={handleTimePickerChange}
+            minuteInterval={5}
+          />
+        )
+      )}
+
+      {/* Template picker modal (for long-press on empty space) */}
+      {showTemplatePicker && (
+        <Pressable style={styles.templatePickerOverlay} onPress={dismissTemplatePicker}>
+          <Pressable style={styles.templatePickerContainer} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.templatePickerTitle}>{t('calendar.templates.selectTemplate')}</Text>
+
+            {/* Tab bar for Shifts / Absences */}
+            <View style={styles.pickerTabBar}>
+              <Pressable
+                style={[styles.pickerTab, pickerTab === 'shifts' && styles.pickerTabActive]}
+                onPress={() => setPickerTab('shifts')}
+              >
+                <Text style={[styles.pickerTabText, pickerTab === 'shifts' && styles.pickerTabTextActive]}>
+                  {t('calendar.templates.shiftsTab')}
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[styles.pickerTab, pickerTab === 'absences' && styles.pickerTabActive]}
+                onPress={() => setPickerTab('absences')}
+              >
+                <Text style={[styles.pickerTabText, pickerTab === 'absences' && styles.pickerTabTextActive]}>
+                  {t('calendar.templates.absencesTab')}
+                </Text>
+              </Pressable>
+            </View>
+
+            {/* Shifts list */}
+            {pickerTab === 'shifts' && (
+              <>
+                {Object.values(state.templates).length === 0 ? (
+                  <Text style={styles.templatePickerEmpty}>{t('calendar.templates.empty')}</Text>
+                ) : (
+                  Object.values(state.templates).map(template => {
+                    const palette = getColorPalette(template.color);
+                    return (
+                      <Pressable
+                        key={template.id}
+                        style={styles.templatePickerRow}
+                        onPress={() => handleTemplateSelected(template.id)}
+                      >
+                        <View style={[styles.templatePickerDot, { backgroundColor: palette.dot }]} />
+                        <View style={styles.templatePickerInfo}>
+                          <Text style={styles.templatePickerName}>{template.name}</Text>
+                          <Text style={styles.templatePickerTime}>
+                            {template.startTime} · {formatDuration(template.duration)}
+                          </Text>
+                        </View>
+                      </Pressable>
+                    );
+                  })
+                )}
+              </>
+            )}
+
+            {/* Absences list */}
+            {pickerTab === 'absences' && (
+              <>
+                {Object.values(state.absenceTemplates).length === 0 ? (
+                  <Text style={styles.templatePickerEmpty}>{t('calendar.absences.empty') || 'No absence templates'}</Text>
+                ) : (
+                  Object.values(state.absenceTemplates).map(template => {
+                    const isVacation = template.type === 'vacation';
+                    const IconComponent = isVacation ? TreePalm : Thermometer;
+                    const iconColor = isVacation ? '#6B7280' : '#92400E';
+                    return (
+                      <Pressable
+                        key={template.id}
+                        style={styles.templatePickerRow}
+                        onPress={() => handleAbsenceTemplateSelected(template.id)}
+                      >
+                        <View style={[styles.templatePickerIconWrapper, { backgroundColor: template.color }]}>
+                          <IconComponent size={14} color={iconColor} />
+                        </View>
+                        <View style={styles.templatePickerInfo}>
+                          <Text style={styles.templatePickerName}>{template.name}</Text>
+                          <Text style={styles.templatePickerTime}>
+                            {template.isFullDay
+                              ? t('calendar.absences.fullDay')
+                              : `${template.startTime} - ${template.endTime}`}
+                          </Text>
+                        </View>
+                      </Pressable>
+                    );
+                  })
+                )}
+              </>
+            )}
+
+            <Pressable style={styles.templatePickerCancel} onPress={dismissTemplatePicker}>
+              <Text style={styles.templatePickerCancelText}>{t('common.cancel')}</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      )}
+
       {confirmationMessage && (
         <View style={styles.toast}>
           <Text style={styles.toastText}>{confirmationMessage}</Text>
@@ -1220,6 +1941,39 @@ const styles = StyleSheet.create({
   shiftTime: {
     fontSize: 11,
     color: colors.text.secondary,
+  },
+  shiftBlockDimmed: {
+    opacity: 0.4,
+  },
+  textDimmed: {
+    opacity: 0.6,
+  },
+  // Absence styles
+  absenceBlock: {
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.1)',
+    borderRadius: borderRadius.md,
+    padding: spacing.sm,
+  },
+  absenceBlockActive: {
+    borderWidth: 2,
+    borderColor: colors.primary[500],
+  },
+  absenceContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  absenceName: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.medium,
+    color: colors.text.secondary,
+    flex: 1,
+  },
+  absenceTime: {
+    fontSize: 10,
+    color: colors.text.tertiary,
+    marginTop: 2,
   },
   trackingBlock: {
     width: '100%',
@@ -1389,5 +2143,146 @@ const styles = StyleSheet.create({
   currentTimeBar: {
     flex: 1,
     height: 2,
+  },
+  // Time picker styles (iOS)
+  timePickerOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  timePickerContainer: {
+    backgroundColor: colors.background.paper,
+    borderTopLeftRadius: borderRadius.xl,
+    borderTopRightRadius: borderRadius.xl,
+    paddingBottom: spacing.xl,
+  },
+  timePickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border.default,
+  },
+  timePickerTitle: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semibold,
+    color: colors.text.primary,
+  },
+  timePickerCancel: {
+    fontSize: fontSize.md,
+    color: colors.text.secondary,
+  },
+  timePickerDone: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semibold,
+    color: colors.primary[500],
+  },
+  // Template picker styles
+  templatePickerOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  templatePickerContainer: {
+    backgroundColor: colors.background.paper,
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+    minWidth: 280,
+    maxWidth: '85%',
+  },
+  templatePickerTitle: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semibold,
+    color: colors.text.primary,
+    textAlign: 'center',
+    marginBottom: spacing.md,
+  },
+  templatePickerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
+    borderRadius: borderRadius.md,
+  },
+  templatePickerDot: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    marginRight: spacing.md,
+  },
+  templatePickerInfo: {
+    flex: 1,
+  },
+  templatePickerName: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.medium,
+    color: colors.text.primary,
+  },
+  templatePickerTime: {
+    fontSize: fontSize.xs,
+    color: colors.text.secondary,
+    marginTop: 2,
+  },
+  templatePickerCancel: {
+    marginTop: spacing.md,
+    paddingVertical: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border.default,
+  },
+  templatePickerCancelText: {
+    fontSize: fontSize.md,
+    color: colors.primary[500],
+    textAlign: 'center',
+  },
+  templatePickerEmpty: {
+    fontSize: fontSize.sm,
+    color: colors.text.tertiary,
+    textAlign: 'center',
+    paddingVertical: spacing.lg,
+  },
+  templatePickerIconWrapper: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.md,
+  },
+  // Picker tab bar styles
+  pickerTabBar: {
+    flexDirection: 'row',
+    marginBottom: spacing.md,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.grey[100],
+    padding: 2,
+  },
+  pickerTab: {
+    flex: 1,
+    paddingVertical: spacing.sm,
+    alignItems: 'center',
+    borderRadius: borderRadius.md - 2,
+  },
+  pickerTabActive: {
+    backgroundColor: colors.background.paper,
+    ...shadows.sm,
+  },
+  pickerTabText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+    color: colors.text.tertiary,
+  },
+  pickerTabTextActive: {
+    color: colors.primary[500],
   },
 });

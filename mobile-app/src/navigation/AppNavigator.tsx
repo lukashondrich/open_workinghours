@@ -35,7 +35,7 @@ export type RootStackParamList = {
   Login: { email: string };
   // Main app stack
   MainTabs: undefined;
-  Setup: undefined;
+  Setup: { editLocation?: { id: string; name: string; latitude: number; longitude: number; radiusMeters: number } } | undefined;
   Tracking: { locationId: string };
   Log: { locationId: string };
   LocationsList: undefined;

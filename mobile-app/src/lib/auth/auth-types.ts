@@ -17,6 +17,7 @@ export interface User {
   specialty: string;
   roleLevel: string;
   stateCode?: string;
+  createdAt?: string; // ISO 8601 format, optional for backward compatibility
 }
 
 export type AuthAction =
@@ -73,4 +74,5 @@ export interface MeResponse {
   specialty: string;
   roleLevel: string;
   stateCode?: string;
+  createdAt: string; // ISO 8601 format
 }

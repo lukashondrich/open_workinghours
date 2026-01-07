@@ -1,7 +1,8 @@
 import { subDays, startOfDay, format, isBefore, isAfter, parseISO } from 'date-fns';
 import { getDatabase } from '@/modules/geofencing/services/Database';
 import { getCalendarStorage } from '@/modules/calendar/services/CalendarStorage';
-import type { ShiftInstance, ShiftColor } from '@/lib/calendar/types';
+import type { ShiftInstance, ShiftColor, AbsenceInstance } from '@/lib/calendar/types';
+import { getAbsencesForDate, calculateEffectivePlannedMinutes } from '@/lib/calendar/calendar-utils';
 
 export interface DailyHoursData {
   date: string; // YYYY-MM-DD
@@ -9,6 +10,9 @@ export interface DailyHoursData {
   actualMinutes: number;
   isConfirmed: boolean;
   isToday: boolean;
+  isPreAccount: boolean; // true if day is before account was created
+  hasVacation: boolean;
+  hasSick: boolean;
 }
 
 export interface NextShiftData {
@@ -100,16 +104,20 @@ function computePlannedMinutes(
 /**
  * Load dashboard data for the Status screen
  * Returns 14-day rolling data + next shift info
+ *
+ * @param accountCreatedAt - ISO 8601 date string when account was created (optional)
+ *                           If provided, days before this date are marked as isPreAccount
  */
-export async function loadDashboardData(): Promise<DashboardData> {
+export async function loadDashboardData(accountCreatedAt?: string): Promise<DashboardData> {
   const db = await getDatabase();
   const storage = await getCalendarStorage();
 
   // Load all data sources
-  const [instances, confirmedDays, locations] = await Promise.all([
+  const [instances, confirmedDays, locations, absenceInstances] = await Promise.all([
     storage.loadInstances(),
     storage.loadConfirmedDays(),
     db.getActiveLocations(),
+    storage.loadAbsenceInstances(),
   ]);
 
   // Calculate date range: last 14 days including today
@@ -117,6 +125,9 @@ export async function loadDashboardData(): Promise<DashboardData> {
   const todayKey = format(today, 'yyyy-MM-dd');
   const startDate = subDays(today, 13);
   const startDateKey = format(startDate, 'yyyy-MM-dd');
+
+  // Parse account creation date if provided
+  const accountStartDate = accountCreatedAt ? startOfDay(parseISO(accountCreatedAt)) : null;
 
   // Get sessions for the date range
   const sessions = await db.getSessionsBetween(
@@ -145,8 +156,37 @@ export async function loadDashboardData(): Promise<DashboardData> {
     const isToday = dateKey === todayKey;
     const { start: dayStart, end: dayEnd } = getDayBounds(dateKey);
 
-    // Calculate planned minutes
-    const plannedMinutes = computePlannedMinutes(instances, dateKey);
+    // Check if this day is before account was created
+    const isPreAccount = accountStartDate ? isBefore(dayDate, accountStartDate) : false;
+
+    // For pre-account days, don't calculate any data
+    if (isPreAccount) {
+      days.push({
+        date: dateKey,
+        plannedMinutes: 0,
+        actualMinutes: 0,
+        isConfirmed: false,
+        isToday,
+        isPreAccount: true,
+        hasVacation: false,
+        hasSick: false,
+      });
+      continue;
+    }
+
+    // Get absences for this day
+    const dayAbsences = getAbsencesForDate(absenceInstances, dateKey);
+    const hasVacation = dayAbsences.some((a) => a.type === 'vacation');
+    const hasSick = dayAbsences.some((a) => a.type === 'sick');
+
+    // Calculate planned minutes (raw)
+    const rawPlannedMinutes = computePlannedMinutes(instances, dateKey);
+
+    // Calculate effective planned minutes (accounting for absences)
+    const shiftsForDay = Object.values(instances).filter((i) => i.date === dateKey);
+    const plannedMinutes = dayAbsences.length > 0
+      ? calculateEffectivePlannedMinutes(shiftsForDay, dayAbsences)
+      : rawPlannedMinutes;
 
     // Calculate actual minutes from sessions
     let actualMinutes = 0;
@@ -177,6 +217,9 @@ export async function loadDashboardData(): Promise<DashboardData> {
       actualMinutes,
       isConfirmed,
       isToday,
+      isPreAccount: false,
+      hasVacation,
+      hasSick,
     });
 
     totalPlanned += plannedMinutes;

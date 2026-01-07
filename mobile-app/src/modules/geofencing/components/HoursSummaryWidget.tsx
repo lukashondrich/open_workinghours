@@ -6,9 +6,10 @@ import {
   TouchableOpacity,
   Animated,
 } from 'react-native';
-import { ChevronRight } from 'lucide-react-native';
+import { ChevronRight, TreePalm, Thermometer } from 'lucide-react-native';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
 import { t } from '@/lib/i18n';
+import { formatDuration } from '@/lib/calendar/calendar-utils';
 import type { DailyHoursData } from '../services/DashboardDataService';
 
 interface HoursSummaryWidgetProps {
@@ -23,14 +24,17 @@ interface HoursSummaryWidgetProps {
 }
 
 function formatHours(minutes: number): string {
-  const hours = minutes / 60;
-  return hours.toFixed(1) + 'h';
+  return formatDuration(minutes);
 }
 
 function formatDeviation(minutes: number): string {
-  const hours = minutes / 60;
-  const sign = hours >= 0 ? '+' : '';
-  return sign + hours.toFixed(1) + 'h';
+  const sign = minutes >= 0 ? '+' : '';
+  // For negative values, formatDuration will return the absolute value
+  // so we need to handle the sign separately
+  if (minutes < 0) {
+    return '-' + formatDuration(Math.abs(minutes));
+  }
+  return '+' + formatDuration(minutes);
 }
 
 const CHART_HEIGHT = 60;
@@ -68,6 +72,20 @@ function Bar({ day, maxMinutes, isLive }: BarProps) {
       pulseAnim.setValue(1);
     }
   }, [day.isToday, isLive, pulseAnim]);
+
+  // Pre-account days show a dash indicator instead of bars
+  if (day.isPreAccount) {
+    return (
+      <View style={styles.barContainer}>
+        <View style={styles.barWrapper}>
+          {/* Empty bar area */}
+        </View>
+        <View style={styles.indicatorRow}>
+          <Text style={styles.preAccountDash}>—</Text>
+        </View>
+      </View>
+    );
+  }
 
   const planned = day.plannedMinutes;
   const actual = day.actualMinutes;
@@ -145,6 +163,12 @@ function Bar({ day, maxMinutes, isLive }: BarProps) {
         ) : (
           <Text style={styles.questionMark}>?</Text>
         )}
+      </View>
+
+      {/* Absence icon row */}
+      <View style={styles.absenceIconRow}>
+        {day.hasVacation && <TreePalm size={8} color="#6B7280" />}
+        {day.hasSick && <Thermometer size={8} color="#92400E" />}
       </View>
     </View>
   );
@@ -229,7 +253,7 @@ const styles = StyleSheet.create({
   },
   chartContainer: {
     flexDirection: 'row',
-    height: CHART_HEIGHT + 20, // Chart height + indicator space
+    height: CHART_HEIGHT + 32, // Chart height + indicator space + absence icon space
     alignItems: 'flex-end',
     marginBottom: spacing.md,
   },
@@ -278,6 +302,18 @@ const styles = StyleSheet.create({
     fontSize: 9,
     color: colors.error.main,
     fontWeight: fontWeight.semibold,
+  },
+  preAccountDash: {
+    fontSize: 9,
+    color: colors.grey[400],
+    fontWeight: fontWeight.normal,
+  },
+  absenceIconRow: {
+    height: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 1,
   },
   summaryRow: {
     flexDirection: 'row',
