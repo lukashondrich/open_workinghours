@@ -84,6 +84,16 @@ function formatTimeLabel(minutesTotal: number) {
   return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
 }
 
+// Convert hex color to rgba with opacity for semi-transparent overlays
+function hexToRgba(hex: string, opacity: number): string {
+  // Remove # if present
+  const cleanHex = hex.replace('#', '');
+  const r = parseInt(cleanHex.slice(0, 2), 16);
+  const g = parseInt(cleanHex.slice(2, 4), 16);
+  const b = parseInt(cleanHex.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+}
+
 function TrackingBadge({
   record,
   onAdjustStart,
@@ -557,7 +567,8 @@ function AbsenceCard({
             styles.absenceBlock,
             {
               height,
-              backgroundColor: absence.color,
+              // Semi-transparent background so shifts underneath are visible
+              backgroundColor: hexToRgba(absence.color, 0.5),
               top: 0,
             },
             active && styles.absenceBlockActive,
@@ -801,27 +812,10 @@ export default function WeekView() {
   const disclosureLevel = getDisclosureLevel(currentScale);
   const isCompactHeader = disclosureLevel === 'minimal' || disclosureLevel === 'compact';
 
-  // Double-tap gesture for zoom toggle with animation
-  const doubleTapGesture = useMemo(() =>
-    Gesture.Tap()
-      .numberOfTaps(2)
-      .onEnd(() => {
-        // Haptic feedback on double-tap
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-        if (Math.abs(currentScale - 1.0) < 0.01) {
-          // Currently at 1.0x -> animate to previous scale (if different from 1.0)
-          if (Math.abs(previousScale.current - 1.0) > 0.01) {
-            animateZoomTo(previousScale.current);
-          }
-        } else {
-          // Currently zoomed -> save current and animate to 1.0x
-          previousScale.current = currentScale;
-          animateZoomTo(1.0);
-        }
-      }),
-    [currentScale, previousScale, animateZoomTo]
-  );
+  // Double-tap tracking for shift/absence placement
+  // (Double-tap zoom removed - pinch is sufficient for zooming)
+  const lastTapRef = useRef<{ dateKey: string; time: number }>({ dateKey: '', time: 0 });
+  const DOUBLE_TAP_DELAY = 300; // ms
 
 
   // Pinch gesture for zooming (non-reanimated, uses refs to avoid stale closures)
@@ -874,11 +868,8 @@ export default function WeekView() {
     [setCurrentScale, minZoom]  // currentScale removed - prevents gesture recreation mid-pinch
   );
 
-  // Compose gestures: double-tap and pinch can work together
-  const composedGesture = useMemo(() =>
-    Gesture.Simultaneous(doubleTapGesture, pinchGesture),
-    [doubleTapGesture, pinchGesture]
-  );
+  // Pinch gesture only (double-tap zoom removed, now used for shift placement)
+  const composedGesture = useMemo(() => pinchGesture, [pinchGesture]);
 
   useEffect(() => {
     if (!state.reviewMode) {
@@ -925,10 +916,30 @@ export default function WeekView() {
       return;
     }
 
+    // Check for double-tap to place shift/absence
+    const now = Date.now();
+    const lastTap = lastTapRef.current;
+    const isDoubleTap = lastTap.dateKey === dateKey && (now - lastTap.time) < DOUBLE_TAP_DELAY;
+
+    // Update last tap tracking
+    lastTapRef.current = { dateKey, time: now };
+
+    // Single tap: just record it, don't place anything
+    if (!isDoubleTap) {
+      return;
+    }
+
+    // Double-tap detected: place shift or absence
+    // Reset tap tracking to prevent triple-tap from placing again
+    lastTapRef.current = { dateKey: '', time: 0 };
+
     // Handle absence placement if an absence template is armed
     if (state.armedAbsenceTemplateId) {
       const absenceTemplate = state.absenceTemplates[state.armedAbsenceTemplateId];
       if (absenceTemplate) {
+        // Haptic feedback for placement
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
         const startTime = absenceTemplate.isFullDay ? '00:00' : (absenceTemplate.startTime || '00:00');
         const endTime = absenceTemplate.isFullDay ? '23:59' : (absenceTemplate.endTime || '23:59');
 
@@ -955,6 +966,9 @@ export default function WeekView() {
     }
 
     if (!state.armedTemplateId) return;
+
+    // Haptic feedback for placement
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     // Check for overlap before placing shift
     const template = state.templates[state.armedTemplateId];
@@ -1943,10 +1957,12 @@ const styles = StyleSheet.create({
     color: colors.text.secondary,
   },
   shiftBlockDimmed: {
-    opacity: 0.4,
+    // Reduced dimming since absences are now semi-transparent
+    // Shifts remain clearly visible underneath absence overlay
+    opacity: 0.85,
   },
   textDimmed: {
-    opacity: 0.6,
+    opacity: 0.85,
   },
   // Absence styles
   absenceBlock: {

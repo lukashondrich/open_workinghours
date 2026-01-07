@@ -117,15 +117,36 @@
 - MonthView: consistent two-row layout (Row 1: shift dots, Row 2: absence icons)
 - Local only - not submitted to backend
 
+### Cluster F: UX Polish (Post-Testing)
+**Status:** ✅ Complete - See [CLUSTER_F_PLAN.md](./CLUSTER_F_PLAN.md)
+
+| Issue | Solution | Status |
+|-------|----------|--------|
+| Status location → specific view | Navigate to TrackingScreen | ✅ Done |
+| Whitespace above map | Reduced header padding | ✅ Done |
+| Keyboard squashing name input | Animated mini-map shrinks | ✅ Done |
+| Absence obscures shifts | 50% transparent overlay | ✅ Done |
+| POI search doesn't find hospitals | Photon API + healthcare sorting | ✅ Done |
+| Double-tap conflict | Double-tap places, single tap clears | ✅ Done |
+| Step indicator unclear | Added "Step X of 3" + step name | ✅ Done |
+| Work Locations layout | Inverted: small map, big list | ✅ Done |
+
+**Implemented 2026-01-07:**
+- Photon geocoding with healthcare prioritization (hospital, clinic, etc. sorted first)
+- Proximity bias for nearby results
+- Step indicator shows "Step 1 of 3 - Find Your Workplace"
+- Work Locations screen: 200px map preview, list as main content
+
 ---
 
 ## Suggested Order
 
-1. **Cluster A** - Quick wins, restore trust
-2. **Cluster C** - Address GPS deletion frustration
-3. **Cluster B** - Core calendar improvements (biggest impact)
-4. **Cluster D** - Location setup polish
-5. **Cluster E** - After design validation
+1. **Cluster A** - Quick wins, restore trust ✅
+2. **Cluster C** - Address GPS deletion frustration ✅
+3. **Cluster E** - Vacation/sick days ✅
+4. **Cluster F** - UX polish from testing ✅
+5. **Cluster B** - Core calendar improvements (biggest impact)
+6. **Cluster D** - Location setup polish
 
 ---
 

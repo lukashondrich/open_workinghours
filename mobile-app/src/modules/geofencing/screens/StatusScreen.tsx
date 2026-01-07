@@ -252,8 +252,9 @@ export default function StatusScreen() {
     navigation.navigate('Setup');
   };
 
-  const handleManageLocations = () => {
-    navigation.navigate('LocationsList');
+  const handleLocationPress = (location: UserLocation) => {
+    // Navigate to tracking screen for this specific location
+    navigation.navigate('Tracking', { locationId: location.id });
   };
 
   if (loading) {
@@ -296,7 +297,7 @@ export default function StatusScreen() {
                 status={status}
                 onCheckIn={() => handleManualCheckIn(status.location.id)}
                 onCheckOut={() => handleManualCheckOut(status.location.id)}
-                onLocationPress={handleManageLocations}
+                onLocationPress={() => handleLocationPress(status.location)}
               />
             ))}
             <Text style={styles.tapHint}>{t('status.tapToManage')}</Text>

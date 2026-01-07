@@ -46,6 +46,7 @@ export const de = {
     verifyEmail: 'E-Mail bestätigen',
     createAccount: 'Konto erstellen',
     logIn: 'Anmelden',
+    back: 'Zurück',
   },
 
   // Calendar module
@@ -326,6 +327,7 @@ export const de = {
     mapHint: 'Ziehen Sie die Karte, um die Markierung an Ihrem Arbeitsplatz zu positionieren. Der Kreis zeigt die automatische Erfassungszone.',
     saveLocation: 'Standort speichern',
     // 3-step wizard
+    stepOf: 'Schritt {{current}} von {{total}}',
     step1Title: 'Arbeitsplatz finden',
     step2Title: 'Position anpassen',
     step3Title: 'Standort benennen',
@@ -341,6 +343,7 @@ export const de = {
     editStep2Title: 'Position bearbeiten',
     editStep3Title: 'Name bearbeiten',
     update: 'Aktualisieren',
+    edit: 'Bearbeiten',
   },
 
   // Tracking screen

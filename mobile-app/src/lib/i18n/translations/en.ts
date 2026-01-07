@@ -46,6 +46,7 @@ export const en = {
     verifyEmail: 'Verify Email',
     createAccount: 'Create Account',
     logIn: 'Log In',
+    back: 'Back',
   },
 
   // Calendar module
@@ -326,6 +327,7 @@ export const en = {
     mapHint: 'Drag the map to position the marker at your workplace. The circle shows the automatic tracking zone.',
     saveLocation: 'Save Location',
     // 3-step wizard
+    stepOf: 'Step {{current}} of {{total}}',
     step1Title: 'Find Your Workplace',
     step2Title: 'Adjust Position',
     step3Title: 'Name This Location',
@@ -341,6 +343,7 @@ export const en = {
     editStep2Title: 'Edit Position',
     editStep3Title: 'Edit Name',
     update: 'Update',
+    edit: 'Edit',
   },
 
   // Tracking screen

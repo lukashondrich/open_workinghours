@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   FlatList,
-  Dimensions,
   Alert,
   ActionSheetIOS,
   Platform,
@@ -14,7 +13,7 @@ import MapView, { Circle, Marker, Region } from 'react-native-maps';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Location from 'expo-location';
-import { MapPin, Plus, ChevronUp, ChevronDown } from 'lucide-react-native';
+import { MapPin, Plus } from 'lucide-react-native';
 
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
 import { t } from '@/lib/i18n';
@@ -27,9 +26,7 @@ import type { RootStackParamList } from '@/navigation/AppNavigator';
 type LocationsListScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const MAX_LOCATIONS = 5;
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-const COLLAPSED_PANEL_HEIGHT = 88;
-const EXPANDED_PANEL_HEIGHT = Math.min(SCREEN_HEIGHT * 0.5, 360);
+const MAP_HEIGHT = 200; // Fixed smaller map at top
 
 // Map circle colors using primary theme color
 const MAP_CIRCLE_STROKE = 'rgba(46, 139, 107, 0.6)';
@@ -47,7 +44,6 @@ export default function LocationsListScreen() {
     latitudeDelta: 0.05,
     longitudeDelta: 0.05,
   });
-  const [isPanelExpanded, setIsPanelExpanded] = useState(false);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -246,100 +242,85 @@ export default function LocationsListScreen() {
     );
   };
 
-  const panelHeight = isPanelExpanded ? EXPANDED_PANEL_HEIGHT : COLLAPSED_PANEL_HEIGHT;
-
   return (
     <View style={styles.container}>
-      {/* Map */}
-      <MapView
-        ref={mapRef}
-        style={styles.map}
-        region={region}
-        onRegionChangeComplete={setRegion}
-        showsUserLocation
-        showsMyLocationButton={false}
-      >
-        {/* Show all location markers and circles */}
-        {locations.map((location) => (
-          <React.Fragment key={location.id}>
-            <Marker
-              coordinate={{
-                latitude: location.latitude,
-                longitude: location.longitude,
-              }}
-              title={location.name}
-            />
-            <Circle
-              center={{
-                latitude: location.latitude,
-                longitude: location.longitude,
-              }}
-              radius={location.radiusMeters}
-              strokeColor={MAP_CIRCLE_STROKE}
-              fillColor={MAP_CIRCLE_FILL}
-              strokeWidth={2}
-            />
-          </React.Fragment>
-        ))}
-      </MapView>
-
-      {/* Map Controls */}
-      <MapControls
-        onMyLocation={handleMyLocation}
-        bottomOffset={panelHeight + 16}
-      />
-
-      {/* Location Panel */}
-      <View style={[styles.panel, { height: panelHeight }]}>
-        <TouchableOpacity
-          style={[styles.panelHeader, isPanelExpanded && styles.panelHeaderExpanded]}
-          onPress={() => setIsPanelExpanded((prev) => !prev)}
-          activeOpacity={0.8}
+      {/* Map Preview (smaller, at top) */}
+      <View style={styles.mapContainer}>
+        <MapView
+          ref={mapRef}
+          style={styles.map}
+          region={region}
+          onRegionChangeComplete={setRegion}
+          showsUserLocation
+          showsMyLocationButton={false}
         >
-          <Text style={styles.panelTitle}>
+          {/* Show all location markers and circles */}
+          {locations.map((location) => (
+            <React.Fragment key={location.id}>
+              <Marker
+                coordinate={{
+                  latitude: location.latitude,
+                  longitude: location.longitude,
+                }}
+                title={location.name}
+              />
+              <Circle
+                center={{
+                  latitude: location.latitude,
+                  longitude: location.longitude,
+                }}
+                radius={location.radiusMeters}
+                strokeColor={MAP_CIRCLE_STROKE}
+                fillColor={MAP_CIRCLE_FILL}
+                strokeWidth={2}
+              />
+            </React.Fragment>
+          ))}
+        </MapView>
+
+        {/* Map Controls */}
+        <MapControls
+          onMyLocation={handleMyLocation}
+          bottomOffset={16}
+        />
+      </View>
+
+      {/* Location List (main content) */}
+      <View style={styles.listContainer}>
+        <View style={styles.listHeader}>
+          <Text style={styles.listTitle}>
             {t('locations.panelHeader', { count: locations.length, max: MAX_LOCATIONS })}
           </Text>
-          {isPanelExpanded ? (
-            <ChevronDown size={20} color={colors.text.secondary} />
-          ) : (
-            <ChevronUp size={20} color={colors.text.secondary} />
-          )}
+        </View>
+
+        <FlatList
+          data={locations}
+          keyExtractor={(item) => item.id}
+          renderItem={renderLocationCard}
+          contentContainerStyle={styles.locationList}
+          showsVerticalScrollIndicator={false}
+          style={styles.list}
+          ListEmptyComponent={
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyText}>{t('locations.emptyTitle')}</Text>
+              <Text style={styles.emptySubtext}>
+                {t('locations.emptySubtitle')}
+              </Text>
+            </View>
+          }
+        />
+
+        <TouchableOpacity
+          style={[
+            styles.addButton,
+            locations.length >= MAX_LOCATIONS && styles.addButtonDisabled,
+          ]}
+          onPress={handleAddLocation}
+          disabled={locations.length >= MAX_LOCATIONS}
+        >
+          <Plus size={20} color={colors.white} />
+          <Text style={styles.addButtonText}>{t('locations.addNew')}</Text>
         </TouchableOpacity>
-
-        {isPanelExpanded ? (
-          <>
-            <FlatList
-              data={locations}
-              keyExtractor={(item) => item.id}
-              renderItem={renderLocationCard}
-              contentContainerStyle={styles.locationList}
-              showsVerticalScrollIndicator={false}
-              style={styles.panelList}
-              ListEmptyComponent={
-                <View style={styles.emptyState}>
-                  <Text style={styles.emptyText}>{t('locations.emptyTitle')}</Text>
-                  <Text style={styles.emptySubtext}>
-                    {t('locations.emptySubtitle')}
-                  </Text>
-                </View>
-              }
-            />
-
-            <TouchableOpacity
-              style={[
-                styles.addButton,
-                locations.length >= MAX_LOCATIONS && styles.addButtonDisabled,
-              ]}
-              onPress={handleAddLocation}
-              disabled={locations.length >= MAX_LOCATIONS}
-            >
-              <Plus size={20} color={colors.white} />
-              <Text style={styles.addButtonText}>{t('locations.addNew')}</Text>
-            </TouchableOpacity>
-          </>
-        ) : (
-          <Text style={styles.panelHint}>{t('locations.panelHint')}</Text>
-        )}
       </View>
     </View>
   );
@@ -348,48 +329,40 @@ export default function LocationsListScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.background.default,
+  },
+  mapContainer: {
+    height: MAP_HEIGHT,
+    position: 'relative',
   },
   map: {
     flex: 1,
   },
-  panel: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
+  listContainer: {
+    flex: 1,
     backgroundColor: colors.background.paper,
     borderTopLeftRadius: borderRadius.xl,
     borderTopRightRadius: borderRadius.xl,
-    ...shadows.lg,
+    marginTop: -borderRadius.xl, // Overlap map slightly for rounded effect
     paddingHorizontal: spacing.xl,
     paddingBottom: spacing.lg,
+    ...shadows.lg,
   },
-  panelHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  listHeader: {
     paddingVertical: spacing.lg,
-  },
-  panelHeaderExpanded: {
     borderBottomWidth: 1,
     borderBottomColor: colors.border.default,
   },
-  panelTitle: {
+  listTitle: {
     fontSize: fontSize.lg,
     fontWeight: fontWeight.bold,
     color: colors.text.primary,
   },
-  panelHint: {
-    textAlign: 'center',
-    paddingVertical: spacing.lg,
-    color: colors.text.tertiary,
-    fontSize: fontSize.sm,
-  },
-  panelList: {
+  list: {
     flex: 1,
   },
   locationList: {
-    paddingVertical: spacing.lg,
+    paddingVertical: spacing.md,
   },
   locationCard: {
     flexDirection: 'row',

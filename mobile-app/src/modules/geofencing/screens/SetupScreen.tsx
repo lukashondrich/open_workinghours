@@ -12,6 +12,7 @@ import {
   FlatList,
   Keyboard,
   ScrollView,
+  Animated,
 } from 'react-native';
 import MapView, { Circle, Marker, Region, MapPressEvent } from 'react-native-maps';
 import * as Location from 'expo-location';
@@ -48,20 +49,33 @@ interface PinCoordinate {
   longitude: number;
 }
 
-// Step indicator dots component
+// Step names for the wizard (reuse existing translations)
+const STEP_NAMES: Record<Step, string> = {
+  1: 'setup.step1Title', // Find Your Workplace
+  2: 'setup.step2Title', // Adjust Position
+  3: 'setup.step3Title', // Name This Location
+};
+
+// Step indicator with label and dots
 function StepIndicator({ currentStep }: { currentStep: Step }) {
   return (
-    <View style={styles.stepIndicator}>
-      {[1, 2, 3].map((step) => (
-        <View
-          key={step}
-          style={[
-            styles.stepDot,
-            step === currentStep && styles.stepDotActive,
-            step < currentStep && styles.stepDotCompleted,
-          ]}
-        />
-      ))}
+    <View style={styles.stepIndicatorContainer}>
+      <Text style={styles.stepLabel}>
+        {t('setup.stepOf', { current: currentStep, total: 3 })}
+      </Text>
+      <Text style={styles.stepName}>{t(STEP_NAMES[currentStep])}</Text>
+      <View style={styles.stepDots}>
+        {[1, 2, 3].map((step) => (
+          <View
+            key={step}
+            style={[
+              styles.stepDot,
+              step === currentStep && styles.stepDotActive,
+              step < currentStep && styles.stepDotCompleted,
+            ]}
+          />
+        ))}
+      </View>
     </View>
   );
 }
@@ -71,12 +85,13 @@ export default function SetupScreen({ navigation, route }: Props) {
   const searchInputRef = useRef<TextInput>(null);
   const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Edit mode
+  // Edit mode and view-only mode
   const editLocation = route.params?.editLocation;
-  const isEditMode = !!editLocation;
+  const viewOnly = route.params?.viewOnly ?? false;
+  const isEditMode = !!editLocation && !viewOnly;
 
-  // Step state - start at step 2 in edit mode (skip search)
-  const [step, setStep] = useState<Step>(isEditMode ? 2 : 1);
+  // Step state - start at step 2 in edit/view mode (skip search)
+  const [step, setStep] = useState<Step>(editLocation ? 2 : 1);
 
   // Location data - pre-populate in edit mode
   const [pinCoordinate, setPinCoordinate] = useState<PinCoordinate | null>(
@@ -100,17 +115,47 @@ export default function SetupScreen({ navigation, route }: Props) {
   const [showSearchResults, setShowSearchResults] = useState(false);
 
   // UI state
-  const [loading, setLoading] = useState(!isEditMode); // Skip loading in edit mode
+  const [loading, setLoading] = useState(!editLocation); // Skip loading in edit/view mode
   const [saving, setSaving] = useState(false);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const miniMapHeight = useRef(new Animated.Value(200)).current;
 
   // Check if geocoding is available
   const geocodingEnabled = isGeocodingAvailable();
 
+  // Track keyboard visibility for step 3
   useEffect(() => {
-    if (!isEditMode) {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const showSub = Keyboard.addListener(showEvent, () => {
+      setKeyboardVisible(true);
+      Animated.timing(miniMapHeight, {
+        toValue: 100,
+        duration: 250,
+        useNativeDriver: false,
+      }).start();
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setKeyboardVisible(false);
+      Animated.timing(miniMapHeight, {
+        toValue: 200,
+        duration: 250,
+        useNativeDriver: false,
+      }).start();
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, [miniMapHeight]);
+
+  useEffect(() => {
+    if (!editLocation) {
       requestPermissionsAndGetLocation();
     }
-  }, [isEditMode]);
+  }, [editLocation]);
 
   const requestPermissionsAndGetLocation = async () => {
     try {
@@ -267,8 +312,8 @@ export default function SetupScreen({ navigation, route }: Props) {
 
   const handleBack = () => {
     if (step === 2) {
-      if (isEditMode) {
-        // In edit mode, go back to locations list
+      if (editLocation) {
+        // In edit or view mode, go back
         navigation.goBack();
       } else {
         setStep(1);
@@ -276,6 +321,14 @@ export default function SetupScreen({ navigation, route }: Props) {
     } else if (step === 3) {
       setStep(2);
     }
+  };
+
+  const handleStartEdit = () => {
+    // Switch from view-only to edit mode by re-navigating
+    navigation.replace('Setup', {
+      editLocation: editLocation,
+      viewOnly: false,
+    });
   };
 
   const handleSave = async () => {
@@ -516,7 +569,7 @@ export default function SetupScreen({ navigation, route }: Props) {
         </>
       )}
 
-      {/* Step 2: Fine-tune position + radius */}
+      {/* Step 2: Fine-tune position + radius (or view-only) */}
       {step === 2 && pinCoordinate && (
         <>
           <View style={styles.mapContainer}>
@@ -525,7 +578,7 @@ export default function SetupScreen({ navigation, route }: Props) {
               style={styles.map}
               region={region}
               onRegionChangeComplete={setRegion}
-              onPress={handleMapPress}
+              onPress={viewOnly ? undefined : handleMapPress}
               showsUserLocation
               showsMyLocationButton={false}
               scrollEnabled={true}
@@ -535,8 +588,8 @@ export default function SetupScreen({ navigation, route }: Props) {
             >
               <Marker
                 coordinate={pinCoordinate}
-                draggable
-                onDragEnd={handlePinDragEnd}
+                draggable={!viewOnly}
+                onDragEnd={viewOnly ? undefined : handlePinDragEnd}
               />
               <Circle
                 center={pinCoordinate}
@@ -549,38 +602,52 @@ export default function SetupScreen({ navigation, route }: Props) {
           </View>
 
           <View style={styles.bottomPanel}>
-            <Text style={styles.stepTitle}>{isEditMode ? t('setup.editStep2Title') : t('setup.step2Title')}</Text>
-            <Text style={styles.stepHint}>{t('setup.dragToAdjust')}</Text>
+            {viewOnly ? (
+              <>
+                {/* View-only mode: show location name and Edit button */}
+                <Text style={styles.stepTitle}>{name}</Text>
+                <Text style={styles.stepHint}>{t('setup.geofenceRadius', { radius })}</Text>
+                <Button onPress={handleStartEdit} fullWidth>
+                  {t('setup.edit')}
+                </Button>
+              </>
+            ) : (
+              <>
+                {/* Edit mode: show radius controls and Continue */}
+                <Text style={styles.stepTitle}>{isEditMode ? t('setup.editStep2Title') : t('setup.step2Title')}</Text>
+                <Text style={styles.stepHint}>{t('setup.dragToAdjust')}</Text>
 
-            {/* Radius controls */}
-            <Text style={styles.label}>{t('setup.geofenceRadius', { radius })}</Text>
-            <View style={styles.radiusControls}>
-              <Button
-                variant="secondary"
-                onPress={decreaseRadius}
-                disabled={radius <= 100}
-                icon={<Minus size={20} color={colors.text.primary} />}
-                style={styles.radiusButton}
-              >
-                {''}
-              </Button>
-              <View style={styles.radiusDisplay}>
-                <Text style={styles.radiusText}>{radius}m</Text>
-              </View>
-              <Button
-                variant="secondary"
-                onPress={increaseRadius}
-                disabled={radius >= 1000}
-                icon={<Plus size={20} color={colors.text.primary} />}
-                style={styles.radiusButton}
-              >
-                {''}
-              </Button>
-            </View>
+                {/* Radius controls */}
+                <Text style={styles.label}>{t('setup.geofenceRadius', { radius })}</Text>
+                <View style={styles.radiusControls}>
+                  <Button
+                    variant="secondary"
+                    onPress={decreaseRadius}
+                    disabled={radius <= 100}
+                    icon={<Minus size={20} color={colors.text.primary} />}
+                    style={styles.radiusButton}
+                  >
+                    {''}
+                  </Button>
+                  <View style={styles.radiusDisplay}>
+                    <Text style={styles.radiusText}>{radius}m</Text>
+                  </View>
+                  <Button
+                    variant="secondary"
+                    onPress={increaseRadius}
+                    disabled={radius >= 1000}
+                    icon={<Plus size={20} color={colors.text.primary} />}
+                    style={styles.radiusButton}
+                  >
+                    {''}
+                  </Button>
+                </View>
 
-            <Button onPress={handleContinue} fullWidth>
-              {t('setup.continue')}
-            </Button>
+                <Button onPress={handleContinue} fullWidth>
+                  {t('setup.continue')}
+                </Button>
+              </>
+            )}
           </View>
         </>
       )}
@@ -588,8 +655,8 @@ export default function SetupScreen({ navigation, route }: Props) {
       {/* Step 3: Name the location */}
       {step === 3 && pinCoordinate && (
         <>
-          {/* Mini map preview */}
-          <View style={styles.miniMapContainer}>
+          {/* Mini map preview - shrinks when keyboard visible */}
+          <Animated.View style={[styles.miniMapContainer, { height: miniMapHeight }]}>
             <MapView
               style={styles.miniMap}
               region={{
@@ -612,12 +679,12 @@ export default function SetupScreen({ navigation, route }: Props) {
                 strokeWidth={2}
               />
             </MapView>
-          </View>
+          </Animated.View>
 
           <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={styles.step3Panel}
-            keyboardVerticalOffset={Platform.OS === 'ios' ? 120 : 0}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
           >
             <ScrollView
               contentContainerStyle={styles.step3Content}
@@ -674,14 +741,14 @@ const styles = StyleSheet.create({
     color: colors.text.tertiary,
   },
 
-  // Header with step indicator
+  // Header with step indicator (native header handles safe area)
   headerBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.md,
-    paddingTop: Platform.OS === 'ios' ? 50 : spacing.lg,
-    paddingBottom: spacing.md,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.sm,
     backgroundColor: colors.background.paper,
     zIndex: 10,
   },
@@ -694,28 +761,43 @@ const styles = StyleSheet.create({
   backButtonPlaceholder: {
     width: 40,
   },
-  stepIndicator: {
+  stepIndicatorContainer: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  stepLabel: {
+    fontSize: fontSize.xs,
+    color: colors.text.tertiary,
+    marginBottom: 2,
+  },
+  stepName: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semibold,
+    color: colors.text.primary,
+    marginBottom: spacing.sm,
+  },
+  stepDots: {
     flexDirection: 'row',
     gap: spacing.sm,
   },
   stepDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: colors.grey[300],
   },
   stepDotActive: {
     backgroundColor: colors.primary[500],
-    width: 24,
+    width: 20,
   },
   stepDotCompleted: {
     backgroundColor: colors.primary[300],
   },
 
-  // Search
+  // Search (positioned below step indicator which is now taller with labels)
   searchContainer: {
     position: 'absolute',
-    top: Platform.OS === 'ios' ? 110 : 80,
+    top: Platform.OS === 'ios' ? 76 : 72,
     left: spacing.lg,
     right: spacing.lg,
     zIndex: 20,
@@ -857,8 +939,10 @@ const styles = StyleSheet.create({
 
   // Step 3 specific
   miniMapContainer: {
-    height: 200,
-    margin: spacing.lg,
+    // height is animated via miniMapHeight (200 -> 100 when keyboard visible)
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.sm,
+    marginBottom: spacing.sm,
     borderRadius: borderRadius.lg,
     overflow: 'hidden',
     ...shadows.md,

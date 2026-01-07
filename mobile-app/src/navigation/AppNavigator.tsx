@@ -35,7 +35,10 @@ export type RootStackParamList = {
   Login: { email: string };
   // Main app stack
   MainTabs: undefined;
-  Setup: { editLocation?: { id: string; name: string; latitude: number; longitude: number; radiusMeters: number } } | undefined;
+  Setup: {
+    editLocation?: { id: string; name: string; latitude: number; longitude: number; radiusMeters: number };
+    viewOnly?: boolean; // Show location details without editing
+  } | undefined;
   Tracking: { locationId: string };
   Log: { locationId: string };
   LocationsList: undefined;
@@ -228,7 +231,7 @@ export default function AppNavigator() {
         <Stack.Screen
           name="Tracking"
           component={TrackingScreen}
-          options={{ title: t('navigation.workTracking') }}
+          options={{ title: t('navigation.workTracking'), headerBackTitle: t('navigation.back') }}
         />
         <Stack.Screen
           name="Log"

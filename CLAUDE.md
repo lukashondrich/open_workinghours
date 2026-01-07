@@ -2,8 +2,8 @@
 
 This file provides context for AI assistants (Claude) working on this project.
 
-**Last Updated:** 2026-01-06
-**Status:** Processing user test feedback (Cluster C planned)
+**Last Updated:** 2026-01-07
+**Status:** Cluster F complete, ready for build #30
 
 ---
 
@@ -135,7 +135,7 @@ Only when a module/feature is:
 
 ---
 
-## Current State (2026-01-06)
+## Current State (2026-01-07)
 
 ### Active Work: User Test Feedback
 
@@ -143,20 +143,23 @@ A physician tester (iPhone 13, iOS 18) provided feedback on 2026-01-06. Issues a
 
 | Cluster | Focus | Status |
 |---------|-------|--------|
-| A | Quick bug fixes (zoom, arrows, spinner) | ✅ Fixed, awaiting device test |
+| A | Quick bug fixes (zoom, arrows, spinner) | ✅ Fixed |
 | B | Shift instance management | Pending |
-| C | Tracking data UX (tap targets, 14-day) | ✅ Implemented - see `docs/CLUSTER_C_PLAN.md` |
+| C | Tracking data UX (tap targets, 14-day) | ✅ Implemented |
 | D | Location setup UX | Pending |
-| E | Vacation/Sick days | Needs design |
+| E | Vacation/Sick days | ✅ Implemented |
+| F | UX polish (post-testing) | ✅ Implemented (2026-01-07) |
 
-**Cluster C improvements:**
-- Sessions < 5 min filtered at recording (noise reduction)
-- 8px min visual height + 20px hitSlop (less clunky, still tappable)
-- "Session Discarded" notification for short sessions
-- Duration format unified to "1h 30min" across app
-- Pre-account days show "—" in 14-day overview
+**Cluster F improvements (2026-01-07):**
+- Photon geocoding replaces Mapbox (free, GDPR-friendly, better hospital search)
+- Healthcare results prioritized (hospital, clinic, pharmacy sorted first)
+- Double-tap to place shifts (single tap clears selection - fewer accidents)
+- Absence overlay 50% transparent (shifts visible underneath)
+- Step indicator shows "Step 1 of 3 - Find Your Workplace"
+- Work Locations screen: inverted layout (small map, prominent list)
+- Keyboard avoiding: mini-map shrinks when keyboard appears
 
-**Next build:** #29 (ready for upload)
+**Next build:** #30 (ready for upload)
 **Full details:** `docs/user-test-feedback-2026-01.md`
 
 ### What Exists & Works
@@ -1021,9 +1024,9 @@ Previous: add privacy_architecture.md
 
 ---
 
-**Last Updated:** 2026-01-06
-**Status:** Processing user test feedback (Cluster C planned)
-**Current Focus:** Cluster C implementation (user test feedback)
+**Last Updated:** 2026-01-07
+**Status:** Cluster F complete, ready for build #30
+**Current Focus:** Testing Cluster F improvements, then Cluster B (shift management)
 **Production URLs:**
 - Website: https://openworkinghours.org
 - Backend API: https://api.openworkinghours.org
