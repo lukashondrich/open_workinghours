@@ -15,7 +15,7 @@ from ..config import get_settings
 from ..database import get_db
 from ..dependencies import get_current_user
 from ..models import User, VerificationRequest, VerificationStatus
-from ..schemas import AuthTokenOut, UserLoginIn, UserOut, UserRegisterIn
+from ..schemas import AuthTokenOut, ConsentUpdateIn, UserLoginIn, UserOut, UserRegisterIn
 from ..security import create_user_access_token, hash_code, hash_email
 
 logger = logging.getLogger(__name__)
@@ -74,7 +74,8 @@ def register_user(
             detail="User with this email already exists. Please use /auth/login instead.",
         )
 
-    # Create new user
+    # Create new user with consent data
+    now = datetime.now(timezone.utc)
     new_user = User(
         email_hash=email_hash_value,
         hospital_id=payload.hospital_id,
@@ -82,6 +83,10 @@ def register_user(
         role_level=payload.role_level,
         state_code=payload.state_code,
         country_code="DEU",  # Default to Germany
+        # GDPR consent
+        terms_accepted_version=payload.terms_version,
+        privacy_accepted_version=payload.privacy_version,
+        consent_accepted_at=now if payload.terms_version else None,
     )
 
     db.add(new_user)
@@ -214,4 +219,33 @@ def get_current_user_info(
     Requires:
     - Valid JWT token in Authorization header
     """
+    return UserOut.from_orm(current_user)
+
+
+@router.post("/consent", response_model=UserOut)
+def update_consent(
+    payload: ConsentUpdateIn,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(_get_db_session),
+) -> UserOut:
+    """
+    Update user's GDPR consent (for policy updates).
+
+    Called when Terms of Service or Privacy Policy are updated
+    and user needs to re-accept.
+
+    Requires:
+    - Valid JWT token in Authorization header
+    """
+    now = datetime.now(timezone.utc)
+
+    current_user.terms_accepted_version = payload.terms_version
+    current_user.privacy_accepted_version = payload.privacy_version
+    current_user.consent_accepted_at = now
+
+    db.commit()
+    db.refresh(current_user)
+
+    logger.info(f"User {current_user.user_id} updated consent to terms={payload.terms_version}, privacy={payload.privacy_version}")
+
     return UserOut.from_orm(current_user)

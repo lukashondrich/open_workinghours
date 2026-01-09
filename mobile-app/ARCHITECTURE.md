@@ -113,12 +113,24 @@ Email-based passwordless auth with daily data submission.
 **Key Files:**
 - `AuthService.ts` - Login, registration, token management
 - `DailySubmissionService.ts` - Submits confirmed days to backend
+- `ConsentBottomSheet.tsx` - GDPR consent modal
+- `ConsentStorage.ts` - Local consent record persistence
+- `consent-types.ts` - Consent types and version constants
 
 **Flow:**
 1. User enters email → receives 6-digit code
 2. User enters code → receives JWT token
-3. Token stored in expo-secure-store
-4. Daily submissions sent with JWT auth
+3. **User reviews Terms & Privacy Policy in consent modal**
+4. User accepts → consent saved locally + sent to backend
+5. Token stored in expo-secure-store
+6. Daily submissions sent with JWT auth
+
+**GDPR Consent:**
+- Shown as bottom sheet modal during registration
+- Links to Terms of Service and Privacy Policy
+- Key points summary visible without internet
+- Checkbox + "I Agree" button required
+- Consent version stored locally and on backend
 
 ### Calendar Module
 
@@ -312,6 +324,15 @@ import { t } from '@/lib/i18n';
 - **Zoom buttons removed**: Pinch-only zoom, keeps only 📍 (my location) button
 - **Status screen link**: Tappable locations navigate to LocationsList
 - **Keyboard avoiding**: Mini-map shrinks when keyboard appears
+
+### GDPR Consent Flow (2026-01-09)
+- **ConsentBottomSheet**: Bottom sheet modal with Terms/Privacy links
+- **Key points summary**: Visible without internet (aggregation, GPS local, deletion rights)
+- **Checkbox + Button**: Affirmative action required before registration
+- **ConsentStorage**: Local persistence using expo-secure-store
+- **Backend integration**: Consent version sent with registration, `/auth/consent` endpoint for updates
+- **Translations**: Full EN + DE support
+- **Pre-announcement**: "By continuing, you'll review our Terms" text before button
 
 ---
 

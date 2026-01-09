@@ -38,7 +38,13 @@ CLAUDE.md (Entry Point)
 │
 ├─► docs/debugging.md (debugging + known gotchas)
 │
-├─► privacy_architecture.md (privacy/GDPR)
+├─► privacy_architecture.md (technical privacy design)
+│
+├─► docs/GDPR_COMPLIANCE.md (legal compliance hub)
+│   ├─► docs/DPIA.md
+│   ├─► docs/ROPA.md
+│   ├─► docs/data-retention-policy.md
+│   └─► website/*/app-privacy-policy.astro, terms.astro
 │
 ├─► blueprint.md (deep architecture)
 │
@@ -75,13 +81,36 @@ README.md (User Entry Point)
 | `blueprint.md` | High-level system architecture, completed modules overview | Root | Architects |
 | `mobile-app/ARCHITECTURE.md` | Mobile app details - modules, schemas, key components | Module | Mobile devs |
 | `backend/ARCHITECTURE.md` | Backend details - API, database, aggregation | Module | Backend devs |
-| `privacy_architecture.md` | Privacy/GDPR design, data flows, compliance | Root | Legal, auditors |
+| `privacy_architecture.md` | Privacy/GDPR technical design, data flows | Root | Technical |
 | `website/README.md` | Website structure and content | Module | Content editors |
 
 **Characteristics:**
 - Answers "what is...?" and "how does X work?" questions
 - Updated when features are FINISHED and tested
 - Module-specific docs live in module folders (close to code)
+
+### Legal & Compliance (GDPR)
+
+| Document | Purpose | Location | Audience |
+|----------|---------|----------|----------|
+| `docs/GDPR_COMPLIANCE.md` | **Hub**: Status overview, checklist, links to all legal docs | docs/ | Controller, lawyers |
+| `docs/DPIA.md` | Data Protection Impact Assessment (Art. 35) | docs/ | Lawyers, auditors |
+| `docs/ROPA.md` | Records of Processing Activities (Art. 30) | docs/ | Lawyers, auditors |
+| `docs/data-retention-policy.md` | Retention periods, deletion procedures | docs/ | Lawyers, ops |
+| `docs/consent-flow-spec.md` | In-app consent UI specification | docs/ | Mobile devs |
+| `website/*/app-privacy-policy.astro` | User-facing privacy policy (EN/DE) | website/ | Users, lawyers |
+| `website/*/terms.astro` | User-facing terms of service (EN/DE) | website/ | Users, lawyers |
+
+**Characteristics:**
+- Required by law, not just helpful
+- Must be auditable (regulators may request)
+- Has formal structure requirements
+- Different audience (lawyers, auditors) than technical docs
+- Entry point: `docs/GDPR_COMPLIANCE.md` (hub document)
+
+**Relationship to privacy_architecture.md:**
+- `privacy_architecture.md` = Technical design (how we protect data)
+- `docs/GDPR_COMPLIANCE.md` = Legal compliance status (are we compliant?)
 
 ### Active Work (Temporary)
 

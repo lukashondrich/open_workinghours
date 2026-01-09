@@ -1,0 +1,224 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="App Privacy Policy" description="Privacy policy for the Open Working Hours mobile app.">
+  <div class="max-w-3xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
+    <header class="mb-8">
+      <h1 class="text-stone-900">Privacy Policy for the Open Working Hours App</h1>
+      <p class="text-stone-500 text-sm mt-2">Last updated: January 2026</p>
+      <p class="text-stone-500 text-sm mt-1">
+        <a href="/de/app-privacy-policy" class="text-teal-600 hover:text-teal-700">Deutsche Version</a>
+      </p>
+    </header>
+
+    <div class="prose prose-stone max-w-none">
+      <!-- Note for legal review -->
+      <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-8 not-prose">
+        <p class="text-amber-800 text-sm">
+          <strong>Note:</strong> This document is a draft prepared for legal review. Final version pending approval by qualified legal counsel.
+        </p>
+      </div>
+
+      <!-- 1. Controller -->
+      <section class="mb-8">
+        <h2 class="text-xl font-semibold text-stone-900 mb-4">1. Controller</h2>
+        <p>The controller responsible for data processing is:</p>
+        <address class="not-italic mt-2 text-stone-700">
+          Lukas Jonathan Hondrich<br />
+          Karl-Marx-Straße 182<br />
+          12043 Berlin, Germany<br />
+          Email: <a href="mailto:privacy@openworkinghours.org" class="text-teal-600">privacy@openworkinghours.org</a>
+        </address>
+      </section>
+
+      <!-- 2. Overview -->
+      <section class="mb-8">
+        <h2 class="text-xl font-semibold text-stone-900 mb-4">2. Overview of Data Processing</h2>
+        <p>
+          Open Working Hours is a privacy-first platform for healthcare workers to track and report working hours.
+          We process personal data only to provide the service and to generate anonymous, aggregated statistics
+          about working conditions in the healthcare sector.
+        </p>
+        <p class="mt-3">
+          <strong>Key principles:</strong>
+        </p>
+        <ul class="mt-2 space-y-1">
+          <li>Data minimization: We collect only what is necessary</li>
+          <li>Local-first: Most data stays on your device</li>
+          <li>Pseudonymization: Your identity is protected by technical measures</li>
+          <li>K-anonymity: Statistics are only published for groups of 10+ users</li>
+        </ul>
+      </section>
+
+      <!-- 3. Data We Collect -->
+      <section class="mb-8">
+        <h2 class="text-xl font-semibold text-stone-900 mb-4">3. Data We Collect</h2>
+
+        <h3 class="text-lg font-medium text-stone-800 mt-6 mb-3">3.1 Data Stored Only on Your Device (Not Transmitted)</h3>
+        <p>The following data is stored locally on your device and never sent to our servers:</p>
+        <ul class="mt-2 space-y-1">
+          <li>GPS coordinates for geofencing (used only to detect when you enter/leave work locations)</li>
+          <li>Shift templates and planned schedules</li>
+          <li>Sick day and vacation records</li>
+          <li>Work location names and coordinates</li>
+          <li>Unconfirmed tracking sessions</li>
+        </ul>
+
+        <h3 class="text-lg font-medium text-stone-800 mt-6 mb-3">3.2 Data Transmitted to Our Servers</h3>
+        <p>When you confirm a day's working hours, the following data is transmitted:</p>
+        <ul class="mt-2 space-y-1">
+          <li><strong>Email hash:</strong> A one-way cryptographic hash of your email address (the original email is not stored)</li>
+          <li><strong>Confirmed working hours:</strong> Date, planned minutes, actual minutes worked</li>
+          <li><strong>Profile information:</strong> Federal state (Bundesland), medical specialty, role level (e.g., resident, attending)</li>
+          <li><strong>Anonymous user ID:</strong> A randomly generated identifier</li>
+        </ul>
+
+        <h3 class="text-lg font-medium text-stone-800 mt-6 mb-3">3.3 Data We Do NOT Collect</h3>
+        <ul class="mt-2 space-y-1">
+          <li>Your name</li>
+          <li>Your employer or hospital name</li>
+          <li>Precise GPS coordinates (these never leave your device)</li>
+          <li>IP addresses (not logged)</li>
+          <li>Device identifiers</li>
+          <li>Health data (sick days stay on your device)</li>
+        </ul>
+      </section>
+
+      <!-- 4. Legal Basis -->
+      <section class="mb-8">
+        <h2 class="text-xl font-semibold text-stone-900 mb-4">4. Legal Basis for Processing</h2>
+        <p>We process your data based on the following legal grounds under GDPR Art. 6(1):</p>
+
+        <h3 class="text-lg font-medium text-stone-800 mt-6 mb-3">4.1 Contract (Art. 6(1)(b))</h3>
+        <p>
+          Processing necessary to provide the service you requested: account creation, authentication,
+          storing your work events, and enabling data export and deletion.
+        </p>
+
+        <h3 class="text-lg font-medium text-stone-800 mt-6 mb-3">4.2 Consent (Art. 6(1)(a))</h3>
+        <p>
+          Your contribution to aggregated, anonymized statistics about healthcare working conditions.
+          You provide this consent when you accept the Terms of Service. You may withdraw consent at
+          any time by deleting your account, which removes your data from future aggregations.
+        </p>
+      </section>
+
+      <!-- 5. Recipients -->
+      <section class="mb-8">
+        <h2 class="text-xl font-semibold text-stone-900 mb-4">5. Recipients of Your Data</h2>
+
+        <h3 class="text-lg font-medium text-stone-800 mt-6 mb-3">5.1 Service Providers (Processors)</h3>
+        <p>We use the following service providers who process data on our behalf under Data Processing Agreements:</p>
+        <ul class="mt-2 space-y-2">
+          <li>
+            <strong>Hetzner Online GmbH</strong> (Germany) — Server hosting<br />
+            <span class="text-stone-500 text-sm">Your data is stored on servers in Germany.</span>
+          </li>
+          <li>
+            <strong>Brevo (Sendinblue)</strong> (EU) — Email delivery<br />
+            <span class="text-stone-500 text-sm">Used only to send verification codes. Email addresses are not stored after verification.</span>
+          </li>
+        </ul>
+
+        <h3 class="text-lg font-medium text-stone-800 mt-6 mb-3">5.2 Public Statistics</h3>
+        <p>
+          Aggregated, anonymized statistics may be published publicly or shared with healthcare unions,
+          professional associations, and researchers. These statistics:
+        </p>
+        <ul class="mt-2 space-y-1">
+          <li>Contain no personal data</li>
+          <li>Are only published when based on 10+ individuals (k-anonymity)</li>
+          <li>Include statistical noise to prevent re-identification (differential privacy)</li>
+        </ul>
+
+        <h3 class="text-lg font-medium text-stone-800 mt-6 mb-3">5.3 No Employer Access</h3>
+        <p>
+          <strong>Your employer cannot access your data.</strong> Open Working Hours is not an employer tool.
+          Employers cannot request access to individual user data, and we will not provide it.
+        </p>
+      </section>
+
+      <!-- 6. Data Retention -->
+      <section class="mb-8">
+        <h2 class="text-xl font-semibold text-stone-900 mb-4">6. Data Retention</h2>
+        <ul class="mt-2 space-y-2">
+          <li><strong>Account data and work events:</strong> Retained until you delete your account</li>
+          <li><strong>Verification codes:</strong> Automatically deleted after 15 minutes</li>
+          <li><strong>Aggregated statistics:</strong> Retained indefinitely (contains no personal data)</li>
+          <li><strong>Server backups:</strong> Retained for 30 days, then automatically deleted</li>
+        </ul>
+      </section>
+
+      <!-- 7. Your Rights -->
+      <section class="mb-8">
+        <h2 class="text-xl font-semibold text-stone-900 mb-4">7. Your Rights Under GDPR</h2>
+        <p>You have the following rights regarding your personal data:</p>
+        <ul class="mt-2 space-y-2">
+          <li><strong>Right of access (Art. 15):</strong> Request a copy of your data via the app's export function</li>
+          <li><strong>Right to rectification (Art. 16):</strong> Correct inaccurate data in the app</li>
+          <li><strong>Right to erasure (Art. 17):</strong> Delete your account and all associated data via the app</li>
+          <li><strong>Right to data portability (Art. 20):</strong> Export your data in JSON format via the app</li>
+          <li><strong>Right to withdraw consent (Art. 7):</strong> Withdraw consent by deleting your account</li>
+          <li><strong>Right to lodge a complaint:</strong> You may file a complaint with the Berlin data protection authority (Berliner Beauftragte für Datenschutz und Informationsfreiheit)</li>
+        </ul>
+
+        <h3 class="text-lg font-medium text-stone-800 mt-6 mb-3">Important Note on Aggregated Statistics</h3>
+        <p>
+          When you delete your account, all your personal data is permanently removed. However, aggregated
+          statistics that were calculated before your deletion are retained. These statistics cannot be
+          linked back to you because they:
+        </p>
+        <ul class="mt-2 space-y-1">
+          <li>Contain only group-level information (e.g., "surgeons in Bavaria")</li>
+          <li>Are based on groups of at least 10 individuals</li>
+          <li>Include statistical noise that masks individual contributions</li>
+        </ul>
+        <p class="mt-2">
+          Under GDPR, such properly anonymized data is not considered personal data and is therefore
+          not subject to the right to erasure.
+        </p>
+      </section>
+
+      <!-- 8. Security -->
+      <section class="mb-8">
+        <h2 class="text-xl font-semibold text-stone-900 mb-4">8. Security Measures</h2>
+        <ul class="mt-2 space-y-1">
+          <li><strong>Encryption in transit:</strong> All data transmission uses TLS 1.3</li>
+          <li><strong>Encryption at rest:</strong> Server data is encrypted</li>
+          <li><strong>Pseudonymization:</strong> Email addresses are hashed; users are identified by random IDs</li>
+          <li><strong>Access control:</strong> Strict access limitations to production systems</li>
+          <li><strong>EU data residency:</strong> All data is stored in Germany</li>
+        </ul>
+      </section>
+
+      <!-- 9. International Transfers -->
+      <section class="mb-8">
+        <h2 class="text-xl font-semibold text-stone-900 mb-4">9. International Data Transfers</h2>
+        <p>
+          Your data is processed and stored exclusively within the European Union (Germany).
+          We do not transfer personal data to countries outside the EU/EEA.
+        </p>
+      </section>
+
+      <!-- 10. Changes -->
+      <section class="mb-8">
+        <h2 class="text-xl font-semibold text-stone-900 mb-4">10. Changes to This Policy</h2>
+        <p>
+          We may update this privacy policy to reflect changes in our practices or legal requirements.
+          Significant changes will be communicated through the app. The current version is always
+          available at this URL.
+        </p>
+      </section>
+
+      <!-- 11. Contact -->
+      <section class="mb-8">
+        <h2 class="text-xl font-semibold text-stone-900 mb-4">11. Contact</h2>
+        <p>For privacy-related questions or to exercise your rights, contact:</p>
+        <address class="not-italic mt-2 text-stone-700">
+          Email: <a href="mailto:privacy@openworkinghours.org" class="text-teal-600">privacy@openworkinghours.org</a>
+        </address>
+      </section>
+    </div>
+  </div>
+</Layout>

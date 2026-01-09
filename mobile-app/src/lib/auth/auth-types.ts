@@ -43,6 +43,9 @@ export interface RegisterRequest {
   specialty: string;
   roleLevel: string;
   stateCode?: string;
+  // GDPR consent
+  termsVersion?: string;
+  privacyVersion?: string;
 }
 
 export interface RegisterResponse {

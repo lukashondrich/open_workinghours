@@ -1,6 +1,7 @@
 /**
  * RegisterScreen - Step 2 of registration flow
  * Collects hospital, specialty, role, state info → creates account
+ * Shows GDPR consent modal before registration
  */
 
 import React, { useState } from 'react';
@@ -18,6 +19,13 @@ import { Button, Input, InfoBox } from '@/components/ui';
 import { useAuth } from '@/lib/auth/auth-context';
 import { AuthService } from '../services/AuthService';
 import { t } from '@/lib/i18n';
+import { ConsentBottomSheet } from '../components/ConsentBottomSheet';
+import {
+  CURRENT_TERMS_VERSION,
+  CURRENT_PRIVACY_VERSION,
+  createConsentRecord,
+} from '@/lib/auth/consent-types';
+import { ConsentStorage } from '@/lib/auth/ConsentStorage';
 
 interface RegisterScreenProps {
   email: string;
@@ -31,40 +39,61 @@ export default function RegisterScreen({ email, onLoginPress }: RegisterScreenPr
   const [roleLevel, setRoleLevel] = useState('');
   const [stateCode, setStateCode] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showConsent, setShowConsent] = useState(false);
 
-  const handleRegister = async () => {
-    // Validation
+  // Validate form before showing consent modal
+  const validateForm = (): boolean => {
     if (!hospitalId.trim()) {
       Alert.alert(t('auth.register.hospitalRequired'), t('auth.register.hospitalRequiredMessage'));
-      return;
+      return false;
     }
     if (!specialty.trim()) {
       Alert.alert(t('auth.register.specialtyRequired'), t('auth.register.specialtyRequiredMessage'));
-      return;
+      return false;
     }
     if (!roleLevel.trim()) {
       Alert.alert(t('auth.register.roleRequired'), t('auth.register.roleRequiredMessage'));
-      return;
+      return false;
     }
+    return true;
+  };
 
+  // Called when user taps "Create Account" - shows consent modal
+  const handleCreateAccountPress = () => {
+    if (!validateForm()) return;
+    setShowConsent(true);
+  };
+
+  // Called after user accepts consent - proceeds with registration
+  const handleConsentAccepted = async () => {
     try {
       setLoading(true);
 
-      // Call backend registration endpoint
+      // Create consent record
+      const consentRecord = createConsentRecord();
+
+      // Call backend registration endpoint with consent data
       const result = await AuthService.register({
         email,
         hospitalId: hospitalId.trim(),
         specialty: specialty.trim(),
         roleLevel: roleLevel.trim(),
         stateCode: stateCode.trim() || undefined,
+        termsVersion: CURRENT_TERMS_VERSION,
+        privacyVersion: CURRENT_PRIVACY_VERSION,
       });
 
-      // Save auth state
-      await signIn(result.user, result.token, result.expiresAt);
+      // Save consent locally
+      await ConsentStorage.save(consentRecord);
 
-      // Navigation to main app happens automatically via AuthContext state change
+      // Close consent modal
+      setShowConsent(false);
+
+      // Save auth state - navigation happens automatically
+      await signIn(result.user, result.token, result.expiresAt);
     } catch (error) {
       console.error('[RegisterScreen] Registration failed:', error);
+      setShowConsent(false);
 
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
@@ -141,7 +170,7 @@ export default function RegisterScreen({ email, onLoginPress }: RegisterScreenPr
           />
 
           <Button
-            onPress={handleRegister}
+            onPress={handleCreateAccountPress}
             loading={loading}
             disabled={loading}
             fullWidth
@@ -150,6 +179,8 @@ export default function RegisterScreen({ email, onLoginPress }: RegisterScreenPr
           >
             {t('auth.register.createAccount')}
           </Button>
+
+          <Text style={styles.preAnnounce}>{t('consent.preAnnounce')}</Text>
 
           <View style={styles.footer}>
             <Text style={styles.footerText}>{t('auth.register.haveAccount')}</Text>
@@ -162,11 +193,17 @@ export default function RegisterScreen({ email, onLoginPress }: RegisterScreenPr
             </Button>
           </View>
 
-          <InfoBox variant="info" style={styles.privacyInfo}>
-            {t('auth.register.privacyNotice')}
-          </InfoBox>
         </View>
       </ScrollView>
+
+      {/* GDPR Consent Modal */}
+      <ConsentBottomSheet
+        visible={showConsent}
+        onAccept={handleConsentAccepted}
+        onCancel={() => setShowConsent(false)}
+        mode="initial"
+        loading={loading}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -215,7 +252,10 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     color: colors.text.secondary,
   },
-  privacyInfo: {
-    marginTop: spacing.xxl,
+  preAnnounce: {
+    fontSize: fontSize.xs,
+    color: colors.text.tertiary,
+    textAlign: 'center',
+    marginTop: spacing.sm,
   },
 });

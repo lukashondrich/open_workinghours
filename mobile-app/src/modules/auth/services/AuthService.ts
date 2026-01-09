@@ -105,6 +105,9 @@ export class AuthService {
           specialty: request.specialty,
           role_level: request.roleLevel,
           state_code: request.stateCode,
+          // GDPR consent
+          terms_version: request.termsVersion,
+          privacy_version: request.privacyVersion,
         }),
       });
 

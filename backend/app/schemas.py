@@ -131,6 +131,9 @@ class UserRegisterIn(BaseModel):
     specialty: str = Field(..., min_length=1, max_length=100)
     role_level: str = Field(..., min_length=1, max_length=50)
     state_code: str | None = Field(default=None, max_length=10)
+    # GDPR consent (optional for backward compatibility, required for new registrations)
+    terms_version: str | None = Field(default=None, max_length=20)
+    privacy_version: str | None = Field(default=None, max_length=20)
 
     @validator("email")
     def _lowercase_email(cls, value: str) -> str:
@@ -163,9 +166,19 @@ class UserOut(BaseModel):
     role_level: str
     state_code: str | None
     created_at: datetime
+    # GDPR consent status
+    terms_accepted_version: str | None = None
+    privacy_accepted_version: str | None = None
+    consent_accepted_at: datetime | None = None
 
     class Config:
         from_attributes = True
+
+
+class ConsentUpdateIn(BaseModel):
+    """Update user's consent (for policy updates)."""
+    terms_version: str = Field(..., min_length=1, max_length=20)
+    privacy_version: str = Field(..., min_length=1, max_length=20)
 
 
 # ============================================================================

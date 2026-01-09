@@ -89,6 +89,11 @@ class User(Base):
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     last_submission_at = Column(DateTime(timezone=True))
 
+    # GDPR Consent tracking
+    terms_accepted_version = Column(String(20), nullable=True)
+    privacy_accepted_version = Column(String(20), nullable=True)
+    consent_accepted_at = Column(DateTime(timezone=True), nullable=True)
+
     # Relationships
     work_events = relationship("WorkEvent", back_populates="user", cascade="all, delete-orphan")
 

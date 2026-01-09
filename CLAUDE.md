@@ -66,7 +66,8 @@ All core features complete. User test feedback (Clusters A-F) fully implemented.
    - Backend work → `backend/ARCHITECTURE.md`
    - Deployment → `docs/deployment.md`
    - Debugging issues → `docs/debugging.md`
-   - Privacy questions → `privacy_architecture.md`
+   - Privacy (technical) → `privacy_architecture.md`
+   - GDPR/Legal compliance → `docs/GDPR_COMPLIANCE.md`
    - Deep architecture → `blueprint.md`
 
 **All docs connect back to this file** - if you're lost, return here.
@@ -82,7 +83,8 @@ See `docs/DOCUMENTATION_STRUCTURE.md` for full documentation guidelines.
 | Document | Purpose |
 |----------|---------|
 | `blueprint.md` | System architecture, completed modules |
-| `privacy_architecture.md` | Privacy/GDPR design |
+| `privacy_architecture.md` | Technical privacy design (k-anonymity, data flows) |
+| `docs/GDPR_COMPLIANCE.md` | Legal compliance status, checklist, links to DPIA/RoPA |
 | `mobile-app/ARCHITECTURE.md` | Mobile app details, schemas, patterns |
 | `backend/ARCHITECTURE.md` | Backend API, database, aggregation |
 | `docs/deployment.md` | Docker, Hetzner, production deployment |
@@ -133,12 +135,18 @@ Start feature → Create *_PLAN.md → Complete → Extract to ARCHITECTURE.md �
 
 ## Recent Updates (Last 7 Days)
 
+### 2026-01-09: GDPR Compliance & Consent Flow
+- Created full GDPR compliance documentation suite (DPIA, RoPA, retention policy)
+- Added App Privacy Policy and Terms of Service (EN + DE) to website
+- Created `docs/GDPR_COMPLIANCE.md` as legal compliance hub
+- Implemented consent flow in mobile app (ConsentBottomSheet component)
+- Backend: Added consent fields to User model, new `/auth/consent` endpoint
+- Added Legal & Compliance category to documentation structure
+
 ### 2026-01-07: Cluster F Complete
 - Photon geocoding replaces Mapbox (free, GDPR-friendly)
 - Healthcare results prioritized in location search
 - Double-tap to place shifts (single tap clears selection)
-- Absence overlay 50% transparent
-- Step indicator: "Step 1 of 3 - Find Your Workplace"
 - Work Locations: inverted layout (small map, big list)
 
 ### 2026-01-06: Clusters A, C, E Refinements
@@ -146,8 +154,6 @@ Start feature → Create *_PLAN.md → Complete → Extract to ARCHITECTURE.md �
 - Week navigation arrows fix
 - Sessions < 5 min filtered at recording
 - Pre-account days show "—" in 14-day overview
-- Absence drag handles added
-- TreePalm/Thermometer icons for vacation/sick
 
 ---
 

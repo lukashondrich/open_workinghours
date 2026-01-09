@@ -9,6 +9,7 @@
 
 export { Button } from './Button';
 export { Card } from './Card';
+export { Checkbox } from './Checkbox';
 export { Input } from './Input';
 export { ListItem } from './ListItem';
 export { InfoBox } from './InfoBox';

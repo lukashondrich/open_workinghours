@@ -190,6 +190,33 @@ export const de = {
     },
   },
 
+  // GDPR Consent
+  consent: {
+    title: 'Bevor du startest',
+    updateTitle: 'Wir haben unsere Bedingungen aktualisiert',
+    updateSubtitle: 'Bitte prüfe und akzeptiere, um fortzufahren.',
+    terms: {
+      title: 'Nutzungsbedingungen',
+      subtitle: 'Deine Vereinbarung mit uns',
+    },
+    privacy: {
+      title: 'Datenschutzerklärung',
+      subtitle: 'Wie wir deine Daten schützen',
+    },
+    keyPoints: {
+      title: 'Kurz gesagt:',
+      aggregation: 'Deine Stunden fließen in anonyme Statistiken ein (nur Gruppen ab 10)',
+      gpsLocal: 'GPS-Koordinaten verlassen dein Gerät nicht',
+      deletion: 'Lösche dein Konto und alle Daten jederzeit',
+    },
+    checkbox: 'Ich stimme den Nutzungsbedingungen und der Datenschutzerklärung zu',
+    accept: 'Ich stimme zu & weiter',
+    preAnnounce: 'Mit dem Fortfahren prüfst du unsere Nutzungsbedingungen und Datenschutzerklärung',
+  },
+
+  // Locale identifier (used for URL selection)
+  _locale: 'de',
+
   // Status and Geofencing screens
   status: {
     appTitle: 'Open Working Hours',

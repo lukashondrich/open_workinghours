@@ -188,3 +188,33 @@ These values are implemented but not yet legally reviewed:
 - Confirmation that working values meet GDPR requirements
 
 ---
+
+## 7. Related Documentation (Added 2026-01-07)
+
+The following GDPR compliance documents have been prepared for legal review:
+
+| Document | Purpose | Location |
+|----------|---------|----------|
+| **App Privacy Policy** | Art. 13/14 compliant user-facing policy | `website/src/pages/app-privacy-policy.astro` (EN/DE) |
+| **Terms of Service** | Contract legal basis, user agreement | `website/src/pages/terms.astro` (EN/DE) |
+| **DPIA** | Data Protection Impact Assessment | `docs/DPIA.md` |
+| **RoPA** | Records of Processing Activities (Art. 30) | `docs/ROPA.md` |
+| **Data Retention Policy** | Retention periods, deletion procedures | `docs/data-retention-policy.md` |
+| **Consent Flow Spec** | In-app consent UI specification | `docs/consent-flow-spec.md` |
+
+### Legal Basis Decision
+
+The platform uses a **Consent + Contract hybrid** approach:
+- **Contract (Art. 6(1)(b))**: Account management, data storage, export/deletion
+- **Consent (Art. 6(1)(a))**: Contribution to aggregated statistics
+
+### Outstanding Actions
+
+| Action | Owner | Status |
+|--------|-------|--------|
+| Sign Hetzner DPA (AVV) | Controller | Pending |
+| Sign Brevo DPA | Controller | Pending |
+| Legal review of all documents | External counsel | Pending |
+| Implement consent flow in app | Development | Specification ready |
+
+---

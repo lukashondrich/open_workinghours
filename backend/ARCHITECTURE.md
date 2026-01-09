@@ -68,8 +68,14 @@ backend/
 |--------|----------|-------------|
 | POST | `/auth/request-code` | Request 6-digit verification code |
 | POST | `/auth/verify` | Verify code, get JWT token |
-| POST | `/auth/register` | Complete registration with profile |
-| GET | `/auth/me` | Get current user info |
+| POST | `/auth/register` | Complete registration with profile + consent |
+| GET | `/auth/me` | Get current user info (includes consent status) |
+| POST | `/auth/consent` | Update GDPR consent (for policy updates) |
+
+**GDPR Consent:**
+- Registration accepts `terms_version`, `privacy_version` fields
+- `/auth/me` returns `terms_accepted_version`, `privacy_accepted_version`, `consent_accepted_at`
+- `/auth/consent` allows existing users to re-consent after policy updates
 
 ### Work Events (`/work-events`)
 
@@ -127,7 +133,11 @@ users (
   specialty TEXT,
   role_level TEXT,             -- "Assistenzarzt", "Facharzt", etc.
   state_code TEXT,             -- German state code
-  created_at TIMESTAMP
+  created_at TIMESTAMP,
+  -- GDPR consent tracking
+  terms_accepted_version TEXT,    -- e.g., "2026-01"
+  privacy_accepted_version TEXT,  -- e.g., "2026-01"
+  consent_accepted_at TIMESTAMP
 )
 
 -- Work events (daily submissions)
