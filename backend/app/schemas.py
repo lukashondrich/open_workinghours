@@ -181,6 +181,13 @@ class ConsentUpdateIn(BaseModel):
     privacy_version: str = Field(..., min_length=1, max_length=20)
 
 
+class UserDataExportOut(BaseModel):
+    """GDPR Art. 20 Data Portability export format."""
+    exported_at: datetime
+    profile: dict
+    work_events: list[dict]
+
+
 # ============================================================================
 # WORK EVENTS (NEW - Privacy Architecture)
 # ============================================================================

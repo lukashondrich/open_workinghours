@@ -1,8 +1,9 @@
 # Consent Withdrawal & Account Deletion Implementation Plan
 
 **Created:** 2026-01-12
-**Status:** Implemented (pending deploy)
+**Status:** Deployed & Tested
 **Implemented:** 2026-01-12
+**Tested:** 2026-01-12
 **Author:** Claude + Lukas
 
 ---
@@ -34,6 +35,17 @@ The following was implemented beyond the original plan:
 2. **VerificationRequest cleanup**: DELETE /auth/me also deletes VerificationRequest by email_hash
 3. **Demo account protection**: Demo account (for Apple review) cannot be deleted (returns 403)
 4. **Pending queue warning**: Users are warned if they have pending submissions before deletion
+
+### Testing Notes (2026-01-12)
+
+**Bug fixed during testing:**
+- SQLAlchemy session conflict: `current_user` was attached to a different session than `db`
+- Fix: Re-fetch user in the endpoint's session before deletion (`auth.py:287-288`)
+
+**Design decision confirmed:**
+- Withdrawal = Deletion (user cannot continue using app after withdrawal)
+- Rationale: Simpler UX, no real use case for "track privately without contributing to stats"
+- Alternative (opt-out of stats while keeping account) deferred unless legal counsel advises otherwise
 
 ---
 

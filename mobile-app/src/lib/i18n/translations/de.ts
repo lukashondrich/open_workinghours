@@ -281,6 +281,10 @@ export const de = {
     clearAllDataSuccess: 'Alle Daten gelöscht.',
     clearAllDataFailed: 'Daten konnten nicht gelöscht werden.',
     clearAll: 'Alle löschen',
+    // Legal section
+    legal: 'Rechtliches',
+    termsOfService: 'Nutzungsbedingungen',
+    privacyPolicy: 'Datenschutzerklärung',
   },
 
   // Work Locations screen
@@ -486,5 +490,10 @@ export const de = {
     sessionExpired: 'Sitzung abgelaufen. Bitte melden Sie sich erneut an, um Ihr Konto zu löschen.',
     cannotDelete: 'Dieses Konto kann nicht gelöscht werden.',
     withdrawWarning: 'Der Widerruf der Einwilligung löscht Ihr Konto und alle Daten dauerhaft von unseren Servern. Dies beinhaltet alle übermittelten Arbeitsstunden. Aggregierte anonyme Statistiken bleiben erhalten.',
+    // Data export section
+    exportData: 'Meine Daten exportieren',
+    exporting: 'Exportiere...',
+    exportTitle: 'Meine Open Working Hours Daten',
+    exportFailed: 'Export fehlgeschlagen. Bitte versuchen Sie es erneut.',
   },
 };

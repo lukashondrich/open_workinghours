@@ -83,3 +83,27 @@ export interface MeResponse {
   stateCode?: string;
   createdAt: string; // ISO 8601 format
 }
+
+export interface UserDataExport {
+  exported_at: string; // ISO 8601 format
+  profile: {
+    user_id: string;
+    hospital_id: string;
+    specialty: string;
+    role_level: string;
+    state_code?: string;
+    country_code: string;
+    created_at?: string;
+    terms_accepted_version?: string;
+    privacy_accepted_version?: string;
+    consent_accepted_at?: string;
+  };
+  work_events: Array<{
+    event_id: string;
+    date: string;
+    planned_hours: number;
+    actual_hours: number;
+    source: string;
+    submitted_at?: string;
+  }>;
+}

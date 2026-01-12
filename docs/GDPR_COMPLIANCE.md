@@ -17,7 +17,7 @@
 | RoPA | Draft | Needs legal review |
 | Data Retention Policy | Draft | Needs legal review |
 | Consent Flow | Deployed | Tested on device 2026-01-12 |
-| Consent Withdrawal | Implemented | Pending deploy; see `CONSENT_WITHDRAWAL_PLAN.md` |
+| Consent Withdrawal | Deployed | Tested 2026-01-12; see `CONSENT_WITHDRAWAL_PLAN.md` |
 | Hetzner DPA | Pending | Not yet signed |
 | Brevo DPA | Pending | Not yet signed |
 | Legal Review | Pending | No lawyer engaged yet |
@@ -101,11 +101,11 @@ Website source files: `website/src/pages/`
   - [x] Mobile: Add consent status display to DataPrivacyScreen
   - [x] Mobile: Add withdrawal button with confirmation flow
   - [x] Translations: EN + DE withdrawal strings
-  - [ ] Deploy and test
+  - [x] Deploy and test (2026-01-12)
 
-- [ ] **Link policies from app Settings**
-  - Consent flow already links to both documents
-  - Settings screen should also link to Privacy Policy and Terms
+- [x] **Link policies from app Settings** (2026-01-12)
+  - [x] Settings screen links to Privacy Policy and Terms
+  - [x] Data export button added to Data & Privacy screen (GDPR Art. 20)
 
 ### Ongoing Compliance
 
@@ -143,6 +143,20 @@ Consent is collected via in-app acceptance of Terms + Privacy Policy before firs
 | Brevo (Sendinblue) | Email delivery | Pending | EU |
 
 No processors outside EU/EEA.
+
+### Processor Notes
+
+**Hetzner (Backup Retention):**
+- Automated backups retained for 30 days
+- When a user deletes their account, their data persists in backups until rotation
+- This is documented in the Privacy Policy and accepted as standard practice
+- After 30 days, deleted user data is fully purged
+
+**Brevo (Email Delivery):**
+- Used only for transient email delivery (verification codes)
+- No user data stored permanently in Brevo
+- Brevo retains delivery logs per their standard retention policy
+- User email addresses are only used for sending, not marketing
 
 ---
 

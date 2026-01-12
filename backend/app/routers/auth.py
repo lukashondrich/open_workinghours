@@ -14,8 +14,8 @@ from sqlalchemy.orm import Session
 from ..config import get_settings
 from ..database import get_db
 from ..dependencies import get_current_user
-from ..models import FeedbackReport, User, VerificationRequest, VerificationStatus
-from ..schemas import AuthTokenOut, ConsentUpdateIn, UserLoginIn, UserOut, UserRegisterIn
+from ..models import FeedbackReport, User, VerificationRequest, VerificationStatus, WorkEvent
+from ..schemas import AuthTokenOut, ConsentUpdateIn, UserDataExportOut, UserLoginIn, UserOut, UserRegisterIn
 from ..security import create_user_access_token, hash_code, hash_email
 
 logger = logging.getLogger(__name__)
@@ -220,6 +220,62 @@ def get_current_user_info(
     - Valid JWT token in Authorization header
     """
     return UserOut.from_orm(current_user)
+
+
+@router.get("/me/export", response_model=UserDataExportOut)
+def export_user_data(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(_get_db_session),
+) -> UserDataExportOut:
+    """
+    Export all user data (GDPR Art. 20 - Data Portability).
+
+    Returns JSON containing:
+    - User profile information
+    - All work events
+
+    Format is structured and machine-readable as required by GDPR.
+
+    Requires:
+    - Valid JWT token in Authorization header
+    """
+    # Re-fetch user in this session
+    user = db.query(User).filter(User.user_id == current_user.user_id).one()
+
+    # Get all work events
+    work_events = (
+        db.query(WorkEvent)
+        .filter(WorkEvent.user_id == user.user_id)
+        .order_by(WorkEvent.date.desc())
+        .all()
+    )
+
+    return UserDataExportOut(
+        exported_at=datetime.now(timezone.utc),
+        profile={
+            "user_id": str(user.user_id),
+            "hospital_id": user.hospital_id,
+            "specialty": user.specialty,
+            "role_level": user.role_level,
+            "state_code": user.state_code,
+            "country_code": user.country_code,
+            "created_at": user.created_at.isoformat() if user.created_at else None,
+            "terms_accepted_version": user.terms_accepted_version,
+            "privacy_accepted_version": user.privacy_accepted_version,
+            "consent_accepted_at": user.consent_accepted_at.isoformat() if user.consent_accepted_at else None,
+        },
+        work_events=[
+            {
+                "event_id": str(event.event_id),
+                "date": str(event.date),
+                "planned_hours": float(event.planned_hours),
+                "actual_hours": float(event.actual_hours),
+                "source": event.source,
+                "submitted_at": event.submitted_at.isoformat() if event.submitted_at else None,
+            }
+            for event in work_events
+        ],
+    )
 
 
 @router.post("/consent", response_model=UserOut)

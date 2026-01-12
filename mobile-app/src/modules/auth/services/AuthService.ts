@@ -12,6 +12,7 @@ import type {
   LoginResponse,
   MeResponse,
   User,
+  UserDataExport,
 } from '@/lib/auth/auth-types';
 
 const BASE_URL = Constants.expoConfig?.extra?.authBaseUrl || 'http://localhost:8000';
@@ -225,6 +226,38 @@ export class AuthService {
       };
     } catch (error) {
       console.error('[AuthService] Failed to get current user:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Export all user data (GDPR Art. 20 - Data Portability)
+   * GET /auth/me/export
+   */
+  static async exportUserData(token: string): Promise<UserDataExport> {
+    try {
+      const response = await fetch(`${BASE_URL}/auth/me/export`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Authentication expired. Please login again.');
+        }
+        try {
+          const error = await response.json();
+          throw new Error(error.detail || 'Failed to export data');
+        } catch {
+          throw new Error(`Failed to export data (${response.status})`);
+        }
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('[AuthService] Failed to export user data:', error);
       throw error;
     }
   }

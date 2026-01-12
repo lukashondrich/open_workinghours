@@ -281,6 +281,10 @@ export const en = {
     clearAllDataSuccess: 'All data cleared.',
     clearAllDataFailed: 'Failed to clear data.',
     clearAll: 'Clear All',
+    // Legal section
+    legal: 'Legal',
+    termsOfService: 'Terms of Service',
+    privacyPolicy: 'Privacy Policy',
   },
 
   // Work Locations screen
@@ -486,5 +490,10 @@ export const en = {
     sessionExpired: 'Session expired. Please log in again to delete your account.',
     cannotDelete: 'This account cannot be deleted.',
     withdrawWarning: 'Withdrawing consent will permanently delete your account and all data from our servers. This includes all submitted work hours. Aggregated anonymous statistics are retained.',
+    // Data export section
+    exportData: 'Export My Data',
+    exporting: 'Exporting...',
+    exportTitle: 'My Open Working Hours Data',
+    exportFailed: 'Failed to export data. Please try again.',
   },
 };

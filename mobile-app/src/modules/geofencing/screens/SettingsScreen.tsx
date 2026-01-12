@@ -6,6 +6,7 @@ import {
   Alert,
   ActivityIndicator,
   Text,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -18,10 +19,12 @@ import {
   Bug,
   LogOut,
   Database,
+  FileText,
+  Shield,
 } from 'lucide-react-native';
 
 import { colors, spacing, fontSize, fontWeight } from '@/theme';
-import { t } from '@/lib/i18n';
+import { t, getDateLocale } from '@/lib/i18n';
 import { ListItem } from '@/components/ui';
 import { Button } from '@/components/ui';
 import type { RootStackParamList } from '@/navigation/AppNavigator';
@@ -125,6 +128,22 @@ export default function SettingsScreen() {
     );
   };
 
+  const handleOpenTerms = () => {
+    const locale = getDateLocale();
+    const url = locale === 'de'
+      ? 'https://openworkinghours.org/de/terms'
+      : 'https://openworkinghours.org/en/terms';
+    Linking.openURL(url);
+  };
+
+  const handleOpenPrivacy = () => {
+    const locale = getDateLocale();
+    const url = locale === 'de'
+      ? 'https://openworkinghours.org/de/privacy'
+      : 'https://openworkinghours.org/en/privacy';
+    Linking.openURL(url);
+  };
+
   const handleSeedDemoData = () => {
     Alert.alert(
       t('settings.loadDemoData'),
@@ -196,6 +215,21 @@ export default function SettingsScreen() {
               onPress={() => handleItemPress(item.screen)}
             />
           ))}
+
+          {/* Legal Section */}
+          <View style={styles.legalSection}>
+            <Text style={styles.sectionTitle}>{t('settings.legal')}</Text>
+            <ListItem
+              title={t('settings.termsOfService')}
+              icon={<FileText size={ICON_SIZE} color={colors.primary[500]} />}
+              onPress={handleOpenTerms}
+            />
+            <ListItem
+              title={t('settings.privacyPolicy')}
+              icon={<Shield size={ICON_SIZE} color={colors.primary[500]} />}
+              onPress={handleOpenPrivacy}
+            />
+          </View>
 
           {/* Report Issue Button */}
           <View style={styles.actionSection}>
@@ -276,6 +310,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.lg,
     paddingBottom: spacing.xxxl,
+  },
+  legalSection: {
+    marginTop: spacing.xxl,
+    paddingTop: spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: colors.border.default,
   },
   actionSection: {
     marginTop: spacing.xxl,

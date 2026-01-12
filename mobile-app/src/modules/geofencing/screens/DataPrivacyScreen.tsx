@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
+  Share,
 } from 'react-native';
 import { format, parseISO } from 'date-fns';
 import { de as deLocale } from 'date-fns/locale/de';
@@ -35,6 +36,7 @@ export default function DataPrivacyScreen() {
   const [queueEntries, setQueueEntries] = useState<DailySubmissionRecord[]>([]);
   const [isProcessingQueue, setIsProcessingQueue] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     loadDataSummary();
@@ -151,6 +153,30 @@ export default function DataPrivacyScreen() {
       return format(date, 'PPP', { locale });
     } catch {
       return '—';
+    }
+  };
+
+  const handleExportData = async () => {
+    if (!authState.token) {
+      Alert.alert(t('common.error'), t('dataPrivacyScreen.sessionExpired'));
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      const data = await AuthService.exportUserData(authState.token);
+      const jsonString = JSON.stringify(data, null, 2);
+
+      await Share.share({
+        message: jsonString,
+        title: t('dataPrivacyScreen.exportTitle'),
+      });
+    } catch (error) {
+      console.error('[DataPrivacyScreen] Failed to export data:', error);
+      const message = error instanceof Error ? error.message : t('dataPrivacyScreen.exportFailed');
+      Alert.alert(t('common.error'), message);
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -282,6 +308,20 @@ export default function DataPrivacyScreen() {
             </Text>
           </View>
         </Card>
+
+        {/* Export Data Button */}
+        <Button
+          variant="outline"
+          onPress={handleExportData}
+          loading={isExporting}
+          disabled={isExporting}
+          fullWidth
+          style={styles.exportButton}
+        >
+          {isExporting
+            ? t('dataPrivacyScreen.exporting')
+            : t('dataPrivacyScreen.exportData')}
+        </Button>
 
         {/* Local Data Card */}
         <Card style={styles.summaryCard}>
@@ -428,6 +468,9 @@ const styles = StyleSheet.create({
   },
   summaryValueSuccess: {
     color: colors.success.main,
+  },
+  exportButton: {
+    marginBottom: spacing.xl,
   },
   deleteButton: {
     marginBottom: spacing.xl,
