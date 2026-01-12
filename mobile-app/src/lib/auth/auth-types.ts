@@ -18,6 +18,10 @@ export interface User {
   roleLevel: string;
   stateCode?: string;
   createdAt?: string; // ISO 8601 format, optional for backward compatibility
+  // GDPR consent fields
+  termsAcceptedVersion?: string;
+  privacyAcceptedVersion?: string;
+  consentAcceptedAt?: string; // ISO 8601 format
 }
 
 export type AuthAction =

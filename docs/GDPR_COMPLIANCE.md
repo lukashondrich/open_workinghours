@@ -1,6 +1,6 @@
 # GDPR Compliance Status
 
-**Last Updated:** 2026-01-09
+**Last Updated:** 2026-01-12
 **Status:** Draft - Pending Legal Review
 **Audience:** Controller (internal) + Legal Counsel
 
@@ -16,7 +16,8 @@
 | DPIA | Draft | Needs legal review |
 | RoPA | Draft | Needs legal review |
 | Data Retention Policy | Draft | Needs legal review |
-| Consent Flow | Implemented | Pending deployment + testing |
+| Consent Flow | Deployed | Tested on device 2026-01-12 |
+| Consent Withdrawal | Implemented | Pending deploy; see `CONSENT_WITHDRAWAL_PLAN.md` |
 | Hetzner DPA | Pending | Not yet signed |
 | Brevo DPA | Pending | Not yet signed |
 | Legal Review | Pending | No lawyer engaged yet |
@@ -56,6 +57,7 @@ Website source files: `website/src/pages/`
 |----------|---------|--------|
 | [`consent-flow-spec.md`](consent-flow-spec.md) | Original UI specification | Complete |
 | [`CONSENT_FLOW_IMPLEMENTATION_PLAN.md`](CONSENT_FLOW_IMPLEMENTATION_PLAN.md) | Detailed implementation plan with UX review | Complete |
+| [`CONSENT_WITHDRAWAL_PLAN.md`](CONSENT_WITHDRAWAL_PLAN.md) | Consent withdrawal & account deletion (Art. 7, 17) | Draft |
 
 ---
 
@@ -81,7 +83,7 @@ Website source files: `website/src/pages/`
 - [ ] **Remove "Draft" banners from policies**
   - After lawyer approval, remove yellow warning banners from website pages
 
-- [x] **Implement consent flow in app** (2026-01-09)
+- [x] **Implement consent flow in app** (2026-01-09, deployed 2026-01-12)
   - [x] Backend: Added consent fields to User model
   - [x] Backend: Created `POST /auth/consent` endpoint
   - [x] Backend: Alembic migration `a1b2c3d4e5f6_add_consent_fields_to_users.py`
@@ -89,8 +91,17 @@ Website source files: `website/src/pages/`
   - [x] Mobile: Integrated into `RegisterScreen`
   - [x] Mobile: Added `ConsentStorage` for local persistence
   - [x] Translations: EN + DE consent strings
-  - [ ] Deploy backend + run migration
-  - [ ] Build TestFlight + test on device
+  - [x] Deploy backend + run migration (2026-01-12)
+  - [x] Build TestFlight + test on device (2026-01-12)
+
+- [x] **Implement consent withdrawal** (Art. 7(3), Art. 17) (2026-01-12)
+  - See [`CONSENT_WITHDRAWAL_PLAN.md`](CONSENT_WITHDRAWAL_PLAN.md) for details
+  - [x] Backend: Add `DELETE /auth/me` endpoint
+  - [x] Mobile: Add `deleteAccount()` to AuthService
+  - [x] Mobile: Add consent status display to DataPrivacyScreen
+  - [x] Mobile: Add withdrawal button with confirmation flow
+  - [x] Translations: EN + DE withdrawal strings
+  - [ ] Deploy and test
 
 - [ ] **Link policies from app Settings**
   - Consent flow already links to both documents
@@ -176,6 +187,7 @@ When engaging legal counsel, provide:
 | Date | Change |
 |------|--------|
 | 2026-01-07 | Initial creation of all GDPR compliance documents |
+| 2026-01-12 | Consent flow deployed and tested; added consent withdrawal plan |
 
 ---
 
@@ -190,7 +202,8 @@ When engaging legal counsel, provide:
 │   ├── ROPA.md                          # Records of Processing Activities
 │   ├── data-retention-policy.md         # Retention policy
 │   ├── consent-flow-spec.md             # Consent UI spec
-│   └── CONSENT_FLOW_IMPLEMENTATION_PLAN.md  # Implementation plan
+│   ├── CONSENT_FLOW_IMPLEMENTATION_PLAN.md  # Consent flow implementation
+│   └── CONSENT_WITHDRAWAL_PLAN.md       # Consent withdrawal & account deletion
 └── website/src/pages/
     ├── app-privacy-policy.astro         # EN privacy policy
     ├── terms.astro                      # EN terms of service

@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from ..config import get_settings
 from ..database import get_db
 from ..dependencies import get_current_user
-from ..models import User, VerificationRequest, VerificationStatus
+from ..models import FeedbackReport, User, VerificationRequest, VerificationStatus
 from ..schemas import AuthTokenOut, ConsentUpdateIn, UserLoginIn, UserOut, UserRegisterIn
 from ..security import create_user_access_token, hash_code, hash_email
 
@@ -249,3 +249,50 @@ def update_consent(
     logger.info(f"User {current_user.user_id} updated consent to terms={payload.terms_version}, privacy={payload.privacy_version}")
 
     return UserOut.from_orm(current_user)
+
+
+@router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
+def delete_account(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(_get_db_session),
+) -> None:
+    """
+    Delete current user account and all associated data (GDPR Art. 17).
+
+    Deletes:
+    - User record
+    - WorkEvents (via cascade)
+    - FeedbackReports (manual cleanup, no FK)
+    - VerificationRequest (by email_hash)
+
+    Aggregated statistics are retained as they are anonymous data.
+
+    Requires:
+    - Valid JWT token in Authorization header
+    """
+    settings = get_settings()
+    user_id_str = str(current_user.user_id)
+
+    # Prevent demo account deletion
+    if settings.demo is not None:
+        demo_email_hash = hash_email(settings.demo.email.lower())
+        if current_user.email_hash == demo_email_hash:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Demo account cannot be deleted.",
+            )
+
+    # Delete FeedbackReports associated with this user (no FK cascade)
+    db.query(FeedbackReport).filter(
+        FeedbackReport.user_id == user_id_str
+    ).delete(synchronize_session=False)
+
+    # Delete VerificationRequest (email_hash + domain should be removed)
+    db.query(VerificationRequest).filter(
+        VerificationRequest.email_hash == current_user.email_hash
+    ).delete(synchronize_session=False)
+
+    # Delete user - WorkEvents are cascade deleted automatically
+    logger.info(f"User {current_user.user_id} deleted account (GDPR Art. 17)")
+    db.delete(current_user)
+    db.commit()

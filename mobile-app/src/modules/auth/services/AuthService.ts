@@ -218,9 +218,49 @@ export class AuthService {
         roleLevel: data.role_level,
         stateCode: data.state_code,
         createdAt: data.created_at, // ISO 8601 format from backend
+        // GDPR consent fields
+        termsAcceptedVersion: data.terms_accepted_version,
+        privacyAcceptedVersion: data.privacy_accepted_version,
+        consentAcceptedAt: data.consent_accepted_at,
       };
     } catch (error) {
       console.error('[AuthService] Failed to get current user:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete user account and all backend data (GDPR Art. 17)
+   * DELETE /auth/me
+   *
+   * Deletes:
+   * - User record
+   * - WorkEvents (cascade)
+   * - FeedbackReports
+   * - VerificationRequest
+   */
+  static async deleteAccount(token: string): Promise<void> {
+    try {
+      const response = await fetch(`${BASE_URL}/auth/me`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Authentication expired. Please login again.');
+        }
+        if (response.status === 403) {
+          throw new Error('This account cannot be deleted.');
+        }
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to delete account');
+      }
+      // 204 No Content - success
+    } catch (error) {
+      console.error('[AuthService] Failed to delete account:', error);
       throw error;
     }
   }

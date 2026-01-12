@@ -16,6 +16,9 @@ import { getGeofenceService } from '@/modules/geofencing/services/GeofenceServic
 import type { DailySubmissionRecord } from '@/modules/geofencing/types';
 import { formatDuration } from '@/lib/calendar/calendar-utils';
 import { DailySubmissionService } from '@/modules/auth/services/DailySubmissionService';
+import { AuthService } from '@/modules/auth/services/AuthService';
+import { useAuth } from '@/lib/auth/auth-context';
+import { ConsentStorage } from '@/lib/auth/ConsentStorage';
 import { t, getDateLocale } from '@/lib/i18n';
 
 interface DataSummary {
@@ -24,12 +27,14 @@ interface DataSummary {
 }
 
 export default function DataPrivacyScreen() {
+  const { state: authState, signOut } = useAuth();
   const [dataSummary, setDataSummary] = useState<DataSummary>({
     locationCount: 0,
     sessionCount: 0,
   });
   const [queueEntries, setQueueEntries] = useState<DailySubmissionRecord[]>([]);
   const [isProcessingQueue, setIsProcessingQueue] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     loadDataSummary();
@@ -138,9 +143,147 @@ export default function DataPrivacyScreen() {
     return format(date, 'MMM d, yyyy', { locale });
   };
 
+  const formatConsentDate = (isoDate: string | undefined) => {
+    if (!isoDate) return '—';
+    try {
+      const date = parseISO(isoDate);
+      const locale = getDateLocale() === 'de' ? deLocale : undefined;
+      return format(date, 'PPP', { locale });
+    } catch {
+      return '—';
+    }
+  };
+
+  const handleWithdrawConsent = () => {
+    // Check for pending submissions first
+    if (pendingCount > 0) {
+      Alert.alert(
+        t('dataPrivacyScreen.pendingDataTitle'),
+        t('dataPrivacyScreen.pendingDataWarning', { count: pendingCount }),
+        [
+          { text: t('common.cancel'), style: 'cancel' },
+          {
+            text: t('dataPrivacyScreen.continueAnyway'),
+            style: 'destructive',
+            onPress: showWithdrawConfirmation,
+          },
+        ]
+      );
+    } else {
+      showWithdrawConfirmation();
+    }
+  };
+
+  const showWithdrawConfirmation = () => {
+    Alert.alert(
+      t('dataPrivacyScreen.withdrawConfirmTitle'),
+      t('dataPrivacyScreen.withdrawConfirmMessage'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('dataPrivacyScreen.withdrawConfirmButton'),
+          style: 'destructive',
+          onPress: confirmWithdrawConsent,
+        },
+      ]
+    );
+  };
+
+  const confirmWithdrawConsent = async () => {
+    if (!authState.token) {
+      Alert.alert(t('common.error'), t('dataPrivacyScreen.sessionExpired'));
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      // Step 1: Delete backend account
+      await AuthService.deleteAccount(authState.token);
+
+      // Step 2: Clean up local data (best effort - backend is already deleted)
+      try {
+        const db = await getDatabase();
+        const geofenceService = getGeofenceService();
+
+        // Unregister all geofences
+        const locations = await db.getActiveLocations();
+        for (const location of locations) {
+          try {
+            await geofenceService.unregisterGeofence(location.id);
+          } catch (error) {
+            console.warn('[DataPrivacyScreen] Failed to unregister geofence:', error);
+          }
+        }
+
+        // Delete all database data
+        await db.deleteAllData();
+
+        // Clear consent storage
+        await ConsentStorage.clear();
+      } catch (localError) {
+        // Log but don't fail - backend is already deleted
+        console.error('[DataPrivacyScreen] Local cleanup failed:', localError);
+      }
+
+      // Step 3: Sign out
+      await signOut();
+
+      // Step 4: Show success message
+      Alert.alert(
+        t('dataPrivacyScreen.accountDeleted'),
+        t('dataPrivacyScreen.accountDeletedMessage'),
+        [{ text: t('common.ok') }]
+      );
+    } catch (error) {
+      console.error('[DataPrivacyScreen] Failed to delete account:', error);
+      const message = error instanceof Error ? error.message : t('dataPrivacyScreen.deletionFailed');
+
+      if (message.includes('401') || message.includes('expired')) {
+        Alert.alert(t('common.error'), t('dataPrivacyScreen.sessionExpired'));
+      } else if (message.includes('403')) {
+        Alert.alert(t('common.error'), t('dataPrivacyScreen.cannotDelete'));
+      } else {
+        Alert.alert(t('common.error'), message);
+      }
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* Consent Status Card */}
+        <Card style={styles.summaryCard}>
+          <Text style={styles.summaryTitle}>{t('dataPrivacyScreen.consentStatus')}</Text>
+
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>{t('dataPrivacyScreen.termsAccepted')}</Text>
+            <Text style={[styles.summaryValue, styles.summaryValueSuccess]}>
+              {authState.user?.termsAcceptedVersion
+                ? t('dataPrivacyScreen.accepted')
+                : t('dataPrivacyScreen.notAccepted')}
+            </Text>
+          </View>
+
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>{t('dataPrivacyScreen.privacyAccepted')}</Text>
+            <Text style={[styles.summaryValue, styles.summaryValueSuccess]}>
+              {authState.user?.privacyAcceptedVersion
+                ? t('dataPrivacyScreen.accepted')
+                : t('dataPrivacyScreen.notAccepted')}
+            </Text>
+          </View>
+
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>{t('dataPrivacyScreen.acceptedOnLabel')}</Text>
+            <Text style={styles.summaryValue}>
+              {formatConsentDate(authState.user?.consentAcceptedAt)}
+            </Text>
+          </View>
+        </Card>
+
+        {/* Local Data Card */}
         <Card style={styles.summaryCard}>
           <Text style={styles.summaryTitle}>{t('dataPrivacyScreen.storedData')}</Text>
 
@@ -210,7 +353,7 @@ export default function DataPrivacyScreen() {
         </Card>
 
         <Button
-          variant="danger"
+          variant="outline"
           onPress={handleDeleteAllData}
           fullWidth
           style={styles.deleteButton}
@@ -224,6 +367,24 @@ export default function DataPrivacyScreen() {
 
         <InfoBox variant="info" style={styles.infoBox}>
           {t('dataPrivacyScreen.privacyInfo')}
+        </InfoBox>
+
+        {/* Withdraw Consent & Delete Account */}
+        <Button
+          variant="danger"
+          onPress={handleWithdrawConsent}
+          loading={isDeleting}
+          disabled={isDeleting}
+          fullWidth
+          style={styles.withdrawButton}
+        >
+          {isDeleting
+            ? t('dataPrivacyScreen.deleting')
+            : t('dataPrivacyScreen.withdrawConsent')}
+        </Button>
+
+        <InfoBox variant="warning" style={styles.withdrawWarning}>
+          {t('dataPrivacyScreen.withdrawWarning')}
         </InfoBox>
       </ScrollView>
     </View>
@@ -265,7 +426,16 @@ const styles = StyleSheet.create({
   summaryValueWarning: {
     color: colors.error.main,
   },
+  summaryValueSuccess: {
+    color: colors.success.main,
+  },
   deleteButton: {
+    marginBottom: spacing.xl,
+  },
+  withdrawButton: {
+    marginBottom: spacing.md,
+  },
+  withdrawWarning: {
     marginBottom: spacing.xl,
   },
   warningBox: {
