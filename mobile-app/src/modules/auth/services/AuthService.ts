@@ -255,8 +255,13 @@ export class AuthService {
         if (response.status === 403) {
           throw new Error('This account cannot be deleted.');
         }
-        const error = await response.json();
-        throw new Error(error.detail || 'Failed to delete account');
+        // Try to parse JSON error, fallback to status text
+        try {
+          const error = await response.json();
+          throw new Error(error.detail || 'Failed to delete account');
+        } catch {
+          throw new Error(`Failed to delete account (${response.status})`);
+        }
       }
       // 204 No Content - success
     } catch (error) {

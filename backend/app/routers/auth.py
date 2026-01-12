@@ -271,16 +271,21 @@ def delete_account(
     - Valid JWT token in Authorization header
     """
     settings = get_settings()
-    user_id_str = str(current_user.user_id)
+    user_id = current_user.user_id
+    user_id_str = str(user_id)
+    email_hash = current_user.email_hash
 
     # Prevent demo account deletion
     if settings.demo is not None:
         demo_email_hash = hash_email(settings.demo.email.lower())
-        if current_user.email_hash == demo_email_hash:
+        if email_hash == demo_email_hash:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Demo account cannot be deleted.",
             )
+
+    # Re-fetch user in this session to avoid SQLAlchemy session conflict
+    user = db.query(User).filter(User.user_id == user_id).one()
 
     # Delete FeedbackReports associated with this user (no FK cascade)
     db.query(FeedbackReport).filter(
@@ -289,10 +294,10 @@ def delete_account(
 
     # Delete VerificationRequest (email_hash + domain should be removed)
     db.query(VerificationRequest).filter(
-        VerificationRequest.email_hash == current_user.email_hash
+        VerificationRequest.email_hash == email_hash
     ).delete(synchronize_session=False)
 
     # Delete user - WorkEvents are cascade deleted automatically
-    logger.info(f"User {current_user.user_id} deleted account (GDPR Art. 17)")
-    db.delete(current_user)
+    logger.info(f"User {user_id} deleted account (GDPR Art. 17)")
+    db.delete(user)
     db.commit()
