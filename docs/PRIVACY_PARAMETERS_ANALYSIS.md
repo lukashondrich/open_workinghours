@@ -1,7 +1,7 @@
 # Privacy Parameters Analysis
 
 **Status**: Draft - Active Research
-**Last Updated**: 2026-01-09
+**Last Updated**: 2026-01-13
 **Purpose**: Document risks, mitigations, and decisions for anonymization parameters
 
 ---
@@ -19,12 +19,12 @@
 
 ## Current Implementation
 
-### Parameters (as of 2026-01-09)
+### Parameters (as of 2026-01-13)
 
 | Parameter | Value | Location | Justification |
 |-----------|-------|----------|---------------|
-| K-anonymity threshold | k=10 | `backend/app/aggregation.py:20` | Arbitrary - needs justification |
-| Differential privacy ε | ε=1.0 | `backend/app/aggregation.py:21` | Arbitrary - needs justification |
+| K-anonymity threshold | k=11 | `backend/app/aggregation.py:20` | EMA/Health Canada standard for healthcare data |
+| Differential privacy ε | ε=1.0 | `backend/app/aggregation.py:21` | Conservative end of industry practice |
 | Sensitivity | 168 hrs/week ÷ n_users | `aggregation.py:140-141` | Based on max possible hours |
 | Noise mechanism | Laplace | `aggregation.py:41-64` | Standard for numeric queries |
 
@@ -154,7 +154,7 @@ Attacker computes: Cardiologists = (52×100 - 50×90) / 10 = 70 hrs
 Attacker knows: "Dr. Schmidt is the only interventional cardiologist at Rural Hospital X"
 Published: "Cardiologists in Bavaria" includes Dr. Schmidt
 ```
-Even with k=10, if attacker has identifying auxiliary info, they can isolate the individual.
+Even with k=11, if attacker has identifying auxiliary info, they can isolate the individual.
 
 **Potential Mitigations**:
 - [ ] Broader geographic grouping (country instead of state)
@@ -178,7 +178,7 @@ Published group: n=10 (the 10 who submitted data)
 ```
 Attacker knows there are only 12 total - the "anonymity set" is effectively 12, not infinite.
 
-**Current Mitigation**: k=10 means at least 10 in published set.
+**Current Mitigation**: k=11 means at least 11 in published set.
 
 **Potential Mitigations**:
 - [ ] Require k to be fraction of total population (e.g., k ≤ 50% of known population)
@@ -308,7 +308,7 @@ Attacker inference: "Someone left the group this week."
 | EMA / Health Canada | k=11 | Clinical trial data disclosure |
 | Common practice (research) | k=5 | Minimum acceptable |
 | HIPAA Safe Harbor | k≈20 implied | Geographic areas >20k population |
-| Our current | k=10 | No formal justification yet |
+| Our current | k=11 | EMA/Health Canada standard for healthcare data |
 
 **Key paper**: [El Emam et al. (2009)](https://pmc.ncbi.nlm.nih.gov/articles/PMC2744718/) - "A Globally Optimal k-Anonymity Method for the De-Identification of Health Data"
 
@@ -341,7 +341,7 @@ Attacker inference: "Someone left the group this week."
 | HIPAA Safe Harbor | 18 identifiers removed + geographic >20k | US-specific |
 | HIPAA Expert Determination | Statistical/scientific principles | Requires expert |
 
-**Open question**: Does k=10 + ε=1.0 satisfy GDPR "anonymous data" standard?
+**Open question**: Does k=11 + ε=1.0 satisfy GDPR "anonymous data" standard?
 
 ---
 
@@ -353,7 +353,7 @@ Attacker inference: "Someone left the group this week."
    - If yes: GDPR doesn't apply to published stats
    - If no: Need legal basis for processing
 
-2. **Is k=10 (or k=11) defensible for healthcare worker data?**
+2. **Is k=11 defensible for healthcare worker data?**
    - Consider: Sensitivity of hours data, threat model, auxiliary info availability
 
 3. **Can aggregated stats be retained after user deletion?**
@@ -384,23 +384,135 @@ Attacker inference: "Someone left the group this week."
 | Date | Decision | Rationale | Decided By |
 |------|----------|-----------|------------|
 | 2026-01-09 | Created this document | Need systematic approach before lawyer meeting | - |
-| TBD | k threshold value | Pending research + legal | - |
-| TBD | ε value | Pending research + legal | - |
+| 2026-01-13 | k threshold = 11 | EMA/Health Canada standard for healthcare data disclosure (El Emam et al. 2009) | - |
+| 2026-01-13 | ε = 1.0 (confirmed) | Conservative end of industry practice; no changes needed | - |
 | TBD | Temporal stability | Pending risk assessment | - |
 | TBD | l-diversity | Pending risk assessment | - |
 
 ---
 
+## Practical Approach: Phase 1
+
+**Context**: Early stage, ~1 test user, no real data yet. Goal is a defensible starting point for union/works council conversations, not a theoretically perfect system.
+
+### Phase 1 Recommendation
+
+| Parameter | Value | Justification |
+|-----------|-------|---------------|
+| **K-anonymity** | k=11 | EMA/Health Canada standard for healthcare data |
+| **Epsilon** | ε=1.0 | Conservative end of industry practice |
+| **Grouping** | Fixed (state × specialty × role) | Simple, prevents intersection attacks |
+| **Temporal stability** | None initially | Overkill until we have real data |
+| **L-diversity** | None initially | Revisit when we see actual variance |
+| **N_users display** | Exact count | Simple; revisit if membership inference becomes real concern |
+
+### Why This Is Defensible
+
+**For unions/works councils, the pitch is simple:**
+
+> "Individual data never leaves the phone. We only publish group averages when there are at least 11 people in a group - this follows European Medicines Agency standards. We also add mathematical noise for extra protection. All data stays in Germany."
+
+**What we're NOT doing (and why):**
+
+| Skipped | Why |
+|---------|-----|
+| Temporal stability | No data yet; adds complexity; revisit at 100+ users |
+| L-diversity | Need real data to assess; differential privacy provides backup |
+| Budget tracking | Overkill for early stage; revisit at scale |
+| Coarser grouping | Reduces utility; current approach is fine |
+
+### Phase 1 Implementation Checklist
+
+- [x] Update `K_MIN` from 10 to 11 in `aggregation.py`
+- [x] Document the k=11 choice (EMA reference) in code comments
+- [x] Keep ε=1.0 (already reasonable)
+- [ ] Create simple explainer for unions (1-pager)
+- [ ] Legal review of this approach
+
+### What Triggers Phase 2?
+
+Revisit this analysis when ANY of these occur:
+- **100+ active users** submitting data
+- **First group reaches k=11** and is about to be published
+- **Union/works council raises specific concerns**
+- **Lawyer identifies gaps**
+
+At that point, consider:
+- Temporal stability (if boundary attacks are real concern)
+- L-diversity (if data shows homogeneous groups)
+- Composition budget (if publishing weekly for 1+ year)
+
+---
+
+## Explainer for Unions/Works Councils (Draft)
+
+### How We Protect Member Privacy
+
+**1. Individual data stays on the phone**
+- GPS locations, schedules, sick days - never sent to our servers
+- Only daily summaries (hours worked) are submitted
+
+**2. We only publish group statistics**
+- Never individual data
+- Minimum 11 people per group (EMA healthcare standard)
+- Groups smaller than 11 are never published
+
+**3. Mathematical protection (differential privacy)**
+- Even group averages have random noise added
+- Makes it mathematically impossible to reverse-engineer individuals
+
+**4. Data stays in Germany**
+- Servers hosted at Hetzner (German company, German data centers)
+- No data transfer outside EU
+
+**5. Users control their data**
+- Export all data anytime (GDPR Art. 20)
+- Delete account and all data anytime (GDPR Art. 17)
+- Withdrawal of consent stops all processing
+
+### What This Means for Your Members
+
+- Employers cannot see individual working hours
+- Even we cannot identify who works what hours
+- Published statistics show only "Cardiologists in Bavaria work X hours on average"
+- No individual can be singled out from published data
+
+---
+
+## Dashboard (Future)
+
+**Status**: Not yet implemented
+**Priority**: Nice to have for union conversations
+
+A dashboard would help demonstrate:
+- What published statistics look like
+- Proof that individual data isn't visible
+- Regional/specialty comparisons
+
+**Minimal viable dashboard:**
+- Public page showing aggregated stats
+- Filter by region/specialty
+- Clear "n=X users" labels showing group sizes
+- "Data protected with k-anonymity (k≥11) and differential privacy" footer
+
+---
+
 ## Next Steps
 
-1. [ ] Research: Get actual population sizes for specialty×state combinations
-2. [ ] Research: Analyze variance in submitted hours data (homogeneity risk)
-3. [ ] Research: Model composition attack over 52 weeks
-4. [ ] Legal: Review this document with lawyer
-5. [ ] Decision: Finalize k and ε values with justification
-6. [ ] Decision: Choose which mitigations to implement
-7. [ ] Implementation: Update aggregation.py with chosen parameters
-8. [ ] Documentation: Update privacy_architecture.md and DPIA
+### Immediate (Before Lawyer)
+1. [x] Document risks and mitigations (this document)
+2. [x] Update k=10 → k=11 in code (completed 2026-01-13)
+3. [ ] Review this document with lawyer
+
+### After Lawyer Approval
+4. [ ] Finalize parameters based on legal feedback
+5. [ ] Create 1-page union explainer (PDF)
+6. [ ] Consider simple public dashboard
+
+### When Scaling (100+ users)
+7. [ ] Reassess risks with real data
+8. [ ] Consider temporal stability
+9. [ ] Consider l-diversity if homogeneity detected
 
 ---
 

@@ -168,7 +168,7 @@ No processors outside EU/EEA.
 |----------|--------|-----------|
 | Legal basis for stats | Consent (not legitimate interest) | Cleaner, user can withdraw |
 | Single consent checkbox | Terms + Privacy combined | Both required, simpler UX |
-| K-anonymity threshold | k = 10 | Industry standard, pending legal confirmation |
+| K-anonymity threshold | k = 11 | EMA/Health Canada standard for healthcare data |
 | Differential privacy epsilon | ε = 1.0 | Balanced privacy/utility, pending legal confirmation |
 | Sick days | Local only, never transmitted | Avoids health data classification |
 | Email storage | Hash only, no plaintext | Pseudonymization |
@@ -190,7 +190,7 @@ When engaging legal counsel, provide:
 
 ### Questions for Lawyer
 
-1. Are the k-anonymity (k=10) and epsilon (ε=1.0) values sufficient to claim the analytics layer is "anonymous" under GDPR?
+1. Are the k-anonymity (k=11) and epsilon (ε=1.0) values sufficient to claim the analytics layer is "anonymous" under GDPR?
 2. Is the Consent + Contract hybrid legal basis approach appropriate?
 3. Are the draft Privacy Policy and Terms sufficient for German/EU requirements?
 4. Is the DPIA adequate given we're not strictly required to have one?

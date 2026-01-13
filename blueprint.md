@@ -117,7 +117,7 @@ See [`privacy_architecture.md`](privacy_architecture.md) for full privacy design
 
 **Key principles:**
 - Local-first: GPS coordinates never leave device
-- K-anonymity: Groups need ≥10 users to publish
+- K-anonymity: Groups need ≥11 users to publish (EMA/Health Canada standard)
 - Differential privacy: Laplace noise (ε=1.0) on aggregates
 - Data residency: EU only (Hetzner, Germany)
 - Right to erasure: User deletion cascades to work_events

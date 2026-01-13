@@ -79,7 +79,7 @@ class TestKAnonymity:
 
     def test_k_min_constant(self):
         """Test that K_MIN is set to expected value."""
-        assert K_MIN == 10
+        assert K_MIN == 11
 
     def test_group_filtering_below_threshold(self):
         """Test that groups with n_users < K_MIN are suppressed."""

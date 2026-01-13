@@ -108,7 +108,7 @@ Provide **aggregated, privacy-preserving statistics** for unions, hospitals, the
    - count of distinct users (`n_users`)
    - averages / totals (e.g. overtime)
 4. **Apply privacy checks:**
-   - **k-minimum rule:** only keep rows where `n_users ≥ K_MIN` (e.g. 10 or 20).
+   - **k-minimum rule:** only keep rows where `n_users ≥ K_MIN` (e.g. 11).
    - **Noise:** add Laplace noise to sensitive measures:
      - `noised_value = true_value + Laplace(scale = λ)`
 5. Write only the aggregated, noised rows into `stats_*` tables.
@@ -177,7 +177,7 @@ These values are implemented but not yet legally reviewed:
 
 | Parameter | Current Value | Status |
 |-----------|---------------|--------|
-| `K_MIN` (minimum users per cell) | 10 | Working value - may adjust based on legal review |
+| `K_MIN` (minimum users per cell) | 11 | EMA/Health Canada standard for healthcare data |
 | Laplace noise epsilon (ε) | 1.0 | Working value - balances privacy vs utility |
 | Aggregation dimensions | state × specialty × role × period | Implemented |
 

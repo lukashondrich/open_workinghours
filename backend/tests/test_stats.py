@@ -27,7 +27,7 @@ class TestStatsEndpoints:
                 avg_planned_hours_noised=40.5,
                 avg_actual_hours_noised=43.2,
                 avg_overtime_hours_noised=2.7,
-                k_min_threshold=10,
+                k_min_threshold=11,
                 noise_epsilon=1.0,
             ),
             StatsByStateSpecialty(
@@ -41,7 +41,7 @@ class TestStatsEndpoints:
                 avg_planned_hours_noised=45.1,
                 avg_actual_hours_noised=48.8,
                 avg_overtime_hours_noised=3.7,
-                k_min_threshold=10,
+                k_min_threshold=11,
                 noise_epsilon=1.0,
             ),
         ]

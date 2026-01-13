@@ -17,7 +17,7 @@ from .models import StatsByStateSpecialty, User, WorkEvent
 
 
 # Privacy parameters
-K_MIN = 10  # Minimum users per group (k-anonymity threshold)
+K_MIN = 11  # Minimum users per group (k-anonymity threshold, EMA/Health Canada standard)
 EPSILON = 1.0  # Privacy budget for differential privacy
 
 

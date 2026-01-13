@@ -127,7 +127,7 @@ Start feature → Create *_PLAN.md → Complete → Extract to ARCHITECTURE.md �
 
 ### Privacy
 
-- **K-anonymity**: Groups need ≥10 users to be published
+- **K-anonymity**: Groups need ≥11 users to be published (EMA/Health Canada standard)
 - **Data residency**: EU only (Hetzner, Germany)
 - **Right to erasure**: User deletion cascades to work_events
 

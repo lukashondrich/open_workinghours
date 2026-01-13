@@ -208,7 +208,7 @@ docker exec owh-backend python -m app.services.aggregation
 
 **Process:**
 1. Group work_events by state, specialty, period
-2. Filter groups with < K_MIN (10) users
+2. Filter groups with < K_MIN (11) users
 3. Calculate averages
 4. Add Laplace noise (ε=1.0)
 5. Store in stats tables
