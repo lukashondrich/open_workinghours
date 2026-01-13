@@ -1,6 +1,6 @@
 # GDPR Compliance Status
 
-**Last Updated:** 2026-01-12
+**Last Updated:** 2026-01-13
 **Status:** Draft - Pending Legal Review
 **Audience:** Controller (internal) + Legal Counsel
 
@@ -18,8 +18,8 @@
 | Data Retention Policy | Draft | Needs legal review |
 | Consent Flow | Deployed | Tested on device 2026-01-12 |
 | Consent Withdrawal | Deployed | Tested 2026-01-12; see `CONSENT_WITHDRAWAL_PLAN.md` |
-| Hetzner DPA | Pending | Not yet signed |
-| Brevo DPA | Pending | Not yet signed |
+| Hetzner DPA | Signed | 2026-01-13 |
+| Brevo DPA | Signed | Part of ToS (exported PDF) |
 | Legal Review | Pending | No lawyer engaged yet |
 
 ---
@@ -139,8 +139,10 @@ Consent is collected via in-app acceptance of Terms + Privacy Policy before firs
 
 | Processor | Purpose | DPA Status | Location |
 |-----------|---------|------------|----------|
-| Hetzner Online GmbH | Server hosting | Pending | Germany |
-| Brevo (Sendinblue) | Email delivery | Pending | EU |
+| Hetzner Online GmbH | Server hosting | Signed 2026-01-13 | Germany |
+| Brevo (Sendinblue) | Email delivery | Signed (part of ToS) | EU |
+
+**DPA Storage:** Signed DPAs are stored in a private location (not in this repo). Contact the project maintainer for access.
 
 No processors outside EU/EEA.
 

@@ -135,6 +135,12 @@ Start feature → Create *_PLAN.md → Complete → Extract to ARCHITECTURE.md �
 
 ## Recent Updates (Last 7 Days)
 
+### 2026-01-13: DPAs Signed & Privacy Improvements
+- Signed Hetzner DPA (stored in private Google Drive)
+- Brevo DPA confirmed (part of ToS, PDF exported)
+- Removed plaintext email storage from FeedbackReport (privacy-by-design)
+- Updated GDPR_COMPLIANCE.md with current status
+
 ### 2026-01-12: Consent Withdrawal & Data Export
 - Implemented `DELETE /auth/me` endpoint (GDPR Art. 17 - Right to Erasure)
 - Added `GET /auth/me/export` endpoint (GDPR Art. 20 - Data Portability)

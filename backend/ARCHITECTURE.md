@@ -1,6 +1,6 @@
 # Backend Architecture
 
-**Last Updated:** 2026-01-12
+**Last Updated:** 2026-01-13
 **Framework:** FastAPI + PostgreSQL
 **Status:** Production (Hetzner, Germany)
 
