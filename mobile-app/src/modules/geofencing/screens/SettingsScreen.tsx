@@ -132,7 +132,7 @@ export default function SettingsScreen() {
     const locale = getDateLocale();
     const url = locale === 'de'
       ? 'https://openworkinghours.org/de/terms'
-      : 'https://openworkinghours.org/en/terms';
+      : 'https://openworkinghours.org/terms';
     Linking.openURL(url);
   };
 
@@ -140,7 +140,7 @@ export default function SettingsScreen() {
     const locale = getDateLocale();
     const url = locale === 'de'
       ? 'https://openworkinghours.org/de/privacy'
-      : 'https://openworkinghours.org/en/privacy';
+      : 'https://openworkinghours.org/privacy';
     Linking.openURL(url);
   };
 

@@ -53,9 +53,11 @@ def submit_feedback(
     }
 
     # Create feedback report
+    # Note: user_email intentionally not stored (privacy-by-design)
+    # user_id is sufficient to identify the user if needed
     report = FeedbackReport(
         user_id=payload.user_id,
-        user_email=payload.user_email,
+        user_email=None,
         hospital_id=payload.hospital_id,
         specialty=payload.specialty,
         role_level=payload.role_level,

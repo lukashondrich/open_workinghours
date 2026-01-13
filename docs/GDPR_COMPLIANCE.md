@@ -95,7 +95,7 @@ Website source files: `website/src/pages/`
   - [x] Build TestFlight + test on device (2026-01-12)
 
 - [x] **Implement consent withdrawal** (Art. 7(3), Art. 17) (2026-01-12)
-  - See [`CONSENT_WITHDRAWAL_PLAN.md`](CONSENT_WITHDRAWAL_PLAN.md) for details
+  - See [`archive/CONSENT_WITHDRAWAL_PLAN.md`](../archive/CONSENT_WITHDRAWAL_PLAN.md) for implementation details
   - [x] Backend: Add `DELETE /auth/me` endpoint
   - [x] Mobile: Add `deleteAccount()` to AuthService
   - [x] Mobile: Add consent status display to DataPrivacyScreen

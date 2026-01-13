@@ -1,6 +1,6 @@
 # Mobile App Architecture
 
-**Last Updated:** 2026-01-07
+**Last Updated:** 2026-01-12
 **Platform:** React Native + Expo
 **Current Build:** #30 (TestFlight)
 
@@ -131,6 +131,18 @@ Email-based passwordless auth with daily data submission.
 - Key points summary visible without internet
 - Checkbox + "I Agree" button required
 - Consent version stored locally and on backend
+
+**GDPR Data Rights (DataPrivacyScreen):**
+- Consent status display (Terms, Privacy, date accepted)
+- "Export My Data" button - exports JSON via Share sheet (Art. 20)
+- "Withdraw Consent & Delete Account" button (Art. 17)
+  - Shows warning if pending submissions exist
+  - Deletes backend account + local data + geofences
+  - Automatically signs out
+
+**Settings Screen Policy Links:**
+- "Legal" section with Terms of Service + Privacy Policy
+- Opens website in browser (localized EN/DE)
 
 ### Calendar Module
 

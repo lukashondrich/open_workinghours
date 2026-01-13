@@ -135,25 +135,27 @@ Start feature → Create *_PLAN.md → Complete → Extract to ARCHITECTURE.md �
 
 ## Recent Updates (Last 7 Days)
 
+### 2026-01-12: Consent Withdrawal & Data Export
+- Implemented `DELETE /auth/me` endpoint (GDPR Art. 17 - Right to Erasure)
+- Added `GET /auth/me/export` endpoint (GDPR Art. 20 - Data Portability)
+- Mobile: Consent status display + withdrawal flow in DataPrivacyScreen
+- Mobile: Export data button with Share sheet
+- Mobile: Policy links (Terms, Privacy) in Settings screen
+- Cleanup includes FeedbackReports, VerificationRequests (no orphaned data)
+- See `archive/CONSENT_WITHDRAWAL_PLAN.md` for implementation details
+
 ### 2026-01-09: GDPR Compliance & Consent Flow
 - Created full GDPR compliance documentation suite (DPIA, RoPA, retention policy)
 - Added App Privacy Policy and Terms of Service (EN + DE) to website
 - Created `docs/GDPR_COMPLIANCE.md` as legal compliance hub
 - Implemented consent flow in mobile app (ConsentBottomSheet component)
 - Backend: Added consent fields to User model, new `/auth/consent` endpoint
-- Added Legal & Compliance category to documentation structure
 
 ### 2026-01-07: Cluster F Complete
 - Photon geocoding replaces Mapbox (free, GDPR-friendly)
 - Healthcare results prioritized in location search
 - Double-tap to place shifts (single tap clears selection)
 - Work Locations: inverted layout (small map, big list)
-
-### 2026-01-06: Clusters A, C, E Refinements
-- Zoom snapback fix (ref-based gesture handling)
-- Week navigation arrows fix
-- Sessions < 5 min filtered at recording
-- Pre-account days show "—" in 14-day overview
 
 ---
 
