@@ -249,7 +249,7 @@ export default function SettingsScreen() {
             )}
           </View>
 
-          {/* Demo Data Section - hidden for screenshots
+          {/* Demo Data Section - hidden for production
           <View style={styles.demoSection}>
             <Text style={styles.sectionTitle}>{t('settings.demoData')}</Text>
             {isSeeding ? (

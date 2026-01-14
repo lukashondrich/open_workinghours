@@ -1,6 +1,6 @@
 # Claude Context: Open Working Hours
 
-**Last Updated:** 2026-01-07
+**Last Updated:** 2026-01-14
 **Current Build:** #30 (ready for TestFlight upload)
 
 ---
@@ -134,6 +134,13 @@ Start feature → Create *_PLAN.md → Complete → Extract to ARCHITECTURE.md �
 ---
 
 ## Recent Updates (Last 7 Days)
+
+### 2026-01-14: Status Page UX Improvements
+- **HoursSummaryWidget redesign**: Side-by-side bars (green=planned, rose=tracked), dynamic Y-axis scaling (12h/16h/24h), day labels, absence icons
+- **Unconfirmed days nudge**: Faded bars + "X to confirm" count to encourage daily confirmation
+- **Clocked-in state redesign**: Prominent card with green border/tint, time badge pill, subtle "End" button
+- **Bug fixes**: Color palette fallback for unknown colors, removed cryptic "Tap to manage" hint
+- **i18n**: Updated clock-in button text ("Clock In"/"Einstempeln"), added "End"/"Beenden"
 
 ### 2026-01-13: DPAs Signed & Privacy Improvements
 - Signed Hetzner DPA (stored in private Google Drive)

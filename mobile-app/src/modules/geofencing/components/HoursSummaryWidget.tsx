@@ -1,3 +1,15 @@
+/**
+ * HoursSummaryWidget - 14-day hours overview chart
+ *
+ * Features:
+ * - Side-by-side bars: green (planned) and rose (tracked)
+ * - Dynamic Y-axis scale (12h default, expands to 16h or 24h if needed)
+ * - Day labels on X-axis
+ * - Faded bars for unconfirmed days (nudge to confirm)
+ * - Absence icons (vacation/sick)
+ * - Unconfirmed count nudge
+ */
+
 import React, { useEffect, useRef } from 'react';
 import {
   View,
@@ -11,6 +23,8 @@ import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/
 import { t } from '@/lib/i18n';
 import { formatDuration } from '@/lib/calendar/calendar-utils';
 import type { DailyHoursData } from '../services/DashboardDataService';
+import { format, parseISO } from 'date-fns';
+import { enUS } from 'date-fns/locale';
 
 interface HoursSummaryWidgetProps {
   data: {
@@ -28,42 +42,52 @@ function formatHours(minutes: number): string {
 }
 
 function formatDeviation(minutes: number): string {
-  const sign = minutes >= 0 ? '+' : '';
-  // For negative values, formatDuration will return the absolute value
-  // so we need to handle the sign separately
   if (minutes < 0) {
     return '-' + formatDuration(Math.abs(minutes));
   }
   return '+' + formatDuration(minutes);
 }
 
-const CHART_HEIGHT = 60;
-const BAR_WIDTH = 8;
+// Get short day name (M, T, W...)
+function getDayLabel(dateStr: string): string {
+  const date = parseISO(dateStr);
+  return format(date, 'EEEEE', { locale: enUS });
+}
+
+const BASE_CHART_HEIGHT = 100;
+const BAR_WIDTH = 4;
+const BAR_GAP = 1;
+
+// Dynamic scale: default 12h, expand if needed
+function getScaleConfig(days: DailyHoursData[]): { maxHours: number; ticks: number[]; chartHeight: number } {
+  const maxMinutes = Math.max(...days.map(d => Math.max(d.plannedMinutes, d.actualMinutes)));
+  const maxHoursNeeded = Math.ceil(maxMinutes / 60);
+
+  if (maxHoursNeeded <= 12) {
+    return { maxHours: 12, ticks: [0, 4, 8, 12], chartHeight: BASE_CHART_HEIGHT };
+  } else if (maxHoursNeeded <= 16) {
+    return { maxHours: 16, ticks: [0, 4, 8, 12, 16], chartHeight: BASE_CHART_HEIGHT * 1.33 };
+  } else {
+    return { maxHours: 24, ticks: [0, 8, 16, 24], chartHeight: BASE_CHART_HEIGHT * 1.5 };
+  }
+}
 
 interface BarProps {
   day: DailyHoursData;
-  maxMinutes: number;
+  maxHours: number;
+  chartHeight: number;
   isLive: boolean;
 }
 
-function Bar({ day, maxMinutes, isLive }: BarProps) {
+function Bar({ day, maxHours, chartHeight, isLive }: BarProps) {
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
-  // Pulsing animation for today's bar when live
   useEffect(() => {
     if (day.isToday && isLive) {
       const pulse = Animated.loop(
         Animated.sequence([
-          Animated.timing(pulseAnim, {
-            toValue: 0.5,
-            duration: 1000,
-            useNativeDriver: true,
-          }),
-          Animated.timing(pulseAnim, {
-            toValue: 1,
-            duration: 1000,
-            useNativeDriver: true,
-          }),
+          Animated.timing(pulseAnim, { toValue: 0.5, duration: 1000, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1, duration: 1000, useNativeDriver: true }),
         ])
       );
       pulse.start();
@@ -73,142 +97,114 @@ function Bar({ day, maxMinutes, isLive }: BarProps) {
     }
   }, [day.isToday, isLive, pulseAnim]);
 
-  // Pre-account days show a dash indicator instead of bars
   if (day.isPreAccount) {
     return (
       <View style={styles.barContainer}>
-        <View style={styles.barWrapper}>
-          {/* Empty bar area */}
-        </View>
-        <View style={styles.indicatorRow}>
-          <Text style={styles.preAccountDash}>—</Text>
-        </View>
+        <View style={[styles.barArea, { height: chartHeight }]} />
+        <Text style={styles.dayLabel}>—</Text>
       </View>
     );
   }
 
-  const planned = day.plannedMinutes;
-  const actual = day.actualMinutes;
+  const maxMinutes = maxHours * 60;
+  const plannedHeight = Math.min(day.plannedMinutes / maxMinutes, 1) * chartHeight;
+  const trackedHeight = Math.min(day.actualMinutes / maxMinutes, 1) * chartHeight;
 
-  // Calculate heights (scale to max)
-  const scale = maxMinutes > 0 ? CHART_HEIGHT / maxMinutes : 0;
-
-  // Overtime = actual time beyond planned
-  const overtime = Math.max(0, actual - planned);
-  const overtimeHeight = overtime * scale;
-
-  // Base actual = actual time up to planned amount (primary portion)
-  const baseActual = Math.min(actual, planned);
-  const baseActualHeight = baseActual * scale;
-
-  // Unworked = planned time not yet worked (grey portion on top)
-  const unworked = Math.max(0, planned - actual);
-  const unworkedHeight = unworked * scale;
-
-  // For days with no planned AND no actual, still show baseline
-  const hasData = planned > 0 || actual > 0;
+  // Unconfirmed days appear faded (but not today - it can't be confirmed yet)
+  const hasActivity = day.plannedMinutes > 0 || day.actualMinutes > 0 || day.hasVacation || day.hasSick;
+  const barOpacity = (!hasActivity || day.isConfirmed || day.isToday) ? 1 : 0.4;
 
   return (
     <View style={styles.barContainer}>
-      {/* Bar area */}
-      <Animated.View
-        style={[
-          styles.barWrapper,
-          { opacity: day.isToday && isLive ? pulseAnim : 1 },
-        ]}
-      >
-        {/* Stacked bar - using column-reverse so first item is at bottom */}
-        {hasData && (
-          <View style={styles.barStack}>
-            {/* 1. Primary (actual worked) - rendered at bottom due to column-reverse */}
-            {baseActualHeight > 0 && (
-              <View
-                style={[
-                  styles.barSegment,
-                  styles.actualBar,
-                  { height: baseActualHeight },
-                ]}
-              />
-            )}
-
-            {/* 2a. Success/overtime - above primary if actual > planned */}
-            {overtimeHeight > 0 && (
-              <View
-                style={[
-                  styles.barSegment,
-                  styles.overtimeBar,
-                  { height: overtimeHeight },
-                ]}
-              />
-            )}
-
-            {/* 2b. Grey (unworked planned) - above primary if actual < planned */}
-            {unworkedHeight > 0 && (
-              <View
-                style={[
-                  styles.barSegment,
-                  styles.unworkedBar,
-                  { height: unworkedHeight },
-                ]}
-              />
-            )}
-          </View>
-        )}
-      </Animated.View>
-
-      {/* Status indicator (always shown at same position) */}
-      <View style={styles.indicatorRow}>
-        {day.isConfirmed ? (
-          <Text style={styles.checkmark}>✓</Text>
-        ) : (
-          <Text style={styles.questionMark}>?</Text>
-        )}
+      <View style={[styles.barArea, { height: chartHeight, opacity: barOpacity }]}>
+        {/* Planned bar (green/teal) */}
+        <View
+          style={[
+            styles.bar,
+            styles.plannedBar,
+            { height: plannedHeight || 1 },
+          ]}
+        />
+        {/* Tracked bar (rose) */}
+        <Animated.View
+          style={[
+            styles.bar,
+            styles.trackedBar,
+            {
+              height: trackedHeight || 0,
+              opacity: day.isToday && isLive ? pulseAnim : 1,
+            },
+          ]}
+        />
       </View>
-
-      {/* Absence icon row */}
-      <View style={styles.absenceIconRow}>
-        {day.hasVacation && <TreePalm size={8} color="#6B7280" />}
-        {day.hasSick && <Thermometer size={8} color="#92400E" />}
+      {/* Day label */}
+      <Text style={[styles.dayLabel, day.isToday && styles.todayLabel]}>
+        {getDayLabel(day.date)}
+      </Text>
+      {/* Absence icons */}
+      <View style={styles.statusRow}>
+        {day.hasVacation && <TreePalm size={10} color={colors.primary[500]} />}
+        {day.hasSick && <Thermometer size={10} color={colors.warning.dark} />}
       </View>
     </View>
   );
 }
 
-export default function HoursSummaryWidget({
-  data,
-  isLive,
-  onPress,
-}: HoursSummaryWidgetProps) {
-  // Find max value for scaling (ensure minimum height for visibility)
-  const maxMinutes = Math.max(
-    ...data.days.map((d) => Math.max(d.plannedMinutes, d.actualMinutes)),
-    60 // Minimum 1 hour scale to prevent tiny bars
-  );
+export default function HoursSummaryWidget({ data, isLive, onPress }: HoursSummaryWidgetProps) {
+  const deviationColor = data.deviation >= 0 ? colors.primary[500] : colors.error.main;
+  const { maxHours, ticks, chartHeight } = getScaleConfig(data.days);
 
-  const deviationColor = data.deviation >= 0 ? colors.warning.main : colors.error.main;
+  // Count unconfirmed days (excluding today and days with no activity)
+  const unconfirmedCount = data.days.filter(day => {
+    const hasActivity = day.plannedMinutes > 0 || day.actualMinutes > 0 || day.hasVacation || day.hasSick;
+    return hasActivity && !day.isConfirmed && !day.isToday;
+  }).length;
 
   return (
-    <TouchableOpacity
-      style={styles.card}
-      onPress={onPress}
-      activeOpacity={0.7}
-    >
+    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>{t('dashboard.hoursSummary.title')}</Text>
         <ChevronRight size={20} color={colors.text.tertiary} />
       </View>
 
-      {/* Bar Chart */}
-      <View style={styles.chartContainer}>
-        {data.days.map((day) => (
-          <Bar
-            key={day.date}
-            day={day}
-            maxMinutes={maxMinutes}
-            isLive={isLive}
-          />
-        ))}
+      {/* Chart area with Y-axis */}
+      <View style={styles.chartWrapper}>
+        {/* Y-axis */}
+        <View style={[styles.yAxis, { height: chartHeight }]}>
+          {ticks.slice().reverse().map((h) => (
+            <View key={h} style={styles.yTickRow}>
+              <Text style={styles.yTickLabel}>{h}h</Text>
+              <View style={styles.yTickLine} />
+            </View>
+          ))}
+        </View>
+
+        {/* Bars */}
+        <View style={[styles.chartContainer, { height: chartHeight + 28 }]}>
+          {data.days.map((day) => (
+            <Bar key={day.date} day={day} maxHours={maxHours} chartHeight={chartHeight} isLive={isLive} />
+          ))}
+        </View>
+      </View>
+
+      {/* Legend + unconfirmed nudge */}
+      <View style={styles.legendRow}>
+        <View style={styles.legend}>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: colors.primary[500] }]} />
+            <Text style={styles.legendText}>Planned</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: colors.shift.rose.dot }]} />
+            <Text style={styles.legendText}>Tracked</Text>
+          </View>
+        </View>
+        {unconfirmedCount > 0 && (
+          <Text style={styles.unconfirmedNudge}>
+            {unconfirmedCount} to confirm
+          </Text>
+        )}
       </View>
 
       {/* Summary Row */}
@@ -244,76 +240,111 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
   },
   title: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.semibold,
     color: colors.text.primary,
   },
-  chartContainer: {
+  chartWrapper: {
     flexDirection: 'row',
-    height: CHART_HEIGHT + 32, // Chart height + indicator space + absence icon space
+    marginBottom: spacing.sm,
+  },
+  yAxis: {
+    width: 28,
+    justifyContent: 'space-between',
+    paddingRight: 4,
+  },
+  yTickRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  yTickLabel: {
+    fontSize: 9,
+    color: colors.text.tertiary,
+    width: 18,
+    textAlign: 'right',
+  },
+  yTickLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.grey[200],
+    marginLeft: 2,
+  },
+  chartContainer: {
+    flex: 1,
+    flexDirection: 'row',
     alignItems: 'flex-end',
-    marginBottom: spacing.md,
+    borderLeftWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: colors.grey[300],
   },
   barContainer: {
     flex: 1,
     alignItems: 'center',
-    height: '100%',
     justifyContent: 'flex-end',
   },
-  barWrapper: {
-    width: '100%',
-    height: CHART_HEIGHT,
-    alignItems: 'center',
-    justifyContent: 'flex-end',
+  barArea: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: BAR_GAP,
   },
-  barStack: {
-    width: BAR_WIDTH,
-    alignItems: 'center',
-    flexDirection: 'column-reverse', // First child renders at bottom
-  },
-  barSegment: {
+  bar: {
     width: BAR_WIDTH,
     borderRadius: 2,
   },
-  actualBar: {
+  plannedBar: {
     backgroundColor: colors.primary[500],
   },
-  overtimeBar: {
-    backgroundColor: colors.warning.main, // Amber/orange for overtime
+  trackedBar: {
+    backgroundColor: colors.shift.rose.dot,
   },
-  unworkedBar: {
-    backgroundColor: colors.grey[300],
-  },
-  indicatorRow: {
-    height: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 2,
-  },
-  checkmark: {
+  dayLabel: {
     fontSize: 9,
-    color: colors.primary[500],
-    fontWeight: fontWeight.semibold,
+    color: colors.text.tertiary,
+    marginTop: 4,
   },
-  questionMark: {
-    fontSize: 9,
-    color: colors.error.main,
-    fontWeight: fontWeight.semibold,
+  todayLabel: {
+    fontWeight: fontWeight.bold,
+    color: colors.primary[600],
   },
-  preAccountDash: {
-    fontSize: 9,
-    color: colors.grey[400],
-    fontWeight: fontWeight.normal,
-  },
-  absenceIconRow: {
+  statusRow: {
     height: 12,
+    flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    flexDirection: 'row',
     gap: 1,
+  },
+  legendRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  legend: {
+    flexDirection: 'row',
+    gap: spacing.lg,
+  },
+  unconfirmedNudge: {
+    fontSize: 10,
+    color: colors.error.main,
+    fontWeight: fontWeight.medium,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  legendDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  legendText: {
+    fontSize: 10,
+    color: colors.text.secondary,
   },
   summaryRow: {
     flexDirection: 'row',

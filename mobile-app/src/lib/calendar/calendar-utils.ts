@@ -120,7 +120,7 @@ export function getColorClasses(color: ShiftColor) {
 }
 
 export function getColorPalette(color: ShiftColor) {
-  return COLOR_MAP[color];
+  return COLOR_MAP[color] || COLOR_MAP.teal; // Fallback to teal for unknown colors
 }
 
 export function formatDateKey(date: Date): string {

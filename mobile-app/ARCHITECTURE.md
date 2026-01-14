@@ -164,12 +164,27 @@ Shift planning with templates and instances.
 
 ### Status Dashboard
 
-14-day overview of worked hours.
+14-day overview of worked hours with clock-in/out controls.
 
 **Key Files:**
 - `DashboardDataService.ts` - Aggregates data for display
 - `HoursSummaryWidget.tsx` - Bar chart visualization
 - `NextShiftWidget.tsx` - Upcoming shift preview
+- `StatusScreen.tsx` - Main status page with location cards
+
+**HoursSummaryWidget Features:**
+- Side-by-side bars: green (planned) and rose (tracked)
+- Dynamic Y-axis: 12h default, expands to 16h/24h based on data
+- Day labels on X-axis (M, T, W, T, F, S, S)
+- Faded bars (40% opacity) for unconfirmed days + "X to confirm" nudge
+- Absence icons (vacation 🌴, sick 🌡️)
+- Today excluded from unconfirmed count
+
+**Clocked-in State Design:**
+- Active card: green left border + light green tint
+- Time badge pill: `● 2h 30m` showing elapsed time
+- Subtle "End" button for clocking out
+- Inactive card: normal styling with "Clock In" button
 
 ---
 

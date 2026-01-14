@@ -7,29 +7,33 @@ import { subDays, addDays, format, addMinutes } from 'date-fns';
 import * as Crypto from 'expo-crypto';
 import { getDatabase } from '@/modules/geofencing/services/Database';
 import { getCalendarStorage } from '@/modules/calendar/services/CalendarStorage';
-import type { ShiftTemplate, ShiftInstance, ConfirmedDayStatus } from '@/lib/calendar/types';
+import type { ShiftTemplate, ShiftInstance, ConfirmedDayStatus, AbsenceInstance } from '@/lib/calendar/types';
 
 // Test data patterns for 14 days (index 0 = 13 days ago, index 13 = today)
-// Format: [plannedMinutes, actualMinutes, isConfirmed]
-// Realistic pattern: Mix of normal days, overtime, undertime, weekends
-const TEST_DATA: Array<[number, number, boolean]> = [
-  // Week 2 ago (Mon-Sun, days 13-7 ago)
-  [480, 540, true],   // Mon: 8h planned, 9h actual (overtime), confirmed
-  [480, 510, true],   // Tue: 8h planned, 8.5h actual (overtime), confirmed
-  [480, 480, true],   // Wed: 8h planned, 8h actual (exact), confirmed
-  [480, 570, true],   // Thu: 8h planned, 9.5h actual (overtime), confirmed
-  [480, 420, true],   // Fri: 8h planned, 7h actual (left early), confirmed
-  [0, 0, true],       // Sat: Weekend - no work
-  [0, 0, true],       // Sun: Weekend - no work
+// Format: [plannedMinutes, actualMinutes, isConfirmed, shiftType, startHour, absence]
+// shiftType: 'day' = 08:00, 'late' = 14:00, 'night' = 22:00 (overnight), 'none' = no shift
+// absence: 'none' | 'vacation' | 'sick'
+// Realistic pattern: Mix of normal days, overtime, undertime, weekends, night shifts, absences
+type ShiftType = 'day' | 'late' | 'night' | 'none';
+type AbsenceType = 'none' | 'vacation' | 'sick';
+const TEST_DATA: Array<[number, number, boolean, ShiftType, number, AbsenceType]> = [
+  // Week 2 ago (days 13-7 ago) - may be pre-account for some users
+  [480, 510, true, 'day', 8, 'none'],       // Day 13: 8h planned, 8.5h actual
+  [480, 480, true, 'day', 8, 'none'],       // Day 12: 8h planned, 8h actual
+  [360, 390, true, 'day', 9, 'none'],       // Day 11: 6h planned, 6.5h actual (short day)
+  [480, 540, true, 'late', 14, 'none'],     // Day 10: 8h planned late shift, 9h actual
+  [480, 420, true, 'day', 8, 'none'],       // Day 9: 8h planned, 7h actual
+  [0, 0, true, 'none', 0, 'none'],          // Day 8: Weekend - no work
+  [0, 180, true, 'none', 10, 'none'],       // Day 7: No planned, but 3h tracked (called in)
 
-  // Last week + today (Mon-Sun, days 6-0 ago)
-  [480, 660, true],   // Mon: 8h planned, 11h actual (big overtime day), confirmed
-  [480, 540, true],   // Tue: 8h planned, 9h actual (overtime), confirmed
-  [480, 495, true],   // Wed: 8h planned, 8.25h actual (slight overtime), confirmed
-  [480, 450, false],  // Thu: 8h planned, 7.5h actual (undertime), unconfirmed
-  [480, 525, false],  // Fri: 8h planned, 8.75h actual (overtime), unconfirmed
-  [0, 0, false],      // Sat: Weekend - no work
-  [480, 210, false],  // Sun (today): 8h planned, 3.5h actual so far (in progress - on call)
+  // Last week + today (days 6-0 ago)
+  [840, 900, true, 'night', 22, 'none'],    // Day 6: 14h night shift, 15h actual (OVERNIGHT)
+  [480, 0, true, 'day', 8, 'vacation'],     // Day 5: Vacation day 🌴
+  [480, 0, true, 'day', 8, 'sick'],         // Day 4: Sick day 🌡️
+  [480, 360, false, 'day', 8, 'none'],      // Day 3: 8h planned, 6h actual (left early)
+  [480, 525, false, 'late', 14, 'none'],    // Day 2: 8h late shift, 8.75h actual
+  [240, 270, false, 'day', 8, 'none'],      // Day 1 (yesterday): 4h planned, 4.5h actual
+  [480, 150, false, 'day', 8, 'none'],      // Day 0 (today): 8h planned, 2.5h so far
 ];
 
 // Shift templates
@@ -39,7 +43,7 @@ const TEMPLATES: ShiftTemplate[] = [
     name: 'Day Shift',
     startTime: '08:00',
     duration: 480, // 8 hours
-    color: 'blue',
+    color: 'teal',
   },
   {
     id: 'template-late-shift',
@@ -47,6 +51,13 @@ const TEMPLATES: ShiftTemplate[] = [
     startTime: '14:00',
     duration: 480,
     color: 'purple',
+  },
+  {
+    id: 'template-night-shift',
+    name: 'Night Shift',
+    startTime: '22:00',
+    duration: 600, // 10 hours (overnight)
+    color: 'amber',
   },
 ];
 
@@ -82,22 +93,24 @@ export async function seedDashboardTestData() {
   await storage.replaceTemplates(TEMPLATES);
 
   const instances: ShiftInstance[] = [];
+  const absenceInstances: AbsenceInstance[] = [];
   const confirmedDays: Record<string, ConfirmedDayStatus> = {};
+  const now = new Date().toISOString();
 
   // Generate data for each of the 14 days
   for (let i = 0; i < TEST_DATA.length; i++) {
     const daysAgo = 13 - i;
     const day = subDays(today, daysAgo);
     const dateKey = format(day, 'yyyy-MM-dd');
-    const [plannedMinutes, actualMinutes, isConfirmed] = TEST_DATA[i];
+    const [plannedMinutes, actualMinutes, isConfirmed, shiftType, startHour, absence] = TEST_DATA[i];
 
     // Create shift instance if there's planned time
-    if (plannedMinutes > 0) {
-      const template = TEMPLATES[0]; // Use day shift
-      const startTime = template.startTime;
-      const [startHour, startMin] = startTime.split(':').map(Number);
+    if (plannedMinutes > 0 && shiftType !== 'none') {
+      const template = shiftType === 'day' ? TEMPLATES[0] :
+                       shiftType === 'late' ? TEMPLATES[1] : TEMPLATES[2];
+      const startTime = `${String(startHour).padStart(2, '0')}:00`;
       const startDate = new Date(day);
-      startDate.setHours(startHour, startMin, 0, 0);
+      startDate.setHours(startHour, 0, 0, 0);
       const endDate = addMinutes(startDate, plannedMinutes);
       const endTime = format(endDate, 'HH:mm');
 
@@ -113,31 +126,46 @@ export async function seedDashboardTestData() {
       });
     }
 
+    // Create absence instance if there's an absence
+    if (absence !== 'none') {
+      absenceInstances.push({
+        id: `absence-${dateKey}`,
+        templateId: null,
+        type: absence,
+        date: dateKey,
+        startTime: '00:00',
+        endTime: '23:59',
+        isFullDay: true,
+        name: absence === 'vacation' ? 'Vacation' : 'Sick Day',
+        color: absence === 'vacation' ? 'teal' : 'rose',
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+
     // Create tracking session if there's actual time
     if (actualMinutes > 0) {
       const clockInTime = new Date(day);
-      clockInTime.setHours(8, 0, 0, 0);
+      clockInTime.setHours(startHour || 8, 0, 0, 0);
       const clockOutTime = addMinutes(clockInTime, actualMinutes);
       const isToday = daysAgo === 0;
 
-      // Create the session directly
+      // Insert session directly into database to avoid clock-in conflicts
       const sessionId = Crypto.randomUUID();
-      const now = new Date().toISOString();
-
-      // Use clockIn to create session
-      await db.clockIn(locationId, clockInTime.toISOString(), 'geofence_auto');
-
-      // Get the session we just created and clock it out (except for today)
-      if (!isToday) {
-        const sessions = await db.getActiveSession(locationId);
-        if (sessions) {
-          await db.clockOut(sessions.id, clockOutTime.toISOString());
-        }
-      }
+      await db.insertSession({
+        id: sessionId,
+        locationId: locationId,
+        clockIn: clockInTime.toISOString(),
+        clockOut: isToday ? null : clockOutTime.toISOString(),
+        durationMinutes: isToday ? null : actualMinutes,
+        trigger: 'geofence_auto',
+        createdAt: clockInTime.toISOString(),
+        updatedAt: (isToday ? clockInTime : clockOutTime).toISOString(),
+      });
     }
 
-    // Set confirmed status for days with planned shifts
-    if (isConfirmed && (plannedMinutes > 0 || actualMinutes > 0)) {
+    // Set confirmed status for days with planned shifts or absences
+    if (isConfirmed && (plannedMinutes > 0 || actualMinutes > 0 || absence !== 'none')) {
       confirmedDays[dateKey] = {
         status: 'confirmed',
         confirmedAt: day.toISOString(),
@@ -157,7 +185,7 @@ export async function seedDashboardTestData() {
     startTime: '08:00',
     duration: 480,
     endTime: '16:00',
-    color: 'blue',
+    color: 'teal',
     name: 'Day Shift',
   });
 
@@ -176,9 +204,11 @@ export async function seedDashboardTestData() {
   });
 
   await storage.replaceInstances(instances);
+  await storage.replaceAbsenceInstances(absenceInstances);
   await storage.replaceConfirmedDays(confirmedDays);
 
   console.log(`[SeedDashboard] Created ${instances.length} shift instances`);
+  console.log(`[SeedDashboard] Created ${absenceInstances.length} absence instances`);
   console.log(`[SeedDashboard] Marked ${Object.keys(confirmedDays).length} days as confirmed`);
   console.log('[SeedDashboard] Dashboard test data seeding complete!');
 }

@@ -65,34 +65,42 @@ function CollapsedStatusLine({
     return `${mins}m`;
   };
 
+  if (isCheckedIn) {
+    // Active/clocked-in state - prominent design
+    return (
+      <View style={[styles.statusLineCard, styles.statusLineCardActive]}>
+        <TouchableOpacity style={styles.statusLineContent} onPress={onLocationPress}>
+          <View style={[styles.statusDot, styles.statusDotActive]} />
+          <Text style={styles.locationName} numberOfLines={1}>
+            {location.name}
+          </Text>
+        </TouchableOpacity>
+        <View style={styles.activeControls}>
+          <View style={styles.timeBadge}>
+            <View style={styles.timeBadgeDot} />
+            <Text style={styles.timeBadgeText}>
+              {elapsedMinutes !== undefined ? formatElapsed(elapsedMinutes) : t('status.checkedIn')}
+            </Text>
+          </View>
+          <TouchableOpacity style={styles.endButton} onPress={onCheckOut}>
+            <Text style={styles.endButtonText}>{t('status.end')}</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  // Inactive/not clocked-in state
   return (
     <View style={styles.statusLineCard}>
       <TouchableOpacity style={styles.statusLineContent} onPress={onLocationPress}>
-        <View
-          style={[
-            styles.statusDot,
-            isCheckedIn ? styles.statusDotActive : styles.statusDotInactive,
-          ]}
-        />
+        <View style={[styles.statusDot, styles.statusDotInactive]} />
         <Text style={styles.locationName} numberOfLines={1}>
           {location.name}
         </Text>
-        <Text style={styles.statusText}>
-          {isCheckedIn
-            ? (elapsedMinutes !== undefined ? t('status.checkedInElapsed', { elapsed: formatElapsed(elapsedMinutes) }) : t('status.checkedIn'))
-            : t('status.notCheckedIn')}
-        </Text>
       </TouchableOpacity>
-      <TouchableOpacity
-        style={[
-          styles.statusButton,
-          isCheckedIn ? styles.checkOutButton : styles.checkInButton,
-        ]}
-        onPress={isCheckedIn ? onCheckOut : onCheckIn}
-      >
-        <Text style={styles.statusButtonText}>
-          {isCheckedIn ? t('status.checkOut') : t('status.checkIn')}
-        </Text>
+      <TouchableOpacity style={styles.checkInButton} onPress={onCheckIn}>
+        <Text style={styles.checkInButtonText}>{t('status.checkIn')}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -300,7 +308,6 @@ export default function StatusScreen() {
                 onLocationPress={() => handleLocationPress(status.location)}
               />
             ))}
-            <Text style={styles.tapHint}>{t('status.tapToManage')}</Text>
           </View>
         ) : (
           <View style={styles.emptyLocationState}>
@@ -392,6 +399,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     ...shadows.sm,
   },
+  statusLineCardActive: {
+    borderLeftWidth: 4,
+    borderLeftColor: colors.primary[500],
+    backgroundColor: colors.primary[50],
+  },
   statusLineContent: {
     flex: 1,
     flexDirection: 'row',
@@ -415,24 +427,49 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
     flex: 1,
   },
-  statusText: {
-    fontSize: fontSize.xs,
-    color: colors.text.secondary,
-    marginLeft: spacing.sm,
+  activeControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
   },
-  statusButton: {
-    paddingVertical: spacing.sm - 2,
-    paddingHorizontal: spacing.md + 2,
+  timeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary[500],
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    borderRadius: borderRadius.full,
+    gap: 6,
+  },
+  timeBadgeDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.white,
+  },
+  timeBadgeText: {
+    color: colors.white,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+  },
+  endButton: {
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
     borderRadius: borderRadius.sm,
-    marginLeft: spacing.sm,
+    backgroundColor: colors.grey[200],
+  },
+  endButtonText: {
+    color: colors.text.secondary,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.medium,
   },
   checkInButton: {
     backgroundColor: colors.primary[500],
+    paddingVertical: spacing.sm - 2,
+    paddingHorizontal: spacing.md + 2,
+    borderRadius: borderRadius.sm,
   },
-  checkOutButton: {
-    backgroundColor: colors.error.main,
-  },
-  statusButtonText: {
+  checkInButtonText: {
     color: colors.white,
     fontSize: fontSize.xs,
     fontWeight: fontWeight.semibold,

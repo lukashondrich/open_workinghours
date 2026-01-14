@@ -301,6 +301,36 @@ export class Database {
     );
   }
 
+  /**
+   * Insert a session directly (for test data seeding)
+   */
+  async insertSession(session: {
+    id: string;
+    locationId: string;
+    clockIn: string;
+    clockOut: string | null;
+    durationMinutes: number | null;
+    trigger: 'geofence_auto' | 'manual';
+    createdAt: string;
+    updatedAt: string;
+  }): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    await this.db.runAsync(
+      `INSERT INTO tracking_sessions
+       (id, location_id, clock_in, clock_out, duration_minutes, tracking_method, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      session.id,
+      session.locationId,
+      session.clockIn,
+      session.clockOut,
+      session.durationMinutes,
+      session.trigger,
+      session.createdAt,
+      session.updatedAt
+    );
+  }
+
   async updateSession(
     sessionId: string,
     updates: { clockIn?: string; clockOut?: string }
