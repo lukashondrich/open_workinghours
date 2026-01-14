@@ -278,24 +278,14 @@ export function calendarReducer(state: CalendarState, action: CalendarAction): C
     case 'UPDATE_TRACKING_END': {
       const record = state.trackingRecords[action.id];
       if (!record) return state;
-      const [startHours, startMinutes] = record.startTime.split(':').map(Number);
-      const [endHours, endMinutes] = action.endTime.split(':').map(Number);
-      const startTotal = startHours * 60 + startMinutes;
-      let endTotal = endHours * 60 + endMinutes;
-
-      // Handle overnight sessions: if end < start, end time is on next day
-      if (endTotal < startTotal) {
-        endTotal += 24 * 60;
-      }
-
-      const newDuration = endTotal - startTotal;
+      // Directly use the new duration (supports multi-day sessions)
       return {
         ...state,
         trackingRecords: {
           ...state.trackingRecords,
           [action.id]: {
             ...record,
-            duration: Math.max(5, newDuration),
+            duration: Math.max(5, action.newDuration),
           },
         },
       };

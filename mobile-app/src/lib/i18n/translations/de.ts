@@ -110,6 +110,8 @@ export const de = {
       deleteTrackingTitle: 'Zeiterfassung löschen?',
       deleteTrackingMessage: 'Diesen Zeiteintrag entfernen?',
       trackingOptions: 'Zeiterfassungs-Optionen',
+      adjustTimes: 'Zeiten anpassen',
+      adjustBreaks: 'Pause anpassen',
       breakTitle: 'Pause (min)',
       breakTotal: 'Gesamt: {{duration}}',
       breakExceedsTitle: 'Pause überschreitet Dienstdauer',

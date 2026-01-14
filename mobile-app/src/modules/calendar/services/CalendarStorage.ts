@@ -271,11 +271,13 @@ class CalendarStorage {
   }
 
   async replaceTrackingRecords(records: TrackingRecord[]) {
+    // Use INSERT OR REPLACE (upsert) instead of DELETE + INSERT
+    // This is safe for concurrent calls - no race conditions
+    // Old records from other weeks stay in the table but get overwritten when loaded again
     const db = this.getDb();
-    await db.runAsync('DELETE FROM tracking_records');
     for (const record of records) {
       await db.runAsync(
-        `INSERT INTO tracking_records (id, date, start_time, duration, break_minutes) VALUES (?, ?, ?, ?, ?)`,
+        `INSERT OR REPLACE INTO tracking_records (id, date, start_time, duration, break_minutes) VALUES (?, ?, ?, ?, ?)`,
         record.id,
         record.date,
         record.startTime,

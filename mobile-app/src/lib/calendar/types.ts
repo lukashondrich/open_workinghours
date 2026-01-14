@@ -118,7 +118,7 @@ export type CalendarAction =
   | { type: "TOGGLE_REVIEW_MODE"; trackingRecords?: Record<string, TrackingRecord> }
   | { type: "UPDATE_TRACKING_RECORDS"; trackingRecords: Record<string, TrackingRecord> }
   | { type: "UPDATE_TRACKING_START"; id: string; startTime: string }
-  | { type: "UPDATE_TRACKING_END"; id: string; endTime: string }
+  | { type: "UPDATE_TRACKING_END"; id: string; newDuration: number }
   | { type: "UPDATE_TRACKING_BREAK"; id: string; breakMinutes: number }
   | { type: "CONFIRM_DAY"; date: string; confirmedAt?: string }
   | { type: "START_EDIT_TRACKING"; id: string }

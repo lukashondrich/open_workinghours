@@ -100,13 +100,15 @@ function TrackingBadge({
   onAdjustEnd,
   onDelete,
   onToggleActive,
+  onPress,
   onAddBreak,
   onClearBreak,
-  active,
+  editMode,
   setDragging,
   clippedDuration,
   showStartGrabber = true,
   showEndGrabber = true,
+  showBreakPanel = false,
   currentTime,
   hourHeight = DEFAULT_HOUR_HEIGHT,
 }: {
@@ -114,14 +116,16 @@ function TrackingBadge({
   onAdjustStart: (id: string, deltaMinutes: number) => void;
   onAdjustEnd: (id: string, deltaMinutes: number) => void;
   onDelete: (id: string) => void;
-  onToggleActive: () => void;
+  onToggleActive: (mode: 'times' | 'breaks') => void;
+  onPress: () => void;
   onAddBreak: (id: string, minutes: number) => void;
   onClearBreak: (id: string) => void;
-  active: boolean;
+  editMode: 'times' | 'breaks' | null;
   setDragging: (dragging: boolean) => void;
   clippedDuration?: number;
   showStartGrabber?: boolean;
   showEndGrabber?: boolean;
+  showBreakPanel?: boolean;
   currentTime: Date;
   hourHeight?: number;
 }) {
@@ -257,15 +261,18 @@ function TrackingBadge({
     };
 
     Alert.alert(t('calendar.week.trackingOptions'), formatDuration(record.duration), [
-      { text: t('common.adjust'), onPress: onToggleActive },
+      { text: t('calendar.week.adjustTimes'), onPress: () => onToggleActive('times') },
+      { text: t('calendar.week.adjustBreaks'), onPress: () => onToggleActive('breaks') },
       { text: t('common.delete'), style: 'destructive', onPress: showDeleteConfirm },
       { text: t('common.cancel'), style: 'cancel' },
     ]);
   };
+  const isTimesMode = editMode === 'times';
+
   const startPan = useMemo(
     () =>
       PanResponder.create({
-        onStartShouldSetPanResponder: () => active,
+        onStartShouldSetPanResponder: () => isTimesMode,
         onPanResponderGrant: () => {
           setDragging(true);
           Vibration.vibrate(15);
@@ -287,13 +294,13 @@ function TrackingBadge({
           setDragStartDelta(0); // Reset preview
         },
       }),
-    [record.id, onAdjustStart, active, setDragging, setDragStartDelta, hourHeight],
+    [record.id, onAdjustStart, isTimesMode, setDragging, setDragStartDelta, hourHeight],
   );
 
   const endPan = useMemo(
     () =>
       PanResponder.create({
-        onStartShouldSetPanResponder: () => active,
+        onStartShouldSetPanResponder: () => isTimesMode,
         onPanResponderGrant: () => {
           setDragging(true);
           Vibration.vibrate(15);
@@ -315,12 +322,13 @@ function TrackingBadge({
           setDragEndDelta(0); // Reset preview
         },
       }),
-    [record.id, onAdjustEnd, active, setDragging, setDragEndDelta, hourHeight],
+    [record.id, onAdjustEnd, isTimesMode, setDragging, setDragEndDelta, hourHeight],
   );
 
   return (
-    <View style={{ position: 'absolute', left: 12, right: 12, top: topOffset, zIndex: active ? 100 : 1 }}>
+    <View style={{ position: 'absolute', left: 12, right: 12, top: topOffset, zIndex: editMode ? 100 : 1 }}>
       <Pressable
+        onPress={onPress}
         onLongPress={handleLongPress}
         style={{ height }}
         hitSlop={{
@@ -343,12 +351,12 @@ function TrackingBadge({
             </View>
           )}
         </Animated.View>
-        {active && showStartGrabber && (
+        {isTimesMode && showStartGrabber && (
           <View style={[styles.grabberContainer, topGrabberStyle]} {...startPan.panHandlers}>
             <View style={styles.grabberBar} />
           </View>
         )}
-        {active && showEndGrabber && (
+        {isTimesMode && showEndGrabber && (
           <View style={[styles.grabberContainer, bottomGrabberStyle]} {...endPan.panHandlers}>
             <View style={styles.grabberBar} />
           </View>
@@ -360,7 +368,7 @@ function TrackingBadge({
           <Text style={[styles.edgeLabel, styles.edgeLabelBottom]}>{endLabel}</Text>
         )}
       </Pressable>
-      {active && (
+      {editMode === 'breaks' && showBreakPanel && (
         <View style={[styles.breakPanel, breakPanelStyle]}>
           <Text style={styles.breakTitle}>{t('calendar.week.breakTitle')}</Text>
           {[5, 15, 30, 45, 60].map((min) => (
@@ -651,7 +659,11 @@ export default function WeekView() {
     [screenWidth, availableHeight]
   );
 
-  const [activeTrackingId, setActiveTrackingId] = useState<string | null>(null);
+  const [activeTracking, setActiveTracking] = useState<{
+    id: string;
+    mode: 'times' | 'breaks';
+    clickedDateKey: string;
+  } | null>(null);
   const [activeAbsenceId, setActiveAbsenceId] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isPinching, setIsPinching] = useState(false);
@@ -873,7 +885,7 @@ export default function WeekView() {
 
   useEffect(() => {
     if (!state.reviewMode) {
-      setActiveTrackingId(null);
+      setActiveTracking(null);
     }
   }, [state.reviewMode]);
 
@@ -899,14 +911,44 @@ export default function WeekView() {
     return () => clearInterval(interval);
   }, [state.reviewMode, weekDays, dispatch]);
 
+  // Track previous week to detect actual week changes
+  const prevWeekStartRef = useRef<string | null>(null);
+
+  // Reload tracking records when week changes while in review mode
+  useEffect(() => {
+    if (!state.reviewMode) return;
+
+    const currentWeekStart = formatDateKey(weekDays[0]);
+
+    // Only reload if the week actually changed (not just a re-render)
+    if (prevWeekStartRef.current === currentWeekStart) {
+      return;
+    }
+    prevWeekStartRef.current = currentWeekStart;
+
+    const loadRecordsForWeek = async () => {
+      try {
+        const startDate = formatDateKey(weekDays[0]);
+        const endDate = formatDateKey(weekDays[weekDays.length - 1]);
+        const { loadRealTrackingRecords } = await import('@/lib/calendar/calendar-utils');
+        const updatedRecords = await loadRealTrackingRecords(startDate, endDate);
+        dispatch({ type: 'UPDATE_TRACKING_RECORDS', trackingRecords: updatedRecords });
+      } catch (error) {
+        console.error('[WeekView] Failed to load tracking records for week:', error);
+      }
+    };
+
+    loadRecordsForWeek();
+  }, [weekDays, state.reviewMode, dispatch]);
+
   const getTrackingForDate = (dateKey: string): TrackingRecord[] => {
     return Object.values(state.trackingRecords).filter((record) => record.date === dateKey);
   };
 
   const handleHourPress = async (dateKey: string) => {
     // Clear active tracking selection when clicking elsewhere
-    if (activeTrackingId) {
-      setActiveTrackingId(null);
+    if (activeTracking) {
+      setActiveTracking(null);
       return;
     }
 
@@ -999,7 +1041,7 @@ export default function WeekView() {
     } else {
       setActiveAbsenceId(absence.id);
       // Deselect tracking if any
-      setActiveTrackingId(null);
+      setActiveTracking(null);
     }
   };
 
@@ -1069,18 +1111,32 @@ export default function WeekView() {
     }
   };
 
-  const handleAdjustTrackingEnd = (id: string, deltaMinutes: number) => {
+  const handleAdjustTrackingEnd = async (id: string, deltaMinutes: number) => {
     const record = state.trackingRecords[id];
     if (!record) return;
     const newDuration = Math.max(5, record.duration + deltaMinutes);
-    const endMinutes = timeToMinutes(record.startTime) + newDuration;
-    const hours = Math.floor(endMinutes / 60) % 24;
-    const minutes = endMinutes % 60;
-    const endTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-    dispatch({ type: 'UPDATE_TRACKING_END', id, endTime });
+    dispatch({ type: 'UPDATE_TRACKING_END', id, newDuration });
+
+    // Sync to sessions table (only for real sessions, not simulated)
+    if (id.startsWith('tracking-session-')) {
+      const sessionId = id.replace('tracking-session-', '');
+      try {
+        const { getDatabase } = await import('@/modules/geofencing/services/Database');
+        const db = await getDatabase();
+
+        // Calculate clock out time from start date/time + new duration
+        const [year, month, day] = record.date.split('-').map(Number);
+        const [startH, startM] = record.startTime.split(':').map(Number);
+        const clockInDate = new Date(year, month - 1, day, startH, startM, 0, 0);
+        const clockOutDate = new Date(clockInDate.getTime() + newDuration * 60 * 1000);
+        await db.updateSession(sessionId, { clockOut: clockOutDate.toISOString() });
+      } catch (error) {
+        console.error('[WeekView] Failed to sync tracking end to session:', error);
+      }
+    }
   };
 
-  const handleAdjustTrackingStart = (id: string, deltaMinutes: number) => {
+  const handleAdjustTrackingStart = async (id: string, deltaMinutes: number) => {
     const record = state.trackingRecords[id];
     if (!record) return;
     const startMinutes = Math.max(0, timeToMinutes(record.startTime) + deltaMinutes);
@@ -1088,6 +1144,22 @@ export default function WeekView() {
     const minutes = startMinutes % 60;
     const startTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
     dispatch({ type: 'UPDATE_TRACKING_START', id, startTime });
+
+    // Sync to sessions table (only for real sessions, not simulated)
+    if (id.startsWith('tracking-session-')) {
+      const sessionId = id.replace('tracking-session-', '');
+      try {
+        const { getDatabase } = await import('@/modules/geofencing/services/Database');
+        const db = await getDatabase();
+
+        // Convert date + new time to local Date, then to ISO string
+        const [year, month, day] = record.date.split('-').map(Number);
+        const newClockIn = new Date(year, month - 1, day, hours, minutes, 0, 0);
+        await db.updateSession(sessionId, { clockIn: newClockIn.toISOString() });
+      } catch (error) {
+        console.error('[WeekView] Failed to sync tracking start to session:', error);
+      }
+    }
   };
 
   // Absence adjustment handlers
@@ -1153,8 +1225,8 @@ export default function WeekView() {
 
       // Delete from state
       dispatch({ type: 'DELETE_TRACKING_RECORD', id });
-      if (activeTrackingId === id) {
-        setActiveTrackingId(null);
+      if (activeTracking?.id === id) {
+        setActiveTracking(null);
       }
     } catch (error) {
       console.error('[WeekView] Failed to delete tracking session:', error);
@@ -1605,6 +1677,10 @@ export default function WeekView() {
                       const startMinutes = timeToMinutes(record.startTime);
                       const endMinutes = startMinutes + record.duration;
                       const spansNextDay = endMinutes > 24 * 60;
+                      const daysSpanned = Math.ceil(endMinutes / (24 * 60));
+                      const isLastDay = daysSpanned === 1;
+                      const isActive = activeTracking?.id === record.id;
+                      const isThisDateClicked = activeTracking?.clickedDateKey === dateKey;
 
                       // Render badge for this day - clip at midnight if it spans to next day
                       return (
@@ -1614,59 +1690,100 @@ export default function WeekView() {
                           onAdjustStart={handleAdjustTrackingStart}
                           onAdjustEnd={handleAdjustTrackingEnd}
                           onDelete={handleDeleteTracking}
-                          onToggleActive={() =>
-                            setActiveTrackingId((prev) => (prev === record.id ? null : record.id))
+                          onToggleActive={(mode) =>
+                            setActiveTracking(isActive && activeTracking?.mode === mode
+                              ? null
+                              : { id: record.id, mode, clickedDateKey: dateKey })
+                          }
+                          onPress={() =>
+                            setActiveTracking(isActive
+                              ? null
+                              : { id: record.id, mode: 'times', clickedDateKey: dateKey })
                           }
                           onAddBreak={handleAddBreak}
                           onClearBreak={handleClearBreak}
-                          active={activeTrackingId === record.id}
+                          editMode={isActive ? activeTracking.mode : null}
                           setDragging={setIsDragging}
                           clippedDuration={spansNextDay ? (24 * 60 - startMinutes) : undefined}
                           showStartGrabber={true}
-                          showEndGrabber={!spansNextDay}
+                          showEndGrabber={isLastDay}
+                          showBreakPanel={isThisDateClicked}
                           currentTime={currentTime}
                           hourHeight={hourHeight}
                         />
                       );
                     })}
                     {state.reviewMode && (() => {
-                      // Render overflow tracking from previous day
-                      const prevDayRecords = dayIndex > 0 ? getTrackingForDate(previousDateKey) : [];
-                      return prevDayRecords.map((record) => {
-                        const startMinutes = timeToMinutes(record.startTime);
-                        const endMinutes = startMinutes + record.duration;
-                        if (endMinutes <= 24 * 60) return null; // No overflow
+                      // Render overflow tracking from previous days (supports multi-day spanning)
+                      const overflowBadges: React.ReactNode[] = [];
 
-                        const overflowMinutes = endMinutes - 24 * 60;
+                      // Look back up to 7 days for sessions that might overflow into current day
+                      for (let lookback = 1; lookback <= 7; lookback++) {
+                        const prevDay = subDays(day, lookback);
+                        const prevDateKey = formatDateKey(prevDay);
+                        const prevDayRecords = getTrackingForDate(prevDateKey);
 
-                        // Create modified record for overflow segment (starts at 00:00 on Day 2)
-                        const overflowRecord = {
-                          ...record,
-                          startTime: '00:00',
-                        };
+                        for (const record of prevDayRecords) {
+                          const startMinutes = timeToMinutes(record.startTime);
+                          const totalEndMinutes = startMinutes + record.duration;
+                          const daysSpanned = Math.ceil(totalEndMinutes / (24 * 60));
 
-                        return (
-                          <TrackingBadge
-                            key={`${record.id}-overflow`}
-                            record={overflowRecord}
-                            onAdjustStart={handleAdjustTrackingStart}
-                            onAdjustEnd={handleAdjustTrackingEnd}
-                            onDelete={handleDeleteTracking}
-                            onToggleActive={() =>
-                              setActiveTrackingId((prev) => (prev === record.id ? null : record.id))
-                            }
-                            onAddBreak={handleAddBreak}
-                            onClearBreak={handleClearBreak}
-                            active={activeTrackingId === record.id}
-                            setDragging={setIsDragging}
-                            clippedDuration={overflowMinutes}
-                            showStartGrabber={false}
-                            showEndGrabber={true}
-                            currentTime={currentTime}
-                            hourHeight={hourHeight}
-                          />
-                        );
-                      });
+                          // Check if this record spans into the current day
+                          if (daysSpanned <= lookback) continue; // Doesn't reach this day
+
+                          // Calculate which day segment this is (day 1 = original, day 2 = 1st overflow, etc.)
+                          const dayInSpan = lookback + 1;
+                          const isLastDay = dayInSpan === daysSpanned;
+
+                          // Calculate minutes for this day's segment
+                          const dayStartMinutes = lookback * 24 * 60; // Minutes from original start to this day's 00:00
+                          const dayEndMinutes = Math.min((lookback + 1) * 24 * 60, totalEndMinutes);
+                          const segmentMinutes = dayEndMinutes - dayStartMinutes;
+
+                          if (segmentMinutes <= 0) continue;
+
+                          // Create modified record for overflow segment (starts at 00:00)
+                          const overflowRecord = {
+                            ...record,
+                            startTime: '00:00',
+                          };
+
+                          const isActive = activeTracking?.id === record.id;
+                          const isThisDateClicked = activeTracking?.clickedDateKey === dateKey;
+
+                          overflowBadges.push(
+                            <TrackingBadge
+                              key={`${record.id}-overflow-${lookback}`}
+                              record={overflowRecord}
+                              onAdjustStart={handleAdjustTrackingStart}
+                              onAdjustEnd={handleAdjustTrackingEnd}
+                              onDelete={handleDeleteTracking}
+                              onToggleActive={(mode) =>
+                                setActiveTracking(isActive && activeTracking?.mode === mode
+                                  ? null
+                                  : { id: record.id, mode, clickedDateKey: dateKey })
+                              }
+                              onPress={() =>
+                                setActiveTracking(isActive
+                                  ? null
+                                  : { id: record.id, mode: 'times', clickedDateKey: dateKey })
+                              }
+                              onAddBreak={handleAddBreak}
+                              onClearBreak={handleClearBreak}
+                              editMode={isActive ? activeTracking.mode : null}
+                              setDragging={setIsDragging}
+                              clippedDuration={segmentMinutes}
+                              showStartGrabber={false}
+                              showEndGrabber={isLastDay}
+                              showBreakPanel={isThisDateClicked}
+                              currentTime={currentTime}
+                              hourHeight={hourHeight}
+                            />
+                          );
+                        }
+                      }
+
+                      return overflowBadges;
                     })()}
                     {dateKey === todayKey && <CurrentTimeLine currentTime={currentTime} reviewMode={state.reviewMode} hourHeight={hourHeight} />}
                   </View>

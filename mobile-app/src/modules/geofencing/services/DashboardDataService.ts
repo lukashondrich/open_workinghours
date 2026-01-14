@@ -109,6 +109,7 @@ function computePlannedMinutes(
  *                           If provided, days before this date are marked as isPreAccount
  */
 export async function loadDashboardData(accountCreatedAt?: string): Promise<DashboardData> {
+  console.log('[DashboardDataService] Loading data, accountCreatedAt:', accountCreatedAt);
   const db = await getDatabase();
   const storage = await getCalendarStorage();
 
@@ -119,6 +120,12 @@ export async function loadDashboardData(accountCreatedAt?: string): Promise<Dash
     db.getActiveLocations(),
     storage.loadAbsenceInstances(),
   ]);
+
+  console.log('[DashboardDataService] Loaded:', {
+    instancesCount: Object.keys(instances).length,
+    locationsCount: locations.length,
+    absencesCount: Object.keys(absenceInstances).length,
+  });
 
   // Calculate date range: last 14 days including today
   const today = startOfDay(new Date());
@@ -134,6 +141,16 @@ export async function loadDashboardData(accountCreatedAt?: string): Promise<Dash
     startDate.toISOString(),
     new Date(today.getTime() + 24 * 60 * 60 * 1000).toISOString() // Include full today
   );
+
+  console.log('[DashboardDataService] Sessions in range:', {
+    sessionsCount: sessions.length,
+    dateRange: `${startDateKey} to ${todayKey}`,
+    sessions: sessions.map(s => ({
+      clockIn: s.clockIn,
+      clockOut: s.clockOut,
+      durationMinutes: s.durationMinutes,
+    })),
+  });
 
   // Check if user is currently clocked in (any location)
   let isLive = false;

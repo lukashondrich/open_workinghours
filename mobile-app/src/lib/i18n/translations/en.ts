@@ -110,6 +110,8 @@ export const en = {
       deleteTrackingTitle: 'Delete tracking?',
       deleteTrackingMessage: 'Remove this time entry?',
       trackingOptions: 'Tracking Options',
+      adjustTimes: 'Adjust Times',
+      adjustBreaks: 'Adjust Breaks',
       breakTitle: 'Break (min)',
       breakTotal: 'Total: {{duration}}',
       breakExceedsTitle: 'Break exceeds session duration',

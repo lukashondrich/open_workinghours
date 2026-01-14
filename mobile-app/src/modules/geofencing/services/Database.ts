@@ -301,6 +301,37 @@ export class Database {
     );
   }
 
+  async updateSession(
+    sessionId: string,
+    updates: { clockIn?: string; clockOut?: string }
+  ): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const session = await this.getSession(sessionId);
+    if (!session) throw new Error('Session not found');
+
+    const newClockIn = updates.clockIn ?? session.clockIn;
+    const newClockOut = updates.clockOut ?? session.clockOut;
+
+    let durationMinutes = session.durationMinutes;
+    if (newClockOut) {
+      const clockInTime = new Date(newClockIn).getTime();
+      const clockOutTime = new Date(newClockOut).getTime();
+      durationMinutes = Math.round((clockOutTime - clockInTime) / 1000 / 60);
+    }
+
+    await this.db.runAsync(
+      `UPDATE tracking_sessions
+       SET clock_in = ?, clock_out = ?, duration_minutes = ?, updated_at = ?
+       WHERE id = ?`,
+      newClockIn,
+      newClockOut,
+      durationMinutes,
+      new Date().toISOString(),
+      sessionId
+    );
+  }
+
   async getSession(id: string): Promise<TrackingSession | null> {
     if (!this.db) throw new Error('Database not initialized');
 
