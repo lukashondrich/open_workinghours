@@ -177,7 +177,7 @@ export const en = {
       createAccount: 'Create Account',
       haveAccount: 'Already have an account?',
       logIn: 'Log in',
-      privacyNotice: 'By creating an account, you agree to our privacy policy. Your work hours will be aggregated with other users (k-anonymity ≥11) before being published.',
+      privacyNotice: 'By creating an account, you agree to our privacy policy. Your work hours will be aggregated with other users before being published.',
       // Alerts
       hospitalRequired: 'Hospital required',
       hospitalRequiredMessage: 'Please enter your hospital ID',
@@ -207,7 +207,7 @@ export const en = {
     },
     keyPoints: {
       title: 'In short:',
-      aggregation: 'Your hours contribute to anonymous statistics (groups of 11+ only)',
+      aggregation: 'Your hours contribute to anonymous statistics (only when groups are large enough)',
       gpsLocal: 'GPS coordinates never leave your device',
       deletion: 'Delete your account and all data anytime',
     },
@@ -477,7 +477,7 @@ export const en = {
     noFailedTitle: 'No failed submissions',
     noFailedMessage: 'Everything looks good!',
     warningBox: 'Warning: Deleting local data cannot be undone. All locations and work history will be permanently removed from this device.',
-    privacyInfo: 'Your GPS location never leaves your phone. All work sessions are stored locally with encryption.\n\nWhen you confirm a day, only your hours (planned and actual) are shared. Your data is combined with at least 11 other users and mathematically protected before any statistics are published.',
+    privacyInfo: 'Your GPS location never leaves your phone. All work sessions are stored locally with encryption.\n\nWhen you confirm a day, only your hours (planned and actual) are shared. Your data is combined with other users and mathematically protected before any statistics are published.',
     // Consent withdrawal section
     withdrawConsent: 'Withdraw Consent & Delete Account',
     withdrawConfirmTitle: 'Delete Account?',

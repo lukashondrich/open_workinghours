@@ -177,7 +177,7 @@ export const de = {
       createAccount: 'Konto erstellen',
       haveAccount: 'Bereits ein Konto?',
       logIn: 'Anmelden',
-      privacyNotice: 'Mit der Erstellung eines Kontos stimmen Sie unserer Datenschutzrichtlinie zu. Ihre Arbeitszeiten werden mit anderen Nutzern aggregiert (k-Anonymität ≥11), bevor sie veröffentlicht werden.',
+      privacyNotice: 'Mit der Erstellung eines Kontos stimmen Sie unserer Datenschutzrichtlinie zu. Ihre Arbeitszeiten werden mit anderen Nutzern aggregiert, bevor sie veröffentlicht werden.',
       // Alerts
       hospitalRequired: 'Krankenhaus erforderlich',
       hospitalRequiredMessage: 'Bitte geben Sie Ihre Krankenhaus-ID ein',
@@ -207,7 +207,7 @@ export const de = {
     },
     keyPoints: {
       title: 'Kurz gesagt:',
-      aggregation: 'Deine Stunden fließen in anonyme Statistiken ein (nur Gruppen ab 11)',
+      aggregation: 'Deine Stunden fließen in anonyme Statistiken ein (nur bei ausreichend großen Gruppen)',
       gpsLocal: 'GPS-Koordinaten verlassen dein Gerät nicht',
       deletion: 'Lösche dein Konto und alle Daten jederzeit',
     },
@@ -477,7 +477,7 @@ export const de = {
     noFailedTitle: 'Keine fehlgeschlagenen Übermittlungen',
     noFailedMessage: 'Alles in Ordnung!',
     warningBox: 'Warnung: Das Löschen lokaler Daten kann nicht rückgängig gemacht werden. Alle Standorte und der gesamte Arbeitsverlauf werden dauerhaft von diesem Gerät entfernt.',
-    privacyInfo: 'Ihr GPS-Standort verlässt niemals Ihr Telefon. Alle Arbeitssitzungen werden lokal mit Verschlüsselung gespeichert.\n\nWenn Sie einen Tag bestätigen, werden nur Ihre Stunden (geplant und tatsächlich) geteilt. Ihre Daten werden mit mindestens 11 anderen Nutzern kombiniert und mathematisch geschützt, bevor Statistiken veröffentlicht werden.',
+    privacyInfo: 'Ihr GPS-Standort verlässt niemals Ihr Telefon. Alle Arbeitssitzungen werden lokal mit Verschlüsselung gespeichert.\n\nWenn Sie einen Tag bestätigen, werden nur Ihre Stunden (geplant und tatsächlich) geteilt. Ihre Daten werden mit anderen Nutzern kombiniert und mathematisch geschützt, bevor Statistiken veröffentlicht werden.',
     // Consent withdrawal section
     withdrawConsent: 'Einwilligung widerrufen & Konto löschen',
     withdrawConfirmTitle: 'Konto löschen?',

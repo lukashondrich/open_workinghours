@@ -47,7 +47,7 @@ import Layout from '../layouts/Layout.astro';
           <li>Data minimization: We collect only what is necessary</li>
           <li>Local-first: Most data stays on your device</li>
           <li>Pseudonymization: Your identity is protected by technical measures</li>
-          <li>K-anonymity: Statistics are only published for groups of 11+ users</li>
+          <li>K-anonymity: Statistics are only published when groups meet minimum size thresholds</li>
         </ul>
       </section>
 
@@ -128,7 +128,7 @@ import Layout from '../layouts/Layout.astro';
         </p>
         <ul class="mt-2 space-y-1">
           <li>Contain no personal data</li>
-          <li>Are only published when based on 11+ individuals (k-anonymity)</li>
+          <li>Are only published when groups meet minimum size requirements (k-anonymity)</li>
           <li>Include statistical noise to prevent re-identification (differential privacy)</li>
         </ul>
 
@@ -171,7 +171,7 @@ import Layout from '../layouts/Layout.astro';
         </p>
         <ul class="mt-2 space-y-1">
           <li>Contain only group-level information (e.g., "surgeons in Bavaria")</li>
-          <li>Are based on groups of at least 11 individuals</li>
+          <li>Are based on groups meeting minimum size requirements</li>
           <li>Include statistical noise that masks individual contributions</li>
         </ul>
         <p class="mt-2">
