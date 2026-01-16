@@ -1,6 +1,6 @@
 # Mobile App Architecture
 
-**Last Updated:** 2026-01-12
+**Last Updated:** 2026-01-16
 **Platform:** React Native + Expo
 **Current Build:** #30 (TestFlight)
 
@@ -25,6 +25,7 @@ Quick reference for common tasks:
 | **Change template panel** | `src/modules/calendar/components/TemplatePanel.tsx` |
 | **Edit geofence logic** | `src/modules/geofencing/services/GeofenceService.ts` |
 | **Change clock-in/out** | `src/modules/geofencing/services/TrackingManager.ts` |
+| **Cross-module events** | `src/lib/events/trackingEvents.ts` |
 | **Modify auth flow** | `src/modules/auth/services/AuthService.ts` |
 | **Edit database schema** | `src/modules/calendar/services/CalendarStorage.ts` |
 | **Change navigation** | `src/navigation/AppNavigator.tsx` |
@@ -63,6 +64,7 @@ mobile-app/
 │   ├── lib/                    # Shared utilities
 │   │   ├── auth/               # Auth context, types
 │   │   ├── calendar/           # Calendar context, reducer, types
+│   │   ├── events/             # Cross-module event emitters
 │   │   └── i18n/               # Translations (en.ts, de.ts)
 │   │
 │   ├── modules/
@@ -71,7 +73,7 @@ mobile-app/
 │   │   │   └── services/       # AuthService
 │   │   │
 │   │   ├── calendar/           # Calendar feature
-│   │   │   ├── components/     # WeekView, MonthView, TemplatePanel
+│   │   │   ├── components/     # WeekView, MonthView, TemplatePanel, CalendarFAB
 │   │   │   └── services/       # CalendarStorage, DailyAggregator
 │   │   │
 │   │   └── geofencing/         # Location tracking
@@ -93,18 +95,35 @@ mobile-app/
 
 ### Module 1: Geofencing & Tracking
 
-Automatic clock-in/out based on GPS location.
+Automatic clock-in/out based on GPS location with robust hysteresis.
 
 **Key Files:**
-- `GeofenceService.ts` - Manages geofence regions
-- `TrackingManager.ts` - Handles clock-in/out logic
-- `Database.ts` - SQLite operations
+- `GeofenceService.ts` - Manages geofence regions, extracts GPS accuracy
+- `TrackingManager.ts` - Handles clock-in/out logic with hysteresis
+- `Database.ts` - SQLite operations, pending exit state management
 
 **Behavior:**
-- Clock-in: Triggered on geofence enter
-- Clock-out: Triggered on geofence exit (5-min hysteresis)
-- Sessions < 5 min are discarded (noise filtering)
+- Clock-in: Triggered on geofence enter (accuracy recorded)
+- Clock-out: Uses 4-layer protection before finalizing:
+  1. **GPS accuracy filter**: Ignore exits with accuracy > 100m
+  2. **Signal degradation**: Ignore if accuracy 3x worse than check-in
+  3. **Pending exit state**: Wait 5 min before confirming exit
+  4. **Re-entry cancellation**: Cancel pending exit if user returns
+- Sessions < 5 min are kept (not deleted) with visual indicator
 - Manual clock-in/out available as fallback
+- GPS telemetry logged for parameter tuning (via Report Issue)
+
+**Session States:**
+- `active` - User is clocked in
+- `pending_exit` - Exit detected, waiting for hysteresis period
+- `completed` - Session finalized
+
+**Constants (tunable):**
+```typescript
+EXIT_HYSTERESIS_MINUTES = 5     // Wait before confirming clock-out
+GPS_ACCURACY_THRESHOLD = 100    // Ignore exits with accuracy > 100m
+DEGRADATION_FACTOR = 3          // Ignore if accuracy 3x worse than check-in
+```
 
 ### Module 2: Authentication & Submission
 
@@ -151,16 +170,21 @@ Shift planning with templates and instances.
 **Key Files:**
 - `WeekView.tsx` - Main calendar view with pinch-zoom
 - `MonthView.tsx` - Monthly overview
-- `TemplatePanel.tsx` - Shift/absence template management
+- `TemplatePanel.tsx` - Shift/absence template management (compact radio list)
+- `CalendarFAB.tsx` - Floating action button for adding shifts/absences
+- `CalendarHeader.tsx` - Header with navigation and GPS visibility toggle
 - `CalendarStorage.ts` - SQLite persistence
 - `calendar-reducer.ts` - State management
 
 **Features:**
 - Pinch-to-zoom with focal point
-- Double-tap to place shifts
+- Double-tap to place shifts/absences (or open template picker if none armed)
 - Swipe to navigate weeks
 - Drag handles to adjust times
-- Absences (vacation, sick days)
+- Absences (vacation, sick days) with full CRUD
+- FAB for quick access to template panel
+- GPS visibility toggle (eye icon) - shows tracked time on calendar
+- Progressive disclosure - text hides at low zoom levels (thresholds: 32px/56px)
 
 ### Status Dashboard
 
@@ -213,13 +237,33 @@ shift_instances (
   FOREIGN KEY (template_id) REFERENCES shift_templates(id)
 )
 
--- Tracking records (geofencing sessions)
-tracking_records (
+-- Tracking sessions (geofencing sessions)
+tracking_sessions (
   id TEXT PRIMARY KEY,
   location_id TEXT,
-  clock_in TEXT,        -- ISO timestamp
-  clock_out TEXT,       -- ISO timestamp (null if active)
-  break_minutes INTEGER DEFAULT 0
+  clock_in TEXT,              -- ISO timestamp
+  clock_out TEXT,             -- ISO timestamp (null if active)
+  duration_minutes INTEGER,
+  tracking_method TEXT,       -- 'geofence_auto' | 'manual'
+  state TEXT DEFAULT 'active', -- 'active' | 'pending_exit' | 'completed'
+  pending_exit_at TEXT,       -- ISO timestamp when exit was triggered
+  exit_accuracy REAL,         -- GPS accuracy at exit (meters)
+  checkin_accuracy REAL,      -- GPS accuracy at check-in (meters)
+  created_at TEXT,
+  updated_at TEXT
+)
+
+-- Geofence events (telemetry for parameter tuning)
+geofence_events (
+  id TEXT PRIMARY KEY,
+  location_id TEXT,
+  event_type TEXT,            -- 'enter' | 'exit'
+  timestamp TEXT,
+  latitude REAL,
+  longitude REAL,
+  accuracy REAL,              -- GPS accuracy in meters
+  ignored INTEGER DEFAULT 0,  -- 1 if event was filtered
+  ignore_reason TEXT          -- 'poor_accuracy' | 'signal_degradation' | null
 )
 
 -- Absence templates
@@ -309,6 +353,33 @@ import { t } from '@/lib/i18n';
 <Text>{t('calendar.confirmButton', { count: 3 })}</Text>
 ```
 
+### Cross-Module Events
+
+For communication between modules (e.g., Geofencing → Calendar), we use a simple EventEmitter pattern:
+
+```typescript
+// src/lib/events/trackingEvents.ts
+export const trackingEvents = new TrackingEventEmitter();
+
+// Emitting (in TrackingManager.ts)
+import { trackingEvents } from '@/lib/events/trackingEvents';
+trackingEvents.emit('tracking-changed');
+
+// Subscribing (in calendar-context.tsx)
+useEffect(() => {
+  const handler = () => { /* refresh data */ };
+  trackingEvents.on('tracking-changed', handler);
+  return () => trackingEvents.off('tracking-changed', handler);
+}, []);
+```
+
+**Current events:**
+- `tracking-changed` — Emitted on clock-in/clock-out (auto or manual). Calendar subscribes to refresh tracking records in review mode.
+
+**When to use:**
+- Cross-module communication where React Context isn't accessible (e.g., from service classes)
+- Decoupled notifications (emitter doesn't need to know about subscribers)
+
 ---
 
 ## Recent Implementations
@@ -360,6 +431,49 @@ import { t } from '@/lib/i18n';
 - **Backend integration**: Consent version sent with registration, `/auth/consent` endpoint for updates
 - **Translations**: Full EN + DE support
 - **Pre-announcement**: "By continuing, you'll review our Terms" text before button
+
+### Geofence Robustness Improvements (2026-01-15)
+- **Exit hysteresis**: 5-min pending state before confirming clock-out
+- **GPS accuracy filtering**: Ignore exits with accuracy > 100m
+- **Signal degradation detection**: Ignore if accuracy 3x worse than check-in
+- **Session preservation**: Short sessions (< 5 min) kept, not deleted
+- **Visual indicator**: Short sessions shown faded with clock icon in calendar
+- **GPS telemetry**: Accuracy data included in Report Issue for parameter tuning
+- **Database migration**: Schema v2 adds state, accuracy columns to tracking_sessions
+
+### Calendar UX Improvements (2026-01-15)
+- **Header redesign**:
+  - Removed green "Daily Submissions" bar
+  - Removed "Dienste" button (moved to FAB)
+  - GPS toggle now uses Eye/EyeOff icons with red theme when active
+- **CalendarFAB**: New floating action button
+  - Bottom-right position, primary color with "+" icon
+  - Popup menu: "Absences" (top) / "Shifts" (bottom)
+  - Hides when overlays are open (templatePanelOpen, time picker, etc.)
+  - Uses `hideFAB` context state for external control
+- **TemplatePanel refactor**:
+  - Compact radio list design (replaced card-based selection)
+  - Layout: [Edit pencil] [Info] [Color dot] [Radio selector]
+  - Radio on right for easier thumb reach
+  - Mutually exclusive selection (shift deselects absence, vice versa)
+  - Removed rose color from shift options (conflicts with tracked time display)
+- **Absence templates**: Full CRUD support
+  - Create via "+" button in Absences tab
+  - Edit form: name, type (vacation/sick), full-day toggle, start/end times
+  - Persistence added (was missing, causing FK constraint errors)
+- **Interaction changes**:
+  - Double-tap on empty space opens template picker (same as long-press)
+  - Progressive disclosure thresholds raised: 32px (reduced), 56px (full)
+- **State changes**:
+  - Added `hideFAB: boolean` to CalendarState
+  - Added `SET_HIDE_FAB` action
+
+### Cross-Module Event System (2026-01-16)
+- **Problem**: Calendar didn't immediately reflect clock-in/clock-out (60s delay)
+- **Solution**: EventEmitter for cross-module notifications
+- **New file**: `src/lib/events/trackingEvents.ts`
+- **TrackingManager changes**: Emits `tracking-changed` on all clock events
+- **CalendarProvider changes**: Subscribes and refreshes tracking records in review mode
 
 ---
 
@@ -441,6 +555,8 @@ interface CalendarState {
   absenceTemplates: Record<string, AbsenceTemplate>
   absenceInstances: Record<string, AbsenceInstance>
   armedAbsenceTemplateId: string | null
+  // UI state
+  hideFAB: boolean          // Hide FAB when overlays are open
 }
 ```
 

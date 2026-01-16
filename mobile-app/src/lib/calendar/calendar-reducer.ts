@@ -41,6 +41,11 @@ export const initialState: CalendarState = {
   editingAbsenceId: null,
   templatePanelTab: 'shifts',
   armedAbsenceTemplateId: null,
+  // UI state
+  hideFAB: false,
+  // Last-used tracking for picker priority
+  lastUsedTemplateId: null,
+  lastUsedAbsenceTemplateId: null,
 };
 
 export function calendarReducer(state: CalendarState, action: CalendarAction): CalendarState {
@@ -471,6 +476,15 @@ export function calendarReducer(state: CalendarState, action: CalendarAction): C
 
     case 'DISARM_ABSENCE':
       return { ...state, armedAbsenceTemplateId: null, mode: 'viewing' };
+
+    case 'SET_HIDE_FAB':
+      return { ...state, hideFAB: action.hide };
+
+    case 'SET_LAST_USED_TEMPLATE':
+      return { ...state, lastUsedTemplateId: action.templateId };
+
+    case 'SET_LAST_USED_ABSENCE_TEMPLATE':
+      return { ...state, lastUsedAbsenceTemplateId: action.templateId };
 
     default:
       return state;

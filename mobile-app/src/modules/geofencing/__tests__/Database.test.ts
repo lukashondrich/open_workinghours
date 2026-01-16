@@ -189,6 +189,8 @@ describe('Database', () => {
         latitude: 37.7625,
         longitude: -122.4577,
         accuracy: 15,
+        ignored: false,
+        ignoreReason: null,
       });
 
       expect(event.eventType).toBe('enter');
@@ -202,11 +204,15 @@ describe('Database', () => {
         locationId: location.id,
         eventType: 'enter',
         timestamp: new Date().toISOString(),
+        ignored: false,
+        ignoreReason: null,
       });
       await db.logGeofenceEvent({
         locationId: location.id,
         eventType: 'exit',
         timestamp: new Date().toISOString(),
+        ignored: false,
+        ignoreReason: null,
       });
 
       const events = await db.getGeofenceEvents(location.id, 10);

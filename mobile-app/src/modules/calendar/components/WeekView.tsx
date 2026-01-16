@@ -16,6 +16,7 @@ import {
   NativeSyntheticEvent,
   useWindowDimensions,
   Platform,
+  TextInput,
 } from 'react-native';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
@@ -48,9 +49,9 @@ import {
   getAbsencesForDate,
   shiftHasAbsenceOverlap,
 } from '@/lib/calendar/calendar-utils';
-import type { ShiftInstance, TrackingRecord, AbsenceInstance } from '@/lib/calendar/types';
+import type { ShiftInstance, TrackingRecord, AbsenceInstance, ShiftColor, ShiftTemplate, AbsenceTemplate } from '@/lib/calendar/types';
 import { getCalendarStorage } from '@/modules/calendar/services/CalendarStorage';
-import { TreePalm, Thermometer } from 'lucide-react-native';
+import { TreePalm, Thermometer, Clock, Star, Plus, X, Settings } from 'lucide-react-native';
 // ShiftEditModal removed - using native time picker for start time only
 import { persistDailyActualForDate } from '../services/DailyAggregator';
 import { DailySubmissionService } from '@/modules/auth/services/DailySubmissionService';
@@ -58,13 +59,16 @@ import { DailySubmissionService } from '@/modules/auth/services/DailySubmissionS
 // Base dimensions (now imported from zoom-context, kept here for reference)
 const DEFAULT_HOUR_HEIGHT = BASE_HOUR_HEIGHT; // 48
 const DEFAULT_DAY_WIDTH = BASE_DAY_WIDTH; // 120
+
+// Short session threshold - sessions below this are displayed with a warning indicator
+const SHORT_SESSION_THRESHOLD_MINUTES = 5;
 const MIN_DRAG_STEP_MINUTES = 5;
 
 // Progressive disclosure thresholds based on hourHeight (in pixels)
 // These control when text elements hide at low zoom levels
-const DISCLOSURE_FULL_HEIGHT = 48;     // >= 48px: show everything (times, names, duration, edge labels)
-const DISCLOSURE_REDUCED_HEIGHT = 24;  // >= 24px: reduced (names only for shifts, duration only for tracking)
-                                       // < 24px: minimal (color blocks only, no text)
+const DISCLOSURE_FULL_HEIGHT = 56;     // >= 56px: show everything (times, names, duration, edge labels)
+const DISCLOSURE_REDUCED_HEIGHT = 32;  // >= 32px: reduced (names only for shifts, duration only for tracking)
+                                       // < 32px: minimal (color blocks only, no text)
 const GRABBER_HIT_AREA = 44; // Larger hit area for easier grabbing
 const GRABBER_BAR_HEIGHT = 12;
 const MIN_TRACKING_HEIGHT = 8; // Minimum visual height (smaller, less clunky)
@@ -191,6 +195,9 @@ function TrackingBadge({
   } else {
     displayDuration = Math.max(0.1, displayDuration); // Very small minimum for active sessions
   }
+
+  // Detect short sessions (< 5 minutes) - show faded with icon
+  const isShortSession = !record.isActive && record.duration < SHORT_SESSION_THRESHOLD_MINUTES;
 
   // Calculate base position and height
   let topOffset = (startMinutes / 60) * hourHeight;
@@ -339,15 +346,21 @@ function TrackingBadge({
         <Animated.View
           style={[
             styles.trackingBlock,
-            { height, opacity: pulseAnim },
-            record.isActive && styles.trackingBlockActive
+            { height, opacity: isShortSession ? 0.5 : pulseAnim },
+            record.isActive && styles.trackingBlockActive,
+            isShortSession && styles.trackingBlockShort
           ]}
         >
           {showDuration && (
             <View style={styles.trackingDurationContainer}>
-              <Text style={styles.trackingDurationText}>
+              <Text style={[styles.trackingDurationText, isShortSession && styles.shortSessionText]}>
                 {formatDuration(Math.max(0, displayDuration - (record.breakMinutes || 0)))}
               </Text>
+            </View>
+          )}
+          {isShortSession && (
+            <View style={styles.shortSessionIcon}>
+              <Clock size={10} color="rgba(211, 47, 47, 0.7)" />
             </View>
           )}
         </Animated.View>
@@ -680,6 +693,31 @@ export default function WeekView() {
   const [pendingPlacementDate, setPendingPlacementDate] = useState<string | null>(null);
   const [pickerTab, setPickerTab] = useState<'shifts' | 'absences'>('shifts');
 
+  // Create new shift form state (inline in picker)
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [createFormData, setCreateFormData] = useState({
+    name: '',
+    startTime: '08:00',
+    durationHours: 8,
+    durationMinutes: 0,
+    color: 'teal' as ShiftColor,
+  });
+
+  // Create new absence form state (inline in picker)
+  const [showCreateAbsenceForm, setShowCreateAbsenceForm] = useState(false);
+  const [createAbsenceFormData, setCreateAbsenceFormData] = useState({
+    name: '',
+    type: 'vacation' as 'vacation' | 'sick',
+    isFullDay: true,
+    startTime: '08:00',
+    endTime: '17:00',
+  });
+
+  // Hide FAB when overlays are open
+  useEffect(() => {
+    dispatch({ type: 'SET_HIDE_FAB', hide: showTimePicker || showTemplatePicker });
+  }, [showTimePicker, showTemplatePicker, dispatch]);
+
   // ScrollView refs for focal point zooming
   const horizontalScrollRef = useRef<ScrollView>(null);
   const verticalScrollRef = useRef<ScrollView>(null);
@@ -958,7 +996,7 @@ export default function WeekView() {
       return;
     }
 
-    // Check for double-tap to place shift/absence
+    // Check for double-tap (only used for batch mode placement)
     const now = Date.now();
     const lastTap = lastTapRef.current;
     const isDoubleTap = lastTap.dateKey === dateKey && (now - lastTap.time) < DOUBLE_TAP_DELAY;
@@ -966,72 +1004,98 @@ export default function WeekView() {
     // Update last tap tracking
     lastTapRef.current = { dateKey, time: now };
 
-    // Single tap: just record it, don't place anything
-    if (!isDoubleTap) {
-      return;
-    }
+    // Double-tap with armed template: place shift/absence (batch mode)
+    if (isDoubleTap && (state.armedTemplateId || state.armedAbsenceTemplateId)) {
+      // Reset tap tracking to prevent triple-tap from placing again
+      lastTapRef.current = { dateKey: '', time: 0 };
 
-    // Double-tap detected: place shift or absence
-    // Reset tap tracking to prevent triple-tap from placing again
-    lastTapRef.current = { dateKey: '', time: 0 };
+      // Handle absence placement if an absence template is armed
+      if (state.armedAbsenceTemplateId) {
+        const absenceTemplate = state.absenceTemplates[state.armedAbsenceTemplateId];
+        if (absenceTemplate) {
+          // Haptic feedback for placement
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    // Handle absence placement if an absence template is armed
-    if (state.armedAbsenceTemplateId) {
-      const absenceTemplate = state.absenceTemplates[state.armedAbsenceTemplateId];
-      if (absenceTemplate) {
+          const startTime = absenceTemplate.isFullDay ? '00:00' : (absenceTemplate.startTime || '00:00');
+          const endTime = absenceTemplate.isFullDay ? '23:59' : (absenceTemplate.endTime || '23:59');
+
+          const newInstance: Omit<AbsenceInstance, 'id' | 'createdAt' | 'updatedAt'> = {
+            templateId: absenceTemplate.id,
+            type: absenceTemplate.type,
+            date: dateKey,
+            startTime,
+            endTime,
+            isFullDay: absenceTemplate.isFullDay,
+            name: absenceTemplate.name,
+            color: absenceTemplate.color,
+          };
+
+          try {
+            const storage = await getCalendarStorage();
+            const created = await storage.createAbsenceInstance(newInstance);
+            dispatch({ type: 'ADD_ABSENCE_INSTANCE', instance: created });
+          } catch (error) {
+            console.error('[WeekView] Failed to create absence instance:', error);
+          }
+        }
+        return;
+      }
+
+      // Handle shift placement if a shift template is armed
+      if (state.armedTemplateId) {
         // Haptic feedback for placement
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-        const startTime = absenceTemplate.isFullDay ? '00:00' : (absenceTemplate.startTime || '00:00');
-        const endTime = absenceTemplate.isFullDay ? '23:59' : (absenceTemplate.endTime || '23:59');
+        // Check for overlap before placing shift
+        const template = state.templates[state.armedTemplateId];
+        if (template) {
+          const overlap = findOverlappingShift(
+            dateKey,
+            template.startTime,
+            template.duration,
+            state.instances
+          );
 
-        const newInstance: Omit<AbsenceInstance, 'id' | 'createdAt' | 'updatedAt'> = {
-          templateId: absenceTemplate.id,
-          type: absenceTemplate.type,
-          date: dateKey,
-          startTime,
-          endTime,
-          isFullDay: absenceTemplate.isFullDay,
-          name: absenceTemplate.name,
-          color: absenceTemplate.color,
-        };
-
-        try {
-          const storage = await getCalendarStorage();
-          const created = await storage.createAbsenceInstance(newInstance);
-          dispatch({ type: 'ADD_ABSENCE_INSTANCE', instance: created });
-        } catch (error) {
-          console.error('[WeekView] Failed to create absence instance:', error);
+          if (overlap) {
+            Alert.alert(
+              t('calendar.week.overlapTitle'),
+              t('calendar.week.overlapMessage', { name: overlap.name })
+            );
+            return;
+          }
         }
-      }
-      return;
-    }
 
-    if (!state.armedTemplateId) return;
-
-    // Haptic feedback for placement
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-    // Check for overlap before placing shift
-    const template = state.templates[state.armedTemplateId];
-    if (template) {
-      const overlap = findOverlappingShift(
-        dateKey,
-        template.startTime,
-        template.duration,
-        state.instances
-      );
-
-      if (overlap) {
-        Alert.alert(
-          t('calendar.week.overlapTitle'),
-          t('calendar.week.overlapMessage', { name: overlap.name })
-        );
+        dispatch({ type: 'PLACE_SHIFT', date: dateKey });
         return;
       }
     }
 
-    dispatch({ type: 'PLACE_SHIFT', date: dateKey });
+    // Single tap behavior depends on batch mode
+    if (!isDoubleTap) {
+      if (state.armedTemplateId || state.armedAbsenceTemplateId) {
+        // In batch mode: delay picker to allow time for potential double-tap
+        // Store current tap info to check later
+        const tapTime = now;
+        const tapDateKey = dateKey;
+
+        setTimeout(() => {
+          // Check if this tap is still the most recent (no second tap came)
+          const current = lastTapRef.current;
+          if (current.dateKey === tapDateKey && current.time === tapTime) {
+            // No second tap came within the delay, open picker
+            handleHourLongPress(dateKey);
+          }
+          // If a second tap came, it would have been handled as a double-tap
+        }, DOUBLE_TAP_DELAY + 50); // Small buffer to ensure double-tap is processed first
+      } else {
+        // Not in batch mode: open picker immediately
+        handleHourLongPress(dateKey);
+      }
+      return;
+    }
+
+    // Double-tap without armed template: open picker
+    handleHourLongPress(dateKey);
   };
 
   const handleAbsencePress = (absence: AbsenceInstance) => {
@@ -1291,6 +1355,14 @@ export default function WeekView() {
   };
 
   const handleInstancePress = (instance: ShiftInstance) => {
+    // Exit batch mode when tapping an existing shift
+    if (state.armedTemplateId) {
+      dispatch({ type: 'DISARM_SHIFT' });
+    }
+    if (state.armedAbsenceTemplateId) {
+      dispatch({ type: 'DISARM_ABSENCE' });
+    }
+
     const showDeleteConfirm = () => {
       Alert.alert(t('calendar.week.deleteShiftTitle'), t('calendar.week.deleteShiftMessage', { name: instance.name }), [
         { text: t('common.cancel'), style: 'cancel' },
@@ -1394,22 +1466,10 @@ export default function WeekView() {
     setSelectedTime(null);
   };
 
-  // Long-press on empty hour cell → show template picker
+  // Long-press or single-tap on empty hour cell → show template picker
   const handleHourLongPress = (dateKey: string) => {
-    const hasShifts = Object.keys(state.templates).length > 0;
-    const hasAbsences = Object.keys(state.absenceTemplates).length > 0;
-
-    // Only show picker if there are any templates
-    if (!hasShifts && !hasAbsences) {
-      Alert.alert(
-        t('calendar.templates.title'),
-        t('calendar.templates.empty')
-      );
-      return;
-    }
-
-    // Default to shifts tab if available, otherwise absences
-    setPickerTab(hasShifts ? 'shifts' : 'absences');
+    // Always show picker - user can create new templates from it
+    setPickerTab('shifts');
     setPendingPlacementDate(dateKey);
     setShowTemplatePicker(true);
   };
@@ -1445,6 +1505,9 @@ export default function WeekView() {
       return;
     }
 
+    // Arm template (required for PLACE_SHIFT)
+    dispatch({ type: 'ARM_SHIFT', templateId });
+
     // Place the shift
     dispatch({
       type: 'PLACE_SHIFT',
@@ -1452,8 +1515,9 @@ export default function WeekView() {
       timeSlot: template.startTime,
     });
 
-    // Temporarily arm this template for convenience
-    dispatch({ type: 'ARM_SHIFT', templateId });
+    // Track as last used and disarm (not entering batch mode from picker)
+    dispatch({ type: 'SET_LAST_USED_TEMPLATE', templateId });
+    dispatch({ type: 'DISARM_SHIFT' });
 
     setShowTemplatePicker(false);
     setPendingPlacementDate(null);
@@ -1492,8 +1556,8 @@ export default function WeekView() {
       const created = await storage.createAbsenceInstance(newInstance);
       dispatch({ type: 'ADD_ABSENCE_INSTANCE', instance: created });
 
-      // Arm this absence template for convenience (like shifts)
-      dispatch({ type: 'ARM_ABSENCE', templateId });
+      // Track as last used (shows at top of picker next time)
+      dispatch({ type: 'SET_LAST_USED_ABSENCE_TEMPLATE', templateId });
     } catch (error) {
       console.error('[WeekView] Failed to create absence instance:', error);
     }
@@ -1505,6 +1569,171 @@ export default function WeekView() {
   const dismissTemplatePicker = () => {
     setShowTemplatePicker(false);
     setPendingPlacementDate(null);
+    setShowCreateForm(false);
+    setCreateFormData({
+      name: '',
+      startTime: '08:00',
+      durationHours: 8,
+      durationMinutes: 0,
+      color: 'teal',
+    });
+    setShowCreateAbsenceForm(false);
+    setCreateAbsenceFormData({
+      name: '',
+      type: 'vacation',
+      isFullDay: true,
+      startTime: '08:00',
+      endTime: '17:00',
+    });
+  };
+
+  // Exit batch mode (disarm any armed template)
+  const handleExitBatchMode = () => {
+    if (state.armedTemplateId) {
+      dispatch({ type: 'DISARM_SHIFT' });
+    }
+    if (state.armedAbsenceTemplateId) {
+      dispatch({ type: 'DISARM_ABSENCE' });
+    }
+  };
+
+  // Get armed template info for batch indicator
+  const armedTemplate = state.armedTemplateId
+    ? state.templates[state.armedTemplateId]
+    : null;
+  const armedAbsenceTemplate = state.armedAbsenceTemplateId
+    ? state.absenceTemplates[state.armedAbsenceTemplateId]
+    : null;
+
+  // Open create form in picker
+  const openCreateForm = () => {
+    setShowCreateForm(true);
+  };
+
+  // Open TemplatePanel for editing templates
+  const openTemplatePanel = (tab: 'shifts' | 'absences') => {
+    dismissTemplatePicker();
+    dispatch({ type: 'SET_TEMPLATE_PANEL_TAB', tab });
+    dispatch({ type: 'TOGGLE_TEMPLATE_PANEL' });
+  };
+
+  // Handle creating a new shift template and placing it
+  const handleCreateAndPlace = async () => {
+    if (!pendingPlacementDate) return;
+
+    const duration = createFormData.durationHours * 60 + createFormData.durationMinutes;
+    const name = createFormData.name.trim() || t('calendar.templates.newShift');
+
+    // Create new template
+    const newTemplate: ShiftTemplate = {
+      id: `template-${Date.now()}`,
+      name,
+      startTime: createFormData.startTime,
+      duration,
+      color: createFormData.color,
+      breakMinutes: 0,
+    };
+
+    try {
+      // Save template to storage
+      const storage = await getCalendarStorage();
+      await storage.saveShiftTemplate(newTemplate);
+
+      // Add to state and arm for placement
+      dispatch({ type: 'ADD_TEMPLATE', template: newTemplate });
+      dispatch({ type: 'ARM_SHIFT', templateId: newTemplate.id });
+
+      // Check for overlap before placing
+      const overlap = findOverlappingShift(
+        pendingPlacementDate,
+        newTemplate.startTime,
+        newTemplate.duration,
+        state.instances
+      );
+
+      if (overlap) {
+        Alert.alert(
+          t('calendar.week.overlapTitle'),
+          t('calendar.week.overlapMessage', { name: overlap.name })
+        );
+        // Still close picker - template was created
+        dismissTemplatePicker();
+        return;
+      }
+
+      // Place the shift
+      dispatch({
+        type: 'PLACE_SHIFT',
+        date: pendingPlacementDate,
+        timeSlot: newTemplate.startTime,
+      });
+
+      // Track as last used and disarm (not entering batch mode)
+      dispatch({ type: 'SET_LAST_USED_TEMPLATE', templateId: newTemplate.id });
+      dispatch({ type: 'DISARM_SHIFT' });
+
+      dismissTemplatePicker();
+    } catch (error) {
+      console.error('[WeekView] Failed to create template:', error);
+      Alert.alert(t('common.error'), t('calendar.templates.createError'));
+    }
+  };
+
+  // Open create absence form in picker
+  const openCreateAbsenceForm = () => {
+    setShowCreateAbsenceForm(true);
+  };
+
+  // Handle creating a new absence template and placing it
+  const handleCreateAbsenceAndPlace = async () => {
+    if (!pendingPlacementDate) return;
+
+    const name = createAbsenceFormData.name.trim() || t('calendar.absences.newAbsence');
+
+    // Note: createAbsenceTemplate generates id, createdAt, updatedAt automatically
+    const newAbsenceTemplate: Omit<AbsenceTemplate, 'id' | 'createdAt' | 'updatedAt'> = {
+      type: createAbsenceFormData.type,
+      name,
+      color: createAbsenceFormData.type === 'vacation' ? '#D1D5DB' : '#FED7AA',
+      isFullDay: createAbsenceFormData.isFullDay,
+      startTime: createAbsenceFormData.isFullDay ? null : createAbsenceFormData.startTime,
+      endTime: createAbsenceFormData.isFullDay ? null : createAbsenceFormData.endTime,
+    };
+
+    try {
+      // Save template to storage (this generates the ID)
+      const storage = await getCalendarStorage();
+      const savedTemplate = await storage.createAbsenceTemplate(newAbsenceTemplate);
+
+      // Add to state
+      dispatch({ type: 'ADD_ABSENCE_TEMPLATE', template: savedTemplate });
+
+      // Create instance
+      const startTime = savedTemplate.isFullDay ? '00:00' : (savedTemplate.startTime || '00:00');
+      const endTime = savedTemplate.isFullDay ? '23:59' : (savedTemplate.endTime || '23:59');
+
+      const newInstance: Omit<AbsenceInstance, 'id' | 'createdAt' | 'updatedAt'> = {
+        templateId: savedTemplate.id,
+        type: savedTemplate.type,
+        date: pendingPlacementDate,
+        startTime,
+        endTime,
+        isFullDay: savedTemplate.isFullDay,
+        name: savedTemplate.name,
+        color: savedTemplate.color,
+      };
+
+      const createdInstance = await storage.createAbsenceInstance(newInstance);
+      dispatch({ type: 'ADD_ABSENCE_INSTANCE', instance: createdInstance });
+
+      // Track as last used
+      dispatch({ type: 'SET_LAST_USED_ABSENCE_TEMPLATE', templateId: savedTemplate.id });
+
+      dismissTemplatePicker();
+    } catch (error) {
+      console.error('[WeekView] Failed to create absence template:', error);
+      Alert.alert(t('common.error'), t('calendar.absences.createError'));
+    }
   };
 
   return (
@@ -1647,6 +1876,8 @@ export default function WeekView() {
                       const showName = hourHeight >= DISCLOSURE_REDUCED_HEIGHT;
                       const showTimes = hourHeight >= DISCLOSURE_FULL_HEIGHT;
                       const isOrphaned = !state.templates[instance.templateId];
+                      // Use the instance's actual color for continuations
+                      const palette = getColorPalette(instance.color);
                       return (
                         <View
                           key={`${instance.id}-overflow`}
@@ -1655,13 +1886,13 @@ export default function WeekView() {
                             {
                               top: 0,
                               height,
-                              backgroundColor: isOrphaned ? ORPHAN_PALETTE.bg : '#FFF3E0',
-                              borderColor: isOrphaned ? ORPHAN_PALETTE.border : '#FFAB91',
+                              backgroundColor: isOrphaned ? ORPHAN_PALETTE.bg : palette.bg,
+                              borderColor: isOrphaned ? ORPHAN_PALETTE.border : palette.border,
                             },
                           ]}
                         >
                           {showName && (
-                            <Text style={[styles.shiftName, isOrphaned && { color: ORPHAN_PALETTE.text }]}>
+                            <Text style={[styles.shiftName, isOrphaned && { color: ORPHAN_PALETTE.text }, !isOrphaned && { color: palette.text }]}>
                               {instance.name}
                             </Text>
                           )}
@@ -1855,64 +2086,268 @@ export default function WeekView() {
               </Pressable>
             </View>
 
-            {/* Shifts list */}
+            {/* Shifts list - sorted with last-used at top */}
             {pickerTab === 'shifts' && (
               <>
-                {Object.values(state.templates).length === 0 ? (
+                {Object.values(state.templates).length === 0 && !showCreateForm ? (
                   <Text style={styles.templatePickerEmpty}>{t('calendar.templates.empty')}</Text>
                 ) : (
-                  Object.values(state.templates).map(template => {
-                    const palette = getColorPalette(template.color);
-                    return (
-                      <Pressable
-                        key={template.id}
-                        style={styles.templatePickerRow}
-                        onPress={() => handleTemplateSelected(template.id)}
-                      >
-                        <View style={[styles.templatePickerDot, { backgroundColor: palette.dot }]} />
-                        <View style={styles.templatePickerInfo}>
-                          <Text style={styles.templatePickerName}>{template.name}</Text>
-                          <Text style={styles.templatePickerTime}>
-                            {template.startTime} · {formatDuration(template.duration)}
-                          </Text>
-                        </View>
+                  [...Object.values(state.templates)]
+                    .sort((a, b) => {
+                      // Last-used template goes first
+                      if (a.id === state.lastUsedTemplateId) return -1;
+                      if (b.id === state.lastUsedTemplateId) return 1;
+                      return 0;
+                    })
+                    .map(template => {
+                      const palette = getColorPalette(template.color);
+                      const isLastUsed = template.id === state.lastUsedTemplateId;
+                      return (
+                        <Pressable
+                          key={template.id}
+                          style={styles.templatePickerRow}
+                          onPress={() => handleTemplateSelected(template.id)}
+                        >
+                          {isLastUsed && (
+                            <Star size={14} color={colors.primary[500]} fill={colors.primary[500]} style={{ marginRight: spacing.xs }} />
+                          )}
+                          <View style={[styles.templatePickerDot, { backgroundColor: palette.dot }]} />
+                          <View style={styles.templatePickerInfo}>
+                            <Text style={styles.templatePickerName}>{template.name}</Text>
+                            <Text style={styles.templatePickerTime}>
+                              {template.startTime} · {formatDuration(template.duration)}
+                            </Text>
+                          </View>
+                        </Pressable>
+                      );
+                    })
+                )}
+
+                {/* Create new shift option */}
+                {!showCreateForm ? (
+                  <>
+                    <Pressable style={styles.templatePickerCreateRow} onPress={openCreateForm}>
+                      <View style={styles.templatePickerCreateIcon}>
+                        <Plus size={16} color={colors.primary[500]} />
+                      </View>
+                      <Text style={styles.templatePickerCreateText}>
+                        {t('calendar.templates.createNew')}
+                      </Text>
+                    </Pressable>
+                    <Pressable style={styles.templatePickerManageRow} onPress={() => openTemplatePanel('shifts')}>
+                      <Settings size={16} color={colors.text.tertiary} />
+                      <Text style={styles.templatePickerManageText}>
+                        {t('calendar.templates.manage')}
+                      </Text>
+                    </Pressable>
+                  </>
+                ) : (
+                  /* Inline create form */
+                  <View style={styles.createForm}>
+                    <TextInput
+                      style={styles.createFormInput}
+                      value={createFormData.name}
+                      onChangeText={(name) => setCreateFormData(prev => ({ ...prev, name }))}
+                      placeholder={t('calendar.templates.namePlaceholder')}
+                      placeholderTextColor={colors.text.tertiary}
+                      autoFocus
+                    />
+                    <View style={styles.createFormRow}>
+                      <Text style={styles.createFormLabel}>{t('calendar.templates.startTime')}</Text>
+                      <TextInput
+                        style={styles.createFormTimeInput}
+                        value={createFormData.startTime}
+                        onChangeText={(startTime) => setCreateFormData(prev => ({ ...prev, startTime }))}
+                        placeholder="08:00"
+                        placeholderTextColor={colors.text.tertiary}
+                        keyboardType="numbers-and-punctuation"
+                      />
+                    </View>
+                    <View style={styles.createFormRow}>
+                      <Text style={styles.createFormLabel}>{t('calendar.templates.duration')}</Text>
+                      <View style={styles.createFormDurationInputs}>
+                        <TextInput
+                          style={styles.createFormSmallInput}
+                          value={String(createFormData.durationHours)}
+                          onChangeText={(h) => setCreateFormData(prev => ({ ...prev, durationHours: parseInt(h) || 0 }))}
+                          keyboardType="number-pad"
+                          maxLength={2}
+                        />
+                        <Text style={styles.createFormDurationLabel}>h</Text>
+                        <TextInput
+                          style={styles.createFormSmallInput}
+                          value={String(createFormData.durationMinutes)}
+                          onChangeText={(m) => setCreateFormData(prev => ({ ...prev, durationMinutes: parseInt(m) || 0 }))}
+                          keyboardType="number-pad"
+                          maxLength={2}
+                        />
+                        <Text style={styles.createFormDurationLabel}>m</Text>
+                      </View>
+                    </View>
+                    <View style={styles.createFormActions}>
+                      <Pressable style={styles.createFormCancelBtn} onPress={() => setShowCreateForm(false)}>
+                        <Text style={styles.createFormCancelText}>{t('common.cancel')}</Text>
                       </Pressable>
-                    );
-                  })
+                      <Pressable style={styles.createFormSubmitBtn} onPress={handleCreateAndPlace}>
+                        <Text style={styles.createFormSubmitText}>
+                          {t('calendar.templates.createAndAdd')}
+                        </Text>
+                      </Pressable>
+                    </View>
+                  </View>
                 )}
               </>
             )}
 
-            {/* Absences list */}
+            {/* Absences list - sorted with last-used at top */}
             {pickerTab === 'absences' && (
               <>
-                {Object.values(state.absenceTemplates).length === 0 ? (
-                  <Text style={styles.templatePickerEmpty}>{t('calendar.absences.empty') || 'No absence templates'}</Text>
+                {Object.values(state.absenceTemplates).length === 0 && !showCreateAbsenceForm ? (
+                  <Text style={styles.templatePickerEmpty}>{t('calendar.absences.empty')}</Text>
                 ) : (
-                  Object.values(state.absenceTemplates).map(template => {
-                    const isVacation = template.type === 'vacation';
-                    const IconComponent = isVacation ? TreePalm : Thermometer;
-                    const iconColor = isVacation ? '#6B7280' : '#92400E';
-                    return (
+                  [...Object.values(state.absenceTemplates)]
+                    .sort((a, b) => {
+                      // Last-used template goes first
+                      if (a.id === state.lastUsedAbsenceTemplateId) return -1;
+                      if (b.id === state.lastUsedAbsenceTemplateId) return 1;
+                      return 0;
+                    })
+                    .map(template => {
+                      const isVacation = template.type === 'vacation';
+                      const IconComponent = isVacation ? TreePalm : Thermometer;
+                      const iconColor = isVacation ? '#6B7280' : '#92400E';
+                      const isLastUsed = template.id === state.lastUsedAbsenceTemplateId;
+                      return (
+                        <Pressable
+                          key={template.id}
+                          style={styles.templatePickerRow}
+                          onPress={() => handleAbsenceTemplateSelected(template.id)}
+                        >
+                          {isLastUsed && (
+                            <Star size={14} color={colors.primary[500]} fill={colors.primary[500]} style={{ marginRight: spacing.xs }} />
+                          )}
+                          <View style={[styles.templatePickerIconWrapper, { backgroundColor: template.color }]}>
+                            <IconComponent size={14} color={iconColor} />
+                          </View>
+                          <View style={styles.templatePickerInfo}>
+                            <Text style={styles.templatePickerName}>{template.name}</Text>
+                            <Text style={styles.templatePickerTime}>
+                              {template.isFullDay
+                                ? t('calendar.absences.fullDay')
+                                : `${template.startTime} - ${template.endTime}`}
+                            </Text>
+                          </View>
+                        </Pressable>
+                      );
+                    })
+                )}
+
+                {/* Create new absence option */}
+                {!showCreateAbsenceForm ? (
+                  <>
+                    <Pressable style={styles.templatePickerCreateRow} onPress={openCreateAbsenceForm}>
+                      <View style={styles.templatePickerCreateIcon}>
+                        <Plus size={16} color={colors.primary[500]} />
+                      </View>
+                      <Text style={styles.templatePickerCreateText}>
+                        {t('calendar.absences.createNew')}
+                      </Text>
+                    </Pressable>
+                    <Pressable style={styles.templatePickerManageRow} onPress={() => openTemplatePanel('absences')}>
+                      <Settings size={16} color={colors.text.tertiary} />
+                      <Text style={styles.templatePickerManageText}>
+                        {t('calendar.absences.manage')}
+                      </Text>
+                    </Pressable>
+                  </>
+                ) : (
+                  /* Inline create absence form */
+                  <View style={styles.createForm}>
+                    <TextInput
+                      style={styles.createFormInput}
+                      value={createAbsenceFormData.name}
+                      onChangeText={(name) => setCreateAbsenceFormData(prev => ({ ...prev, name }))}
+                      placeholder={t('calendar.absences.namePlaceholder')}
+                      placeholderTextColor={colors.text.tertiary}
+                      autoFocus
+                    />
+                    <View style={styles.createFormRow}>
+                      <Text style={styles.createFormLabel}>{t('calendar.absences.typeLabel')}</Text>
+                      <View style={styles.createFormTypeButtons}>
+                        <Pressable
+                          style={[
+                            styles.createFormTypeBtn,
+                            createAbsenceFormData.type === 'vacation' && styles.createFormTypeBtnActive,
+                          ]}
+                          onPress={() => setCreateAbsenceFormData(prev => ({ ...prev, type: 'vacation' }))}
+                        >
+                          <TreePalm size={14} color={createAbsenceFormData.type === 'vacation' ? colors.primary[500] : colors.text.secondary} />
+                          <Text style={[
+                            styles.createFormTypeBtnText,
+                            createAbsenceFormData.type === 'vacation' && styles.createFormTypeBtnTextActive,
+                          ]}>{t('calendar.absences.vacation')}</Text>
+                        </Pressable>
+                        <Pressable
+                          style={[
+                            styles.createFormTypeBtn,
+                            createAbsenceFormData.type === 'sick' && styles.createFormTypeBtnActive,
+                          ]}
+                          onPress={() => setCreateAbsenceFormData(prev => ({ ...prev, type: 'sick' }))}
+                        >
+                          <Thermometer size={14} color={createAbsenceFormData.type === 'sick' ? colors.primary[500] : colors.text.secondary} />
+                          <Text style={[
+                            styles.createFormTypeBtnText,
+                            createAbsenceFormData.type === 'sick' && styles.createFormTypeBtnTextActive,
+                          ]}>{t('calendar.absences.sick')}</Text>
+                        </Pressable>
+                      </View>
+                    </View>
+                    <View style={styles.createFormRow}>
+                      <Text style={styles.createFormLabel}>{t('calendar.absences.fullDay')}</Text>
                       <Pressable
-                        key={template.id}
-                        style={styles.templatePickerRow}
-                        onPress={() => handleAbsenceTemplateSelected(template.id)}
+                        style={[styles.createFormToggle, createAbsenceFormData.isFullDay && styles.createFormToggleActive]}
+                        onPress={() => setCreateAbsenceFormData(prev => ({ ...prev, isFullDay: !prev.isFullDay }))}
                       >
-                        <View style={[styles.templatePickerIconWrapper, { backgroundColor: template.color }]}>
-                          <IconComponent size={14} color={iconColor} />
-                        </View>
-                        <View style={styles.templatePickerInfo}>
-                          <Text style={styles.templatePickerName}>{template.name}</Text>
-                          <Text style={styles.templatePickerTime}>
-                            {template.isFullDay
-                              ? t('calendar.absences.fullDay')
-                              : `${template.startTime} - ${template.endTime}`}
-                          </Text>
-                        </View>
+                        <View style={[styles.createFormToggleThumb, createAbsenceFormData.isFullDay && styles.createFormToggleThumbActive]} />
                       </Pressable>
-                    );
-                  })
+                    </View>
+                    {!createAbsenceFormData.isFullDay && (
+                      <>
+                        <View style={styles.createFormRow}>
+                          <Text style={styles.createFormLabel}>{t('calendar.absences.startTime')}</Text>
+                          <TextInput
+                            style={styles.createFormTimeInput}
+                            value={createAbsenceFormData.startTime}
+                            onChangeText={(startTime) => setCreateAbsenceFormData(prev => ({ ...prev, startTime }))}
+                            placeholder="08:00"
+                            placeholderTextColor={colors.text.tertiary}
+                            keyboardType="numbers-and-punctuation"
+                          />
+                        </View>
+                        <View style={styles.createFormRow}>
+                          <Text style={styles.createFormLabel}>{t('calendar.absences.endTime')}</Text>
+                          <TextInput
+                            style={styles.createFormTimeInput}
+                            value={createAbsenceFormData.endTime}
+                            onChangeText={(endTime) => setCreateAbsenceFormData(prev => ({ ...prev, endTime }))}
+                            placeholder="17:00"
+                            placeholderTextColor={colors.text.tertiary}
+                            keyboardType="numbers-and-punctuation"
+                          />
+                        </View>
+                      </>
+                    )}
+                    <View style={styles.createFormActions}>
+                      <Pressable style={styles.createFormCancelBtn} onPress={() => setShowCreateAbsenceForm(false)}>
+                        <Text style={styles.createFormCancelText}>{t('common.cancel')}</Text>
+                      </Pressable>
+                      <Pressable style={styles.createFormSubmitBtn} onPress={handleCreateAbsenceAndPlace}>
+                        <Text style={styles.createFormSubmitText}>
+                          {t('calendar.absences.createAndAdd')}
+                        </Text>
+                      </Pressable>
+                    </View>
+                  </View>
                 )}
               </>
             )}
@@ -1922,6 +2357,37 @@ export default function WeekView() {
             </Pressable>
           </Pressable>
         </Pressable>
+      )}
+
+      {/* Batch mode indicator - shows when a template is armed */}
+      {(armedTemplate || armedAbsenceTemplate) && !showTemplatePicker && (
+        <View style={styles.batchIndicator}>
+          <View
+            style={[
+              styles.batchDot,
+              {
+                backgroundColor: armedTemplate
+                  ? getColorPalette(armedTemplate.color).dot
+                  : armedAbsenceTemplate?.color || '#6B7280',
+              },
+            ]}
+          />
+          <View style={styles.batchTextContainer}>
+            <Text style={styles.batchText}>
+              {t('calendar.batch.placing')} {armedTemplate?.name || armedAbsenceTemplate?.name}
+            </Text>
+            <Text style={styles.batchHint}>
+              {t('calendar.batch.doubleTapHint')}
+            </Text>
+          </View>
+          <TouchableOpacity
+            onPress={handleExitBatchMode}
+            style={styles.batchCloseBtn}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <X size={18} color={colors.text.secondary} />
+          </TouchableOpacity>
+        </View>
       )}
 
       {confirmationMessage && (
@@ -2117,6 +2583,21 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(211, 47, 47, 0.5)',
     justifyContent: 'center',
     overflow: 'hidden',
+  },
+  trackingBlockShort: {
+    borderStyle: 'dashed',
+    backgroundColor: 'rgba(211, 47, 47, 0.08)',
+  },
+  shortSessionText: {
+    fontStyle: 'italic',
+  },
+  shortSessionIcon: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+    borderRadius: 3,
+    padding: 2,
   },
   trackingBlockActive: {
     borderBottomLeftRadius: 0,
@@ -2391,6 +2872,210 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing.md,
+  },
+  // Create new option styles
+  templatePickerCreateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
+    borderRadius: borderRadius.md,
+    marginTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border.light,
+  },
+  templatePickerCreateIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.primary[50],
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.md,
+  },
+  templatePickerCreateText: {
+    fontSize: fontSize.md,
+    color: colors.primary[500],
+    fontWeight: fontWeight.medium,
+  },
+  templatePickerManageRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    gap: spacing.sm,
+  },
+  templatePickerManageText: {
+    fontSize: fontSize.sm,
+    color: colors.text.tertiary,
+  },
+  // Inline create form styles
+  createForm: {
+    marginTop: spacing.sm,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border.light,
+  },
+  createFormInput: {
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    borderRadius: borderRadius.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    fontSize: fontSize.md,
+    color: colors.text.primary,
+    marginBottom: spacing.md,
+  },
+  createFormRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
+  },
+  createFormLabel: {
+    fontSize: fontSize.sm,
+    color: colors.text.secondary,
+  },
+  createFormTimeInput: {
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    borderRadius: borderRadius.md,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    fontSize: fontSize.sm,
+    color: colors.text.primary,
+    width: 70,
+    textAlign: 'center',
+  },
+  createFormDurationInputs: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  createFormSmallInput: {
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    borderRadius: borderRadius.md,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    fontSize: fontSize.sm,
+    color: colors.text.primary,
+    width: 45,
+    textAlign: 'center',
+  },
+  createFormDurationLabel: {
+    fontSize: fontSize.sm,
+    color: colors.text.secondary,
+    marginHorizontal: spacing.xs,
+  },
+  createFormActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  createFormCancelBtn: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+  },
+  createFormCancelText: {
+    fontSize: fontSize.sm,
+    color: colors.text.secondary,
+  },
+  createFormSubmitBtn: {
+    backgroundColor: colors.primary[500],
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.md,
+  },
+  createFormSubmitText: {
+    fontSize: fontSize.sm,
+    color: colors.white,
+    fontWeight: fontWeight.medium,
+  },
+  // Absence form specific styles
+  createFormTypeButtons: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  createFormTypeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+  },
+  createFormTypeBtnActive: {
+    borderColor: colors.primary[500],
+    backgroundColor: colors.primary[50],
+  },
+  createFormTypeBtnText: {
+    fontSize: fontSize.sm,
+    color: colors.text.secondary,
+  },
+  createFormTypeBtnTextActive: {
+    color: colors.primary[500],
+  },
+  createFormToggle: {
+    width: 44,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.grey[300],
+    padding: 2,
+    justifyContent: 'center',
+  },
+  createFormToggleActive: {
+    backgroundColor: colors.primary[500],
+  },
+  createFormToggleThumb: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: colors.white,
+  },
+  createFormToggleThumbActive: {
+    alignSelf: 'flex-end',
+  },
+  // Batch mode indicator styles
+  batchIndicator: {
+    position: 'absolute',
+    bottom: 90, // Above FAB
+    left: spacing.lg,
+    right: spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.background.paper,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.full,
+    ...shadows.md,
+    borderWidth: 1,
+    borderColor: colors.border.light,
+  },
+  batchDot: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    marginRight: spacing.sm,
+  },
+  batchTextContainer: {
+    flex: 1,
+  },
+  batchText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+    color: colors.text.primary,
+  },
+  batchHint: {
+    fontSize: fontSize.xs,
+    color: colors.text.tertiary,
+    marginTop: 1,
+  },
+  batchCloseBtn: {
+    padding: spacing.xs,
+    marginLeft: spacing.sm,
   },
   // Picker tab bar styles
   pickerTabBar: {

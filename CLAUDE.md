@@ -1,6 +1,6 @@
 # Claude Context: Open Working Hours
 
-**Last Updated:** 2026-01-14
+**Last Updated:** 2026-01-15
 **Current Build:** #30 (ready for TestFlight upload)
 
 ---
@@ -66,6 +66,7 @@ All core features complete. User test feedback (Clusters A-F) fully implemented.
    - Backend work → `backend/ARCHITECTURE.md`
    - Deployment → `docs/deployment.md`
    - Debugging issues → `docs/debugging.md`
+   - Known bugs → `docs/KNOWN_ISSUES.md`
    - Privacy (technical) → `privacy_architecture.md`
    - GDPR/Legal compliance → `docs/GDPR_COMPLIANCE.md`
    - Deep architecture → `blueprint.md`
@@ -121,7 +122,7 @@ Start feature → Create *_PLAN.md → Complete → Extract to ARCHITECTURE.md �
 
 ### Technical
 
-- **Geofencing**: Works on device only, 5-min exit hysteresis
+- **Geofencing**: Works on device only, 5-min exit hysteresis, GPS accuracy filtering (see `mobile-app/ARCHITECTURE.md`)
 - **Zoom**: Ref-based (not reanimated) - "acceptable" but not 60fps
 - **iOS 18**: Week arrows fixed with PREV_WEEK/NEXT_WEEK actions
 
@@ -134,6 +135,31 @@ Start feature → Create *_PLAN.md → Complete → Extract to ARCHITECTURE.md �
 ---
 
 ## Recent Updates (Last 7 Days)
+
+### 2026-01-16: Calendar Instant Refresh Fix
+- **Bug fixed**: Calendar now instantly reflects clock-in/clock-out (was 60s delay)
+- **Solution**: Cross-module EventEmitter (`src/lib/events/trackingEvents.ts`)
+- **Pattern**: TrackingManager emits → CalendarProvider subscribes → refreshes in review mode
+- See `mobile-app/ARCHITECTURE.md` → "Cross-Module Events" for details
+
+### 2026-01-15: Calendar UX Improvements
+- **Planning:** `archive/CALENDAR_UX_PLAN.md` (completed)
+- **Header redesign**: Removed green bar and "Dienste" button, GPS toggle now uses eye icon with red theme
+- **FAB (Floating Action Button)**: New "+" button in bottom-right corner for adding shifts/absences
+- **Template selection**: Compact radio list design (edit pencil left, radio selector right)
+- **Mutual exclusivity**: Shift/absence selection now mutually exclusive
+- **Absence templates**: Full CRUD support with edit form (name, type, full-day toggle, times)
+- **Double-tap on empty space**: Opens template picker (same as long-press)
+- **Progressive disclosure**: Adjusted thresholds (32px/56px) for better text fitting at zoom levels
+- **Bug fixes**: Absence template persistence (FK constraint), FAB hides during overlays
+
+### 2026-01-15: Geofence Robustness Improvements
+- **Documentation:** `archive/GEOFENCE_HYSTERESIS_PLAN.md` (completed)
+- Exit hysteresis (5-min pending state before clock-out)
+- GPS accuracy filtering (ignore exits >100m accuracy)
+- Signal degradation detection (ignore if accuracy 3x worse than check-in)
+- GPS telemetry logging for parameter tuning via Report Issue
+- Short sessions kept (not deleted) with visual indicator in calendar (faded + clock icon)
 
 ### 2026-01-14: Status Page UX Improvements
 - **HoursSummaryWidget redesign**: Side-by-side bars (green=planned, rose=tracked), dynamic Y-axis scaling (12h/16h/24h), day labels, absence icons
@@ -156,19 +182,6 @@ Start feature → Create *_PLAN.md → Complete → Extract to ARCHITECTURE.md �
 - Mobile: Policy links (Terms, Privacy) in Settings screen
 - Cleanup includes FeedbackReports, VerificationRequests (no orphaned data)
 - See `archive/CONSENT_WITHDRAWAL_PLAN.md` for implementation details
-
-### 2026-01-09: GDPR Compliance & Consent Flow
-- Created full GDPR compliance documentation suite (DPIA, RoPA, retention policy)
-- Added App Privacy Policy and Terms of Service (EN + DE) to website
-- Created `docs/GDPR_COMPLIANCE.md` as legal compliance hub
-- Implemented consent flow in mobile app (ConsentBottomSheet component)
-- Backend: Added consent fields to User model, new `/auth/consent` endpoint
-
-### 2026-01-07: Cluster F Complete
-- Photon geocoding replaces Mapbox (free, GDPR-friendly)
-- Healthcare results prioritized in location search
-- Double-tap to place shifts (single tap clears selection)
-- Work Locations: inverted layout (small map, big list)
 
 ---
 

@@ -50,6 +50,10 @@ export class Database {
         clock_out TEXT,
         duration_minutes INTEGER,
         tracking_method TEXT NOT NULL,
+        state TEXT DEFAULT 'active',
+        pending_exit_at TEXT,
+        exit_accuracy REAL,
+        checkin_accuracy REAL,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
         FOREIGN KEY (location_id) REFERENCES user_locations(id)
@@ -63,6 +67,8 @@ export class Database {
         latitude REAL,
         longitude REAL,
         accuracy REAL,
+        ignored INTEGER DEFAULT 0,
+        ignore_reason TEXT,
         FOREIGN KEY (location_id) REFERENCES user_locations(id)
       );
 
@@ -122,6 +128,75 @@ export class Database {
       INSERT OR IGNORE INTO schema_version (version, applied_at)
       VALUES (1, datetime('now'));
     `);
+
+    // Run migrations for existing databases
+    await this.runMigrations();
+  }
+
+  private async runMigrations(): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const version = await this.getSchemaVersion();
+
+    // Migration to version 2: Add hysteresis and telemetry columns
+    if (version < 2) {
+      console.log('[Database] Running migration to version 2 (hysteresis support)');
+
+      // Add new columns to tracking_sessions
+      await this.db.execAsync(`
+        ALTER TABLE tracking_sessions ADD COLUMN state TEXT DEFAULT 'active';
+        ALTER TABLE tracking_sessions ADD COLUMN pending_exit_at TEXT;
+        ALTER TABLE tracking_sessions ADD COLUMN exit_accuracy REAL;
+        ALTER TABLE tracking_sessions ADD COLUMN checkin_accuracy REAL;
+      `).catch(() => {
+        // Columns may already exist if table was created fresh
+      });
+
+      // Add new columns to geofence_events
+      await this.db.execAsync(`
+        ALTER TABLE geofence_events ADD COLUMN ignored INTEGER DEFAULT 0;
+        ALTER TABLE geofence_events ADD COLUMN ignore_reason TEXT;
+      `).catch(() => {
+        // Columns may already exist if table was created fresh
+      });
+
+      // Fix state for existing sessions based on clock_out value
+      // Note: DEFAULT 'active' means all rows get 'active', so we update based on clock_out
+      await this.db.runAsync(`
+        UPDATE tracking_sessions SET state = 'completed' WHERE clock_out IS NOT NULL
+      `);
+
+      await this.db.runAsync(`
+        UPDATE tracking_sessions SET state = 'active' WHERE clock_out IS NULL
+      `);
+
+      // Update schema version
+      await this.db.runAsync(
+        `INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (?, datetime('now'))`,
+        2
+      );
+
+      console.log('[Database] Migration to version 2 complete');
+    }
+
+    // Migration to version 3: Fix state for sessions that were incorrectly marked
+    // (Bug fix: v2 migration used WHERE state IS NULL, but DEFAULT 'active' meant state was never NULL)
+    if (version < 3) {
+      console.log('[Database] Running migration to version 3 (fix session states)');
+
+      // Ensure completed sessions have state='completed'
+      await this.db.runAsync(`
+        UPDATE tracking_sessions SET state = 'completed' WHERE clock_out IS NOT NULL AND state != 'completed'
+      `);
+
+      // Update schema version
+      await this.db.runAsync(
+        `INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (?, datetime('now'))`,
+        3
+      );
+
+      console.log('[Database] Migration to version 3 complete');
+    }
   }
 
   // Schema introspection
@@ -248,7 +323,8 @@ export class Database {
   async clockIn(
     locationId: string,
     clockIn: string,
-    trackingMethod: 'geofence_auto' | 'manual'
+    trackingMethod: 'geofence_auto' | 'manual',
+    checkinAccuracy: number | null = null
   ): Promise<TrackingSession> {
     if (!this.db) throw new Error('Database not initialized');
 
@@ -257,12 +333,14 @@ export class Database {
 
     await this.db.runAsync(
       `INSERT INTO tracking_sessions
-       (id, location_id, clock_in, tracking_method, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+       (id, location_id, clock_in, tracking_method, state, checkin_accuracy, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       id,
       locationId,
       clockIn,
       trackingMethod,
+      'active',
+      checkinAccuracy,
       now,
       now
     );
@@ -274,6 +352,10 @@ export class Database {
       clockOut: null,
       durationMinutes: null,
       trackingMethod,
+      state: 'active',
+      pendingExitAt: null,
+      exitAccuracy: null,
+      checkinAccuracy,
       createdAt: now,
       updatedAt: now,
     };
@@ -292,10 +374,11 @@ export class Database {
 
     await this.db.runAsync(
       `UPDATE tracking_sessions
-       SET clock_out = ?, duration_minutes = ?, updated_at = ?
+       SET clock_out = ?, duration_minutes = ?, state = ?, updated_at = ?
        WHERE id = ?`,
       clockOut,
       durationMinutes,
+      'completed',
       new Date().toISOString(),
       sessionId
     );
@@ -376,9 +459,10 @@ export class Database {
   async getActiveSession(locationId: string): Promise<TrackingSession | null> {
     if (!this.db) throw new Error('Database not initialized');
 
+    // Returns session if state is 'active' OR 'pending_exit' (both are considered active)
     const result = await this.db.getFirstAsync<any>(
       `SELECT * FROM tracking_sessions
-       WHERE location_id = ? AND clock_out IS NULL
+       WHERE location_id = ? AND state IN ('active', 'pending_exit')
        ORDER BY clock_in DESC LIMIT 1`,
       locationId
     );
@@ -420,15 +504,17 @@ export class Database {
 
     await this.db.runAsync(
       `INSERT INTO geofence_events
-       (id, location_id, event_type, timestamp, latitude, longitude, accuracy)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+       (id, location_id, event_type, timestamp, latitude, longitude, accuracy, ignored, ignore_reason)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       id,
       event.locationId,
       event.eventType,
       event.timestamp,
       event.latitude ?? null,
       event.longitude ?? null,
-      event.accuracy ?? null
+      event.accuracy ?? null,
+      event.ignored ? 1 : 0,
+      event.ignoreReason ?? null
     );
 
     return { id, ...event };
@@ -447,6 +533,132 @@ export class Database {
     );
 
     return results.map(r => this.mapEvent(r));
+  }
+
+  /**
+   * Get recent geofence events across all locations (for telemetry export)
+   */
+  async getRecentGeofenceEvents(limit: number): Promise<(GeofenceEvent & { locationName?: string })[]> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const results = await this.db.getAllAsync<any>(
+      `SELECT ge.*, ul.name as location_name
+       FROM geofence_events ge
+       LEFT JOIN user_locations ul ON ge.location_id = ul.id
+       ORDER BY ge.timestamp DESC
+       LIMIT ?`,
+      limit
+    );
+
+    return results.map(r => ({
+      ...this.mapEvent(r),
+      locationName: r.location_name,
+    }));
+  }
+
+  // ============================================================================
+  // Pending Exit State Management (Hysteresis)
+  // ============================================================================
+
+  /**
+   * Mark a session as pending exit (start hysteresis countdown)
+   */
+  async markPendingExit(sessionId: string, exitTimestamp: string, exitAccuracy: number | null): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    await this.db.runAsync(
+      `UPDATE tracking_sessions
+       SET state = ?, pending_exit_at = ?, exit_accuracy = ?, updated_at = ?
+       WHERE id = ?`,
+      'pending_exit',
+      exitTimestamp,
+      exitAccuracy,
+      new Date().toISOString(),
+      sessionId
+    );
+  }
+
+  /**
+   * Confirm a pending exit (finalize clock-out after hysteresis period)
+   */
+  async confirmPendingExit(sessionId: string): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const session = await this.getSession(sessionId);
+    if (!session || !session.pendingExitAt) {
+      throw new Error('Session not found or not in pending_exit state');
+    }
+
+    const clockInTime = new Date(session.clockIn).getTime();
+    const clockOutTime = new Date(session.pendingExitAt).getTime();
+    const durationMinutes = Math.round((clockOutTime - clockInTime) / 1000 / 60);
+
+    await this.db.runAsync(
+      `UPDATE tracking_sessions
+       SET state = ?, clock_out = ?, duration_minutes = ?, updated_at = ?
+       WHERE id = ?`,
+      'completed',
+      session.pendingExitAt,
+      durationMinutes,
+      new Date().toISOString(),
+      sessionId
+    );
+  }
+
+  /**
+   * Cancel a pending exit (user re-entered the geofence)
+   */
+  async cancelPendingExit(sessionId: string): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    await this.db.runAsync(
+      `UPDATE tracking_sessions
+       SET state = ?, pending_exit_at = ?, exit_accuracy = ?, updated_at = ?
+       WHERE id = ?`,
+      'active',
+      null,
+      null,
+      new Date().toISOString(),
+      sessionId
+    );
+  }
+
+  /**
+   * Get sessions in pending_exit state that have exceeded the hysteresis threshold
+   */
+  async getExpiredPendingExits(thresholdMinutes: number): Promise<(TrackingSession & { locationName?: string })[]> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const cutoffTime = new Date(Date.now() - thresholdMinutes * 60 * 1000).toISOString();
+
+    const results = await this.db.getAllAsync<any>(
+      `SELECT ts.*, ul.name as location_name
+       FROM tracking_sessions ts
+       LEFT JOIN user_locations ul ON ts.location_id = ul.id
+       WHERE ts.state = 'pending_exit' AND ts.pending_exit_at < ?`,
+      cutoffTime
+    );
+
+    return results.map(r => ({
+      ...this.mapSession(r),
+      locationName: r.location_name,
+    }));
+  }
+
+  /**
+   * Get a session in pending_exit state for a specific location
+   */
+  async getPendingExitSession(locationId: string): Promise<TrackingSession | null> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const result = await this.db.getFirstAsync<any>(
+      `SELECT * FROM tracking_sessions
+       WHERE location_id = ? AND state = 'pending_exit'
+       ORDER BY pending_exit_at DESC LIMIT 1`,
+      locationId
+    );
+
+    return result ? this.mapSession(result) : null;
   }
 
   // Mappers (SQLite to TypeScript)
@@ -471,6 +683,10 @@ export class Database {
       clockOut: row.clock_out,
       durationMinutes: row.duration_minutes,
       trackingMethod: row.tracking_method,
+      state: row.state ?? 'active',
+      pendingExitAt: row.pending_exit_at,
+      exitAccuracy: row.exit_accuracy,
+      checkinAccuracy: row.checkin_accuracy,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
@@ -485,6 +701,8 @@ export class Database {
       latitude: row.latitude,
       longitude: row.longitude,
       accuracy: row.accuracy,
+      ignored: Boolean(row.ignored),
+      ignoreReason: row.ignore_reason,
     };
   }
 

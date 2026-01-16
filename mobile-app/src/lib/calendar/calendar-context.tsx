@@ -22,6 +22,7 @@ import type {
 import { calendarReducer, initialState } from './calendar-reducer';
 import { getCalendarStorage } from '@/modules/calendar/services/CalendarStorage';
 import { loadRealTrackingRecords } from './calendar-utils';
+import { trackingEvents } from '@/lib/events/trackingEvents';
 
 interface CalendarContextValue {
   state: CalendarState;
@@ -155,6 +156,14 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const persistAbsenceTemplates = async (templates: AbsenceTemplate[]) => {
+    try {
+      await storageRef.current?.replaceAbsenceTemplates(templates);
+    } catch (error) {
+      console.error('[CalendarProvider] Failed to persist absence templates:', error);
+    }
+  };
+
   useEffect(() => {
     if (!isHydrated) return;
     persistTemplates(Object.values(state.templates));
@@ -175,10 +184,45 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
     persistConfirmedDays(state.confirmedDayStatus);
   }, [state.confirmedDayStatus, isHydrated]);
 
+  // Persist absence templates and instances together to avoid FK constraint issues
+  // Templates must be persisted before instances that reference them
   useEffect(() => {
     if (!isHydrated) return;
-    persistAbsenceInstances(Object.values(state.absenceInstances));
-  }, [state.absenceInstances, isHydrated]);
+    const persistAbsenceData = async () => {
+      // First persist templates (instances have FK reference to templates)
+      await persistAbsenceTemplates(Object.values(state.absenceTemplates));
+      // Then persist instances
+      await persistAbsenceInstances(Object.values(state.absenceInstances));
+    };
+    persistAbsenceData();
+  }, [state.absenceTemplates, state.absenceInstances, isHydrated]);
+
+  // Subscribe to tracking events (clock-in/clock-out) to refresh calendar in review mode
+  useEffect(() => {
+    const handleTrackingChanged = () => {
+      if (!state.reviewMode) return;
+
+      const weekStart = startOfWeek(state.currentWeekStart, { weekStartsOn: 1 });
+      const weekEnd = addDays(weekStart, 6);
+      const startDate = format(weekStart, 'yyyy-MM-dd');
+      const endDate = format(weekEnd, 'yyyy-MM-dd');
+
+      console.log('[CalendarProvider] Tracking changed, refreshing records');
+
+      loadRealTrackingRecords(startDate, endDate)
+        .then((trackingRecords) => {
+          rawDispatch({ type: 'UPDATE_TRACKING_RECORDS', trackingRecords });
+        })
+        .catch((error) => {
+          console.error('[CalendarProvider] Failed to refresh tracking records:', error);
+        });
+    };
+
+    trackingEvents.on('tracking-changed', handleTrackingChanged);
+    return () => {
+      trackingEvents.off('tracking-changed', handleTrackingChanged);
+    };
+  }, [state.reviewMode, state.currentWeekStart]);
 
   return <CalendarContext.Provider value={{ state, dispatch }}>{children}</CalendarContext.Provider>;
 }

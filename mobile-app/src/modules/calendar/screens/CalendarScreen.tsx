@@ -9,6 +9,7 @@ import CalendarHeader from '../components/CalendarHeader';
 import WeekView from '../components/WeekView';
 import MonthView from '../components/MonthView';
 import TemplatePanel from '../components/TemplatePanel';
+import CalendarFAB from '../components/CalendarFAB';
 import type { MainTabParamList } from '@/navigation/AppNavigator';
 
 type CalendarScreenRouteProp = RouteProp<MainTabParamList, 'Calendar'>;
@@ -35,6 +36,7 @@ function CalendarLayout({ targetDate }: { targetDate?: string }) {
         <CalendarHeader />
         {state.view === 'week' ? <WeekView /> : <MonthView />}
         <TemplatePanel />
+        <CalendarFAB />
       </View>
     </SafeAreaView>
   );

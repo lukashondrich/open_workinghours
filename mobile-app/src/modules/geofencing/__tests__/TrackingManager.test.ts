@@ -1,6 +1,6 @@
 import { TrackingManager } from '../services/TrackingManager';
 import { Database } from '../services/Database';
-import { GeofenceEventData } from '../services/GeofenceService';
+import { GeofenceEventData } from '../types';
 import * as Notifications from 'expo-notifications';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -108,26 +108,26 @@ describe('TrackingManager', () => {
   });
 
   describe('Geofence Exit Events', () => {
-    it('should clock out on geofence exit', async () => {
-      // First clock in
-      const clockInTime = new Date('2025-01-15T08:00:00Z').toISOString();
+    it('should create pending exit on geofence exit (hysteresis)', async () => {
+      // First clock in (use current time so pending exit doesn't expire)
+      const clockInTime = new Date().toISOString();
       await db.clockIn(testLocationId, clockInTime, 'geofence_auto');
 
-      // Then exit
+      // Then exit (use current time - not in the past, so it won't immediately expire)
+      const exitTime = new Date().toISOString();
       const event: GeofenceEventData = {
         eventType: 'exit',
         locationId: testLocationId,
-        timestamp: new Date('2025-01-15T16:00:00Z').toISOString(),
+        timestamp: exitTime,
       };
 
       await manager.handleGeofenceExit(event);
 
+      // Session should still be active but in pending_exit state
       const session = await db.getActiveSession(testLocationId);
-      expect(session).toBeNull();
-
-      const history = await db.getSessionHistory(testLocationId, 1);
-      expect(history[0].clockOut).not.toBeNull();
-      expect(history[0].durationMinutes).toBe(480); // 8 hours
+      expect(session).not.toBeNull();
+      expect(session?.state).toBe('pending_exit');
+      expect(session?.pendingExitAt).toBe(exitTime);
     });
 
     it('should ignore exit if not clocked in', async () => {
@@ -144,7 +144,7 @@ describe('TrackingManager', () => {
       expect(sessions).toHaveLength(0);
     });
 
-    it('should send notification on clock-out', async () => {
+    it('should send leaving notification on exit (hysteresis)', async () => {
       // First clock in
       await db.clockIn(testLocationId, new Date().toISOString(), 'geofence_auto');
 
@@ -158,8 +158,8 @@ describe('TrackingManager', () => {
 
       expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledWith({
         content: {
-          title: 'Clocked Out',
-          body: expect.stringContaining('Test Hospital'),
+          title: 'Leaving work area',
+          body: expect.stringContaining('5 minutes'),
           data: expect.any(Object),
         },
         trigger: null,
@@ -182,6 +182,33 @@ describe('TrackingManager', () => {
 
       const events = await db.getGeofenceEvents(testLocationId, 10);
       expect(events.some(e => e.eventType === 'exit')).toBe(true);
+    });
+
+    it('should cancel pending exit on re-enter', async () => {
+      // Clock in
+      await db.clockIn(testLocationId, new Date().toISOString(), 'geofence_auto');
+
+      // Exit (creates pending exit)
+      const exitEvent: GeofenceEventData = {
+        eventType: 'exit',
+        locationId: testLocationId,
+        timestamp: new Date().toISOString(),
+      };
+      await manager.handleGeofenceExit(exitEvent);
+
+      // Re-enter
+      const enterEvent: GeofenceEventData = {
+        eventType: 'enter',
+        locationId: testLocationId,
+        timestamp: new Date().toISOString(),
+      };
+      await manager.handleGeofenceEnter(enterEvent);
+
+      // Session should be back to active state
+      const session = await db.getActiveSession(testLocationId);
+      expect(session).not.toBeNull();
+      expect(session?.state).toBe('active');
+      expect(session?.pendingExitAt).toBeNull();
     });
   });
 
@@ -231,7 +258,9 @@ describe('TrackingManager', () => {
     });
 
     it('should send notification on manual clock-out', async () => {
-      await db.clockIn(testLocationId, new Date().toISOString(), 'manual');
+      // Use a time far in the past to ensure session is > 5 minutes
+      const clockInTime = new Date(Date.now() - 60 * 60 * 1000).toISOString(); // 1 hour ago
+      await db.clockIn(testLocationId, clockInTime, 'manual');
 
       await manager.clockOut(testLocationId);
 
@@ -239,6 +268,27 @@ describe('TrackingManager', () => {
         content: {
           title: 'Clocked Out',
           body: expect.stringContaining('Manually'),
+          data: expect.any(Object),
+        },
+        trigger: null,
+      });
+    });
+
+    it('should keep short sessions (not delete them)', async () => {
+      // Clock in just now (session will be < 5 minutes)
+      await db.clockIn(testLocationId, new Date().toISOString(), 'manual');
+
+      await manager.clockOut(testLocationId);
+
+      // Session should still exist (not deleted)
+      const history = await db.getSessionHistory(testLocationId, 10);
+      expect(history).toHaveLength(1);
+
+      // Notification should mention short session
+      expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledWith({
+        content: {
+          title: 'Short session recorded',
+          body: expect.stringContaining('saved'),
           data: expect.any(Object),
         },
         trigger: null,

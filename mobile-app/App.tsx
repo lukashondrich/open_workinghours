@@ -87,6 +87,15 @@ export default function App() {
         }
       }
 
+      // Process any pending exits that may have expired while app was backgrounded
+      console.log('[App] Processing pending exits...');
+      try {
+        await trackingManager.processPendingExits();
+        console.log('[App] Pending exits processed');
+      } catch (error) {
+        console.warn('[App] Error processing pending exits:', error);
+      }
+
       console.log('[App] Initialization complete');
       setIsReady(true);
     } catch (error) {

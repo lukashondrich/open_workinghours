@@ -133,6 +133,22 @@ class MockDatabase {
         table = table.filter((r: any) => r.clock_out === null || r.clock_out === undefined);
       }
 
+      // Handle state IN ('active', 'pending_exit') for getActiveSession
+      if (sql.includes("state IN ('active', 'pending_exit')")) {
+        table = table.filter((r: any) => r.state === 'active' || r.state === 'pending_exit');
+      }
+
+      // Handle state = 'pending_exit' for getPendingExitSession
+      if (sql.includes("state = 'pending_exit'")) {
+        table = table.filter((r: any) => r.state === 'pending_exit');
+      }
+
+      // Handle pending_exit_at < ? for getExpiredPendingExits
+      if (sql.includes('pending_exit_at <') && params.length > 0) {
+        const cutoffTime = params[0];
+        table = table.filter((r: any) => r.pending_exit_at && r.pending_exit_at < cutoffTime);
+      }
+
       // Handle ORDER BY DESC and LIMIT for getActiveSession
       if (sql.includes('ORDER BY') && sql.includes('DESC')) {
         table = [...table].reverse();
@@ -167,6 +183,16 @@ class MockDatabase {
 
       if (sql.includes('clock_out IS NULL')) {
         table = table.filter((r: any) => r.clock_out === null || r.clock_out === undefined);
+      }
+
+      // Handle state = 'pending_exit' AND pending_exit_at < ? for getExpiredPendingExits
+      if (sql.includes("state = 'pending_exit'")) {
+        table = table.filter((r: any) => r.state === 'pending_exit');
+      }
+
+      if (sql.includes('pending_exit_at <') && params.length > 0) {
+        const cutoffTime = params[0];
+        table = table.filter((r: any) => r.pending_exit_at && r.pending_exit_at < cutoffTime);
       }
     }
 

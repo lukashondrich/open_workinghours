@@ -1,15 +1,7 @@
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
-import { UserLocation } from '../types';
+import { UserLocation, GeofenceEventData } from '../types';
 import { GEOFENCE_TASK_NAME } from '../constants';
-
-export interface GeofenceEventData {
-  eventType: 'enter' | 'exit';
-  locationId: string;
-  timestamp: string;
-  latitude?: number;
-  longitude?: number;
-}
 
 export type GeofenceCallback = (event: GeofenceEventData) => void;
 
@@ -142,13 +134,20 @@ export class GeofenceService {
           region: Location.LocationRegion;
         };
 
+        // Extract location data with accuracy if available
+        // expo-location may include a location object with the current GPS reading
+        const locationData = (data as any).location as Location.LocationObject | undefined;
+
         const event: GeofenceEventData = {
           eventType: eventType === Location.GeofencingEventType.Enter ? 'enter' : 'exit',
-          locationId: region.identifier,
+          locationId: region.identifier ?? '',
           timestamp: new Date().toISOString(),
-          latitude: region.latitude,
-          longitude: region.longitude,
+          latitude: locationData?.coords?.latitude ?? region.latitude,
+          longitude: locationData?.coords?.longitude ?? region.longitude,
+          accuracy: locationData?.coords?.accuracy ?? undefined,
         };
+
+        console.log(`[GeofenceService] Geofence ${event.eventType} event for ${event.locationId}, accuracy: ${event.accuracy ?? 'unknown'}m`);
 
         callback(event);
       }

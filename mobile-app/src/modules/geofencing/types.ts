@@ -11,6 +11,8 @@ export interface UserLocation {
   updatedAt: string;
 }
 
+export type SessionState = 'active' | 'pending_exit' | 'completed';
+
 export interface TrackingSession {
   id: string;
   locationId: string;
@@ -18,14 +20,35 @@ export interface TrackingSession {
   clockOut: string | null;
   durationMinutes: number | null;
   trackingMethod: 'geofence_auto' | 'manual';
+  state: SessionState;
+  pendingExitAt: string | null; // ISO8601 - when exit was triggered
+  exitAccuracy: number | null;  // GPS accuracy at exit event (meters)
+  checkinAccuracy: number | null; // GPS accuracy at check-in (meters)
   createdAt: string;
   updatedAt: string;
 }
+
+export type IgnoreReason = 'poor_accuracy' | 'signal_degradation' | 'no_session' | null;
 
 export interface GeofenceEvent {
   id: string;
   locationId: string;
   eventType: 'enter' | 'exit';
+  timestamp: string;
+  latitude?: number;
+  longitude?: number;
+  accuracy?: number;
+  ignored: boolean;
+  ignoreReason: IgnoreReason;
+}
+
+/**
+ * Event data passed from GeofenceService to TrackingManager
+ * (before being stored in the database)
+ */
+export interface GeofenceEventData {
+  eventType: 'enter' | 'exit';
+  locationId: string;
   timestamp: string;
   latitude?: number;
   longitude?: number;

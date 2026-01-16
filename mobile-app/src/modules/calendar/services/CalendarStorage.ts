@@ -160,6 +160,21 @@ class CalendarStorage {
         throw error;
       }
     }
+
+    // Migration 3: Clean up half-day absence templates (legacy data)
+    if (currentVersion < 3) {
+      console.log('[CalendarStorage] Running migration 3: Cleaning up half-day absence templates');
+      try {
+        // Delete any absence templates with 'half' in ID (seeded defaults from older versions)
+        await db.execAsync(`DELETE FROM absence_templates WHERE id LIKE '%half%'`);
+
+        await this.setSchemaVersion(3);
+        console.log('[CalendarStorage] Migration 3 complete');
+      } catch (error) {
+        console.error('[CalendarStorage] Migration 3 failed:', error);
+        throw error;
+      }
+    }
   }
 
   private getDb() {
@@ -249,6 +264,19 @@ class CalendarStorage {
         template.breakMinutes ?? 0,
       );
     }
+  }
+
+  async saveShiftTemplate(template: ShiftTemplate): Promise<void> {
+    const db = this.getDb();
+    await db.runAsync(
+      `INSERT OR REPLACE INTO shift_templates (id, name, start_time, duration, color, break_minutes) VALUES (?, ?, ?, ?, ?, ?)`,
+      template.id,
+      template.name,
+      template.startTime,
+      template.duration,
+      template.color,
+      template.breakMinutes ?? 0,
+    );
   }
 
   async replaceInstances(instances: ShiftInstance[]) {
@@ -462,6 +490,28 @@ class CalendarStorage {
     await db.runAsync('DELETE FROM absence_templates WHERE id = ?', id);
   }
 
+  async replaceAbsenceTemplates(templates: AbsenceTemplate[]): Promise<void> {
+    const db = this.getDb();
+    await db.runAsync('DELETE FROM absence_templates');
+    const now = new Date().toISOString();
+    for (const template of templates) {
+      await db.runAsync(
+        `INSERT INTO absence_templates
+         (id, type, name, color, start_time, end_time, is_full_day, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        template.id,
+        template.type,
+        template.name,
+        template.color,
+        template.startTime,
+        template.endTime,
+        template.isFullDay ? 1 : 0,
+        template.createdAt || now,
+        template.updatedAt || now
+      );
+    }
+  }
+
   // ========================================
   // Absence Instances CRUD
   // ========================================
@@ -617,14 +667,24 @@ class CalendarStorage {
 
   async replaceAbsenceInstances(instances: AbsenceInstance[]) {
     const db = this.getDb();
+
+    // Get valid template IDs to check FK constraint
+    const templateRows = await db.getAllAsync<{ id: string }>('SELECT id FROM absence_templates');
+    const validTemplateIds = new Set(templateRows.map(r => r.id));
+
     await db.runAsync('DELETE FROM absence_instances');
     for (const instance of instances) {
+      // Set templateId to null if template doesn't exist (FK constraint)
+      const templateId = instance.templateId && validTemplateIds.has(instance.templateId)
+        ? instance.templateId
+        : null;
+
       await db.runAsync(
         `INSERT INTO absence_instances
          (id, template_id, type, date, start_time, end_time, is_full_day, name, color, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         instance.id,
-        instance.templateId,
+        templateId,
         instance.type,
         instance.date,
         instance.startTime,

@@ -89,6 +89,11 @@ export interface CalendarState {
   editingAbsenceId: string | null
   templatePanelTab: 'shifts' | 'absences'
   armedAbsenceTemplateId: string | null
+  // UI state
+  hideFAB: boolean
+  // Last-used tracking for picker priority
+  lastUsedTemplateId: string | null
+  lastUsedAbsenceTemplateId: string | null
 }
 
 export type CalendarAction =
@@ -140,6 +145,9 @@ export type CalendarAction =
   | { type: "CANCEL_EDIT_ABSENCE" }
   | { type: "ARM_ABSENCE"; templateId: string }
   | { type: "DISARM_ABSENCE" }
+  | { type: "SET_HIDE_FAB"; hide: boolean }
+  | { type: "SET_LAST_USED_TEMPLATE"; templateId: string }
+  | { type: "SET_LAST_USED_ABSENCE_TEMPLATE"; templateId: string }
   | {
       type: "HYDRATE_STATE"
       payload: {

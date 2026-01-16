@@ -10,6 +10,25 @@ import { getDatabase } from '@/modules/geofencing/services/Database';
 
 const BASE_URL = Constants.expoConfig?.extra?.authBaseUrl || 'http://localhost:8000';
 
+interface GpsTelemetry {
+  recent_events: Array<{
+    timestamp: string;
+    event_type: 'enter' | 'exit';
+    accuracy_meters: number | null;
+    ignored: boolean;
+    ignore_reason: string | null;
+    location_name: string;
+  }>;
+  accuracy_stats: {
+    min: number;
+    max: number;
+    avg: number;
+    count: number;
+  };
+  ignored_events_count: number;
+  signal_degradation_count: number;
+}
+
 interface AppStateSnapshot {
   user: User | null;
   locations: {
@@ -28,6 +47,45 @@ interface AppStateSnapshot {
     deviceModel: string | null;
     osVersion: string | null;
   };
+  gps_telemetry: GpsTelemetry;
+}
+
+/**
+ * Collect GPS telemetry for parameter tuning
+ */
+async function collectGpsTelemetry(): Promise<GpsTelemetry> {
+  const db = await getDatabase();
+
+  // Get last 100 geofence events with accuracy data
+  const recentEvents = await db.getRecentGeofenceEvents(100);
+
+  // Calculate accuracy statistics from events that have accuracy data
+  const accuracyValues = recentEvents
+    .filter(e => e.accuracy != null)
+    .map(e => e.accuracy!);
+
+  const accuracyStats = {
+    min: accuracyValues.length > 0 ? Math.min(...accuracyValues) : 0,
+    max: accuracyValues.length > 0 ? Math.max(...accuracyValues) : 0,
+    avg: accuracyValues.length > 0
+      ? accuracyValues.reduce((a, b) => a + b, 0) / accuracyValues.length
+      : 0,
+    count: accuracyValues.length,
+  };
+
+  return {
+    recent_events: recentEvents.map(e => ({
+      timestamp: e.timestamp,
+      event_type: e.eventType,
+      accuracy_meters: e.accuracy ?? null,
+      ignored: e.ignored,
+      ignore_reason: e.ignoreReason,
+      location_name: e.locationName ?? 'Unknown',
+    })),
+    accuracy_stats: accuracyStats,
+    ignored_events_count: recentEvents.filter(e => e.ignored).length,
+    signal_degradation_count: recentEvents.filter(e => e.ignoreReason === 'signal_degradation').length,
+  };
 }
 
 /**
@@ -40,8 +98,10 @@ export async function collectAppState(user: User | null): Promise<AppStateSnapsh
   const locations = await db.getActiveLocations();
 
   // Note: Work events are tracked via tracking sessions in this app
-  // For now, we'll just report 0 for work events (can be enhanced later)
   const allSessions = await db.getAllSessions();
+
+  // Collect GPS telemetry for parameter tuning
+  const gpsTelemetry = await collectGpsTelemetry();
 
   return {
     user,
@@ -65,6 +125,7 @@ export async function collectAppState(user: User | null): Promise<AppStateSnapsh
       deviceModel: Device.modelName,
       osVersion: Device.osVersion,
     },
+    gps_telemetry: gpsTelemetry,
   };
 }
 
@@ -97,6 +158,9 @@ export async function reportIssue(user: User | null, description?: string): Prom
       platform: appState.appInfo.platform,
       device_model: appState.appInfo.deviceModel,
       os_version: appState.appInfo.osVersion,
+
+      // GPS telemetry for parameter tuning
+      gps_telemetry: appState.gps_telemetry,
 
       description: description || null,
     };
