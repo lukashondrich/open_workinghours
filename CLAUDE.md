@@ -1,6 +1,6 @@
 # Claude Context: Open Working Hours
 
-**Last Updated:** 2026-01-15
+**Last Updated:** 2026-01-16
 **Current Build:** #30 (ready for TestFlight upload)
 
 ---
@@ -135,6 +135,29 @@ Start feature → Create *_PLAN.md → Complete → Extract to ARCHITECTURE.md �
 ---
 
 ## Recent Updates (Last 7 Days)
+
+### 2026-01-16: Session State Bug Fix
+- **Bug**: StatusScreen showed "Clock In" but clicking gave "Already clocked in" error
+- **Root cause**: `Database.updateSession()` set `clockOut` without updating `state` to `'completed'`
+- **Fix**: `updateSession()` now sets `state` based on `clockOut` presence
+- **Migration**: v4 repairs any sessions with inconsistent state
+- **Files**: `mobile-app/src/modules/geofencing/services/Database.ts`
+
+### 2026-01-16: Month View UX Improvements
+- **Planning:** `archive/MONTH_VIEW_UX_PLAN.md` (completed)
+- **Grid expansion**: Month grid fills screen with consistent 6-week (42 cell) layout
+- **Monthly summary footer**: Shows tracked hours, planned hours, overtime (color-coded), vacation/sick day counts
+- **Per-day overtime display**: Confirmed days show overtime (e.g., "+1h 30m") with ✓ icon; unconfirmed show ?
+- **Confirmation nudge**: Footer shows "(X confirmed)" hint when some overtime is unconfirmed
+- **GPS toggle hidden**: Removed from month view (overview-only, no editing)
+- **FAB hidden**: Removed from month view (editing done in week view)
+- **Swipe navigation**: Swipe left/right to navigate months (with slide animation)
+- **Header title click**: Now navigates to current month (like week view)
+- **Bug fixes**:
+  - Full month tracking data now loads when switching to month view in review mode
+  - Multi-day sessions correctly split across days (using overlap calculation)
+  - Consistent footer height (reserved space for hints/absence row)
+- **Code cleanup**: Deduplicated `getDayBounds()` and `computeOverlapMinutes()` into calendar-utils.ts
 
 ### 2026-01-16: Calendar Instant Refresh Fix
 - **Bug fixed**: Calendar now instantly reflects clock-in/clock-out (was 60s delay)

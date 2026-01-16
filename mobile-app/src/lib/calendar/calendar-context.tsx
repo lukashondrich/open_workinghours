@@ -8,7 +8,7 @@ import React, {
   useState,
   useCallback,
 } from 'react';
-import { format, startOfWeek, addDays } from 'date-fns';
+import { format, startOfWeek, addDays, startOfMonth, endOfMonth } from 'date-fns';
 import type {
   CalendarState,
   CalendarAction,
@@ -36,22 +36,33 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
   const [isHydrated, setIsHydrated] = useState(false);
   const storageRef = useRef<Awaited<ReturnType<typeof getCalendarStorage>> | null>(null);
 
+  // Helper to load tracking records for a date range
+  const loadTrackingForRange = useCallback(
+    async (start: Date, end: Date): Promise<Record<string, TrackingRecord>> => {
+      const startDate = format(start, 'yyyy-MM-dd');
+      const endDate = format(end, 'yyyy-MM-dd');
+      console.log(`[CalendarProvider] Loading tracking records from ${startDate} to ${endDate}`);
+      return loadRealTrackingRecords(startDate, endDate);
+    },
+    []
+  );
+
   // Wrapped dispatch to handle async operations
   const dispatch = useCallback(
     (action: CalendarAction) => {
       if (action.type === 'TOGGLE_REVIEW_MODE' && !state.reviewMode) {
-        // Entering review mode - load real tracking records asynchronously
-        const weekStart = startOfWeek(state.currentWeekStart, { weekStartsOn: 1 });
-        const weekEnd = addDays(weekStart, 6);
-        const startDate = format(weekStart, 'yyyy-MM-dd');
-        const endDate = format(weekEnd, 'yyyy-MM-dd');
+        // Entering review mode - load real tracking records for appropriate range
+        const isMonthView = state.view === 'month';
+        const start = isMonthView
+          ? startOfMonth(state.currentMonth)
+          : startOfWeek(state.currentWeekStart, { weekStartsOn: 1 });
+        const end = isMonthView
+          ? endOfMonth(state.currentMonth)
+          : addDays(startOfWeek(state.currentWeekStart, { weekStartsOn: 1 }), 6);
 
-        console.log(`[CalendarProvider] Loading tracking records from ${startDate} to ${endDate}`);
-
-        loadRealTrackingRecords(startDate, endDate)
+        loadTrackingForRange(start, end)
           .then((trackingRecords) => {
             console.log(`[CalendarProvider] Loaded ${Object.keys(trackingRecords).length} tracking records`);
-            // Dispatch with loaded tracking records
             rawDispatch({
               type: 'TOGGLE_REVIEW_MODE',
               trackingRecords,
@@ -59,15 +70,45 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
           })
           .catch((error) => {
             console.error('[CalendarProvider] Failed to load tracking records:', error);
-            // Fallback to simulated tracking
             rawDispatch(action);
+          });
+      } else if (action.type === 'SET_VIEW' && action.view === 'month' && state.reviewMode) {
+        // Switching to month view while in review mode - load full month data
+        const monthStart = startOfMonth(state.currentMonth);
+        const monthEnd = endOfMonth(state.currentMonth);
+
+        loadTrackingForRange(monthStart, monthEnd)
+          .then((trackingRecords) => {
+            console.log(`[CalendarProvider] Loaded ${Object.keys(trackingRecords).length} tracking records for month view`);
+            rawDispatch(action);
+            rawDispatch({ type: 'UPDATE_TRACKING_RECORDS', trackingRecords });
+          })
+          .catch((error) => {
+            console.error('[CalendarProvider] Failed to load month tracking records:', error);
+            rawDispatch(action);
+          });
+      } else if (action.type === 'SET_MONTH' && state.view === 'month' && state.reviewMode) {
+        // Changing month while in month view and review mode - load new month data
+        const newMonth = action.date;
+        const monthStart = startOfMonth(newMonth);
+        const monthEnd = endOfMonth(newMonth);
+
+        rawDispatch(action); // Update month immediately for UI responsiveness
+
+        loadTrackingForRange(monthStart, monthEnd)
+          .then((trackingRecords) => {
+            console.log(`[CalendarProvider] Loaded ${Object.keys(trackingRecords).length} tracking records for new month`);
+            rawDispatch({ type: 'UPDATE_TRACKING_RECORDS', trackingRecords });
+          })
+          .catch((error) => {
+            console.error('[CalendarProvider] Failed to load month tracking records:', error);
           });
       } else {
         // Pass through all other actions
         rawDispatch(action);
       }
     },
-    [state.reviewMode, state.currentWeekStart]
+    [state.reviewMode, state.currentWeekStart, state.currentMonth, state.view, loadTrackingForRange]
   );
 
   useEffect(() => {
@@ -202,12 +243,19 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
     const handleTrackingChanged = () => {
       if (!state.reviewMode) return;
 
-      const weekStart = startOfWeek(state.currentWeekStart, { weekStartsOn: 1 });
-      const weekEnd = addDays(weekStart, 6);
-      const startDate = format(weekStart, 'yyyy-MM-dd');
-      const endDate = format(weekEnd, 'yyyy-MM-dd');
+      // Load appropriate range based on current view
+      const isMonthView = state.view === 'month';
+      const start = isMonthView
+        ? startOfMonth(state.currentMonth)
+        : startOfWeek(state.currentWeekStart, { weekStartsOn: 1 });
+      const end = isMonthView
+        ? endOfMonth(state.currentMonth)
+        : addDays(startOfWeek(state.currentWeekStart, { weekStartsOn: 1 }), 6);
 
-      console.log('[CalendarProvider] Tracking changed, refreshing records');
+      const startDate = format(start, 'yyyy-MM-dd');
+      const endDate = format(end, 'yyyy-MM-dd');
+
+      console.log(`[CalendarProvider] Tracking changed, refreshing records (${startDate} to ${endDate})`);
 
       loadRealTrackingRecords(startDate, endDate)
         .then((trackingRecords) => {
@@ -222,7 +270,7 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
     return () => {
       trackingEvents.off('tracking-changed', handleTrackingChanged);
     };
-  }, [state.reviewMode, state.currentWeekStart]);
+  }, [state.reviewMode, state.currentWeekStart, state.currentMonth, state.view]);
 
   return <CalendarContext.Provider value={{ state, dispatch }}>{children}</CalendarContext.Provider>;
 }

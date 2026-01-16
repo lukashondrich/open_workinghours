@@ -159,6 +159,12 @@ export const en = {
       durationHours: 'Hours',
       durationMins: 'Mins',
     },
+    month: {
+      tracked: 'Tracked',
+      planned: 'Planned',
+      overtime: 'Overtime',
+      confirmed: 'confirmed',
+    },
   },
 
   // Authentication screens

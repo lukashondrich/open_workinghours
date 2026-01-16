@@ -197,6 +197,23 @@ export class Database {
 
       console.log('[Database] Migration to version 3 complete');
     }
+
+    // Migration to version 4: Fix updateSession() bug that set clockOut without updating state
+    // (updateSession was missing state update, now fixed - this repairs any affected sessions)
+    if (version < 4) {
+      console.log('[Database] Running migration to version 4 (fix updateSession state bug)');
+
+      await this.db.runAsync(`
+        UPDATE tracking_sessions SET state = 'completed' WHERE clock_out IS NOT NULL AND state != 'completed'
+      `);
+
+      await this.db.runAsync(
+        `INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (?, datetime('now'))`,
+        4
+      );
+
+      console.log('[Database] Migration to version 4 complete');
+    }
   }
 
   // Schema introspection
@@ -433,13 +450,17 @@ export class Database {
       durationMinutes = Math.round((clockOutTime - clockInTime) / 1000 / 60);
     }
 
+    // Set state based on whether session has clockOut
+    const newState = newClockOut ? 'completed' : 'active';
+
     await this.db.runAsync(
       `UPDATE tracking_sessions
-       SET clock_in = ?, clock_out = ?, duration_minutes = ?, updated_at = ?
+       SET clock_in = ?, clock_out = ?, duration_minutes = ?, state = ?, updated_at = ?
        WHERE id = ?`,
       newClockIn,
       newClockOut,
       durationMinutes,
+      newState,
       new Date().toISOString(),
       sessionId
     );

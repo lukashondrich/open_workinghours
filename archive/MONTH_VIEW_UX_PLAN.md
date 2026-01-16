@@ -1,7 +1,7 @@
 # Month View UX Improvements Plan
 
 **Created:** 2026-01-16
-**Status:** Planning
+**Status:** Complete
 **Triggered by:** User feedback from beta testers
 
 ---
@@ -245,6 +245,47 @@ calendar: {
 - Explored codebase patterns (MonthView, CalendarHeader, DashboardDataService)
 - Designed implementation approach based on user feedback
 - Identified existing patterns for summary calculations
+- **Implementation complete:**
+  - Phase 1: GPS toggle hidden in month view (CalendarHeader.tsx)
+  - Phase 2: Grid layout expanded to fill screen with dynamic cell heights
+  - Phase 3: Added ✓/? confirmation icons, removed green confirmed background
+  - Phase 4: Added `getMonthSummary()` helper and `MonthlySummaryFooter` component
+  - Phase 5: Added translations (EN: Tracked/Planned/Overtime, DE: Erfasst/Geplant/Überstunden)
+- **Enhancement: Per-day overtime display (nudge to confirm)**
+  - Confirmed days show overtime + ✓ (e.g., "+1h 30m ✓")
+  - Color-coded: green (positive), red (negative), grey (zero)
+  - Format: hours+minutes to avoid decimal confusion ("+1h 30m" not "+1.5h")
+  - Unconfirmed days with activity show ? icon
+  - Footer shows "(+Xh Ym confirmed)" hint when some overtime is unconfirmed
+  - Added `formatOvertimeDisplay()` helper and `confirmedOvertimeMinutes` to summary
+- **Bug fix: Month view tracking records**
+  - Issue: Only the last-viewed week's tracking data was shown in month view
+  - Cause: `loadRealTrackingRecords()` only loaded current week range
+  - Fix: CalendarProvider now loads full month data when:
+    - Switching to month view while in review mode
+    - Navigating months while in month view + review mode
+    - Tracking events (clock-in/out) while in month view
+- **Hide FAB in month view**
+  - Month view is for overview, week view is for editing
+  - Added `state.view === 'month'` check to CalendarFAB
+- **Multi-day session overlap fix**
+  - Issue: Sessions >24h only showed on start day, middle days showed 0h
+  - Solution: Added `getTrackedMinutesForDate()` with proper overlap calculation
+  - Breaks proportionally allocated based on overlap ratio
+- **Code cleanup: Deduplicated time helpers**
+  - Moved `getDayBounds()` and `computeOverlapMinutes()` to calendar-utils.ts
+  - DashboardDataService now imports from calendar-utils (single source of truth)
+- **Swipe navigation with animation**
+  - PanResponder detects horizontal swipes (>50px threshold)
+  - 200ms slide animation before month change
+  - Refs used to avoid stale closure issues
+- **Header title click**
+  - Clicking "Planning Calendar [Month]" navigates to current month
+  - Matches week view behavior (click title → go to today)
+- **Consistent footer layout**
+  - Grid always renders 42 cells (6 weeks) regardless of month
+  - Absence row always rendered with minHeight: 32
+  - Confirmed hint always reserves space (opacity: 0 when hidden)
 
 ---
 

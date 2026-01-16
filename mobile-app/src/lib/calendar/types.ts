@@ -1,4 +1,4 @@
-export type ShiftColor = "teal" | "blue" | "green" | "amber" | "rose" | "purple" | "cyan"
+export type ShiftColor = "teal" | "blue" | "indigo" | "amber" | "rose" | "purple" | "cyan"
 
 // Absence types
 export type AbsenceType = 'vacation' | 'sick'

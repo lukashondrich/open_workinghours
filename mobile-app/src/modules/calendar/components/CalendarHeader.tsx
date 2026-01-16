@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Switch } from 'react-native';
-import { addDays, format, startOfWeek, addMonths, subMonths, getISOWeek } from 'date-fns';
+import { addDays, format, startOfWeek, startOfMonth, addMonths, subMonths, getISOWeek } from 'date-fns';
 import { de as deLocale } from 'date-fns/locale/de';
 import { ChevronLeft, ChevronRight, Eye, EyeOff } from 'lucide-react-native';
 
@@ -45,7 +45,11 @@ export default function CalendarHeader() {
   };
 
   const handleToday = () => {
-    dispatch({ type: 'SET_WEEK', date: startOfWeek(new Date(), { weekStartsOn: 1 }) });
+    if (state.view === 'week') {
+      dispatch({ type: 'SET_WEEK', date: startOfWeek(new Date(), { weekStartsOn: 1 }) });
+    } else {
+      dispatch({ type: 'SET_MONTH', date: startOfMonth(new Date()) });
+    }
   };
 
   const handleReviewToggle = (value: boolean) => {
@@ -96,24 +100,26 @@ export default function CalendarHeader() {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.gpsToggle}>
-          <View style={[styles.gpsIndicator, state.reviewMode && styles.gpsIndicatorActive]}>
-            {state.reviewMode ? (
-              <Eye size={14} color={colors.error.main} />
-            ) : (
-              <EyeOff size={14} color={colors.grey[400]} />
-            )}
-            <Text style={[styles.gpsText, state.reviewMode && styles.gpsTextActive]}>GPS</Text>
+        {state.view === 'week' && (
+          <View style={styles.gpsToggle}>
+            <View style={[styles.gpsIndicator, state.reviewMode && styles.gpsIndicatorActive]}>
+              {state.reviewMode ? (
+                <Eye size={14} color={colors.error.main} />
+              ) : (
+                <EyeOff size={14} color={colors.grey[400]} />
+              )}
+              <Text style={[styles.gpsText, state.reviewMode && styles.gpsTextActive]}>GPS</Text>
+            </View>
+            <Switch
+              value={state.reviewMode}
+              onValueChange={handleReviewToggle}
+              trackColor={{ false: colors.grey[300], true: colors.error.light }}
+              thumbColor={state.reviewMode ? colors.error.main : colors.grey[100]}
+              ios_backgroundColor={colors.grey[300]}
+              testID="toggle-review"
+            />
           </View>
-          <Switch
-            value={state.reviewMode}
-            onValueChange={handleReviewToggle}
-            trackColor={{ false: colors.grey[300], true: colors.error.light }}
-            thumbColor={state.reviewMode ? colors.error.main : colors.grey[100]}
-            ios_backgroundColor={colors.grey[300]}
-            testID="toggle-review"
-          />
-        </View>
+        )}
       </View>
     </View>
   );

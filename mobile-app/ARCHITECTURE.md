@@ -118,6 +118,12 @@ Automatic clock-in/out based on GPS location with robust hysteresis.
 - `pending_exit` - Exit detected, waiting for hysteresis period
 - `completed` - Session finalized
 
+**State Invariant:** `clockOut` and `state` must be consistent:
+- If `clockOut` is NULL → `state` must be `'active'` or `'pending_exit'`
+- If `clockOut` is set → `state` must be `'completed'`
+
+All methods that modify sessions (`clockOut()`, `updateSession()`) enforce this invariant. Migration v4 repairs any inconsistent sessions.
+
 **Constants (tunable):**
 ```typescript
 EXIT_HYSTERESIS_MINUTES = 5     // Wait before confirming clock-out
@@ -176,7 +182,7 @@ Shift planning with templates and instances.
 - `CalendarStorage.ts` - SQLite persistence
 - `calendar-reducer.ts` - State management
 
-**Features:**
+**Week View Features:**
 - Pinch-to-zoom with focal point
 - Double-tap to place shifts/absences (or open template picker if none armed)
 - Swipe to navigate weeks
@@ -185,6 +191,19 @@ Shift planning with templates and instances.
 - FAB for quick access to template panel
 - GPS visibility toggle (eye icon) - shows tracked time on calendar
 - Progressive disclosure - text hides at low zoom levels (thresholds: 32px/56px)
+
+**Month View Features:**
+- Grid uses fixed 6-week (42 cell) layout for consistent height across all months
+- Day cells show: day number, shift dots (colored), tracked dot (rose), absence icons
+- Per-day overtime for confirmed days (e.g., "+1h 30m ✓") - color-coded green/red/grey
+- Unconfirmed days with activity show ? icon
+- Monthly summary footer: tracked hours, planned hours, overtime, vacation/sick counts
+- Confirmation nudge: "(X confirmed)" hint when some overtime is unconfirmed
+- Swipe left/right to navigate months (with slide animation)
+- Header title click navigates to current month
+- GPS toggle and FAB hidden (month view is overview-only)
+- Full month tracking data loaded when switching to month view in review mode
+- Multi-day sessions correctly split across days using `getTrackedMinutesForDate()`
 
 ### Status Dashboard
 

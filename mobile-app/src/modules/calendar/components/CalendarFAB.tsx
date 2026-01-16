@@ -17,8 +17,8 @@ export default function CalendarFAB() {
   const { state, dispatch } = useCalendar();
   const [menuVisible, setMenuVisible] = useState(false);
 
-  // Hide FAB when overlays are open
-  if (state.templatePanelOpen || state.hideFAB) {
+  // Hide FAB when overlays are open or in month view
+  if (state.templatePanelOpen || state.hideFAB || state.view === 'month') {
     return null;
   }
 

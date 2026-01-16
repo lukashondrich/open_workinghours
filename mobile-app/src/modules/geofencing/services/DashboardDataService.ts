@@ -2,7 +2,12 @@ import { subDays, startOfDay, format, isBefore, isAfter, parseISO } from 'date-f
 import { getDatabase } from '@/modules/geofencing/services/Database';
 import { getCalendarStorage } from '@/modules/calendar/services/CalendarStorage';
 import type { ShiftInstance, ShiftColor, AbsenceInstance } from '@/lib/calendar/types';
-import { getAbsencesForDate, calculateEffectivePlannedMinutes } from '@/lib/calendar/calendar-utils';
+import {
+  getAbsencesForDate,
+  calculateEffectivePlannedMinutes,
+  getDayBounds,
+  computeOverlapMinutes,
+} from '@/lib/calendar/calendar-utils';
 
 export interface DailyHoursData {
   date: string; // YYYY-MM-DD
@@ -32,34 +37,6 @@ export interface DashboardData {
   };
   nextShift: NextShiftData | null;
   isLive: boolean; // true if user is currently clocked in
-}
-
-/**
- * Get day boundaries for a date string (YYYY-MM-DD)
- */
-function getDayBounds(dateKey: string) {
-  const [year, month, day] = dateKey.split('-').map(Number);
-  const start = new Date(year, month - 1, day, 0, 0, 0, 0);
-  const end = new Date(start);
-  end.setDate(start.getDate() + 1);
-  return { start, end };
-}
-
-/**
- * Compute overlap in minutes between a time range and a day range.
- * Handles overnight sessions correctly.
- */
-function computeOverlapMinutes(
-  start: Date,
-  end: Date,
-  rangeStart: Date,
-  rangeEnd: Date
-): number {
-  const effectiveStart = start > rangeStart ? start : rangeStart;
-  const effectiveEnd = end < rangeEnd ? end : rangeEnd;
-  const diffMs = effectiveEnd.getTime() - effectiveStart.getTime();
-  if (diffMs <= 0) return 0;
-  return Math.round(diffMs / 60000);
 }
 
 /**
