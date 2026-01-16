@@ -23,7 +23,6 @@ class TrackingEventEmitter {
   }
 
   emit(event: TrackingEventType): void {
-    console.log(`[TrackingEvents] Emitting: ${event}`);
     this.listeners.get(event)?.forEach((listener) => {
       try {
         listener();

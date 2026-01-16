@@ -41,7 +41,6 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
     async (start: Date, end: Date): Promise<Record<string, TrackingRecord>> => {
       const startDate = format(start, 'yyyy-MM-dd');
       const endDate = format(end, 'yyyy-MM-dd');
-      console.log(`[CalendarProvider] Loading tracking records from ${startDate} to ${endDate}`);
       return loadRealTrackingRecords(startDate, endDate);
     },
     []
@@ -62,7 +61,6 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
 
         loadTrackingForRange(start, end)
           .then((trackingRecords) => {
-            console.log(`[CalendarProvider] Loaded ${Object.keys(trackingRecords).length} tracking records`);
             rawDispatch({
               type: 'TOGGLE_REVIEW_MODE',
               trackingRecords,
@@ -79,7 +77,6 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
 
         loadTrackingForRange(monthStart, monthEnd)
           .then((trackingRecords) => {
-            console.log(`[CalendarProvider] Loaded ${Object.keys(trackingRecords).length} tracking records for month view`);
             rawDispatch(action);
             rawDispatch({ type: 'UPDATE_TRACKING_RECORDS', trackingRecords });
           })
@@ -97,7 +94,6 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
 
         loadTrackingForRange(monthStart, monthEnd)
           .then((trackingRecords) => {
-            console.log(`[CalendarProvider] Loaded ${Object.keys(trackingRecords).length} tracking records for new month`);
             rawDispatch({ type: 'UPDATE_TRACKING_RECORDS', trackingRecords });
           })
           .catch((error) => {
@@ -254,8 +250,6 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
 
       const startDate = format(start, 'yyyy-MM-dd');
       const endDate = format(end, 'yyyy-MM-dd');
-
-      console.log(`[CalendarProvider] Tracking changed, refreshing records (${startDate} to ${endDate})`);
 
       loadRealTrackingRecords(startDate, endDate)
         .then((trackingRecords) => {
