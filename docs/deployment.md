@@ -40,7 +40,7 @@ Domain: openworkinghours.org
 
 ```bash
 # SSH to Hetzner server
-ssh deploy@owh-backend-prod
+ssh deploy@api.openworkinghours.org
 
 # Navigate to BACKEND directory (where docker-compose.yml lives)
 cd ~/open_workinghours/backend
