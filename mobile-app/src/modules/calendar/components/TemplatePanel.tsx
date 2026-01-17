@@ -73,13 +73,19 @@ export default function TemplatePanel() {
     }
   };
 
+  // Pick next unused color for new template
+  const getNextAvailableColor = (): ShiftColor => {
+    const usedColors = new Set(Object.values(state.templates).map(t => t.color));
+    return COLORS.find(c => !usedColors.has(c)) || COLORS[0];
+  };
+
   const handleCreate = () => {
     const newTemplate: ShiftTemplate = {
       id: `template-${Date.now()}`,
       name: t('calendar.templates.newShift'),
       startTime: '08:00',
       duration: 8 * 60,
-      color: 'teal', // Default to brand color
+      color: getNextAvailableColor(),
       breakMinutes: 0,
     };
     dispatch({ type: 'ADD_TEMPLATE', template: newTemplate });
@@ -645,7 +651,7 @@ export default function TemplatePanel() {
                         </>
                       )}
 
-                      {!editingAbsenceId && (
+                      {!editingAbsenceId && absenceTemplates.length > 0 && (
                         <Text style={styles.absenceHint}>
                           {t('calendar.absences.hint')}
                         </Text>

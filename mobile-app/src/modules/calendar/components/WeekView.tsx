@@ -51,7 +51,7 @@ import {
 } from '@/lib/calendar/calendar-utils';
 import type { ShiftInstance, TrackingRecord, AbsenceInstance, ShiftColor, ShiftTemplate, AbsenceTemplate } from '@/lib/calendar/types';
 import { getCalendarStorage } from '@/modules/calendar/services/CalendarStorage';
-import { TreePalm, Thermometer, Clock, Star, Plus, X, Settings } from 'lucide-react-native';
+import { TreePalm, Thermometer, Clock, Plus, X } from 'lucide-react-native';
 // ShiftEditModal removed - using native time picker for start time only
 import { persistDailyActualForDate } from '../services/DailyAggregator';
 import { DailySubmissionService } from '@/modules/auth/services/DailySubmissionService';
@@ -1605,16 +1605,19 @@ export default function WeekView() {
     ? state.absenceTemplates[state.armedAbsenceTemplateId]
     : null;
 
-  // Open create form in picker
-  const openCreateForm = () => {
-    setShowCreateForm(true);
+  // Available colors for shift templates
+  const SHIFT_COLORS: ShiftColor[] = ['teal', 'blue', 'green', 'amber', 'purple'];
+
+  // Pick next unused color for new template
+  const getNextAvailableColor = (): ShiftColor => {
+    const usedColors = new Set(Object.values(state.templates).map(t => t.color));
+    return SHIFT_COLORS.find(c => !usedColors.has(c)) || SHIFT_COLORS[0];
   };
 
-  // Open TemplatePanel for editing templates
-  const openTemplatePanel = (tab: 'shifts' | 'absences') => {
-    dismissTemplatePicker();
-    dispatch({ type: 'SET_TEMPLATE_PANEL_TAB', tab });
-    dispatch({ type: 'TOGGLE_TEMPLATE_PANEL' });
+  // Open create form in picker with auto-picked color
+  const openCreateForm = () => {
+    setCreateFormData(prev => ({ ...prev, color: getNextAvailableColor() }));
+    setShowCreateForm(true);
   };
 
   // Handle creating a new shift template and placing it
@@ -2101,16 +2104,12 @@ export default function WeekView() {
                     })
                     .map(template => {
                       const palette = getColorPalette(template.color);
-                      const isLastUsed = template.id === state.lastUsedTemplateId;
                       return (
                         <Pressable
                           key={template.id}
                           style={styles.templatePickerRow}
                           onPress={() => handleTemplateSelected(template.id)}
                         >
-                          {isLastUsed && (
-                            <Star size={14} color={colors.primary[500]} fill={colors.primary[500]} style={{ marginRight: spacing.xs }} />
-                          )}
                           <View style={[styles.templatePickerDot, { backgroundColor: palette.dot }]} />
                           <View style={styles.templatePickerInfo}>
                             <Text style={styles.templatePickerName}>{template.name}</Text>
@@ -2125,22 +2124,14 @@ export default function WeekView() {
 
                 {/* Create new shift option */}
                 {!showCreateForm ? (
-                  <>
-                    <Pressable style={styles.templatePickerCreateRow} onPress={openCreateForm}>
-                      <View style={styles.templatePickerCreateIcon}>
-                        <Plus size={16} color={colors.primary[500]} />
-                      </View>
-                      <Text style={styles.templatePickerCreateText}>
-                        {t('calendar.templates.createNew')}
-                      </Text>
-                    </Pressable>
-                    <Pressable style={styles.templatePickerManageRow} onPress={() => openTemplatePanel('shifts')}>
-                      <Settings size={16} color={colors.text.tertiary} />
-                      <Text style={styles.templatePickerManageText}>
-                        {t('calendar.templates.manage')}
-                      </Text>
-                    </Pressable>
-                  </>
+                  <Pressable style={styles.templatePickerCreateRow} onPress={openCreateForm}>
+                    <View style={styles.templatePickerCreateIcon}>
+                      <Plus size={16} color={colors.primary[500]} />
+                    </View>
+                    <Text style={styles.templatePickerCreateText}>
+                      {t('calendar.templates.createNew')}
+                    </Text>
+                  </Pressable>
                 ) : (
                   /* Inline create form */
                   <View style={styles.createForm}>
@@ -2216,16 +2207,12 @@ export default function WeekView() {
                       const isVacation = template.type === 'vacation';
                       const IconComponent = isVacation ? TreePalm : Thermometer;
                       const iconColor = isVacation ? '#6B7280' : '#92400E';
-                      const isLastUsed = template.id === state.lastUsedAbsenceTemplateId;
                       return (
                         <Pressable
                           key={template.id}
                           style={styles.templatePickerRow}
                           onPress={() => handleAbsenceTemplateSelected(template.id)}
                         >
-                          {isLastUsed && (
-                            <Star size={14} color={colors.primary[500]} fill={colors.primary[500]} style={{ marginRight: spacing.xs }} />
-                          )}
                           <View style={[styles.templatePickerIconWrapper, { backgroundColor: template.color }]}>
                             <IconComponent size={14} color={iconColor} />
                           </View>
@@ -2244,22 +2231,14 @@ export default function WeekView() {
 
                 {/* Create new absence option */}
                 {!showCreateAbsenceForm ? (
-                  <>
-                    <Pressable style={styles.templatePickerCreateRow} onPress={openCreateAbsenceForm}>
-                      <View style={styles.templatePickerCreateIcon}>
-                        <Plus size={16} color={colors.primary[500]} />
-                      </View>
-                      <Text style={styles.templatePickerCreateText}>
-                        {t('calendar.absences.createNew')}
-                      </Text>
-                    </Pressable>
-                    <Pressable style={styles.templatePickerManageRow} onPress={() => openTemplatePanel('absences')}>
-                      <Settings size={16} color={colors.text.tertiary} />
-                      <Text style={styles.templatePickerManageText}>
-                        {t('calendar.absences.manage')}
-                      </Text>
-                    </Pressable>
-                  </>
+                  <Pressable style={styles.templatePickerCreateRow} onPress={openCreateAbsenceForm}>
+                    <View style={styles.templatePickerCreateIcon}>
+                      <Plus size={16} color={colors.primary[500]} />
+                    </View>
+                    <Text style={styles.templatePickerCreateText}>
+                      {t('calendar.absences.createNew')}
+                    </Text>
+                  </Pressable>
                 ) : (
                   /* Inline create absence form */
                   <View style={styles.createForm}>
@@ -2897,17 +2876,6 @@ const styles = StyleSheet.create({
     fontSize: fontSize.md,
     color: colors.primary[500],
     fontWeight: fontWeight.medium,
-  },
-  templatePickerManageRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.sm,
-    gap: spacing.sm,
-  },
-  templatePickerManageText: {
-    fontSize: fontSize.sm,
-    color: colors.text.tertiary,
   },
   // Inline create form styles
   createForm: {
