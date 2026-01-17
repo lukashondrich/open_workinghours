@@ -302,3 +302,72 @@ class FeedbackOut(BaseModel):
     """Feedback submission response"""
     success: bool
     message: str
+
+
+# ============================================================================
+# PUBLIC DASHBOARD (Coverage & Activity)
+# ============================================================================
+
+
+class StateCoverageOut(BaseModel):
+    """Coverage status for a single state."""
+    state_code: str
+    state_name: str
+    status: str  # "none" | "building" | "available"
+    contributors_range: str  # "0" | "1-10" | "11-50" | "50+"
+    threshold: int = 11
+
+
+class CoverageOut(BaseModel):
+    """
+    Coverage status for the public dashboard map.
+
+    Privacy protections applied:
+    - Ranges instead of exact counts below threshold
+    - Weekly update precision
+    """
+    updated_at: datetime
+    update_precision: str = "weekly"
+    threshold: int = 11
+    states: list[StateCoverageOut]
+    national: StateCoverageOut
+
+
+class ActivityOut(BaseModel):
+    """
+    30-day rolling activity for the public dashboard.
+
+    Privacy protections applied:
+    - Contributor counts as ranges below threshold
+    - Shift counts are exact (not identifying)
+    """
+    period_days: int = 30
+    contributors_range: str  # "0" | "1-10" | "11-50" | "50+"
+    shifts_confirmed: int
+    states_building: int  # States with 1-10 contributors
+    states_available: int  # States with 11+ contributors
+
+
+# ============================================================================
+# INSTITUTION CONTACT FORM
+# ============================================================================
+
+
+class InstitutionInquiryIn(BaseModel):
+    """Contact form submission from institutions (unions, researchers, press)."""
+    name: str = Field(..., min_length=1, max_length=255)
+    organization: str = Field(..., min_length=1, max_length=255)
+    role: str = Field(..., min_length=1, max_length=100)  # "union", "researcher", "press", "other"
+    email: EmailStr
+    message: str = Field(..., min_length=10, max_length=5000)
+
+    @validator("email")
+    def _lowercase_email(cls, value: str) -> str:
+        return value.lower()
+
+
+class InstitutionInquiryOut(BaseModel):
+    """Response after submitting institution contact form."""
+    success: bool
+    message: str
+    inquiry_id: UUID | None = None

@@ -214,3 +214,26 @@ class FeedbackReport(Base):
     # Metadata
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False, index=True)
     resolved = Column(String(20), default="pending", nullable=False)  # pending, resolved, dismissed
+
+
+class InstitutionInquiry(Base):
+    """
+    Contact form submissions from institutions (unions, researchers, press).
+    Part of the public dashboard.
+    """
+    __tablename__ = "institution_inquiries"
+
+    inquiry_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+
+    # Contact info
+    name = Column(String(255), nullable=False)
+    organization = Column(String(255), nullable=False)
+    role = Column(String(100), nullable=False)  # "union", "researcher", "press", "other"
+    email = Column(String(255), nullable=False)
+    message = Column(Text, nullable=False)
+
+    # Status tracking
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False, index=True)
+    responded_at = Column(DateTime(timezone=True), nullable=True)
+    status = Column(String(20), default="pending", nullable=False)  # pending, responded, archived
+    notes = Column(Text, nullable=True)  # Internal notes for follow-up

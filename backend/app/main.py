@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .database import init_db
-from .routers import admin, analytics, auth, feedback, reports, stats, submissions, verification, work_events
+from .routers import admin, analytics, auth, dashboard, feedback, reports, stats, submissions, verification, work_events
 
 app = FastAPI(
     title="Open Working Hours API",
@@ -26,6 +26,7 @@ app.include_router(verification.router)
 app.include_router(auth.router)
 app.include_router(work_events.router)
 app.include_router(stats.router)
+app.include_router(dashboard.router)
 app.include_router(reports.router)
 app.include_router(analytics.router)
 app.include_router(submissions.router)

@@ -1,0 +1,706 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+// API base URL - use environment variable in production
+const API_BASE = import.meta.env.PUBLIC_API_URL || 'https://api.openworkinghours.org';
+---
+
+<Layout
+  title="Coverage Dashboard"
+  description="Track the growth of independent healthcare working hours data across Germany. Privacy-first, community-powered."
+>
+  <!-- Hero Section -->
+  <section class="bg-gradient-to-b from-teal-50 to-white py-12 sm:py-16">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 text-center">
+      <span class="inline-block px-3 py-1 text-xs font-medium text-teal-700 bg-teal-100 rounded-full mb-4">
+        Live Coverage
+      </span>
+      <h1 class="text-stone-900 mb-4">
+        Mapping Healthcare Working Hours<br class="hidden sm:block" /> Across Germany
+      </h1>
+      <p class="text-xl text-stone-600 max-w-2xl mx-auto mb-8">
+        Independent evidence for better working conditions.<br />
+        Privacy-first. Community-powered.
+      </p>
+      <div class="flex flex-col sm:flex-row gap-4 justify-center">
+        <a href="#download" class="btn-primary">
+          Download the App
+        </a>
+        <a href="#method" class="btn-secondary">
+          How It Works
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Coverage Map Section -->
+  <section class="py-12 sm:py-16" id="coverage">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6">
+      <h2 class="text-stone-900 mb-2">Coverage Status</h2>
+      <p class="text-stone-600 mb-8">
+        See which regions are building toward the privacy threshold.
+      </p>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Map Container -->
+        <div class="lg:col-span-2 bg-stone-50 rounded-xl p-6 min-h-[400px] flex items-center justify-center">
+          <!-- Germany Map SVG - will be replaced with Datawrapper embed -->
+          <div class="w-full max-w-md" id="germany-map">
+            <svg viewBox="0 0 400 500" class="w-full h-auto">
+              <!-- Simplified Germany map with 16 states -->
+              <!-- Each state is clickable and will show a tooltip -->
+
+              <!-- Schleswig-Holstein -->
+              <path id="SH" class="state-path" d="M200,20 L240,30 L250,60 L230,80 L200,70 L180,50 Z" data-state="SH" data-name="Schleswig-Holstein" />
+
+              <!-- Hamburg -->
+              <circle id="HH" class="state-path" cx="220" cy="85" r="8" data-state="HH" data-name="Hamburg" />
+
+              <!-- Mecklenburg-Vorpommern -->
+              <path id="MV" class="state-path" d="M250,40 L320,35 L340,70 L300,90 L250,80 Z" data-state="MV" data-name="Mecklenburg-Vorpommern" />
+
+              <!-- Bremen -->
+              <circle id="HB" class="state-path" cx="175" cy="100" r="6" data-state="HB" data-name="Bremen" />
+
+              <!-- Niedersachsen -->
+              <path id="NI" class="state-path" d="M120,80 L200,90 L220,140 L180,180 L100,160 L80,120 Z" data-state="NI" data-name="Niedersachsen" />
+
+              <!-- Brandenburg -->
+              <path id="BB" class="state-path" d="M280,100 L350,110 L360,180 L320,220 L260,200 L250,140 Z" data-state="BB" data-name="Brandenburg" />
+
+              <!-- Berlin -->
+              <circle id="BE" class="state-path" cx="305" cy="155" r="10" data-state="BE" data-name="Berlin" />
+
+              <!-- Sachsen-Anhalt -->
+              <path id="ST" class="state-path" d="M220,140 L280,130 L290,200 L250,230 L210,200 Z" data-state="ST" data-name="Sachsen-Anhalt" />
+
+              <!-- Nordrhein-Westfalen -->
+              <path id="NW" class="state-path" d="M80,160 L160,170 L170,240 L120,270 L60,230 Z" data-state="NW" data-name="Nordrhein-Westfalen" />
+
+              <!-- Hessen -->
+              <path id="HE" class="state-path" d="M140,240 L200,230 L210,300 L160,330 L130,290 Z" data-state="HE" data-name="Hessen" />
+
+              <!-- Thüringen -->
+              <path id="TH" class="state-path" d="M200,220 L270,210 L280,270 L230,290 L200,260 Z" data-state="TH" data-name="Thüringen" />
+
+              <!-- Sachsen -->
+              <path id="SN" class="state-path" d="M270,200 L350,190 L370,250 L320,290 L270,260 Z" data-state="SN" data-name="Sachsen" />
+
+              <!-- Rheinland-Pfalz -->
+              <path id="RP" class="state-path" d="M60,270 L130,280 L140,350 L80,380 L40,330 Z" data-state="RP" data-name="Rheinland-Pfalz" />
+
+              <!-- Saarland -->
+              <circle id="SL" class="state-path" cx="55" cy="365" r="12" data-state="SL" data-name="Saarland" />
+
+              <!-- Baden-Württemberg -->
+              <path id="BW" class="state-path" d="M100,350 L180,340 L200,420 L140,460 L80,420 Z" data-state="BW" data-name="Baden-Württemberg" />
+
+              <!-- Bayern -->
+              <path id="BY" class="state-path" d="M180,300 L290,280 L340,350 L300,450 L200,460 L160,380 Z" data-state="BY" data-name="Bayern" />
+            </svg>
+
+            <!-- Legend -->
+            <div class="flex justify-center gap-6 mt-4 text-sm">
+              <div class="flex items-center gap-2">
+                <span class="w-4 h-4 rounded bg-stone-300"></span>
+                <span class="text-stone-600">No data yet</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="w-4 h-4 rounded bg-amber-400"></span>
+                <span class="text-stone-600">Building (1-10)</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="w-4 h-4 rounded bg-teal-500"></span>
+                <span class="text-stone-600">Available (11+)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Stats Sidebar -->
+        <div class="space-y-4">
+          <div class="bg-white border border-stone-200 rounded-xl p-6">
+            <h3 class="text-sm font-medium text-stone-500 uppercase tracking-wide mb-1">Contributors</h3>
+            <p class="text-3xl font-semibold text-stone-900" id="contributors-count">--</p>
+            <p class="text-sm text-stone-500">in the last 30 days</p>
+          </div>
+
+          <div class="bg-white border border-stone-200 rounded-xl p-6">
+            <h3 class="text-sm font-medium text-stone-500 uppercase tracking-wide mb-1">Shifts Confirmed</h3>
+            <p class="text-3xl font-semibold text-stone-900" id="shifts-count">--</p>
+            <p class="text-sm text-stone-500">in the last 30 days</p>
+          </div>
+
+          <div class="bg-white border border-stone-200 rounded-xl p-6">
+            <h3 class="text-sm font-medium text-stone-500 uppercase tracking-wide mb-1">States Building</h3>
+            <p class="text-3xl font-semibold text-stone-900" id="states-count">--</p>
+            <p class="text-sm text-stone-500">toward threshold</p>
+          </div>
+
+          <div class="bg-teal-50 border border-teal-200 rounded-xl p-4">
+            <p class="text-sm text-teal-800">
+              <strong>Privacy threshold:</strong> Statistics only shown when 11+ contributors are in a group.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- What Becomes Possible Section -->
+  <section class="py-12 sm:py-16 bg-stone-50" id="insights">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6">
+      <h2 class="text-stone-900 mb-2">What We'll Reveal</h2>
+      <p class="text-stone-600 mb-8">
+        When regions reach the privacy threshold, we can publish these insights.
+      </p>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Overtime Trends -->
+        <div class="bg-white rounded-xl p-6 border border-stone-200 opacity-60">
+          <div class="h-32 bg-stone-100 rounded-lg mb-4 flex items-center justify-center">
+            <svg class="w-12 h-12 text-stone-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+          </div>
+          <h3 class="font-semibold text-stone-900 mb-2">Overtime Trends</h3>
+          <p class="text-sm text-stone-600 mb-4">Average weekly overtime by region and specialty.</p>
+          <span class="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-100 px-2 py-1 rounded-full">
+            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
+            </svg>
+            Unlocks at 11+ contributors
+          </span>
+        </div>
+
+        <!-- Planned vs Actual -->
+        <div class="bg-white rounded-xl p-6 border border-stone-200 opacity-60">
+          <div class="h-32 bg-stone-100 rounded-lg mb-4 flex items-center justify-center">
+            <svg class="w-12 h-12 text-stone-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </div>
+          <h3 class="font-semibold text-stone-900 mb-2">Planned vs. Actual</h3>
+          <p class="text-sm text-stone-600 mb-4">Compare scheduled hours against reality.</p>
+          <span class="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-100 px-2 py-1 rounded-full">
+            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
+            </svg>
+            Unlocks at 11+ contributors
+          </span>
+        </div>
+
+        <!-- Regional Comparison -->
+        <div class="bg-white rounded-xl p-6 border border-stone-200 opacity-60">
+          <div class="h-32 bg-stone-100 rounded-lg mb-4 flex items-center justify-center">
+            <svg class="w-12 h-12 text-stone-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h3 class="font-semibold text-stone-900 mb-2">Regional Comparison</h3>
+          <p class="text-sm text-stone-600 mb-4">See how your region compares nationally.</p>
+          <span class="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-100 px-2 py-1 rounded-full">
+            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
+            </svg>
+            Unlocks at 11+ contributors
+          </span>
+        </div>
+      </div>
+
+      <div class="text-center mt-8">
+        <a href="#download" class="btn-primary">
+          Help unlock insights for your region
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Trust & Method Section -->
+  <section class="py-12 sm:py-16" id="method">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6">
+      <h2 class="text-stone-900 mb-2">How We Protect Your Data</h2>
+      <p class="text-stone-600 mb-8">
+        Privacy is built into every layer of the system.
+      </p>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- K-Anonymity Visual -->
+        <div class="bg-teal-50 rounded-xl p-8">
+          <div class="flex items-center justify-center gap-4 mb-6">
+            <!-- 11 person icons -->
+            <div class="flex flex-wrap justify-center gap-1 max-w-[140px]">
+              {[...Array(11)].map(() => (
+                <svg class="w-6 h-6 text-teal-600" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
+                </svg>
+              ))}
+            </div>
+
+            <svg class="w-8 h-8 text-teal-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+            </svg>
+
+            <!-- One statistic icon -->
+            <div class="bg-teal-600 text-white rounded-lg p-3">
+              <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+            </div>
+          </div>
+
+          <h3 class="text-lg font-semibold text-teal-900 text-center mb-2">K-Anonymity</h3>
+          <p class="text-teal-800 text-center">
+            Nothing is published unless at least <strong>11 people</strong> contribute to a statistic.
+            Individual contributions cannot be distinguished.
+          </p>
+        </div>
+
+        <!-- Privacy Checklist -->
+        <div class="space-y-4">
+          <div class="flex gap-3 items-start">
+            <div class="flex-shrink-0 w-6 h-6 bg-teal-100 rounded-full flex items-center justify-center">
+              <svg class="w-4 h-4 text-teal-600" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+              </svg>
+            </div>
+            <div>
+              <p class="font-medium text-stone-900">Your employer cannot access your data</p>
+              <p class="text-sm text-stone-600">This is not an employer tool. We will never provide individual data to employers.</p>
+            </div>
+          </div>
+
+          <div class="flex gap-3 items-start">
+            <div class="flex-shrink-0 w-6 h-6 bg-teal-100 rounded-full flex items-center justify-center">
+              <svg class="w-4 h-4 text-teal-600" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+              </svg>
+            </div>
+            <div>
+              <p class="font-medium text-stone-900">GPS coordinates never leave your device</p>
+              <p class="text-sm text-stone-600">Location data is used only for geofencing on your phone.</p>
+            </div>
+          </div>
+
+          <div class="flex gap-3 items-start">
+            <div class="flex-shrink-0 w-6 h-6 bg-teal-100 rounded-full flex items-center justify-center">
+              <svg class="w-4 h-4 text-teal-600" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+              </svg>
+            </div>
+            <div>
+              <p class="font-medium text-stone-900">Email stored as hash only</p>
+              <p class="text-sm text-stone-600">We use a one-way cryptographic hash. Your email cannot be retrieved.</p>
+            </div>
+          </div>
+
+          <div class="flex gap-3 items-start">
+            <div class="flex-shrink-0 w-6 h-6 bg-teal-100 rounded-full flex items-center justify-center">
+              <svg class="w-4 h-4 text-teal-600" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+              </svg>
+            </div>
+            <div>
+              <p class="font-medium text-stone-900">Data stored in Germany (EU)</p>
+              <p class="text-sm text-stone-600">Hosted on Hetzner servers. No data leaves the EU.</p>
+            </div>
+          </div>
+
+          <div class="flex gap-3 items-start">
+            <div class="flex-shrink-0 w-6 h-6 bg-teal-100 rounded-full flex items-center justify-center">
+              <svg class="w-4 h-4 text-teal-600" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+              </svg>
+            </div>
+            <div>
+              <p class="font-medium text-stone-900">Delete anytime (GDPR Art. 17)</p>
+              <p class="text-sm text-stone-600">Full account deletion available in the app.</p>
+            </div>
+          </div>
+
+          <div class="mt-6 pt-4 border-t border-stone-200">
+            <a href="/privacy" class="text-teal-600 hover:text-teal-700 text-sm font-medium">
+              Read full privacy principles &rarr;
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- For Institutions Section -->
+  <section class="py-12 sm:py-16 bg-stone-50" id="institutions">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
+        <!-- Left: Info -->
+        <div>
+          <h2 class="text-stone-900 mb-4">For Unions & Professional Associations</h2>
+          <p class="text-stone-600 mb-6">
+            Open Working Hours provides independent, aggregated evidence for collective bargaining and policy advocacy.
+          </p>
+
+          <ul class="space-y-3 text-stone-700">
+            <li class="flex gap-3">
+              <span class="text-teal-600 mt-1">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </span>
+              <span>Methodology designed with privacy experts</span>
+            </li>
+            <li class="flex gap-3">
+              <span class="text-teal-600 mt-1">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </span>
+              <span>K-anonymity standard (EMA/Health Canada threshold)</span>
+            </li>
+            <li class="flex gap-3">
+              <span class="text-teal-600 mt-1">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </span>
+              <span>Differential privacy (statistical noise)</span>
+            </li>
+            <li class="flex gap-3">
+              <span class="text-teal-600 mt-1">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </span>
+              <span>Open source infrastructure</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Right: Contact Form -->
+        <div class="bg-white rounded-xl p-6 border border-stone-200">
+          <h3 class="font-semibold text-stone-900 mb-4">Request a Briefing</h3>
+
+          <form id="institution-form" class="space-y-4">
+            <div>
+              <label for="name" class="block text-sm font-medium text-stone-700 mb-1">Name</label>
+              <input
+                type="text"
+                id="name"
+                name="name"
+                required
+                class="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+              />
+            </div>
+
+            <div>
+              <label for="organization" class="block text-sm font-medium text-stone-700 mb-1">Organization</label>
+              <input
+                type="text"
+                id="organization"
+                name="organization"
+                required
+                class="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+              />
+            </div>
+
+            <div>
+              <label for="role" class="block text-sm font-medium text-stone-700 mb-1">Role</label>
+              <select
+                id="role"
+                name="role"
+                required
+                class="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+              >
+                <option value="">Select...</option>
+                <option value="union">Union representative</option>
+                <option value="researcher">Researcher</option>
+                <option value="press">Press / Media</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="email" class="block text-sm font-medium text-stone-700 mb-1">Email</label>
+              <input
+                type="email"
+                id="email"
+                name="email"
+                required
+                class="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+              />
+            </div>
+
+            <div>
+              <label for="message" class="block text-sm font-medium text-stone-700 mb-1">Message</label>
+              <textarea
+                id="message"
+                name="message"
+                rows="3"
+                required
+                class="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                placeholder="Tell us about your interest in the data..."
+              ></textarea>
+            </div>
+
+            <div class="flex items-start gap-2">
+              <input
+                type="checkbox"
+                id="privacy-consent"
+                name="privacy-consent"
+                required
+                class="mt-1"
+              />
+              <label for="privacy-consent" class="text-sm text-stone-600">
+                I agree to the <a href="/app-privacy-policy" class="text-teal-600 hover:underline">privacy policy</a>
+              </label>
+            </div>
+
+            <button
+              type="submit"
+              class="w-full btn-primary"
+              id="submit-btn"
+            >
+              Submit Request
+            </button>
+
+            <div id="form-status" class="text-sm text-center hidden"></div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Download & Share Section -->
+  <section class="py-12 sm:py-16" id="download">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 text-center">
+      <h2 class="text-stone-900 mb-4">Help Build Transparency</h2>
+      <p class="text-stone-600 mb-8 max-w-xl mx-auto">
+        Every contribution helps reveal the true picture of healthcare working conditions.
+      </p>
+
+      <!-- App Store Button (placeholder) -->
+      <div class="mb-8">
+        <a
+          href="#"
+          class="inline-flex items-center gap-3 bg-stone-900 text-white px-6 py-3 rounded-xl hover:bg-stone-800 transition-colors"
+          id="app-store-btn"
+        >
+          <svg class="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
+          </svg>
+          <div class="text-left">
+            <div class="text-xs">Download on the</div>
+            <div class="text-lg font-semibold">App Store</div>
+          </div>
+        </a>
+        <p class="text-sm text-stone-500 mt-2">Coming soon to TestFlight</p>
+      </div>
+
+      <!-- Share Links -->
+      <div class="border-t border-stone-200 pt-8">
+        <p class="text-sm font-medium text-stone-700 mb-4">Share this page</p>
+        <div class="flex justify-center gap-4">
+          <a
+            href="#"
+            class="p-3 bg-stone-100 rounded-full hover:bg-stone-200 transition-colors"
+            title="Share on WhatsApp"
+            id="share-whatsapp"
+          >
+            <svg class="w-5 h-5 text-stone-600" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+            </svg>
+          </a>
+          <a
+            href="#"
+            class="p-3 bg-stone-100 rounded-full hover:bg-stone-200 transition-colors"
+            title="Share on Twitter/X"
+            id="share-twitter"
+          >
+            <svg class="w-5 h-5 text-stone-600" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+            </svg>
+          </a>
+          <a
+            href="#"
+            class="p-3 bg-stone-100 rounded-full hover:bg-stone-200 transition-colors"
+            title="Share on LinkedIn"
+            id="share-linkedin"
+          >
+            <svg class="w-5 h-5 text-stone-600" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+            </svg>
+          </a>
+          <button
+            class="p-3 bg-stone-100 rounded-full hover:bg-stone-200 transition-colors"
+            title="Copy link"
+            id="copy-link"
+          >
+            <svg class="w-5 h-5 text-stone-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+</Layout>
+
+<style>
+  /* Map styling */
+  .state-path {
+    fill: #d6d3d1; /* stone-300 - no data */
+    stroke: #ffffff;
+    stroke-width: 2;
+    cursor: pointer;
+    transition: fill 0.2s ease, transform 0.1s ease;
+  }
+
+  .state-path:hover {
+    transform: scale(1.02);
+    transform-origin: center;
+  }
+
+  .state-path.building {
+    fill: #fbbf24; /* amber-400 */
+  }
+
+  .state-path.available {
+    fill: #14b8a6; /* teal-500 */
+  }
+
+  /* Button styles */
+  .btn-primary {
+    @apply inline-flex items-center justify-center px-6 py-3 bg-teal-600 text-white font-medium rounded-lg hover:bg-teal-700 transition-colors;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center px-6 py-3 border border-stone-300 text-stone-700 font-medium rounded-lg hover:bg-stone-50 transition-colors;
+  }
+</style>
+
+<script define:vars={{ API_BASE }}>
+  // Fetch coverage data and update map
+  async function loadCoverageData() {
+    try {
+      const response = await fetch(`${API_BASE}/dashboard/coverage`);
+      if (!response.ok) throw new Error('Failed to fetch coverage data');
+      const data = await response.json();
+
+      // Update map states
+      data.states.forEach(state => {
+        const el = document.getElementById(state.state_code);
+        if (el) {
+          el.classList.remove('building', 'available');
+          if (state.status === 'building') {
+            el.classList.add('building');
+          } else if (state.status === 'available') {
+            el.classList.add('available');
+          }
+
+          // Add tooltip data
+          el.setAttribute('data-contributors', state.contributors_range);
+          el.setAttribute('data-status', state.status);
+        }
+      });
+    } catch (error) {
+      console.error('Error loading coverage data:', error);
+    }
+  }
+
+  // Fetch activity data and update stats
+  async function loadActivityData() {
+    try {
+      const response = await fetch(`${API_BASE}/dashboard/activity`);
+      if (!response.ok) throw new Error('Failed to fetch activity data');
+      const data = await response.json();
+
+      // Update stats display
+      document.getElementById('contributors-count').textContent = data.contributors_range;
+      document.getElementById('shifts-count').textContent = data.shifts_confirmed.toString();
+      document.getElementById('states-count').textContent = `${data.states_building + data.states_available}/16`;
+    } catch (error) {
+      console.error('Error loading activity data:', error);
+    }
+  }
+
+  // Contact form submission
+  document.getElementById('institution-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const form = e.target;
+    const submitBtn = document.getElementById('submit-btn');
+    const statusEl = document.getElementById('form-status');
+
+    // Get form data
+    const formData = {
+      name: form.name.value,
+      organization: form.organization.value,
+      role: form.role.value,
+      email: form.email.value,
+      message: form.message.value,
+    };
+
+    // Disable button
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Submitting...';
+
+    try {
+      const response = await fetch(`${API_BASE}/dashboard/contact`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        statusEl.textContent = 'Thank you! We will be in touch soon.';
+        statusEl.className = 'text-sm text-center text-teal-600';
+        form.reset();
+      } else {
+        statusEl.textContent = 'Something went wrong. Please try again.';
+        statusEl.className = 'text-sm text-center text-red-600';
+      }
+    } catch (error) {
+      statusEl.textContent = 'Network error. Please try again.';
+      statusEl.className = 'text-sm text-center text-red-600';
+    }
+
+    statusEl.classList.remove('hidden');
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Submit Request';
+  });
+
+  // Share functionality
+  const shareUrl = window.location.href;
+  const shareText = 'Mapping Healthcare Working Hours Across Germany - Independent, privacy-first data on working conditions.';
+
+  document.getElementById('share-whatsapp')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    window.open(`https://wa.me/?text=${encodeURIComponent(shareText + ' ' + shareUrl)}`, '_blank');
+  });
+
+  document.getElementById('share-twitter')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`, '_blank');
+  });
+
+  document.getElementById('share-linkedin')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`, '_blank');
+  });
+
+  document.getElementById('copy-link')?.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      alert('Link copied to clipboard!');
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  });
+
+  // Load data on page load
+  document.addEventListener('DOMContentLoaded', () => {
+    loadCoverageData();
+    loadActivityData();
+  });
+</script>
