@@ -8,7 +8,7 @@ import LayoutDE from '../../layouts/LayoutDE.astro';
     <header class="mb-12">
       <h1 class="text-stone-900 mb-4">Datenschutz &amp; Schutzkonzept</h1>
       <p class="text-xl text-stone-600 max-w-2xl">
-        Open Working Hours ist DSGVO-konform konzipiert. Datenschutz ist kein nachträgliches Feature, sondern integraler Bestandteil der technischen Architektur (Privacy by Design, Art. 25 DSGVO).
+        Open Working Hours ist DSGVO-konform konzipiert. Datenschutz ist kein nachträgliches Feature, sondern integraler Bestandteil der Architektur (Privacy by Design, Art. 25 DSGVO).
       </p>
     </header>
 
@@ -33,7 +33,7 @@ import LayoutDE from '../../layouts/LayoutDE.astro';
             </svg>
           </span>
           <div>
-            <strong>Pseudonymisierung:</strong> Nutzende werden über zufällige Tokens identifiziert, nicht über personenbezogene Merkmale. Wir speichern nur einen kryptografischen Einweg-Hash Ihrer E-Mail-Adresse zur Kontointegrität — die ursprüngliche E-Mail-Adresse wird nicht aufbewahrt.
+            <strong>Pseudonymisierung:</strong> Nutzende werden über zufällige Tokens identifiziert, nicht über personenbezogene Merkmale. Zur Kontointegrität speichern wir nur einen kryptografischen One-way Hash Ihrer E-Mail-Adresse; die E-Mail-Adresse selbst wird nicht gespeichert.
           </div>
         </li>
         <li class="flex gap-3">
@@ -43,7 +43,7 @@ import LayoutDE from '../../layouts/LayoutDE.astro';
             </svg>
           </span>
           <div>
-            <strong>Verschlüsselung bei Übertragung:</strong> Die Kommunikation zwischen App und Server erfolgt ausschließlich über TLS 1.3. Daten werden auch serverseitig verschlüsselt gespeichert.
+            <strong>Encryption in Transit:</strong> Kommunikation zwischen App und Server ausschließlich über TLS 1.3; Daten werden serverseitig verschlüsselt gespeichert.
           </div>
         </li>
         <li class="flex gap-3">
@@ -53,7 +53,7 @@ import LayoutDE from '../../layouts/LayoutDE.astro';
             </svg>
           </span>
           <div>
-            <strong>K-Anonymität:</strong> Statistiken werden nur veröffentlicht, wenn genügend Personen zu einer Gruppe beitragen. Kleinere Gruppen werden vollständig unterdrückt.
+            <strong>K-Anonymität:</strong> Veröffentlichung nur, wenn genügend Personen zu einer Gruppe beitragen; kleinere Gruppen werden unterdrückt.
           </div>
         </li>
         <li class="flex gap-3">
@@ -63,7 +63,7 @@ import LayoutDE from '../../layouts/LayoutDE.astro';
             </svg>
           </span>
           <div>
-            <strong>Nutzerkontrolle:</strong> Vollständiger Datenexport und Löschung jederzeit möglich. Löschungen sind dauerhaft und betreffen alle zugehörigen Datensätze.
+            <strong>User Control:</strong> Vollständiger Export und Löschung jederzeit; Löschungen sind dauerhaft und betreffen alle zugehörigen Datensätze.
           </div>
         </li>
         <li class="flex gap-3">
@@ -73,7 +73,7 @@ import LayoutDE from '../../layouts/LayoutDE.astro';
             </svg>
           </span>
           <div>
-            <strong>Kein Arbeitgeberzugang:</strong> Open Working Hours ist kein Arbeitgeber-Tool. Arbeitgeber haben keinen Zugriff auf Daten und können keinen Zugriff beantragen.
+            <strong>Kein Arbeitgeberzugang:</strong> Open Working Hours ist kein Arbeitgeber-Tool. Arbeitgeber haben keinen Zugriff und können keinen Zugriff beantragen.
           </div>
         </li>
       </ul>
@@ -94,7 +94,7 @@ import LayoutDE from '../../layouts/LayoutDE.astro';
             <li>Bestätigte tägliche Arbeitszeit (netto, nach Pausen)</li>
             <li>Bundesland</li>
             <li>Fachrichtung (kategorisiert)</li>
-            <li>Tätigkeitsniveau (z.B. Weiterbildung, Facharzt)</li>
+            <li>Tätigkeitsniveau (z. B. Weiterbildung, Facharzt)</li>
             <li>Anonymer Nutzungstoken</li>
           </ul>
         </div>
@@ -121,12 +121,12 @@ import LayoutDE from '../../layouts/LayoutDE.astro';
     <section class="mb-12">
       <h2 class="text-stone-900 mb-6">Schutz vor Re-Identifikation</h2>
       <p class="text-stone-600 mb-4">
-        Auch aggregierte Daten können bei kleinen Gruppen Risiken bergen. Daher werden mehrere Schutzmaßnahmen kombiniert:
+        Auch aggregierte Daten bergen bei kleinen Gruppen Risiken. Deshalb kombinieren wir mehrere Schutzmaßnahmen:
       </p>
       <ul class="space-y-3 text-stone-700 ml-4">
         <li class="flex gap-3">
           <span class="text-stone-400">•</span>
-          <span><strong>Mindestgruppengröße:</strong> Mindestanzahl an Beitragenden (k-Anonymität)</span>
+          <span><strong>Mindestgruppengröße:</strong> k-Anonymität (k=11)</span>
         </li>
         <li class="flex gap-3">
           <span class="text-stone-400">•</span>
@@ -134,7 +134,7 @@ import LayoutDE from '../../layouts/LayoutDE.astro';
         </li>
         <li class="flex gap-3">
           <span class="text-stone-400">•</span>
-          <span><strong>Statistisches Rauschen:</strong> Kalibriertes Rauschen (Laplace-Mechanismus, ε = 1.0) zum Schutz vor Rückschlussangriffen</span>
+          <span><strong>Differential Privacy:</strong> Kalibriertes Rauschen (Laplace-Mechanismus, ε = 1.0) zum Schutz vor statistischen Rückschlüssen</span>
         </li>
       </ul>
     </section>
@@ -159,11 +159,11 @@ import LayoutDE from '../../layouts/LayoutDE.astro';
       <div class="bg-stone-50 rounded-lg p-6 space-y-4 border border-stone-200">
         <div>
           <h3 class="font-semibold text-stone-900">Export</h3>
-          <p class="text-stone-600 text-sm">Download aller übermittelten Daten im JSON-Format direkt in der App.</p>
+          <p class="text-stone-600 text-sm">Download aller übermittelten Daten (JSON) direkt in der App.</p>
         </div>
         <div>
           <h3 class="font-semibold text-stone-900">Löschung</h3>
-          <p class="text-stone-600 text-sm">Kontolöschung über die App. Alle personenbezogenen Daten und Ereignisse werden dauerhaft entfernt. Bereits aggregierte Statistiken (ohne Personenbezug) bleiben erhalten.</p>
+          <p class="text-stone-600 text-sm">Kontolöschung über die App. Personenbezogene Daten und Ereignisse werden dauerhaft entfernt. Bereits aggregierte Statistiken (ohne Personenbezug) bleiben erhalten.</p>
         </div>
       </div>
     </section>
@@ -171,7 +171,7 @@ import LayoutDE from '../../layouts/LayoutDE.astro';
     <!-- Link zur formalen Datenschutzerklärung -->
     <section class="border-t border-stone-200 pt-8">
       <p class="text-stone-600">
-        Weitere rechtliche Details finden sich in der formalen <a href="/privacy-policy" class="text-teal-600 hover:text-teal-700">Datenschutzerklärung</a>.
+        Hinweis: Weitere rechtliche Details finden sich in der formalen <a href="/de/datenschutzerklaerung" class="text-teal-600 hover:text-teal-700">Datenschutzerklärung</a>.
       </p>
     </section>
   </div>
