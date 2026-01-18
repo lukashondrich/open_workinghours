@@ -38,7 +38,7 @@ class DatawrapperSettings(BaseModel):
     """Datawrapper API settings for public dashboard map."""
 
     api_token: str = Field(..., min_length=10)
-    chart_id: str = Field(default="KnU2C")  # Germany states choropleth map
+    chart_id: str = Field(default="ipikjchlcd")  # Germany states choropleth map
 
 
 class Settings(BaseSettings):
