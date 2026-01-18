@@ -64,15 +64,16 @@ import Layout from '../layouts/Layout.astro';
       </div>
     </section>
 
-    <!-- Mini Dashboard Preview -->
+    <!-- Live Dashboard Link -->
     <section class="mb-16">
-      <h2 class="text-stone-900 mb-6">Public Dashboard Preview</h2>
+      <h2 class="text-stone-900 mb-4">Coverage Status</h2>
       <p class="text-stone-600 mb-6">
-        Aggregated data is displayed on a public dashboard. Working patterns can be filtered by <strong>region, specialty, and hospital</strong> – as long as individual anonymity is safeguarded.
+        Track which regions are building toward the privacy threshold.
+        Aggregated statistics become available when 11+ contributors participate in a region.
       </p>
-      <div class="rounded-lg overflow-hidden shadow-lg border border-stone-200">
-        <img src="/screenshots/dashboard.png" alt="Open Working Hours Dashboard" class="w-full h-auto" />
-      </div>
+      <a href="/dashboard" class="inline-flex items-center gap-2 text-teal-600 hover:text-teal-700 font-medium">
+        View live coverage map →
+      </a>
     </section>
 
     <!-- Platform status -->

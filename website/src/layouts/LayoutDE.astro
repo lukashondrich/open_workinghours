@@ -11,8 +11,8 @@ const currentPath = Astro.url.pathname;
 
 const navItems = [
   { href: '/de', label: 'Dossier' },
-  { href: '/de/dashboard', label: 'Dashboard' },
   { href: '/de/product', label: 'Produkt' },
+  { href: '/de/dashboard', label: 'Dashboard', badge: 'Live' },
   { href: '/de/privacy', label: 'Datenschutz' },
   { href: '/de/team', label: 'Team' },
 ];
@@ -48,13 +48,18 @@ const navItems = [
                 <a
                   href={item.href}
                   class:list={[
-                    'px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
+                    'px-3 py-1.5 rounded-md text-sm font-medium transition-colors inline-flex items-center gap-1.5',
                     currentPath === item.href || (item.href === '/de' && currentPath === '/de/')
                       ? 'bg-teal-50 text-teal-700'
                       : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'
                   ]}
                 >
                   {item.label}
+                  {item.badge && (
+                    <span class="text-[10px] font-semibold uppercase tracking-wide text-teal-600 bg-teal-50 px-1.5 py-0.5 rounded">
+                      {item.badge}
+                    </span>
+                  )}
                 </a>
               </li>
             ))}
