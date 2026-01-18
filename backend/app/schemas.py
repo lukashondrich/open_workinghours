@@ -269,6 +269,32 @@ class StatsByStateSpecialtyOut(BaseModel):
 
 # Feedback / Bug Reports
 
+class GpsTelemetryEvent(BaseModel):
+    """Single GPS telemetry event from geofencing"""
+    timestamp: str
+    event_type: str  # "enter" | "exit"
+    accuracy_meters: float | None = None
+    ignored: bool = False
+    ignore_reason: str | None = None
+    location_name: str = "Unknown"
+
+
+class GpsAccuracyStats(BaseModel):
+    """GPS accuracy statistics"""
+    min: float = 0
+    max: float = 0
+    avg: float = 0
+    count: int = 0
+
+
+class GpsTelemetry(BaseModel):
+    """GPS telemetry data for parameter tuning"""
+    recent_events: list[GpsTelemetryEvent] = Field(default_factory=list)
+    accuracy_stats: GpsAccuracyStats = Field(default_factory=GpsAccuracyStats)
+    ignored_events_count: int = 0
+    signal_degradation_count: int = 0
+
+
 class FeedbackIn(BaseModel):
     """Bug report / feedback submission from mobile app"""
     user_id: str | None = None
@@ -293,6 +319,9 @@ class FeedbackIn(BaseModel):
     platform: str
     device_model: str | None = None
     os_version: str | None = None
+
+    # GPS telemetry for parameter tuning (geofence debugging)
+    gps_telemetry: GpsTelemetry | None = None
 
     # User's description (optional - they might just send app state)
     description: str | None = None

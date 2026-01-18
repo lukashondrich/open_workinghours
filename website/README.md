@@ -18,6 +18,8 @@ Public-facing project dossier website for outreach to unions, professional assoc
 | `/team` | Team & advisors |
 | `/imprint` | German Impressum (legal) |
 | `/privacy-policy` | GDPR privacy policy |
+| `/dashboard` | Public dashboard - coverage map, progress, contact form (EN) |
+| `/de/dashboard` | Public dashboard (DE) |
 
 ## Development
 
@@ -96,3 +98,37 @@ const { description = 'Your description here' } = Astro.props;
 ### Components
 - `DiagramPlaceholder` - Blueprint-style placeholder for technical diagrams
 - `ScreenshotPlaceholder` - Phone-shaped placeholder for app screenshots
+
+---
+
+## Public Dashboard
+
+The `/dashboard` page provides a public-facing view of project progress.
+
+### Features
+- **Coverage Map**: SVG map of Germany with state-level status (inline SVG, with Datawrapper embed option)
+- **Progress Strip**: Contributor count, shifts confirmed, state coverage
+- **Trust Section**: K-anonymity explanation, privacy bullet points
+- **Contact Form**: Institution inquiry form (unions, researchers, press)
+- **Bilingual**: EN (`/dashboard`) and DE (`/de/dashboard`)
+
+### Map Implementation
+
+The dashboard currently includes:
+1. **Inline SVG map**: Static Germany map with 16 states, styled by coverage status
+2. **Datawrapper embed**: Optional choropleth map that updates dynamically via API
+
+The Datawrapper map is updated via backend endpoint. See `backend/ARCHITECTURE.md` for details.
+
+### Backend Integration
+
+The dashboard fetches data from these backend endpoints:
+- `GET /dashboard/coverage` - Per-state contributor counts
+- `GET /dashboard/activity` - 30-day rolling activity stats
+- `GET /dashboard/map-embed` - Datawrapper embed URL
+- `POST /dashboard/contact` - Institution contact form submission
+
+### Pending Items
+- Contact form email notification to admin (not yet implemented)
+- `contact@openworkinghours.org` email setup
+- App Store link (placeholder until available)

@@ -1,6 +1,6 @@
 # Claude Context: Open Working Hours
 
-**Last Updated:** 2026-01-16
+**Last Updated:** 2026-01-18
 **Current Build:** #30 (ready for TestFlight upload)
 
 ---
@@ -135,6 +135,15 @@ Start feature → Create *_PLAN.md → Complete → Extract to ARCHITECTURE.md �
 ---
 
 ## Recent Updates (Last 7 Days)
+
+### 2026-01-18: Public Dashboard
+- **Planning:** `docs/PUBLIC_DASHBOARD_PLAN.md` (Phase 1 in progress)
+- **Backend endpoints:** `/dashboard/coverage`, `/dashboard/activity`, `/dashboard/contact`, `/dashboard/map-update`
+- **Datawrapper integration:** Choropleth map of Germany, updated via API
+- **Website pages:** `/dashboard` (EN), `/de/dashboard` (DE) with coverage map, progress strip, contact form
+- **Files:** `backend/app/routers/dashboard.py`, `backend/app/services/datawrapper.py`
+- **Pending:** Contact form email notification, `contact@openworkinghours.org` setup
+- See `backend/ARCHITECTURE.md` → "Public Dashboard" and `website/README.md` → "Public Dashboard"
 
 ### 2026-01-16: Session State Bug Fix
 - **Bug**: StatusScreen showed "Clock In" but clicking gave "Already clocked in" error

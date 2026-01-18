@@ -1,5 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import InteractiveMap from '../components/InteractiveMap/InteractiveMap.tsx';
 
 // API base URL - use environment variable in production
 const API_BASE = import.meta.env.PUBLIC_API_URL || 'https://api.openworkinghours.org';
@@ -44,82 +45,7 @@ const API_BASE = import.meta.env.PUBLIC_API_URL || 'https://api.openworkinghours
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <!-- Map Container -->
         <div class="lg:col-span-2 bg-stone-50 rounded-xl p-6 min-h-[400px]" id="map-container">
-          <!-- Datawrapper embed (loaded dynamically) or fallback SVG -->
-          <div id="datawrapper-map" class="w-full hidden">
-            <!-- Datawrapper iframe will be inserted here -->
-          </div>
-
-          <!-- Fallback SVG Map (shown if Datawrapper not available) -->
-          <div class="w-full max-w-md mx-auto" id="germany-map">
-            <svg viewBox="0 0 400 500" class="w-full h-auto">
-              <!-- Simplified Germany map with 16 states -->
-              <!-- Each state is clickable and will show a tooltip -->
-
-              <!-- Schleswig-Holstein -->
-              <path id="SH" class="state-path" d="M200,20 L240,30 L250,60 L230,80 L200,70 L180,50 Z" data-state="SH" data-name="Schleswig-Holstein" />
-
-              <!-- Hamburg -->
-              <circle id="HH" class="state-path" cx="220" cy="85" r="8" data-state="HH" data-name="Hamburg" />
-
-              <!-- Mecklenburg-Vorpommern -->
-              <path id="MV" class="state-path" d="M250,40 L320,35 L340,70 L300,90 L250,80 Z" data-state="MV" data-name="Mecklenburg-Vorpommern" />
-
-              <!-- Bremen -->
-              <circle id="HB" class="state-path" cx="175" cy="100" r="6" data-state="HB" data-name="Bremen" />
-
-              <!-- Niedersachsen -->
-              <path id="NI" class="state-path" d="M120,80 L200,90 L220,140 L180,180 L100,160 L80,120 Z" data-state="NI" data-name="Niedersachsen" />
-
-              <!-- Brandenburg -->
-              <path id="BB" class="state-path" d="M280,100 L350,110 L360,180 L320,220 L260,200 L250,140 Z" data-state="BB" data-name="Brandenburg" />
-
-              <!-- Berlin -->
-              <circle id="BE" class="state-path" cx="305" cy="155" r="10" data-state="BE" data-name="Berlin" />
-
-              <!-- Sachsen-Anhalt -->
-              <path id="ST" class="state-path" d="M220,140 L280,130 L290,200 L250,230 L210,200 Z" data-state="ST" data-name="Sachsen-Anhalt" />
-
-              <!-- Nordrhein-Westfalen -->
-              <path id="NW" class="state-path" d="M80,160 L160,170 L170,240 L120,270 L60,230 Z" data-state="NW" data-name="Nordrhein-Westfalen" />
-
-              <!-- Hessen -->
-              <path id="HE" class="state-path" d="M140,240 L200,230 L210,300 L160,330 L130,290 Z" data-state="HE" data-name="Hessen" />
-
-              <!-- Thüringen -->
-              <path id="TH" class="state-path" d="M200,220 L270,210 L280,270 L230,290 L200,260 Z" data-state="TH" data-name="Thüringen" />
-
-              <!-- Sachsen -->
-              <path id="SN" class="state-path" d="M270,200 L350,190 L370,250 L320,290 L270,260 Z" data-state="SN" data-name="Sachsen" />
-
-              <!-- Rheinland-Pfalz -->
-              <path id="RP" class="state-path" d="M60,270 L130,280 L140,350 L80,380 L40,330 Z" data-state="RP" data-name="Rheinland-Pfalz" />
-
-              <!-- Saarland -->
-              <circle id="SL" class="state-path" cx="55" cy="365" r="12" data-state="SL" data-name="Saarland" />
-
-              <!-- Baden-Württemberg -->
-              <path id="BW" class="state-path" d="M100,350 L180,340 L200,420 L140,460 L80,420 Z" data-state="BW" data-name="Baden-Württemberg" />
-
-              <!-- Bayern -->
-              <path id="BY" class="state-path" d="M180,300 L290,280 L340,350 L300,450 L200,460 L160,380 Z" data-state="BY" data-name="Bayern" />
-            </svg>
-
-            <!-- Legend -->
-            <div class="flex justify-center gap-6 mt-4 text-sm">
-              <div class="flex items-center gap-2">
-                <span class="w-4 h-4 rounded bg-stone-300"></span>
-                <span class="text-stone-600">No data yet</span>
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="w-4 h-4 rounded bg-amber-400"></span>
-                <span class="text-stone-600">Building (1-10)</span>
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="w-4 h-4 rounded bg-teal-500"></span>
-                <span class="text-stone-600">Available (11+)</span>
-              </div>
-            </div>
-          </div>
+          <InteractiveMap client:load />
         </div>
 
         <!-- Stats Sidebar -->

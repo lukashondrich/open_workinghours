@@ -1,7 +1,8 @@
 # Public Dashboard Plan
 
 **Created:** 2026-01-17
-**Status:** Planning
+**Status:** Phase 1 In Progress
+**Last Updated:** 2026-01-18
 **Author:** Planning session with Claude
 
 ---
@@ -652,41 +653,53 @@ Current policy says "daily aggregation at 3 AM". Update to reflect:
 
 **Prerequisites (YOU):**
 - [ ] Set up `contact@openworkinghours.org` email
-- [ ] Create Datawrapper account (free tier works)
+- [x] Create Datawrapper account (free tier works)
 - [ ] Provide App Store / TestFlight link when ready
 
 **Backend:**
-- [ ] Add `GET /stats/coverage` endpoint (public, returns state coverage status)
-- [ ] Add `GET /stats/activity` endpoint (public, returns 30-day activity)
-- [ ] Add `POST /contact/institution` endpoint
-- [ ] Add `institution_inquiries` table + migration
+- [x] Add `GET /dashboard/coverage` endpoint (public, returns state coverage status)
+- [x] Add `GET /dashboard/activity` endpoint (public, returns 30-day activity)
+- [x] Add `POST /dashboard/contact` endpoint
+- [x] Add `institution_inquiries` table + migration
 - [ ] Email notification on new inquiry
 
 **Frontend (Astro + React):**
-- [ ] Create `/dashboard` page (EN)
-- [ ] Create `/de/dashboard` page (DE)
-- [ ] Hero section with CTAs
-- [ ] Coverage map (Datawrapper embed)
-- [ ] Progress strip component
-- [ ] "What becomes possible" preview section
-- [ ] Trust & method block
-- [ ] Institution section + contact form (React island)
-- [ ] Share section with social links
+- [x] Create `/dashboard` page (EN)
+- [x] Create `/de/dashboard` page (DE)
+- [x] Hero section with CTAs
+- [x] Coverage map (inline SVG + Datawrapper embed)
+- [x] Progress strip component
+- [x] "What becomes possible" preview section
+- [x] Trust & method block
+- [x] Institution section + contact form
+- [x] Share section with social links
 - [ ] OG meta tags for social sharing
 
 **Content (EN + DE):**
-- [ ] Dashboard headline and subhead
-- [ ] Progress strip labels
-- [ ] "What becomes possible" descriptions
-- [ ] Trust block bullet points
-- [ ] Institution pitch copy
-- [ ] Contact form labels
-- [ ] Share section copy
+- [x] Dashboard headline and subhead
+- [x] Progress strip labels
+- [x] "What becomes possible" descriptions
+- [x] Trust block bullet points
+- [x] Institution pitch copy
+- [x] Contact form labels
+- [x] Share section copy
 
 **Design:**
 - [ ] Create OG image (1200x630)
 - [ ] Design "unlocks at 11+" preview mockups (can be blurred real charts)
 - [ ] K-anonymity visual (11 people → 1 statistic)
+
+**Datawrapper Integration:**
+- [x] Created Datawrapper account and API token
+- [x] Backend service (`app/services/datawrapper.py`) for API integration
+- [x] Map update endpoint (`POST /dashboard/map-update`)
+- [x] Embed info endpoint (`GET /dashboard/map-embed`)
+- [ ] Determine minimum required API permissions (currently using all permissions)
+
+**Notes (2026-01-18):**
+- Endpoints use `/dashboard/*` prefix (not `/stats/*` as originally planned)
+- Both inline SVG map and Datawrapper embed exist; may consolidate later
+- Contact form stores to DB but doesn't send email notification yet
 
 ### Phase 2: Referral System + Polish
 

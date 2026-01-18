@@ -83,6 +83,27 @@ ADMIN_PASSWORD=...
 # Demo account for Apple App Review (keep secret!)
 DEMO__EMAIL=<your-demo-email>
 DEMO__CODE=<your-6-digit-code>
+
+# Datawrapper integration for public dashboard map (optional)
+DATAWRAPPER__API_TOKEN=<your-datawrapper-api-token>
+DATAWRAPPER__CHART_ID=KnU2C
+```
+
+### Datawrapper Setup
+
+The public dashboard uses Datawrapper to display a choropleth map of Germany.
+
+**Setup steps:**
+1. Create account at [datawrapper.de](https://www.datawrapper.de/)
+2. Create a choropleth map of Germany (Bundesländer)
+3. Generate API token in Account Settings → API Tokens
+4. Note: The exact permissions needed are still being determined. For now, grant all permissions to ensure publish works.
+5. Add token to `.env` file as `DATAWRAPPER__API_TOKEN`
+6. Chart ID is the 5-character code from the chart URL (e.g., `KnU2C`)
+
+**Manual map update:**
+```bash
+curl -X POST "https://api.openworkinghours.org/dashboard/map-update?admin_password=YOUR_PASSWORD"
 ```
 
 ---

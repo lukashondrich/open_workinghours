@@ -322,6 +322,82 @@ def get_dashboard_page(username: str = Depends(verify_admin)) -> str:
             margin-bottom: 4px;
         }
 
+        .gps-section {
+            margin-top: 16px;
+            padding: 12px;
+            background: #e3f2fd;
+            border-radius: 8px;
+        }
+
+        .gps-section h4 {
+            margin: 0 0 12px 0;
+            color: #1976d2;
+            font-size: 14px;
+        }
+
+        .gps-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .gps-stat {
+            background: white;
+            padding: 8px;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        .gps-stat-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #1976d2;
+        }
+
+        .gps-stat-label {
+            font-size: 11px;
+            color: #666;
+        }
+
+        .gps-events {
+            max-height: 200px;
+            overflow-y: auto;
+            background: white;
+            border-radius: 4px;
+            padding: 8px;
+        }
+
+        .gps-event {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 0;
+            border-bottom: 1px solid #eee;
+            font-size: 12px;
+        }
+
+        .gps-event:last-child {
+            border-bottom: none;
+        }
+
+        .gps-event-type {
+            font-weight: 600;
+        }
+
+        .gps-event-type.enter {
+            color: #2e7d32;
+        }
+
+        .gps-event-type.exit {
+            color: #c62828;
+        }
+
+        .gps-event-ignored {
+            color: #f57c00;
+            font-style: italic;
+        }
+
         .loading {
             text-align: center;
             padding: 40px;
@@ -543,6 +619,7 @@ def get_dashboard_page(username: str = Depends(verify_admin)) -> str:
                                         ${report.app_state.work_events.last_submission || 'Never'}
                                     </div>
                                 </div>
+                                ${renderGpsTelemetry(report.app_state.gps_telemetry)}
                             </div>
                         </div>
                     `;
@@ -557,6 +634,72 @@ def get_dashboard_page(username: str = Depends(verify_admin)) -> str:
         // Toggle report expansion
         function toggleReport(element) {
             element.classList.toggle('expanded');
+        }
+
+        // Render GPS telemetry section
+        function renderGpsTelemetry(telemetry) {
+            if (!telemetry) {
+                return '<div class="gps-section"><h4>GPS Telemetry</h4><p style="color: #666; font-size: 12px;">No GPS data available (older app version or not collected)</p></div>';
+            }
+
+            const stats = telemetry.accuracy_stats || {};
+            const events = telemetry.recent_events || [];
+
+            let eventsHtml = '';
+            if (events.length > 0) {
+                eventsHtml = events.slice(0, 50).map(e => {
+                    const time = new Date(e.timestamp).toLocaleString();
+                    const accuracy = e.accuracy_meters ? e.accuracy_meters.toFixed(1) + 'm' : 'N/A';
+                    const ignoredClass = e.ignored ? 'gps-event-ignored' : '';
+                    const ignoredNote = e.ignored ? ` (${e.ignore_reason || 'ignored'})` : '';
+
+                    return `
+                        <div class="gps-event ${ignoredClass}">
+                            <div>
+                                <span class="gps-event-type ${e.event_type}">${e.event_type.toUpperCase()}</span>
+                                @ ${e.location_name}${ignoredNote}
+                            </div>
+                            <div>
+                                <span title="Accuracy">${accuracy}</span>
+                                <span style="color: #999; margin-left: 8px;">${time}</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                eventsHtml = '<div style="color: #666; font-size: 12px;">No recent GPS events</div>';
+            }
+
+            return `
+                <div class="gps-section">
+                    <h4>GPS Telemetry (${events.length} events)</h4>
+                    <div class="gps-stats">
+                        <div class="gps-stat">
+                            <div class="gps-stat-value">${stats.avg ? stats.avg.toFixed(1) : 'N/A'}</div>
+                            <div class="gps-stat-label">Avg Accuracy (m)</div>
+                        </div>
+                        <div class="gps-stat">
+                            <div class="gps-stat-value">${stats.min ? stats.min.toFixed(1) : 'N/A'}</div>
+                            <div class="gps-stat-label">Min Accuracy (m)</div>
+                        </div>
+                        <div class="gps-stat">
+                            <div class="gps-stat-value">${stats.max ? stats.max.toFixed(1) : 'N/A'}</div>
+                            <div class="gps-stat-label">Max Accuracy (m)</div>
+                        </div>
+                        <div class="gps-stat">
+                            <div class="gps-stat-value">${telemetry.ignored_events_count || 0}</div>
+                            <div class="gps-stat-label">Ignored Events</div>
+                        </div>
+                        <div class="gps-stat">
+                            <div class="gps-stat-value">${telemetry.signal_degradation_count || 0}</div>
+                            <div class="gps-stat-label">Signal Degradation</div>
+                        </div>
+                    </div>
+                    <div class="gps-events">
+                        ${eventsHtml}
+                    </div>
+                </div>
+            `;
         }
     </script>
 </body>

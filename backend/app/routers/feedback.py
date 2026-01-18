@@ -50,6 +50,8 @@ def submit_feedback(
             "device_model": payload.device_model,
             "os_version": payload.os_version,
         },
+        # GPS telemetry for geofence parameter tuning
+        "gps_telemetry": payload.gps_telemetry.model_dump() if payload.gps_telemetry else None,
     }
 
     # Create feedback report
