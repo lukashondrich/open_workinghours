@@ -131,28 +131,19 @@ Requires `ADMIN_PASSWORD` authentication (HTTP Basic Auth).
 |--------|----------|-------------|
 | GET | `/dashboard/coverage` | Per-state contributor counts (public) |
 | GET | `/dashboard/activity` | 30-day rolling activity stats (public) |
-| GET | `/dashboard/map-embed` | Datawrapper embed info (public) |
 | POST | `/dashboard/contact` | Institution contact form (public) |
-| POST | `/dashboard/map-update` | Trigger Datawrapper map update (admin) |
 
 **Privacy Protections:**
 - Contributor counts shown as ranges ("1-10", "11-50") not exact numbers
 - Update timestamps at weekly precision (prevents timing attacks)
 - Threshold: 11+ contributors before showing as "available"
 
-**Datawrapper Integration:**
-- Choropleth map of Germany showing coverage by state
-- Updated via `/dashboard/map-update` endpoint (requires `admin_password`)
-- Chart ID: `KnU2C` (5 characters, configured in env)
-
-**Current update process (manual):**
-```bash
-curl -X POST "https://api.openworkinghours.org/dashboard/map-update?admin_password=YOUR_PASSWORD"
-```
+**Frontend Map:**
+The public dashboard uses a D3.js interactive map (self-hosted, no third-party dependencies).
+See `website/src/components/InteractiveMap/` and `docs/INTERACTIVE_MAP_PLAN.md`.
 
 **Files:**
 - `app/routers/dashboard.py` - Endpoints
-- `app/services/datawrapper.py` - Datawrapper API client
 - `app/models.py` - `InstitutionInquiry` model
 
 ---
@@ -343,8 +334,6 @@ docker logs owh-backend --tail 30
 | `ADMIN_PASSWORD` | Admin dashboard password |
 | `DEMO__EMAIL` | Demo account email |
 | `DEMO__CODE` | Demo account code |
-| `DATAWRAPPER__API_TOKEN` | Datawrapper API token (optional) |
-| `DATAWRAPPER__CHART_ID` | Datawrapper chart ID (default: KnU2C) |
 
 ### Configuration Files
 

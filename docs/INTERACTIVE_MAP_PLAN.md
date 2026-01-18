@@ -1,7 +1,7 @@
 # Interactive Map Plan
 
 **Created:** 2026-01-18
-**Status:** Phase 1 In Progress
+**Status:** Phase 1 Complete
 **Approach:** D3.js + GeoJSON (self-contained, no external runtime dependencies)
 
 ---
@@ -19,12 +19,13 @@ An interactive choropleth map of Germany showing:
 
 ## 2. Phases
 
-### Phase 1: Foundation (Current)
-- [ ] D3.js integration in Astro
-- [ ] Germany states choropleth (replace current SVG)
-- [ ] Hospital dots overlay
-- [ ] Basic hover tooltip (hospital name)
-- [ ] Zoom/pan controls
+### Phase 1: Foundation (Complete - 2026-01-18)
+- [x] D3.js integration in Astro
+- [x] Germany states choropleth (replace current SVG)
+- [x] Hospital dots overlay (1,220 hospitals)
+- [x] Basic hover tooltip (hospital name)
+- [x] Zoom/pan controls (+/-, reset, mouse wheel, drag)
+- [x] Dots scale inversely with zoom level
 
 ### Phase 2: Drill-Down
 - [ ] Click state → zoom in
@@ -152,7 +153,7 @@ website/
 | Question | Decision |
 |----------|----------|
 | Tooltip content | Hospital name only |
-| Dot sizing | Fixed size |
+| Dot sizing | ~~Fixed size~~ → Scale inversely with zoom (smaller when zoomed in) |
 | Mobile zoom | Buttons only (no pinch-to-zoom) |
 | Animation | None for now |
 

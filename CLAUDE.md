@@ -136,14 +136,17 @@ Start feature → Create *_PLAN.md → Complete → Extract to ARCHITECTURE.md �
 
 ## Recent Updates (Last 7 Days)
 
-### 2026-01-18: Public Dashboard
-- **Planning:** `docs/PUBLIC_DASHBOARD_PLAN.md` (Phase 1 in progress)
-- **Backend endpoints:** `/dashboard/coverage`, `/dashboard/activity`, `/dashboard/contact`, `/dashboard/map-update`
-- **Datawrapper integration:** Choropleth map of Germany, updated via API
-- **Website pages:** `/dashboard` (EN), `/de/dashboard` (DE) with coverage map, progress strip, contact form
-- **Files:** `backend/app/routers/dashboard.py`, `backend/app/services/datawrapper.py`
+### 2026-01-18: Public Dashboard + Interactive Map
+- **Planning:** `docs/PUBLIC_DASHBOARD_PLAN.md`, `docs/INTERACTIVE_MAP_PLAN.md` (Phase 1 complete)
+- **Backend endpoints:** `/dashboard/coverage`, `/dashboard/activity`, `/dashboard/contact`
+- **Interactive D3.js map:** Replaced Datawrapper with self-hosted solution (no third-party dependencies)
+  - 16 German states with choropleth coloring
+  - 1,220 hospital dots with hover tooltips
+  - Zoom/pan controls (buttons + mouse wheel + drag)
+- **Website pages:** `/dashboard` (EN), `/de/dashboard` (DE)
+- **Files:** `website/src/components/InteractiveMap/`, `backend/app/routers/dashboard.py`
 - **Pending:** Contact form email notification, `contact@openworkinghours.org` setup
-- See `backend/ARCHITECTURE.md` → "Public Dashboard" and `website/README.md` → "Public Dashboard"
+- See `docs/INTERACTIVE_MAP_PLAN.md` for map specification
 
 ### 2026-01-16: Session State Bug Fix
 - **Bug**: StatusScreen showed "Clock In" but clicking gave "Already clocked in" error

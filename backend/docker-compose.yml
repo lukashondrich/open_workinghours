@@ -40,9 +40,6 @@ services:
       # Demo account for Apple App Store review (optional)
       DEMO__EMAIL: ${DEMO__EMAIL:-}
       DEMO__CODE: ${DEMO__CODE:-}
-      # Datawrapper integration for public dashboard map (optional)
-      DATAWRAPPER__API_TOKEN: ${DATAWRAPPER__API_TOKEN:-}
-      DATAWRAPPER__CHART_ID: ${DATAWRAPPER__CHART_ID:-KnU2C}
     ports:
       - "8000:8000"
     depends_on:

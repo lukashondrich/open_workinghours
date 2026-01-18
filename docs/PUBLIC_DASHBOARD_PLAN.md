@@ -689,16 +689,13 @@ Current policy says "daily aggregation at 3 AM". Update to reflect:
 - [ ] Design "unlocks at 11+" preview mockups (can be blurred real charts)
 - [ ] K-anonymity visual (11 people → 1 statistic)
 
-**Datawrapper Integration:**
-- [x] Created Datawrapper account and API token
-- [x] Backend service (`app/services/datawrapper.py`) for API integration
-- [x] Map update endpoint (`POST /dashboard/map-update`)
-- [x] Embed info endpoint (`GET /dashboard/map-embed`)
-- [ ] Determine minimum required API permissions (currently using all permissions)
+**Map Implementation (2026-01-18):**
+- [x] ~~Datawrapper integration~~ → Replaced with D3.js (self-hosted, no third-party deps)
+- [x] Interactive map with zoom/pan, hospital dots, tooltips
+- See `docs/INTERACTIVE_MAP_PLAN.md` for full specification
 
 **Notes (2026-01-18):**
 - Endpoints use `/dashboard/*` prefix (not `/stats/*` as originally planned)
-- Both inline SVG map and Datawrapper embed exist; may consolidate later
 - Contact form stores to DB but doesn't send email notification yet
 
 ### Phase 2: Referral System + Polish

@@ -106,7 +106,7 @@ const { description = 'Your description here' } = Astro.props;
 The `/dashboard` page provides a public-facing view of project progress.
 
 ### Features
-- **Coverage Map**: SVG map of Germany with state-level status (inline SVG, with Datawrapper embed option)
+- **Interactive Map**: D3.js choropleth map of Germany with zoom/pan, hospital dots, tooltips
 - **Progress Strip**: Contributor count, shifts confirmed, state coverage
 - **Trust Section**: K-anonymity explanation, privacy bullet points
 - **Contact Form**: Institution inquiry form (unions, researchers, press)
@@ -114,18 +114,25 @@ The `/dashboard` page provides a public-facing view of project progress.
 
 ### Map Implementation
 
-The dashboard currently includes:
-1. **Inline SVG map**: Static Germany map with 16 states, styled by coverage status
-2. **Datawrapper embed**: Optional choropleth map that updates dynamically via API
+The dashboard uses a self-hosted D3.js interactive map with:
+- 16 German states with coverage status coloring (grey/amber/green)
+- 1,220 hospital locations as interactive dots
+- Hover tooltips showing hospital names
+- Zoom controls (+/-, reset) and mouse wheel/drag
+- No external runtime dependencies (all data bundled)
 
-The Datawrapper map is updated via backend endpoint. See `backend/ARCHITECTURE.md` for details.
+**Files:**
+- `src/components/InteractiveMap/InteractiveMap.tsx` - React/D3 component
+- `src/components/InteractiveMap/germany-states.json` - GeoJSON (97KB)
+- `src/components/InteractiveMap/hospitals.json` - Hospital coordinates
+
+See `docs/INTERACTIVE_MAP_PLAN.md` for full specification.
 
 ### Backend Integration
 
 The dashboard fetches data from these backend endpoints:
 - `GET /dashboard/coverage` - Per-state contributor counts
 - `GET /dashboard/activity` - 30-day rolling activity stats
-- `GET /dashboard/map-embed` - Datawrapper embed URL
 - `POST /dashboard/contact` - Institution contact form submission
 
 ### Pending Items

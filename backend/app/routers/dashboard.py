@@ -15,7 +15,6 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from ..config import get_settings
 from ..database import get_db
 from ..models import InstitutionInquiry, User, WorkEvent
 from ..schemas import (
@@ -25,7 +24,6 @@ from ..schemas import (
     InstitutionInquiryOut,
     StateCoverageOut,
 )
-from ..services.datawrapper import get_embed_code, update_datawrapper_map
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
@@ -250,57 +248,3 @@ def submit_institution_inquiry(
         message="Thank you for your inquiry. We will respond within 2-3 business days.",
         inquiry_id=db_inquiry.inquiry_id,
     )
-
-
-@router.get("/map-embed")
-def get_map_embed() -> dict:
-    """
-    Get the Datawrapper map embed information.
-
-    Returns the chart ID and embed code for the frontend to use.
-    """
-    settings = get_settings()
-
-    if not settings.datawrapper:
-        return {
-            "enabled": False,
-            "chart_id": None,
-            "embed_url": None,
-        }
-
-    chart_id = settings.datawrapper.chart_id
-
-    return {
-        "enabled": True,
-        "chart_id": chart_id,
-        "embed_url": f"https://datawrapper.dwcdn.net/{chart_id}/",
-    }
-
-
-@router.post("/map-update")
-def trigger_map_update(
-    db: Session = Depends(get_db),
-    admin_password: str | None = None,
-) -> dict:
-    """
-    Trigger an update of the Datawrapper map.
-
-    This endpoint updates the map with current coverage data.
-    Requires admin password for security.
-
-    In production, this is called by the daily aggregation cron job.
-    """
-    settings = get_settings()
-
-    # Simple admin check (reuse existing admin password)
-    # In production, you might want a more robust auth mechanism
-    import os
-    expected_password = os.environ.get("ADMIN_PASSWORD", "")
-    if admin_password != expected_password:
-        raise HTTPException(status_code=403, detail="Admin password required")
-
-    if not settings.datawrapper:
-        return {"success": False, "error": "Datawrapper not configured"}
-
-    result = update_datawrapper_map(db)
-    return result

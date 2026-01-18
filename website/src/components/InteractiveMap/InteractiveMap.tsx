@@ -118,8 +118,10 @@ export default function InteractiveMap() {
 
     // Draw hospital dots
     const hospitals = hospitalsData as Hospital[];
+    const baseRadius = 3;
+    const hoverRadius = 5;
 
-    g.selectAll('circle')
+    const circles = g.selectAll('circle')
       .data(hospitals)
       .join('circle')
       .attr('cx', d => {
@@ -130,12 +132,15 @@ export default function InteractiveMap() {
         const coords = projection([d.lon, d.lat]);
         return coords ? coords[1] : 0;
       })
-      .attr('r', 3)
+      .attr('r', baseRadius)
       .attr('fill', colors.hospitalDot)
       .attr('opacity', 0.7)
       .attr('cursor', 'pointer')
       .on('mouseenter', (event, d) => {
-        d3.select(event.target).attr('fill', colors.hospitalHover).attr('r', 5);
+        const currentScale = d3.zoomTransform(svg.node()!).k;
+        d3.select(event.target)
+          .attr('fill', colors.hospitalHover)
+          .attr('r', hoverRadius / currentScale);
         const rect = container.getBoundingClientRect();
         setTooltip({
           x: event.clientX - rect.left,
@@ -144,7 +149,10 @@ export default function InteractiveMap() {
         });
       })
       .on('mouseleave', (event) => {
-        d3.select(event.target).attr('fill', colors.hospitalDot).attr('r', 3);
+        const currentScale = d3.zoomTransform(svg.node()!).k;
+        d3.select(event.target)
+          .attr('fill', colors.hospitalDot)
+          .attr('r', baseRadius / currentScale);
         setTooltip(null);
       });
 
@@ -153,6 +161,8 @@ export default function InteractiveMap() {
       .scaleExtent([1, 8])
       .on('zoom', (event) => {
         g.attr('transform', event.transform);
+        // Scale dots inversely with zoom to keep them visually consistent
+        circles.attr('r', baseRadius / event.transform.k);
       });
 
     svg.call(zoom);
