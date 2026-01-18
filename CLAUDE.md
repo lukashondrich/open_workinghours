@@ -143,8 +143,15 @@ Start feature → Create *_PLAN.md → Complete → Extract to ARCHITECTURE.md �
   - 16 German states with choropleth coloring
   - 1,220 hospital dots with hover tooltips
   - Zoom/pan controls (buttons + mouse wheel + drag)
+  - Bilingual support (EN/DE) via `locale` prop
 - **Website pages:** `/dashboard` (EN), `/de/dashboard` (DE)
+- **Navigation updates:**
+  - Reordered nav: Product before Dashboard
+  - Added "Live" badge to Dashboard
+  - Homepage hero links to dashboard
+  - Product page links to dashboard (replaced static screenshot)
 - **Files:** `website/src/components/InteractiveMap/`, `backend/app/routers/dashboard.py`
+- **Removed:** Datawrapper integration (service, endpoints, env vars) - D3.js approach is fully self-contained
 - **Pending:** Contact form email notification, `contact@openworkinghours.org` setup
 - See `docs/INTERACTIVE_MAP_PLAN.md` for map specification
 

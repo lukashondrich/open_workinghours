@@ -26,6 +26,7 @@ An interactive choropleth map of Germany showing:
 - [x] Basic hover tooltip (hospital name)
 - [x] Zoom/pan controls (+/-, reset, mouse wheel, drag)
 - [x] Dots scale inversely with zoom level
+- [x] Bilingual support (EN/DE) via `locale` prop
 
 ### Phase 2: Drill-Down
 - [ ] Click state → zoom in

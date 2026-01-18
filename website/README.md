@@ -119,6 +119,7 @@ The dashboard uses a self-hosted D3.js interactive map with:
 - 1,220 hospital locations as interactive dots
 - Hover tooltips showing hospital names
 - Zoom controls (+/-, reset) and mouse wheel/drag
+- Bilingual labels via `locale` prop (`en` or `de`)
 - No external runtime dependencies (all data bundled)
 
 **Files:**
@@ -127,6 +128,16 @@ The dashboard uses a self-hosted D3.js interactive map with:
 - `src/components/InteractiveMap/hospitals.json` - Hospital coordinates
 
 See `docs/INTERACTIVE_MAP_PLAN.md` for full specification.
+
+### Navigation & Cross-Linking
+
+**Nav order:** Dossier → Product → Dashboard (Live) → Privacy → Team
+
+**Cross-links to Dashboard:**
+- Homepage hero: "See current coverage across Germany →"
+- Product page: "View live coverage map →" (replaced static screenshot)
+
+The "Live" badge on Dashboard indicates real-time data from the backend API.
 
 ### Backend Integration
 

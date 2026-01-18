@@ -1,7 +1,7 @@
 # Public Dashboard Plan
 
 **Created:** 2026-01-17
-**Status:** Phase 1 In Progress
+**Status:** Phase 1 Complete
 **Last Updated:** 2026-01-18
 **Author:** Planning session with Claude
 
@@ -653,7 +653,7 @@ Current policy says "daily aggregation at 3 AM". Update to reflect:
 
 **Prerequisites (YOU):**
 - [ ] Set up `contact@openworkinghours.org` email
-- [x] Create Datawrapper account (free tier works)
+- [x] ~~Create Datawrapper account~~ (no longer needed - using D3.js)
 - [ ] Provide App Store / TestFlight link when ready
 
 **Backend:**
@@ -667,7 +667,7 @@ Current policy says "daily aggregation at 3 AM". Update to reflect:
 - [x] Create `/dashboard` page (EN)
 - [x] Create `/de/dashboard` page (DE)
 - [x] Hero section with CTAs
-- [x] Coverage map (inline SVG + Datawrapper embed)
+- [x] Coverage map (D3.js interactive map)
 - [x] Progress strip component
 - [x] "What becomes possible" preview section
 - [x] Trust & method block
@@ -697,6 +697,8 @@ Current policy says "daily aggregation at 3 AM". Update to reflect:
 **Notes (2026-01-18):**
 - Endpoints use `/dashboard/*` prefix (not `/stats/*` as originally planned)
 - Contact form stores to DB but doesn't send email notification yet
+- Nav reordered: Product → Dashboard (with "Live" badge)
+- Cross-links added: homepage hero and product page link to dashboard
 
 ### Phase 2: Referral System + Polish
 
