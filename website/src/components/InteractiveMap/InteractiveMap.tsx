@@ -14,6 +14,25 @@ interface Hospital {
   state: string;
 }
 
+interface Props {
+  locale?: 'en' | 'de';
+}
+
+const labels = {
+  en: {
+    hospital: 'Hospital',
+    noData: 'No data yet',
+    building: 'Building (1-10)',
+    available: 'Available (11+)',
+  },
+  de: {
+    hospital: 'Krankenhaus',
+    noData: 'Keine Daten',
+    building: 'Im Aufbau (1-10)',
+    available: 'Verfügbar (11+)',
+  },
+};
+
 interface CoverageData {
   [stateCode: string]: number; // 0 = no data, 1 = building, 2 = available
 }
@@ -56,10 +75,11 @@ function getStateColor(status: number): string {
   }
 }
 
-export default function InteractiveMap() {
+export default function InteractiveMap({ locale = 'en' }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [tooltip, setTooltip] = useState<{ x: number; y: number; name: string } | null>(null);
+  const t = labels[locale];
 
   // Mock coverage data for now (all states = no data)
   const [coverage] = useState<CoverageData>(() => {
@@ -251,19 +271,19 @@ export default function InteractiveMap() {
       <div className="flex items-center justify-center gap-6 mt-4 text-sm text-stone-600">
         <div className="flex items-center gap-2">
           <span className="w-3 h-3 rounded-full" style={{ backgroundColor: colors.hospitalDot }} />
-          <span>Hospital</span>
+          <span>{t.hospital}</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="w-4 h-3 rounded-sm" style={{ backgroundColor: colors.noData }} />
-          <span>No data yet</span>
+          <span>{t.noData}</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="w-4 h-3 rounded-sm" style={{ backgroundColor: colors.building }} />
-          <span>Building (1-10)</span>
+          <span>{t.building}</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="w-4 h-3 rounded-sm" style={{ backgroundColor: colors.available }} />
-          <span>Available (11+)</span>
+          <span>{t.available}</span>
         </div>
       </div>
     </div>
