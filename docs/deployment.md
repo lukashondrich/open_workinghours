@@ -48,14 +48,8 @@ cd ~/open_workinghours/backend
 # Pull latest changes
 git pull origin main
 
-# Stop containers
-docker compose down
-
-# Rebuild backend image (REQUIRED for code changes)
-docker compose build --no-cache backend
-
-# Start containers
-docker compose up -d
+# Rebuild and restart (single command)
+docker compose down && docker compose build --no-cache backend && docker compose up -d
 
 # Verify both containers are running (not "Restarting")
 docker ps
