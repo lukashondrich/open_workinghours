@@ -55,6 +55,7 @@ class Settings(BaseSettings):
         env_nested_delimiter = "__"
         env_file = ".env"
         env_file_encoding = "utf-8"
+        extra = "ignore"  # Allow extra env vars (e.g., ADMIN_PASSWORD used via os.getenv)
 
     @validator("environment")
     def _normalize_environment(cls, value: str) -> str:
