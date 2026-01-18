@@ -34,6 +34,13 @@ class DemoSettings(BaseModel):
     code: str = Field(min_length=6, max_length=6)
 
 
+class DatawrapperSettings(BaseModel):
+    """Datawrapper API settings for public dashboard map."""
+
+    api_token: str = Field(..., min_length=10)
+    chart_id: str = Field(default="KnU2C")  # Germany states choropleth map
+
+
 class Settings(BaseSettings):
     environment: str = Field(default="development")
     allowed_email_domains_file: Path | None = Field(default=None)
@@ -42,6 +49,7 @@ class Settings(BaseSettings):
     database: DatabaseSettings
     email: EmailSettings | None = None
     demo: DemoSettings | None = None  # Optional demo account for App Store review
+    datawrapper: DatawrapperSettings | None = None  # Optional Datawrapper integration
 
     class Config:
         env_nested_delimiter = "__"

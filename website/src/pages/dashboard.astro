@@ -43,9 +43,14 @@ const API_BASE = import.meta.env.PUBLIC_API_URL || 'https://api.openworkinghours
 
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <!-- Map Container -->
-        <div class="lg:col-span-2 bg-stone-50 rounded-xl p-6 min-h-[400px] flex items-center justify-center">
-          <!-- Germany Map SVG - will be replaced with Datawrapper embed -->
-          <div class="w-full max-w-md" id="germany-map">
+        <div class="lg:col-span-2 bg-stone-50 rounded-xl p-6 min-h-[400px]" id="map-container">
+          <!-- Datawrapper embed (loaded dynamically) or fallback SVG -->
+          <div id="datawrapper-map" class="w-full hidden">
+            <!-- Datawrapper iframe will be inserted here -->
+          </div>
+
+          <!-- Fallback SVG Map (shown if Datawrapper not available) -->
+          <div class="w-full max-w-md mx-auto" id="germany-map">
             <svg viewBox="0 0 400 500" class="w-full h-auto">
               <!-- Simplified Germany map with 16 states -->
               <!-- Each state is clickable and will show a tooltip -->
@@ -569,29 +574,84 @@ const API_BASE = import.meta.env.PUBLIC_API_URL || 'https://api.openworkinghours
 </style>
 
 <script define:vars={{ API_BASE }}>
-  // Fetch coverage data and update map
+  // Check for Datawrapper embed and load it if available
+  async function loadDatawrapperMap() {
+    try {
+      const response = await fetch(`${API_BASE}/dashboard/map-embed`);
+      if (!response.ok) return false;
+      const data = await response.json();
+
+      if (data.enabled && data.embed_url) {
+        const container = document.getElementById('datawrapper-map');
+        const fallback = document.getElementById('germany-map');
+
+        if (container) {
+          // Create iframe
+          const iframe = document.createElement('iframe');
+          iframe.title = 'Healthcare Coverage Map';
+          iframe.setAttribute('aria-label', 'Map');
+          iframe.src = data.embed_url;
+          iframe.scrolling = 'no';
+          iframe.frameBorder = '0';
+          iframe.style.cssText = 'width: 0; min-width: 100% !important; border: none;';
+          iframe.height = '500';
+          iframe.dataset.external = '1';
+
+          container.appendChild(iframe);
+          container.classList.remove('hidden');
+
+          // Hide fallback SVG
+          if (fallback) {
+            fallback.classList.add('hidden');
+          }
+
+          // Add Datawrapper resize script
+          window.addEventListener('message', function(e) {
+            if (e.data['datawrapper-height'] !== undefined) {
+              const heights = e.data['datawrapper-height'];
+              for (const chartId in heights) {
+                if (iframe.contentWindow === e.source) {
+                  iframe.style.height = heights[chartId] + 'px';
+                }
+              }
+            }
+          });
+
+          return true;
+        }
+      }
+    } catch (error) {
+      console.error('Error loading Datawrapper map:', error);
+    }
+    return false;
+  }
+
+  // Fetch coverage data and update SVG map (fallback)
   async function loadCoverageData() {
     try {
       const response = await fetch(`${API_BASE}/dashboard/coverage`);
       if (!response.ok) throw new Error('Failed to fetch coverage data');
       const data = await response.json();
 
-      // Update map states
-      data.states.forEach(state => {
-        const el = document.getElementById(state.state_code);
-        if (el) {
-          el.classList.remove('building', 'available');
-          if (state.status === 'building') {
-            el.classList.add('building');
-          } else if (state.status === 'available') {
-            el.classList.add('available');
-          }
+      // Update SVG map states (only if visible)
+      const svgMap = document.getElementById('germany-map');
+      if (svgMap && !svgMap.classList.contains('hidden')) {
+        data.states.forEach(state => {
+          const el = document.getElementById(state.state_code);
+          if (el) {
+            el.classList.remove('building', 'available');
+            if (state.status === 'building') {
+              el.classList.add('building');
+            } else if (state.status === 'available') {
+              el.classList.add('available');
+            }
 
-          // Add tooltip data
-          el.setAttribute('data-contributors', state.contributors_range);
-          el.setAttribute('data-status', state.status);
-        }
-      });
+            // Add tooltip data
+            el.setAttribute('data-contributors', state.contributors_range);
+            el.setAttribute('data-status', state.status);
+          }
+        });
+      }
     } catch (error) {
       console.error('Error loading coverage data:', error);
     }
@@ -690,8 +750,16 @@ const API_BASE = import.meta.env.PUBLIC_API_URL || 'https://api.openworkinghours
   });
 
   // Load data on page load
-  document.addEventListener('DOMContentLoaded', () => {
-    loadCoverageData();
+  document.addEventListener('DOMContentLoaded', async () => {
+    // Try to load Datawrapper map first
+    const datawrapperLoaded = await loadDatawrapperMap();
+
+    // If Datawrapper not available, load coverage data for SVG fallback
+    if (!datawrapperLoaded) {
+      loadCoverageData();
+    }
+
+    // Always load activity stats
     loadActivityData();
   });
 </script>
