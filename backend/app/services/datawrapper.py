@@ -138,30 +138,42 @@ def update_datawrapper_map(db: Session) -> dict:
 
         logger.info(f"Updating Datawrapper chart {chart_id} with {len(data)} states")
 
-        # 2. Upload data to chart
+        # 2. First configure axes to tell Datawrapper which columns to use
+        axes_metadata = {
+            "metadata": {
+                "axes": {
+                    "keys": "name",
+                    "values": "value",
+                },
+            },
+        }
+
+        axes_resp = requests.patch(
+            f"{API_BASE}/charts/{chart_id}",
+            headers={**headers, "Content-Type": "application/json"},
+            json=axes_metadata,
+            timeout=30,
+        )
+        if not axes_resp.ok:
+            logger.error(f"Datawrapper axes config failed: {axes_resp.status_code} - {axes_resp.text}")
+            return {"success": False, "error": f"Axes config failed: {axes_resp.text}"}
+
+        # 3. Upload data to chart
         upload_resp = requests.put(
             f"{API_BASE}/charts/{chart_id}/data",
             headers={**headers, "Content-Type": "text/csv"},
             data=csv_data,
             timeout=30,
         )
-        upload_resp.raise_for_status()
+        if not upload_resp.ok:
+            logger.error(f"Datawrapper upload failed: {upload_resp.status_code} - {upload_resp.text}")
+            return {"success": False, "error": f"Upload failed: {upload_resp.text}"}
 
-        # 3. Update chart metadata (colors and legend)
+        # 4. Update chart metadata (colors and legend)
         metadata = {
-            "visualize": {
-                "basemap": "germany-states",
-                "map-type-key": "name",
-                "map-type-val": "value",
-                "legend": {
-                    "enabled": True,
-                    "title": "Coverage Status",
-                    "labels": ["No data", "Building (1-10)", "Available (11+)"],
-                },
-                # Custom colors: grey, amber, teal
-                "colors": {
-                    "steps": 3,
-                    "palette": ["#d6d3d1", "#fbbf24", "#2E8B6B"],
+            "metadata": {
+                "visualize": {
+                    "map-key-attr": "name",
                 },
             },
         }
@@ -169,18 +181,22 @@ def update_datawrapper_map(db: Session) -> dict:
         metadata_resp = requests.patch(
             f"{API_BASE}/charts/{chart_id}",
             headers={**headers, "Content-Type": "application/json"},
-            json={"metadata": metadata},
+            json=metadata,
             timeout=30,
         )
-        metadata_resp.raise_for_status()
+        if not metadata_resp.ok:
+            logger.error(f"Datawrapper metadata update failed: {metadata_resp.status_code} - {metadata_resp.text}")
+            return {"success": False, "error": f"Metadata update failed: {metadata_resp.text}"}
 
-        # 4. Publish the chart
+        # 5. Publish the chart
         publish_resp = requests.post(
             f"{API_BASE}/charts/{chart_id}/publish",
             headers=headers,
             timeout=30,
         )
-        publish_resp.raise_for_status()
+        if not publish_resp.ok:
+            logger.error(f"Datawrapper publish failed: {publish_resp.status_code} - {publish_resp.text}")
+            return {"success": False, "error": f"Publish failed: {publish_resp.text}"}
 
         publish_data = publish_resp.json()
 
