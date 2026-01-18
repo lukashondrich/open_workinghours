@@ -3,7 +3,18 @@ import LayoutDE from '../../layouts/LayoutDE.astro';
 ---
 
 <LayoutDE title="Datenschutzerklärung" description="Datenschutzerklärung für die Open Working Hours Website.">
+  <Fragment slot="head">
+    <link rel="alternate" hreflang="de" href="https://openworkinghours.org/de/datenschutzerklaerung" />
+    <link rel="alternate" hreflang="en" href="https://openworkinghours.org/privacy-policy" />
+  </Fragment>
+
   <div class="max-w-3xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
+    <!-- Language Switch -->
+    <div class="mb-6 text-sm">
+      <span class="text-stone-400">English:</span>
+      <a href="/privacy-policy" class="text-teal-600 hover:text-teal-700 ml-1">Privacy Policy</a>
+    </div>
+
     <header class="mb-8">
       <h1 class="text-stone-900">Datenschutzerklärung (Website)</h1>
     </header>

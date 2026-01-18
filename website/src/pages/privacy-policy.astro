@@ -3,47 +3,58 @@ import Layout from '../layouts/Layout.astro';
 ---
 
 <Layout title="Privacy Policy" description="Privacy policy for the Open Working Hours website.">
+  <Fragment slot="head">
+    <link rel="alternate" hreflang="en" href="https://openworkinghours.org/privacy-policy" />
+    <link rel="alternate" hreflang="de" href="https://openworkinghours.org/de/datenschutzerklaerung" />
+  </Fragment>
+
   <div class="max-w-3xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
+    <!-- Language Switch -->
+    <div class="mb-6 text-sm">
+      <span class="text-stone-400">Deutsch:</span>
+      <a href="/de/datenschutzerklaerung" class="text-teal-600 hover:text-teal-700 ml-1">Datenschutzerklärung</a>
+    </div>
+
     <header class="mb-8">
-      <h1 class="text-stone-900">Datenschutzerklärung</h1>
-      <p class="text-stone-500 text-sm mt-2">Privacy Policy</p>
+      <h1 class="text-stone-900">Privacy Policy (Website)</h1>
     </header>
 
     <div class="prose text-stone-700 space-y-8">
-      <!-- Website Privacy -->
+      <!-- 1. General -->
       <section>
+        <h2 class="text-lg font-semibold text-stone-900 mb-3">1. General</h2>
+        <p class="text-stone-600 mb-4">
+          This website does not use tracking cookies, analytics tools, or marketing technologies.
+        </p>
         <p class="text-stone-600">
-          Diese Website speichert oder verarbeitet keine personenbezogenen Daten. Es werden keine Cookies gesetzt, keine Analysetools verwendet und keine Daten an Dritte weitergegeben.
-        </p>
-        <p class="text-stone-600 mt-4">
-          This website does not store or process any personal data. No cookies are set, no analytics tools are used, and no data is shared with third parties.
+          When you access this website, the hosting provider may process technically necessary server log data (e.g., IP address, timestamp, requested resource) to ensure operation and security. We do not use this data for marketing or profiling purposes.
         </p>
       </section>
 
-      <!-- Future Changes -->
+      <!-- 2. Mobile App -->
       <section>
-        <h2 class="text-lg font-semibold text-stone-900 mb-3">Zukünftige Änderungen</h2>
+        <h2 class="text-lg font-semibold text-stone-900 mb-3">2. Mobile App</h2>
         <p class="text-stone-600 text-sm">
-          Sollten zukünftig Funktionen hinzukommen, bei denen personenbezogene Daten verarbeitet werden (z. B. Kontaktformular, Tracking oder Nutzungsanalyse), wird diese Datenschutzerklärung entsprechend angepasst.
+          For information about data protection in the Open Working Hours mobile app, please see the <a href="/privacy" class="text-teal-600 hover:text-teal-700">Privacy page</a>.
         </p>
       </section>
 
-      <!-- App Privacy Reference -->
+      <!-- 3. Contact -->
       <section>
-        <h2 class="text-lg font-semibold text-stone-900 mb-3">Mobile App</h2>
-        <p class="text-stone-600 text-sm">
-          Informationen zum Datenschutz in der Open Working Hours Mobile App finden Sie auf der <a href="/privacy" class="text-teal-600 hover:text-teal-700">Datenschutz-Seite</a>.
-        </p>
-      </section>
-
-      <!-- Contact -->
-      <section>
-        <h2 class="text-lg font-semibold text-stone-900 mb-3">Kontakt</h2>
+        <h2 class="text-lg font-semibold text-stone-900 mb-3">3. Contact</h2>
         <p class="text-stone-600 text-sm">
           Lukas Jonathan Hondrich<br />
           Karl-Marx-Straße 182<br />
           12043 Berlin<br />
           Email: <a href="mailto:lukashondrich@gmail.com" class="text-teal-600 hover:text-teal-700">lukashondrich@gmail.com</a>
+        </p>
+      </section>
+
+      <!-- 4. Changes -->
+      <section>
+        <h2 class="text-lg font-semibold text-stone-900 mb-3">4. Changes</h2>
+        <p class="text-stone-600 text-sm">
+          If features that process personal data (e.g., contact form) are added in the future, this privacy policy will be updated accordingly.
         </p>
       </section>
     </div>

@@ -29,7 +29,7 @@ const labels = {
     hospital: 'Krankenhaus',
     noData: 'Keine Daten',
     building: 'Im Aufbau (1-10)',
-    available: 'Verfügbar (11+)',
+    available: 'Freigeschaltet (11+)',
   },
 };
 

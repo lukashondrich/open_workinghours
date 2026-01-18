@@ -3,7 +3,18 @@ import LayoutDE from '../../layouts/LayoutDE.astro';
 ---
 
 <LayoutDE title="Impressum" description="Impressum und Kontaktinformationen für Open Working Hours.">
+  <Fragment slot="head">
+    <link rel="alternate" hreflang="de" href="https://openworkinghours.org/de/impressum" />
+    <link rel="alternate" hreflang="en" href="https://openworkinghours.org/imprint" />
+  </Fragment>
+
   <div class="max-w-3xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
+    <!-- Language Switch -->
+    <div class="mb-6 text-sm">
+      <span class="text-stone-400">English:</span>
+      <a href="/imprint" class="text-teal-600 hover:text-teal-700 ml-1">Imprint</a>
+    </div>
+
     <header class="mb-8">
       <h1 class="text-stone-900">Impressum</h1>
       <p class="text-stone-500 text-sm mt-2">Angaben gemäß § 5 TMG</p>
