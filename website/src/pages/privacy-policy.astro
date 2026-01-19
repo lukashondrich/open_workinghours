@@ -6,56 +6,70 @@ import Layout from '../layouts/Layout.astro';
   <Fragment slot="head">
     <link rel="alternate" hreflang="en" href="https://openworkinghours.org/privacy-policy" />
     <link rel="alternate" hreflang="de" href="https://openworkinghours.org/de/datenschutzerklaerung" />
+    <link rel="canonical" href="https://openworkinghours.org/privacy-policy" />
   </Fragment>
 
   <div class="max-w-3xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
-    <!-- Language Switch -->
-    <div class="mb-6 text-sm">
-      <span class="text-stone-400">Deutsch:</span>
-      <a href="/de/datenschutzerklaerung" class="text-teal-600 hover:text-teal-700 ml-1">Datenschutzerklärung</a>
-    </div>
-
     <header class="mb-8">
       <h1 class="text-stone-900">Privacy Policy (Website)</h1>
     </header>
 
     <div class="prose text-stone-700 space-y-8">
-      <!-- 1. General -->
+      <!-- 1. Overview -->
       <section>
-        <h2 class="text-lg font-semibold text-stone-900 mb-3">1. General</h2>
-        <p class="text-stone-600 mb-4">
-          This website does not use tracking cookies, analytics tools, or marketing technologies.
-        </p>
+        <h2 class="text-lg font-semibold text-stone-900 mb-3">1. Overview</h2>
         <p class="text-stone-600">
-          When you access this website, the hosting provider may process technically necessary server log data (e.g., IP address, timestamp, requested resource) to ensure operation and security. We do not use this data for marketing or profiling purposes.
+          We do not use cookies for tracking and do not use analytics or marketing tools on this website.
         </p>
       </section>
 
-      <!-- 2. Mobile App -->
+      <!-- 2. Technical Server Logs -->
       <section>
-        <h2 class="text-lg font-semibold text-stone-900 mb-3">2. Mobile App</h2>
-        <p class="text-stone-600 text-sm">
-          For information about data protection in the Open Working Hours mobile app, please see the <a href="/privacy" class="text-teal-600 hover:text-teal-700">Privacy page</a>.
+        <h2 class="text-lg font-semibold text-stone-900 mb-3">2. Technical server logs</h2>
+        <p class="text-stone-600">
+          When you visit the website, the hosting provider may process technical server log data (e.g., IP address, timestamp, requested resource, user agent) to ensure secure and reliable operation of the website. We do not use this data for profiling or marketing.
         </p>
       </section>
 
-      <!-- 3. Contact -->
+      <!-- 3. Mobile App Privacy -->
       <section>
-        <h2 class="text-lg font-semibold text-stone-900 mb-3">3. Contact</h2>
-        <p class="text-stone-600 text-sm">
+        <h2 class="text-lg font-semibold text-stone-900 mb-3">3. Mobile app privacy</h2>
+        <p class="text-stone-600 mb-2">
+          Information about data protection in the Open Working Hours mobile app is provided here:
+        </p>
+        <ul class="text-stone-600">
+          <li><a href="/privacy" class="text-teal-600 hover:text-teal-700">App privacy principles</a></li>
+        </ul>
+      </section>
+
+      <!-- 4. Contact -->
+      <section>
+        <h2 class="text-lg font-semibold text-stone-900 mb-3">4. Contact</h2>
+        <p class="text-stone-600">
           Lukas Jonathan Hondrich<br />
           Karl-Marx-Straße 182<br />
           12043 Berlin<br />
+          Germany<br />
           Email: <a href="mailto:lukashondrich@gmail.com" class="text-teal-600 hover:text-teal-700">lukashondrich@gmail.com</a>
         </p>
       </section>
 
-      <!-- 4. Changes -->
+      <!-- 5. Updates -->
       <section>
-        <h2 class="text-lg font-semibold text-stone-900 mb-3">4. Changes</h2>
-        <p class="text-stone-600 text-sm">
-          If features that process personal data (e.g., contact form) are added in the future, this privacy policy will be updated accordingly.
+        <h2 class="text-lg font-semibold text-stone-900 mb-3">5. Updates</h2>
+        <p class="text-stone-600">
+          If we add features that require processing additional data (e.g., a contact form), we will update this policy accordingly.
         </p>
+      </section>
+
+      <!-- German Legal Pages -->
+      <section class="border-t border-stone-200 pt-6 mt-8">
+        <h2 class="text-lg font-semibold text-stone-900 mb-3">German legal pages</h2>
+        <p class="text-stone-600 mb-2">German versions are available here:</p>
+        <ul class="text-stone-600 space-y-1">
+          <li><a href="/de/datenschutzerklaerung" class="text-teal-600 hover:text-teal-700">Website Privacy Policy (DE)</a></li>
+          <li><a href="/de/impressum" class="text-teal-600 hover:text-teal-700">Impressum (DE)</a></li>
+        </ul>
       </section>
     </div>
   </div>
