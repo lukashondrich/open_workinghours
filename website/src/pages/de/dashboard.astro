@@ -63,9 +63,9 @@ const API_BASE = import.meta.env.PUBLIC_API_URL || 'https://api.openworkinghours
           </div>
 
           <div class="bg-white border border-stone-200 rounded-xl p-6">
-            <h3 class="text-sm font-medium text-stone-500 uppercase tracking-wide mb-1">Bundesländer</h3>
+            <h3 class="text-sm font-medium text-stone-500 uppercase tracking-wide mb-1">Bundesländer mit Daten</h3>
             <p class="text-3xl font-semibold text-stone-900" id="states-count">--</p>
-            <p class="text-sm text-stone-500">nahe an der Schwelle</p>
+            <p class="text-sm text-stone-500">im Aufbau zur Schwelle</p>
           </div>
 
           <div class="bg-teal-50 border border-teal-200 rounded-xl p-4">
@@ -421,8 +421,8 @@ const API_BASE = import.meta.env.PUBLIC_API_URL || 'https://api.openworkinghours
         Jeder Beitrag hilft, ein belastbares Bild der Arbeitsbedingungen im Gesundheitswesen aufzubauen – datenschutzkonform und aggregiert.
       </p>
 
-      <!-- App Store Buttons -->
-      <div class="flex flex-col sm:flex-row gap-4 justify-center mb-8">
+      <!-- App Store Button -->
+      <div class="mb-8">
         <a
           href="#"
           class="inline-flex items-center gap-3 bg-stone-900 text-white px-6 py-3 rounded-xl hover:bg-stone-800 transition-colors"
@@ -436,20 +436,7 @@ const API_BASE = import.meta.env.PUBLIC_API_URL || 'https://api.openworkinghours
             <div class="text-lg font-semibold">laden</div>
           </div>
         </a>
-
-        <a
-          href="#"
-          class="inline-flex items-center gap-3 bg-blue-600 text-white px-6 py-3 rounded-xl hover:bg-blue-700 transition-colors"
-          id="testflight-btn"
-        >
-          <svg class="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 18c-4.418 0-8-3.582-8-8s3.582-8 8-8 8 3.582 8 8-3.582 8-8 8zm-1-13v6l5 3-1 1.732-6-3.464V7h2z"/>
-          </svg>
-          <div class="text-left">
-            <div class="text-xs">TestFlight:</div>
-            <div class="text-lg font-semibold">bald verfügbar</div>
-          </div>
-        </a>
+        <p class="text-sm text-stone-500 mt-2">TestFlight: bald verfügbar</p>
       </div>
 
       <!-- Share Links -->
