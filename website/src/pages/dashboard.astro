@@ -63,9 +63,9 @@ const API_BASE = import.meta.env.PUBLIC_API_URL || 'https://api.openworkinghours
           </div>
 
           <div class="bg-white border border-stone-200 rounded-xl p-6">
-            <h3 class="text-sm font-medium text-stone-500 uppercase tracking-wide mb-1">States Building</h3>
+            <h3 class="text-sm font-medium text-stone-500 uppercase tracking-wide mb-1">States</h3>
             <p class="text-3xl font-semibold text-stone-900" id="states-count">--</p>
-            <p class="text-sm text-stone-500">toward threshold</p>
+            <p class="text-sm text-stone-500">nearing threshold</p>
           </div>
 
           <div class="bg-teal-50 border border-teal-200 rounded-xl p-4">
@@ -285,7 +285,7 @@ const API_BASE = import.meta.env.PUBLIC_API_URL || 'https://api.openworkinghours
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </span>
-              <span>K-anonymity standard (EMA/Health Canada threshold)</span>
+              <span>K-anonymity minimum standard (k=11)</span>
             </li>
             <li class="flex gap-3">
               <span class="text-teal-600 mt-1">
@@ -344,7 +344,7 @@ const API_BASE = import.meta.env.PUBLIC_API_URL || 'https://api.openworkinghours
                 <option value="">Select...</option>
                 <option value="union">Union representative</option>
                 <option value="researcher">Researcher</option>
-                <option value="press">Press / Media</option>
+                <option value="press">Press/Media</option>
                 <option value="other">Other</option>
               </select>
             </div>
@@ -423,7 +423,7 @@ const API_BASE = import.meta.env.PUBLIC_API_URL || 'https://api.openworkinghours
             <div class="text-lg font-semibold">App Store</div>
           </div>
         </a>
-        <p class="text-sm text-stone-500 mt-2">Coming soon to TestFlight</p>
+        <p class="text-sm text-stone-500 mt-2">TestFlight: coming soon</p>
       </div>
 
       <!-- Share Links -->

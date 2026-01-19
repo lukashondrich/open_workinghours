@@ -14,9 +14,9 @@ import Layout from '../layouts/Layout.astro';
 
     <!-- Privacy by Design -->
     <section class="mb-12">
-      <h2 class="text-stone-900 mb-6">Privacy by design</h2>
-      <ul class="space-y-4 text-stone-700">
-        <li class="flex gap-3">
+      <h2 class="text-stone-900 mb-6">Privacy by Design</h2>
+      <div class="space-y-4 text-stone-700">
+        <div class="flex gap-3">
           <span class="text-teal-600 mt-0.5 flex-shrink-0">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
@@ -25,8 +25,8 @@ import Layout from '../layouts/Layout.astro';
           <div>
             <strong>Data minimization:</strong> We collect only what's necessary for aggregation. No names, no precise locations, no employer identifiers.
           </div>
-        </li>
-        <li class="flex gap-3">
+        </div>
+        <div class="flex gap-3">
           <span class="text-teal-600 mt-0.5 flex-shrink-0">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
@@ -35,8 +35,8 @@ import Layout from '../layouts/Layout.astro';
           <div>
             <strong>Pseudonymization:</strong> Users are identified by random tokens, not personal information. We store only a one-way cryptographic hash of your email address for account integrity — the original email is not retained.
           </div>
-        </li>
-        <li class="flex gap-3">
+        </div>
+        <div class="flex gap-3">
           <span class="text-teal-600 mt-0.5 flex-shrink-0">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
@@ -45,8 +45,8 @@ import Layout from '../layouts/Layout.astro';
           <div>
             <strong>Encryption in transit:</strong> All communication between the app and our servers uses TLS 1.3. Data at rest is encrypted on the server.
           </div>
-        </li>
-        <li class="flex gap-3">
+        </div>
+        <div class="flex gap-3">
           <span class="text-teal-600 mt-0.5 flex-shrink-0">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
@@ -55,8 +55,8 @@ import Layout from '../layouts/Layout.astro';
           <div>
             <strong>K-anonymity protection:</strong> Statistics are only published when a sufficient number of individuals contribute to a group. Small groups are suppressed entirely.
           </div>
-        </li>
-        <li class="flex gap-3">
+        </div>
+        <div class="flex gap-3">
           <span class="text-teal-600 mt-0.5 flex-shrink-0">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
@@ -65,8 +65,8 @@ import Layout from '../layouts/Layout.astro';
           <div>
             <strong>User controls:</strong> Export all your data or delete your account at any time. Deletion is permanent and cascades to all associated records.
           </div>
-        </li>
-        <li class="flex gap-3">
+        </div>
+        <div class="flex gap-3">
           <span class="text-teal-600 mt-0.5 flex-shrink-0">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
@@ -75,8 +75,8 @@ import Layout from '../layouts/Layout.astro';
           <div>
             <strong>No employer access:</strong> This is not an employer tool. Your employer cannot see your data, cannot request access, and is not part of the system.
           </div>
-        </li>
-      </ul>
+        </div>
+      </div>
     </section>
 
     <!-- Data Collected Table -->
@@ -123,20 +123,20 @@ import Layout from '../layouts/Layout.astro';
       <p class="text-stone-600 mb-4">
         Even with anonymized data, small groups could potentially be identified. We implement multiple safeguards:
       </p>
-      <ul class="space-y-3 text-stone-700 ml-4">
-        <li class="flex gap-3">
+      <div class="space-y-3 text-stone-700 ml-4">
+        <div class="flex gap-3">
           <span class="text-stone-400">•</span>
           <span><strong>Minimum group size:</strong> Statistics require a minimum number of contributors (k-anonymity)</span>
-        </li>
-        <li class="flex gap-3">
+        </div>
+        <div class="flex gap-3">
           <span class="text-stone-400">•</span>
           <span><strong>Cell suppression:</strong> Groups below the threshold are completely hidden, not approximated</span>
-        </li>
-        <li class="flex gap-3">
+        </div>
+        <div class="flex gap-3">
           <span class="text-stone-400">•</span>
           <span><strong>Statistical noise:</strong> Aggregates include calibrated noise (Laplace mechanism, ε=1.0) to prevent inference attacks</span>
-        </li>
-      </ul>
+        </div>
+      </div>
     </section>
 
     <!-- Diagram -->
