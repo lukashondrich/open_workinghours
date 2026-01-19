@@ -136,15 +136,16 @@ Start feature → Create *_PLAN.md → Complete → Extract to ARCHITECTURE.md �
 
 ## Recent Updates (Last 7 Days)
 
-### 2026-01-19: German Website Copy Overhaul
+### 2026-01-19: German Website Copy Overhaul + Micro-Polish
 - **Complete DE copy revision:** All German pages updated with professional, consistent copy
 - **New German legal pages:** `/de/impressum` and `/de/datenschutzerklaerung` with proper `LayoutDE`
 - **EN legal pages cleaned up:** `/imprint` and `/privacy-policy` now fully English with DE links section
 - **Terminology standardization:**
   - "Schichten" (not "Dienste") for shifts throughout
   - "Freigeschaltet" (not "Verfügbar") in dashboard legend
-  - "Arbeitgeberzugriff" standardized across DE pages
+  - "Arbeitgeberzugriff" standardized across all DE pages (including app-privacy-policy)
   - "Verschlüsselung bei der Übertragung" (translated from "Encryption in Transit")
+  - "Schutzschwelle (k=11)" consistent throughout DE dashboard
 - **i18n improvements:**
   - Added `hreflang` alternates and `canonical` URLs to all legal pages
   - LayoutDE footer now links to German legal pages
@@ -155,7 +156,14 @@ Start feature → Create *_PLAN.md → Complete → Extract to ARCHITECTURE.md �
   - En-dash (–) standardized in ranges (1–10)
   - Removed absolute "no personal data" claims; server logs acknowledged
 - **Bullet formatting fixes:** Converted problematic `ul/li` + manual bullets to `div` throughout
-- **Files:** All pages under `website/src/pages/de/`, `website/src/pages/imprint.astro`, `website/src/pages/privacy-policy.astro`, `website/src/layouts/Layout.astro`, `website/src/layouts/LayoutDE.astro`, `website/src/components/InteractiveMap/InteractiveMap.tsx`
+- **Dashboard micro-polish (same day):**
+  - EN/DE KPI label: "States Nearing Threshold" / "Bundesländer nahe an der Schwelle"
+  - K-anonymity bullet: Added EMA/Health Canada public-disclosure guidance reference
+  - DE dossier: Solution block converted to proper `<ul>` bullet list
+  - Map legend: Removed duplicate static legend (InteractiveMap component has complete legend)
+  - "Krankenhäuser" (plural) in map legend
+  - DE dashboard: TestFlight changed from button to text line (matches EN)
+- **Files:** All pages under `website/src/pages/de/`, `website/src/pages/dashboard.astro`, `website/src/pages/team.astro`, `website/src/pages/imprint.astro`, `website/src/pages/privacy-policy.astro`, `website/src/layouts/Layout.astro`, `website/src/layouts/LayoutDE.astro`, `website/src/components/InteractiveMap/InteractiveMap.tsx`
 
 ### 2026-01-18: Public Dashboard + Interactive Map
 - **Planning:** `docs/PUBLIC_DASHBOARD_PLAN.md`, `docs/INTERACTIVE_MAP_PLAN.md` (Phase 1 complete)
