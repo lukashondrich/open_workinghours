@@ -1,6 +1,6 @@
 # Claude Context: Open Working Hours
 
-**Last Updated:** 2026-01-18
+**Last Updated:** 2026-01-19
 **Current Build:** #30 (ready for TestFlight upload)
 
 ---
@@ -128,13 +128,34 @@ Start feature → Create *_PLAN.md → Complete → Extract to ARCHITECTURE.md �
 
 ### Privacy
 
-- **K-anonymity**: Groups need ≥11 users to be published (EMA/Health Canada standard)
+- **K-anonymity**: Groups need ≥11 users to be published
 - **Data residency**: EU only (Hetzner, Germany)
 - **Right to erasure**: User deletion cascades to work_events
 
 ---
 
 ## Recent Updates (Last 7 Days)
+
+### 2026-01-19: German Website Copy Overhaul
+- **Complete DE copy revision:** All German pages updated with professional, consistent copy
+- **New German legal pages:** `/de/impressum` and `/de/datenschutzerklaerung` with proper `LayoutDE`
+- **EN legal pages cleaned up:** `/imprint` and `/privacy-policy` now fully English with DE links section
+- **Terminology standardization:**
+  - "Schichten" (not "Dienste") for shifts throughout
+  - "Freigeschaltet" (not "Verfügbar") in dashboard legend
+  - "Arbeitgeberzugriff" standardized across DE pages
+  - "Verschlüsselung bei der Übertragung" (translated from "Encryption in Transit")
+- **i18n improvements:**
+  - Added `hreflang` alternates and `canonical` URLs to all legal pages
+  - LayoutDE footer now links to German legal pages
+  - Added `<slot name="head" />` to both layouts for custom head content
+- **Copy polish:**
+  - Neutral-institutional form options: "Gewerkschaft/Berufsverband", "Wissenschaft/Forschung"
+  - "Privacy by Design" capitalization consistent
+  - En-dash (–) standardized in ranges (1–10)
+  - Removed absolute "no personal data" claims; server logs acknowledged
+- **Bullet formatting fixes:** Converted problematic `ul/li` + manual bullets to `div` throughout
+- **Files:** All pages under `website/src/pages/de/`, `website/src/pages/imprint.astro`, `website/src/pages/privacy-policy.astro`, `website/src/layouts/Layout.astro`, `website/src/layouts/LayoutDE.astro`, `website/src/components/InteractiveMap/InteractiveMap.tsx`
 
 ### 2026-01-18: Public Dashboard + Interactive Map
 - **Planning:** `docs/PUBLIC_DASHBOARD_PLAN.md`, `docs/INTERACTIVE_MAP_PLAN.md` (Phase 1 complete)
