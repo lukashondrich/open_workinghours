@@ -77,7 +77,7 @@ def request_verification(
 
     db.commit()
 
-    verification_message = f"Verification code: {code}"
+    verification_message = f"Your code is {code}"
     background.add_task(
         email_service.send_verification_email,
         recipient=email,

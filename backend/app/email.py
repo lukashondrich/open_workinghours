@@ -53,12 +53,11 @@ def send_verification_email(recipient: str, content: str, subject: str | None = 
     email_subject = subject or default_subject
 
     # For verification emails, wrap content in standard body
+    # Code appears FIRST so it's visible in email preview (~100 chars)
     if subject is None:
         body = (
-            "Hello,\n\n"
-            "Please verify your hospital affiliation using the information below. "
-            "The code is valid for 15 minutes.\n\n"
             f"{content}\n\n"
+            "Use this code to log in to Open Working Hours. Valid for 15 minutes.\n\n"
             "If you did not request this, you can ignore this email.\n"
         )
     else:
