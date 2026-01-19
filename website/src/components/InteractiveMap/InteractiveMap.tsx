@@ -26,7 +26,7 @@ const labels = {
     available: 'Available (11+)',
   },
   de: {
-    hospital: 'Krankenhaus',
+    hospital: 'Krankenhäuser',
     noData: 'Keine Daten',
     building: 'Im Aufbau (1–10)',
     available: 'Freigeschaltet (11+)',

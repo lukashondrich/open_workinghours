@@ -39,7 +39,7 @@ const API_BASE = import.meta.env.PUBLIC_API_URL || 'https://api.openworkinghours
     <div class="max-w-5xl mx-auto px-4 sm:px-6">
       <h2 class="text-stone-900 mb-2">Abdeckungsstatus</h2>
       <p class="text-stone-600 mb-8">
-        Sehen Sie, welche Regionen die Veröffentlichungsschwelle (k=11) erreichen.
+        Sehen Sie, welche Regionen die Schutzschwelle (k=11) erreichen.
       </p>
 
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -70,27 +70,12 @@ const API_BASE = import.meta.env.PUBLIC_API_URL || 'https://api.openworkinghours
 
           <div class="bg-teal-50 border border-teal-200 rounded-xl p-4">
             <p class="text-sm text-teal-800">
-              <strong>Schutzschwelle (k-Anonymität):</strong> Statistiken zeigen wir nur ab 11 Beitragenden pro Gruppe.
+              <strong>Schutzschwelle (k=11):</strong> Statistiken zeigen wir nur ab 11 Beitragenden pro Gruppe.
             </p>
           </div>
         </div>
       </div>
 
-      <!-- Legend -->
-      <div class="mt-6 flex flex-wrap gap-6 text-sm text-stone-600">
-        <div class="flex items-center gap-2">
-          <div class="w-4 h-4 rounded bg-stone-300"></div>
-          <span>Keine Daten</span>
-        </div>
-        <div class="flex items-center gap-2">
-          <div class="w-4 h-4 rounded bg-amber-400"></div>
-          <span>Im Aufbau (1–10)</span>
-        </div>
-        <div class="flex items-center gap-2">
-          <div class="w-4 h-4 rounded bg-teal-500"></div>
-          <span>Freigeschaltet (11+)</span>
-        </div>
-      </div>
     </div>
   </section>
 
