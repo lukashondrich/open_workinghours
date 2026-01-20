@@ -54,11 +54,14 @@ def send_verification_email(recipient: str, content: str, subject: str | None = 
 
     # For verification emails, wrap content in standard body
     # Code appears FIRST so it's visible in email preview (~100 chars)
+    # Bilingual: first line works for both EN/DE, then separate instructions
     if subject is None:
         body = (
             f"{content}\n\n"
-            "Use this code to log in to Open Working Hours. Valid for 15 minutes.\n\n"
+            "Use this code to log in. Valid for 15 minutes.\n"
+            "Verwenden Sie diesen Code zum Anmelden. Gültig für 15 Minuten.\n\n"
             "If you did not request this, you can ignore this email.\n"
+            "Falls Sie dies nicht angefordert haben, können Sie diese E-Mail ignorieren.\n"
         )
     else:
         # For custom subjects (like bug reports), use content as-is
