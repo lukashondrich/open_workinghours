@@ -70,8 +70,8 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
             console.error('[CalendarProvider] Failed to load tracking records:', error);
             rawDispatch(action);
           });
-      } else if (action.type === 'SET_VIEW' && action.view === 'month' && state.reviewMode) {
-        // Switching to month view while in review mode - load full month data
+      } else if (action.type === 'SET_VIEW' && action.view === 'month') {
+        // Switching to month view - always load tracking (month view is overview-only)
         const monthStart = startOfMonth(state.currentMonth);
         const monthEnd = endOfMonth(state.currentMonth);
 
@@ -84,8 +84,8 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
             console.error('[CalendarProvider] Failed to load month tracking records:', error);
             rawDispatch(action);
           });
-      } else if (action.type === 'SET_MONTH' && state.view === 'month' && state.reviewMode) {
-        // Changing month while in month view and review mode - load new month data
+      } else if (action.type === 'SET_MONTH' && state.view === 'month') {
+        // Changing month while in month view - always load tracking data
         const newMonth = action.date;
         const monthStart = startOfMonth(newMonth);
         const monthEnd = endOfMonth(newMonth);
@@ -234,10 +234,29 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
     persistAbsenceData();
   }, [state.absenceTemplates, state.absenceInstances, isHydrated]);
 
-  // Subscribe to tracking events (clock-in/clock-out) to refresh calendar in review mode
+  // Auto-load tracking for month view on initial mount (overview always shows tracking)
+  useEffect(() => {
+    if (!isHydrated) return;
+    if (state.view !== 'month') return;
+
+    const monthStart = startOfMonth(state.currentMonth);
+    const monthEnd = endOfMonth(state.currentMonth);
+
+    loadTrackingForRange(monthStart, monthEnd)
+      .then((trackingRecords) => {
+        rawDispatch({ type: 'UPDATE_TRACKING_RECORDS', trackingRecords });
+      })
+      .catch((error) => {
+        console.error('[CalendarProvider] Failed to load month tracking on mount:', error);
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isHydrated]); // Only run once after hydration
+
+  // Subscribe to tracking events (clock-in/clock-out) to refresh calendar
+  // Month view always refreshes (overview), week view only if reviewMode is on
   useEffect(() => {
     const handleTrackingChanged = () => {
-      if (!state.reviewMode) return;
+      if (state.view === 'week' && !state.reviewMode) return;
 
       // Load appropriate range based on current view
       const isMonthView = state.view === 'month';

@@ -118,6 +118,7 @@ function TrackingBadge({
   showBreakPanel = false,
   currentTime,
   hourHeight = DEFAULT_HOUR_HEIGHT,
+  isToday = true,
 }: {
   record: TrackingRecord;
   onAdjustStart: (id: string, deltaMinutes: number) => void;
@@ -135,6 +136,7 @@ function TrackingBadge({
   showBreakPanel?: boolean;
   currentTime: Date;
   hourHeight?: number;
+  isToday?: boolean;
 }) {
   // Pulsing animation for active sessions
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -178,17 +180,23 @@ function TrackingBadge({
 
     if (!clippedDuration) {
       // Main active session (not clipped/overflow)
-      displayDuration = currentMinutes - startMinutes;
-      // Handle overnight sessions (current time is next day)
-      if (displayDuration < 0) {
-        displayDuration = (24 * 60 - startMinutes) + currentMinutes;
+      if (isToday) {
+        // Today: extend to current time
+        displayDuration = currentMinutes - startMinutes;
+        // Handle overnight sessions (current time is next day)
+        if (displayDuration < 0) {
+          displayDuration = (24 * 60 - startMinutes) + currentMinutes;
+        }
+      } else {
+        // Past day: clip at midnight (session continues to next day)
+        displayDuration = 24 * 60 - startMinutes;
       }
-    } else if (record.startTime === '00:00') {
-      // Overflow segment of active session (from previous day)
+    } else if (record.startTime === '00:00' && isToday) {
+      // Overflow segment of active session on TODAY only
       // Extend from 00:00 to current time
       displayDuration = currentMinutes;
     }
-    // Otherwise keep clippedDuration (for day 1 of overnight active session)
+    // Otherwise keep clippedDuration (for overflow on past days, or clipped main badge)
   }
 
   // Ensure minimum duration for rendering (only for completed sessions)
@@ -1351,6 +1359,9 @@ export default function WeekView() {
       const formatted = formatDate(new Date(dateKey), 'EEEE', { locale });
       setConfirmationMessage(t('calendar.week.dayConfirmed', { day: formatted }));
       setTimeout(() => setConfirmationMessage(null), 2000);
+
+      // Haptic feedback for successful submission
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error) {
       console.error('[WeekView] Failed to submit day:', error);
       Alert.alert(t('calendar.week.confirmationFailed'), t('calendar.week.confirmationFailedMessage'));
@@ -2181,6 +2192,7 @@ export default function WeekView() {
                           showBreakPanel={isThisDateClicked}
                           currentTime={currentTime}
                           hourHeight={hourHeight}
+                          isToday={dateKey === todayKey}
                         />
                       );
                     })}
@@ -2249,6 +2261,7 @@ export default function WeekView() {
                               showBreakPanel={isThisDateClicked}
                               currentTime={currentTime}
                               hourHeight={hourHeight}
+                              isToday={dateKey === todayKey}
                             />
                           );
                         }
