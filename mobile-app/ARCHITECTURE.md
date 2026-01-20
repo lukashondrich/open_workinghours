@@ -494,6 +494,45 @@ useEffect(() => {
 - **TrackingManager changes**: Emits `tracking-changed` on all clock events
 - **CalendarProvider changes**: Subscribes and refreshes tracking records in review mode
 
+### Android Gesture System (2026-01-20)
+- **Problem**: RNGH GestureDetector wrapping ScrollView causes gesture conflicts on Android (scroll doesn't work reliably, pinch zoom broken)
+- **Root cause**: Android lacks iOS's native gesture coordination between RNGH and ScrollView
+- **Solution**: Platform-specific gesture handling in WeekView.tsx
+
+**iOS (unchanged):**
+- Uses `<GestureDetector>` wrapper with `Gesture.Simultaneous(pinchGesture, edgeSwipeGesture)`
+- Week navigation via overscroll bounce detection
+- Works because iOS has native gesture coordination
+
+**Android (new approach):**
+- No GestureDetector wrapper (removed to avoid ScrollView conflicts)
+- Pinch zoom via custom PanResponder (`androidPinchResponder`) attached to `gridRow`
+- Week navigation via velocity-based edge detection (`handleHorizontalScrollEndDragAndroid`)
+- Edge position tracked at drag start (`wasAtEdgeOnDragStart` ref)
+
+**Key implementation details:**
+```typescript
+// Platform-conditional content wrapper
+const calendarContent = (<View>...</View>);
+return Platform.OS === 'ios' ? (
+  <GestureDetector gesture={composedGesture}>{calendarContent}</GestureDetector>
+) : calendarContent;
+
+// Separate scroll handlers per platform
+const handleHorizontalScrollEndDrag = Platform.OS === 'ios'
+  ? handleHorizontalScrollEndDragIOS
+  : handleHorizontalScrollEndDragAndroid;
+```
+
+**What didn't work on Android (for future reference):**
+- RNGH GestureDetector + any ScrollView combination (native RN or RNGH ScrollView)
+- Adjusting Pan gesture thresholds (`.minDistance()`, `.activeOffsetX()`, `.failOffsetY()`)
+- Manual gesture activation (`.manualActivation(true)`)
+- Platform-specific gesture composition (pinch only, no Pan)
+- `scrollEnabled` toggling based on `isPinching` state
+
+**See also:** `docs/ANDROID_GESTURE_FIX_PLAN.md` for full exploration history
+
 ---
 
 ## Key Types

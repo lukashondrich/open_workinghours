@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Pressable,
   Alert,
+  Modal,
   PanResponder,
   GestureResponderEvent,
   PanResponderGestureState,
@@ -51,7 +52,8 @@ import {
 } from '@/lib/calendar/calendar-utils';
 import type { ShiftInstance, TrackingRecord, AbsenceInstance, ShiftColor, ShiftTemplate, AbsenceTemplate } from '@/lib/calendar/types';
 import { getCalendarStorage } from '@/modules/calendar/services/CalendarStorage';
-import { TreePalm, Thermometer, Clock, Plus, X } from 'lucide-react-native';
+import { TreePalm, Thermometer, Clock, Plus, X, Info } from 'lucide-react-native';
+import { OnboardingStorage } from '@/lib/storage/OnboardingStorage';
 // ShiftEditModal removed - using native time picker for start time only
 import { persistDailyActualForDate } from '../services/DailyAggregator';
 import { DailySubmissionService } from '@/modules/auth/services/DailySubmissionService';
@@ -68,7 +70,8 @@ const MIN_DRAG_STEP_MINUTES = 5;
 // These control when text elements hide at low zoom levels
 const DISCLOSURE_FULL_HEIGHT = 56;     // >= 56px: show everything (times, names, duration, edge labels)
 const DISCLOSURE_REDUCED_HEIGHT = 32;  // >= 32px: reduced (names only for shifts, duration only for tracking)
-                                       // < 32px: minimal (color blocks only, no text)
+const DISCLOSURE_COMPACT_HEIGHT = 20;  // >= 20px: compact (duration + end time in small font for tracking)
+const DISCLOSURE_MINIMAL_HEIGHT = 12;  // >= 12px: minimal (end time only in small font for tracking)
 const GRABBER_HIT_AREA = 44; // Larger hit area for easier grabbing
 const GRABBER_BAR_HEIGHT = 12;
 const MIN_TRACKING_HEIGHT = 8; // Minimum visual height (smaller, less clunky)
@@ -252,8 +255,10 @@ function TrackingBadge({
   const endLabel = formatTimeLabel(startMinutes + displayDuration);
 
   // Progressive disclosure based on hourHeight
-  const showDuration = hourHeight >= DISCLOSURE_REDUCED_HEIGHT;  // >= 24px
-  const showEdgeLabels = hourHeight >= DISCLOSURE_FULL_HEIGHT;   // >= 48px
+  const showDurationFull = hourHeight >= DISCLOSURE_REDUCED_HEIGHT;     // >= 32px: duration in normal font
+  const showEdgeLabels = hourHeight >= DISCLOSURE_FULL_HEIGHT;          // >= 56px: start + end labels (normal font)
+  const showDurationCompact = hourHeight >= DISCLOSURE_COMPACT_HEIGHT;  // >= 20px: duration in small font
+  const showEndTimeCompact = hourHeight >= DISCLOSURE_MINIMAL_HEIGHT;   // >= 12px: end time in small font
 
   const handleLongPress = () => {
     const showDeleteConfirm = () => {
@@ -351,9 +356,17 @@ function TrackingBadge({
             isShortSession && styles.trackingBlockShort
           ]}
         >
-          {showDuration && (
+          {/* Duration: full size (>=32px) or compact (>=20px) */}
+          {showDurationFull && (
             <View style={styles.trackingDurationContainer}>
               <Text style={[styles.trackingDurationText, isShortSession && styles.shortSessionText]}>
+                {formatDuration(Math.max(0, displayDuration - (record.breakMinutes || 0)))}
+              </Text>
+            </View>
+          )}
+          {!showDurationFull && showDurationCompact && (
+            <View style={styles.trackingDurationContainer}>
+              <Text style={[styles.trackingDurationTextCompact, isShortSession && styles.shortSessionText]}>
                 {formatDuration(Math.max(0, displayDuration - (record.breakMinutes || 0)))}
               </Text>
             </View>
@@ -374,11 +387,15 @@ function TrackingBadge({
             <View style={styles.grabberBar} />
           </View>
         )}
+        {/* Edge labels: full size (>=56px) or compact end time only (>=12px) */}
         {showEdgeLabels && (
           <Text style={[styles.edgeLabel, styles.edgeLabelTop]}>{record.startTime}</Text>
         )}
         {showEdgeLabels && !record.isActive && (
           <Text style={[styles.edgeLabel, styles.edgeLabelBottom]}>{endLabel}</Text>
+        )}
+        {!showEdgeLabels && showEndTimeCompact && !record.isActive && (
+          <Text style={[styles.edgeLabelCompact, styles.edgeLabelBottomCompact]}>{endLabel}</Text>
         )}
       </Pressable>
       {editMode === 'breaks' && showBreakPanel && (
@@ -691,7 +708,7 @@ export default function WeekView() {
   // Template picker state (for long-press on empty space)
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const [pendingPlacementDate, setPendingPlacementDate] = useState<string | null>(null);
-  const [pickerTab, setPickerTab] = useState<'shifts' | 'absences'>('shifts');
+  const [pickerTab, setPickerTab] = useState<'shifts' | 'absences' | 'gps'>('shifts');
 
   // Create new shift form state (inline in picker)
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -712,6 +729,18 @@ export default function WeekView() {
     startTime: '08:00',
     endTime: '17:00',
   });
+
+  // Submit tooltip state (first-time explanation)
+  const [showSubmitTooltip, setShowSubmitTooltip] = useState(false);
+  const [pendingSubmitDate, setPendingSubmitDate] = useState<string | null>(null);
+  const hasSeenSubmitTooltip = useRef<boolean | null>(null); // null = not yet loaded
+
+  // Load submit tooltip seen flag on mount
+  useEffect(() => {
+    OnboardingStorage.hasSeenConfirmTooltip().then((seen) => {
+      hasSeenSubmitTooltip.current = seen;
+    });
+  }, []);
 
   // Hide FAB when overlays are open
   useEffect(() => {
@@ -737,6 +766,57 @@ export default function WeekView() {
 
   // Track zoom direction to lock once committed ('in' | 'out' | null)
   const zoomDirection = useRef<'in' | 'out' | null>(null);
+
+  // Android-specific: PanResponder for pinch zoom (RNGH doesn't work well with ScrollView on Android)
+  const pinchBaseDistance = useRef<number | null>(null);
+  const androidPinchResponder = useRef(
+    Platform.OS === 'android'
+      ? PanResponder.create({
+          onStartShouldSetPanResponder: () => false,
+          onMoveShouldSetPanResponder: (evt) => {
+            // Only capture if 2 fingers are touching
+            return evt.nativeEvent.touches.length === 2;
+          },
+          onPanResponderGrant: (evt) => {
+            if (evt.nativeEvent.touches.length === 2) {
+              const touches = evt.nativeEvent.touches;
+              const t1 = touches[0];
+              const t2 = touches[1];
+              const distance = Math.hypot(t2.pageX - t1.pageX, t2.pageY - t1.pageY);
+              pinchBaseDistance.current = distance;
+              // Use lastAppliedScale.current (not currentScale which is stale in this closure)
+              baseScale.current = lastAppliedScale.current;
+              setIsPinching(true);
+            }
+          },
+          onPanResponderMove: (evt) => {
+            if (evt.nativeEvent.touches.length === 2 && pinchBaseDistance.current) {
+              const touches = evt.nativeEvent.touches;
+              const t1 = touches[0];
+              const t2 = touches[1];
+              const distance = Math.hypot(t2.pageX - t1.pageX, t2.pageY - t1.pageY);
+              const scale = (distance / pinchBaseDistance.current) * baseScale.current;
+              const clampedScale = Math.min(1.5, Math.max(minZoom, scale));
+
+              // Skip micro-changes to reduce jitter
+              if (Math.abs(clampedScale - lastAppliedScale.current) < 0.02) return;
+
+              setCurrentScale(clampedScale);
+              lastAppliedScale.current = clampedScale;
+            }
+          },
+          onPanResponderRelease: () => {
+            pinchBaseDistance.current = null;
+            baseScale.current = lastAppliedScale.current;
+            setIsPinching(false);
+          },
+          onPanResponderTerminate: () => {
+            pinchBaseDistance.current = null;
+            setIsPinching(false);
+          },
+        })
+      : null
+  ).current;
 
   // Track viewport width for swipe navigation
   const [viewportWidth, setViewportWidth] = useState(screenWidth);
@@ -797,38 +877,146 @@ export default function WeekView() {
     }
   }, [containerHeight, viewportWidth]);
 
-  // Handle swipe navigation on horizontal scroll end
-  // Triggers on: (1) overscroll past threshold, OR (2) fast flick at edge
-  const VELOCITY_THRESHOLD = 1.5; // points per ms
-
-  const handleHorizontalScrollEndDrag = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+  // iOS-specific week navigation handler (original working code)
+  const handleHorizontalScrollEndDragIOS = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
     if (isTransitioning) return;
 
     const { contentOffset, contentSize, layoutMeasurement, velocity } = event.nativeEvent;
     const currentScrollX = contentOffset.x;
-    const maxScrollX = contentSize.width - layoutMeasurement.width;
+    const maxScrollXLocal = contentSize.width - layoutMeasurement.width;
     const velocityX = velocity?.x ?? 0;
+    const VELOCITY_THRESHOLD = 1.5;
 
-    // Check for previous week: overscroll OR fast flick left at left edge
     const atLeftEdge = currentScrollX <= 0;
+    const atRightEdge = currentScrollX >= maxScrollXLocal - 1;
     const overscrolledLeft = currentScrollX < -SWIPE_THRESHOLD;
+    const overscrolledRight = currentScrollX > maxScrollXLocal + SWIPE_THRESHOLD;
     const fastFlickLeft = atLeftEdge && velocityX < -VELOCITY_THRESHOLD;
+    const fastFlickRight = atRightEdge && velocityX > VELOCITY_THRESHOLD;
 
     if (overscrolledLeft || fastFlickLeft) {
       animateToWeek('prev');
       return;
     }
-
-    // Check for next week: overscroll OR fast flick right at right edge
-    const atRightEdge = currentScrollX >= maxScrollX - 1; // -1 for float precision
-    const overscrolledRight = currentScrollX > maxScrollX + SWIPE_THRESHOLD;
-    const fastFlickRight = atRightEdge && velocityX > VELOCITY_THRESHOLD;
-
     if (overscrolledRight || fastFlickRight) {
       animateToWeek('next');
     }
   }, [isTransitioning, animateToWeek]);
 
+  // Android-specific week navigation (the working version)
+  const wasAtEdgeOnDragStart = useRef<'left' | 'right' | null>(null);
+  const VELOCITY_THRESHOLD = 0.3;
+
+  const handleHorizontalScrollBeginDrag = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (Platform.OS !== 'android') return;
+
+    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+    const currentScrollX = contentOffset.x;
+    const maxScrollXLocal = contentSize.width - layoutMeasurement.width;
+
+    if (currentScrollX <= 15) {
+      wasAtEdgeOnDragStart.current = 'left';
+    } else if (maxScrollXLocal > 0 && currentScrollX >= maxScrollXLocal - 15) {
+      wasAtEdgeOnDragStart.current = 'right';
+    } else {
+      wasAtEdgeOnDragStart.current = null;
+    }
+  }, []);
+
+  const handleHorizontalScrollEndDragAndroid = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (isTransitioning) return;
+
+    const { contentOffset, contentSize, layoutMeasurement, velocity } = event.nativeEvent;
+    const currentScrollX = contentOffset.x;
+    const maxScrollXLocal = contentSize.width - layoutMeasurement.width;
+    const velocityX = velocity?.x ?? 0;
+
+    const atLeftEdge = currentScrollX <= 15;
+    const atRightEdge = maxScrollXLocal > 0 && currentScrollX >= maxScrollXLocal - 15;
+    const startedAtLeft = wasAtEdgeOnDragStart.current === 'left';
+    const startedAtRight = wasAtEdgeOnDragStart.current === 'right';
+
+    // At left edge + positive velocity = previous week
+    if ((atLeftEdge || startedAtLeft) && velocityX > VELOCITY_THRESHOLD) {
+      animateToWeek('prev');
+      wasAtEdgeOnDragStart.current = null;
+      return;
+    }
+    // At right edge + negative velocity = next week
+    if ((atRightEdge || startedAtRight) && velocityX < -VELOCITY_THRESHOLD) {
+      animateToWeek('next');
+      wasAtEdgeOnDragStart.current = null;
+      return;
+    }
+
+    wasAtEdgeOnDragStart.current = null;
+  }, [isTransitioning, animateToWeek]);
+
+  // Use platform-specific handler
+  const handleHorizontalScrollEndDrag = Platform.OS === 'ios'
+    ? handleHorizontalScrollEndDragIOS
+    : handleHorizontalScrollEndDragAndroid;
+
+  // Track max scroll for edge detection
+  const maxScrollX = useRef(0);
+  const handleScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    scrollX.current = e.nativeEvent.contentOffset.x;
+    const { contentSize, layoutMeasurement } = e.nativeEvent;
+    maxScrollX.current = contentSize.width - layoutMeasurement.width;
+  }, []);
+
+  // Keep refs for gesture callbacks (avoid stale closures)
+  const animateToWeekRef = useRef(animateToWeek);
+  animateToWeekRef.current = animateToWeek;
+  const isTransitioningRef = useRef(isTransitioning);
+  isTransitioningRef.current = isTransitioning;
+
+  // Edge swipe detection using RNGH Pan gesture
+  // Runs simultaneously with ScrollView - detects edge swipes without blocking scroll
+  const EDGE_SWIPE_THRESHOLD = 60;
+  const edgeSwipeStartedAtEdge = useRef<'left' | 'right' | null>(null);
+
+  const edgeSwipeGesture = useMemo(() =>
+    Gesture.Pan()
+      .onStart(() => {
+        // Check if we're starting at an edge
+        const atLeftEdge = scrollX.current <= 5;
+        const atRightEdge = maxScrollX.current > 0 && scrollX.current >= maxScrollX.current - 5;
+
+        if (atLeftEdge) {
+          edgeSwipeStartedAtEdge.current = 'left';
+        } else if (atRightEdge) {
+          edgeSwipeStartedAtEdge.current = 'right';
+        } else {
+          edgeSwipeStartedAtEdge.current = null;
+        }
+      })
+      .onEnd((event) => {
+        if (isTransitioningRef.current) return;
+        if (!edgeSwipeStartedAtEdge.current) return;
+
+        const { translationX, velocityX } = event;
+
+        // Check if swipe is primarily horizontal
+        if (Math.abs(event.translationY) > Math.abs(translationX)) return;
+
+        // At left edge, swiping right (positive translationX) = previous week
+        if (edgeSwipeStartedAtEdge.current === 'left' &&
+            (translationX > EDGE_SWIPE_THRESHOLD || velocityX > 500)) {
+          animateToWeekRef.current('prev');
+        }
+        // At right edge, swiping left (negative translationX) = next week
+        else if (edgeSwipeStartedAtEdge.current === 'right' &&
+                 (translationX < -EDGE_SWIPE_THRESHOLD || velocityX < -500)) {
+          animateToWeekRef.current('next');
+        }
+
+        edgeSwipeStartedAtEdge.current = null;
+      })
+      .minDistance(10)
+      .activeOffsetX([-10, 10]),
+    []
+  );
 
   // Animated zoom transition helper (for double-tap)
   const animateZoomTo = useCallback((targetScale: number, duration: number = 200) => {
@@ -919,7 +1107,12 @@ export default function WeekView() {
   );
 
   // Pinch gesture only (double-tap zoom removed, now used for shift placement)
-  const composedGesture = useMemo(() => pinchGesture, [pinchGesture]);
+  // Compose pinch (zoom) and edge swipe (week navigation) gestures
+  // They run simultaneously - pinch for zooming, edge swipe for week nav
+  const composedGesture = useMemo(
+    () => Gesture.Simultaneous(pinchGesture, edgeSwipeGesture),
+    [pinchGesture, edgeSwipeGesture]
+  );
 
   useEffect(() => {
     if (!state.reviewMode) {
@@ -1137,25 +1330,14 @@ export default function WeekView() {
     return getAbsencesForDate(state.absenceInstances, dateKey);
   };
 
-  const confirmDay = async (dateKey: string) => {
-    // Validation: Only allow confirming past days (not today, not future)
-    const dayToConfirm = startOfDay(new Date(dateKey));
-    const today = startOfDay(new Date());
-
-    if (!isBefore(dayToConfirm, today)) {
-      Alert.alert(
-        t('calendar.week.cannotConfirmFutureTitle'),
-        t('calendar.week.cannotConfirmFutureMessage')
-      );
-      return;
-    }
-
+  // Core submit logic (called directly or after tooltip dismissal)
+  const executeSubmit = async (dateKey: string) => {
     try {
       const trackingRecords = getTrackingForDate(dateKey);
       const record = await persistDailyActualForDate(dateKey, state.instances, trackingRecords);
       dispatch({ type: 'CONFIRM_DAY', date: dateKey, confirmedAt: record.confirmedAt });
 
-      // NEW: Enqueue daily submission (v2.0 - authenticated, no noise)
+      // Enqueue daily submission (v2.0 - authenticated, no noise)
       try {
         await DailySubmissionService.enqueueDailySubmission(dateKey);
         await DailySubmissionService.processQueue();
@@ -1170,9 +1352,58 @@ export default function WeekView() {
       setConfirmationMessage(t('calendar.week.dayConfirmed', { day: formatted }));
       setTimeout(() => setConfirmationMessage(null), 2000);
     } catch (error) {
-      console.error('[WeekView] Failed to confirm day:', error);
+      console.error('[WeekView] Failed to submit day:', error);
       Alert.alert(t('calendar.week.confirmationFailed'), t('calendar.week.confirmationFailedMessage'));
     }
+  };
+
+  // Handle submit tooltip dismissal
+  const handleSubmitTooltipDismiss = async () => {
+    setShowSubmitTooltip(false);
+    hasSeenSubmitTooltip.current = true;
+    await OnboardingStorage.setConfirmTooltipSeen();
+
+    // Proceed with the pending submission
+    if (pendingSubmitDate) {
+      const dateKey = pendingSubmitDate;
+      setPendingSubmitDate(null);
+      await executeSubmit(dateKey);
+    }
+  };
+
+  const confirmDay = async (dateKey: string) => {
+    // Validation: Only allow confirming past days (not today, not future)
+    const dayToConfirm = startOfDay(new Date(dateKey));
+    const today = startOfDay(new Date());
+
+    if (!isBefore(dayToConfirm, today)) {
+      Alert.alert(
+        t('calendar.week.cannotConfirmFutureTitle'),
+        t('calendar.week.cannotConfirmFutureMessage')
+      );
+      return;
+    }
+
+    // Show first-time tooltip if user hasn't seen it yet
+    if (hasSeenSubmitTooltip.current === false) {
+      setPendingSubmitDate(dateKey);
+      setShowSubmitTooltip(true);
+      return;
+    }
+
+    // If flag not loaded yet, wait a bit and check again
+    if (hasSeenSubmitTooltip.current === null) {
+      const seen = await OnboardingStorage.hasSeenConfirmTooltip();
+      hasSeenSubmitTooltip.current = seen;
+      if (!seen) {
+        setPendingSubmitDate(dateKey);
+        setShowSubmitTooltip(true);
+        return;
+      }
+    }
+
+    // User has seen tooltip, proceed with submission
+    await executeSubmit(dateKey);
   };
 
   const handleAdjustTrackingEnd = async (id: string, deltaMinutes: number) => {
@@ -1739,16 +1970,19 @@ export default function WeekView() {
     }
   };
 
-  return (
-    <GestureDetector gesture={composedGesture}>
-      <View style={styles.wrapper} onLayout={handleContainerLayout}>
-        <Animated.View style={{ transform: [{ translateX: slideAnim }] }}>
+  // Platform-conditional gesture handling:
+  // iOS: Use RNGH GestureDetector (works well with native gesture coordination)
+  // Android: No GestureDetector wrapper (use PanResponder for pinch instead)
+  const calendarContent = (
+    <View style={styles.wrapper} onLayout={handleContainerLayout}>
+        <Animated.View style={{ flex: 1, transform: [{ translateX: slideAnim }] }}>
         <ScrollView
           ref={horizontalScrollRef}
           horizontal
           showsHorizontalScrollIndicator={false}
           scrollEnabled={!isDragging && !isPinching}
-          onScroll={(e) => { scrollX.current = e.nativeEvent.contentOffset.x; }}
+          onScroll={handleScroll}
+          onScrollBeginDrag={handleHorizontalScrollBeginDrag}
           onScrollEndDrag={handleHorizontalScrollEndDrag}
           scrollEventThrottle={16}
           bounces={true}
@@ -1792,7 +2026,7 @@ export default function WeekView() {
                               !canConfirm && styles.confirmButtonTextDisabled,
                               isCompactHeader && styles.confirmButtonTextCompact,
                             ]}>
-                              {isCompactHeader ? t('calendar.week.confirmShort') : t('calendar.week.confirm')}
+                              {isCompactHeader ? t('calendar.week.submitShort') : t('calendar.week.submit')}
                             </Text>
                           </TouchableOpacity>
                         )}
@@ -1813,7 +2047,10 @@ export default function WeekView() {
             scrollEventThrottle={16}
             decelerationRate="fast"
           >
-            <View style={styles.gridRow}>
+            <View
+              style={styles.gridRow}
+              {...(Platform.OS === 'android' && androidPinchResponder ? androidPinchResponder.panHandlers : {})}
+            >
               <View style={styles.timeColumn}>
                 {hourMarkers.map((hour, index) => {
                   const interval = getHourMarkerInterval(currentScale);
@@ -2069,7 +2306,7 @@ export default function WeekView() {
           <Pressable style={styles.templatePickerContainer} onPress={(e) => e.stopPropagation()}>
             <Text style={styles.templatePickerTitle}>{t('calendar.templates.selectTemplate')}</Text>
 
-            {/* Tab bar for Shifts / Absences */}
+            {/* Tab bar for Shifts / Absences / GPS */}
             <View style={styles.pickerTabBar}>
               <Pressable
                 style={[styles.pickerTab, pickerTab === 'shifts' && styles.pickerTabActive]}
@@ -2085,6 +2322,14 @@ export default function WeekView() {
               >
                 <Text style={[styles.pickerTabText, pickerTab === 'absences' && styles.pickerTabTextActive]}>
                   {t('calendar.templates.absencesTab')}
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[styles.pickerTab, pickerTab === 'gps' && styles.pickerTabActive]}
+                onPress={() => setPickerTab('gps')}
+              >
+                <Text style={[styles.pickerTabText, pickerTab === 'gps' && styles.pickerTabTextActive]}>
+                  {t('calendar.templates.gpsTab')}
                 </Text>
               </Pressable>
             </View>
@@ -2331,6 +2576,23 @@ export default function WeekView() {
               </>
             )}
 
+            {/* GPS tab - manual time entry */}
+            {pickerTab === 'gps' && (
+              <View style={styles.gpsTabContent}>
+                <Text style={styles.gpsTabHint}>{t('calendar.gps.hint')}</Text>
+                <Pressable
+                  style={styles.gpsLogButton}
+                  onPress={() => {
+                    dismissTemplatePicker();
+                    dispatch({ type: 'OPEN_MANUAL_SESSION_FORM', date: pendingPlacementDate ?? undefined });
+                  }}
+                >
+                  <Clock size={20} color={colors.white} />
+                  <Text style={styles.gpsLogButtonText}>{t('calendar.gps.logHours')}</Text>
+                </Pressable>
+              </View>
+            )}
+
             <Pressable style={styles.templatePickerCancel} onPress={dismissTemplatePicker}>
               <Text style={styles.templatePickerCancelText}>{t('common.cancel')}</Text>
             </Pressable>
@@ -2374,8 +2636,45 @@ export default function WeekView() {
           <Text style={styles.toastText}>{confirmationMessage}</Text>
         </View>
       )}
+
+      {/* First-time submit tooltip modal */}
+      <Modal
+        visible={showSubmitTooltip}
+        transparent
+        animationType="fade"
+        onRequestClose={handleSubmitTooltipDismiss}
+      >
+        <View style={styles.submitTooltipOverlay}>
+          <View style={styles.submitTooltipContainer}>
+            <View style={styles.submitTooltipHeader}>
+              <Info size={20} color={colors.primary[500]} />
+              <Text style={styles.submitTooltipTitle}>
+                {t('calendar.week.submitTooltipTitle')}
+              </Text>
+            </View>
+            <Text style={styles.submitTooltipBody}>
+              {t('calendar.week.submitTooltipBody')}
+            </Text>
+            <TouchableOpacity
+              style={styles.submitTooltipButton}
+              onPress={handleSubmitTooltipDismiss}
+            >
+              <Text style={styles.submitTooltipButtonText}>
+                {t('calendar.week.submitTooltipDismiss')}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
-  </GestureDetector>
+  );
+
+  return Platform.OS === 'ios' ? (
+    <GestureDetector gesture={composedGesture}>
+      {calendarContent}
+    </GestureDetector>
+  ) : (
+    calendarContent
   );
 }
 
@@ -2605,10 +2904,15 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.semibold,
     color: colors.error.dark,
   },
+  trackingDurationTextCompact: {
+    fontSize: fontSize.xxs,
+    fontWeight: fontWeight.semibold,
+    color: colors.error.dark,
+  },
   grabberContainer: {
     position: 'absolute',
-    left: 24,
-    right: 24,
+    left: -12,   // Extend beyond tracking block for better visibility at low zoom
+    right: -12,
     height: GRABBER_HIT_AREA,
     alignItems: 'center',
     justifyContent: 'center',
@@ -2624,6 +2928,7 @@ const styles = StyleSheet.create({
   },
   grabberBar: {
     width: '80%',
+    minWidth: 40,  // Minimum width so grabber stays visible at low zoom
     height: GRABBER_BAR_HEIGHT,
     borderRadius: borderRadius.md,
     backgroundColor: colors.error.dark,
@@ -2642,6 +2947,18 @@ const styles = StyleSheet.create({
   },
   edgeLabelBottom: {
     bottom: -EDGE_LABEL_OFFSET,
+  },
+  edgeLabelCompact: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    textAlign: 'center',
+    fontSize: fontSize.xxs,
+    fontWeight: fontWeight.semibold,
+    color: colors.error.dark,
+  },
+  edgeLabelBottomCompact: {
+    bottom: -10,  // Reduced offset for small blocks
   },
   breakPanel: {
     position: 'absolute',
@@ -2717,6 +3034,51 @@ const styles = StyleSheet.create({
   },
   toastText: {
     color: colors.white,
+    fontWeight: fontWeight.semibold,
+  },
+  // Submit tooltip modal styles
+  submitTooltipOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.xl,
+  },
+  submitTooltipContainer: {
+    backgroundColor: colors.background.paper,
+    borderRadius: borderRadius.xl,
+    padding: spacing.xl,
+    maxWidth: 320,
+    width: '100%',
+    ...shadows.lg,
+  },
+  submitTooltipHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  submitTooltipTitle: {
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.semibold,
+    color: colors.text.primary,
+  },
+  submitTooltipBody: {
+    fontSize: fontSize.md,
+    color: colors.text.secondary,
+    lineHeight: 22,
+    marginBottom: spacing.lg,
+  },
+  submitTooltipButton: {
+    backgroundColor: colors.primary[500],
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xl,
+    borderRadius: borderRadius.lg,
+    alignItems: 'center',
+  },
+  submitTooltipButtonText: {
+    color: colors.white,
+    fontSize: fontSize.md,
     fontWeight: fontWeight.semibold,
   },
   currentTimeLine: {
@@ -2826,6 +3188,32 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs,
     color: colors.text.secondary,
     marginTop: 2,
+  },
+  gpsTabContent: {
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.sm,
+    alignItems: 'center',
+  },
+  gpsTabHint: {
+    fontSize: fontSize.sm,
+    color: colors.text.secondary,
+    textAlign: 'center',
+    marginBottom: spacing.md,
+  },
+  gpsLogButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary[500],
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xl,
+    borderRadius: borderRadius.md,
+    gap: spacing.sm,
+  },
+  gpsLogButtonText: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semibold,
+    color: colors.white,
   },
   templatePickerCancel: {
     marginTop: spacing.md,

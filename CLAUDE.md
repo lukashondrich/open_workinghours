@@ -29,7 +29,8 @@
 
 | Component | Status | Location |
 |-----------|--------|----------|
-| **React Native Mobile App** | Production (TestFlight) | `mobile-app/` |
+| **React Native Mobile App (iOS)** | Production (TestFlight) | `mobile-app/` |
+| **React Native Mobile App (Android)** | Development (internal testing) | `mobile-app/` |
 | **FastAPI Backend** | Production (Hetzner) | `backend/` |
 | **Astro Website** | Live (openworkinghours.org) | `website/` |
 | **Next.js Dashboard** | Deprecated | Root (unused) |
@@ -135,6 +136,41 @@ Start feature → Create *_PLAN.md → Complete → Extract to ARCHITECTURE.md �
 ---
 
 ## Recent Updates (Last 7 Days)
+
+### 2026-01-20: Android Calendar Gesture Fix
+- **Problem:** WeekView calendar gestures (scroll, pinch zoom, week navigation) broken on Android
+- **Root cause:** RNGH GestureDetector + ScrollView don't coordinate well on Android (works fine on iOS)
+- **Solution:** Platform-specific gesture systems - complete separation, not conditional logic
+- **iOS (unchanged):** RNGH GestureDetector wrapper with pinch + edge swipe gestures
+- **Android (new):**
+  - No GestureDetector wrapper (removed to avoid conflicts)
+  - Custom PanResponder for pinch zoom (two-finger detection)
+  - Velocity-based edge flick for week navigation
+  - Separate scroll end handlers per platform
+- **What didn't work:** Adjusting thresholds, manual activation, RNGH ScrollView, various combinations
+- **Documentation:**
+  - `docs/ANDROID_GESTURE_FIX_PLAN.md` - Full exploration history
+  - `docs/ANDROID_BUILD_PLAN.md` - Detailed "what worked/didn't work" notes
+  - `mobile-app/ARCHITECTURE.md` - "Android Gesture System" section
+- **Files:** `mobile-app/src/modules/calendar/components/WeekView.tsx`
+
+### 2026-01-19: Android Build Setup
+- **Planning:** `docs/ANDROID_BUILD_PLAN.md` (in progress)
+- **Configuration complete:**
+  - `app.json`: Android package, versionCode, permissions, Google Maps API key
+  - `eas.json`: Android build profiles (development, preview, production)
+  - `expo-location` plugin: Background location enabled for Android
+- **Google Maps:** API key configured for `react-native-maps` (required on Android, iOS uses MapKit)
+- **Android-specific fixes:**
+  - Map animation: Fixed search result not moving map (removed conflicting `setRegion` call)
+  - Button styling: Changed `variant="outline"` to `variant="secondary"` across all screens (gray border issue on Android)
+  - Week swipe navigation: Added RNGH Pan gesture for edge detection (Android lacks iOS bounce behavior)
+- **Development setup:**
+  - Installed `expo-dev-client` for hot reload
+  - Android emulator (Pixel 7a) configured with adb
+  - Development + preview builds created on EAS
+- **Known issues for next session:** Calendar view UI issues, week swipe needs testing, app icon placeholder
+- **Files:** `mobile-app/app.json`, `mobile-app/eas.json`, `SetupScreen.tsx`, `WeekView.tsx`, multiple screens for button styling
 
 ### 2026-01-19: German Website Copy Overhaul + Micro-Polish
 - **Complete DE copy revision:** All German pages updated with professional, consistent copy
