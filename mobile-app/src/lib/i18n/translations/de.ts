@@ -62,6 +62,7 @@ export const de = {
       daysConfirmed: '{{count}}/7 Tage bestätigt',
       submissionsHint: 'Übermittlungen erfolgen automatisch, wenn Sie jeden Tag bestätigen.',
       reviewHint: 'GPS-Modus aktivieren, um Tage zu bestätigen. Jeder bestätigte Tag wird sofort übermittelt.',
+      submitHint: 'Jeden Tag einreichen, um die Stunden abzuschließen',
     },
     templates: {
       title: 'Dienste / Schichten',
@@ -88,6 +89,7 @@ export const de = {
       deleteEmpty: 'Diese Vorlage hat keine geplanten Schichten.',
       shiftsTab: 'Dienste',
       absencesTab: 'Abwesenheit',
+      gpsTab: 'GPS',
       createNew: 'Neuen Dienst erstellen...',
       createAndAdd: 'Erstellen & Hinzufügen',
       createError: 'Vorlage konnte nicht erstellt werden',
@@ -119,6 +121,10 @@ export const de = {
     fab: {
       shifts: 'Dienste',
       absences: 'Abwesenheit',
+      logHours: 'Zeit erfassen',
+    },
+    picker: {
+      logHours: 'Arbeitszeit erfassen',
     },
     batch: {
       placing: 'Platziere:',
@@ -126,10 +132,13 @@ export const de = {
       exitHint: 'Tippe ✕ zum Beenden',
     },
     week: {
-      confirm: 'Bestätigen?',
-      confirmShort: '?',
+      submit: 'Einreichen',
+      submitShort: '✓',
+      submitTooltipTitle: 'Stunden einreichen',
+      submitTooltipBody: 'Dies sendet deine erfassten Stunden an die Studie. Nach dem Einreichen können sie nicht mehr bearbeitet werden.',
+      submitTooltipDismiss: 'Verstanden',
       continues: 'Fortsetzung...',
-      dayConfirmed: '{{day}} bestätigt',
+      dayConfirmed: '{{day}} eingereicht',
       cannotConfirmFutureTitle: 'Zukünftige Tage können nicht bestätigt werden',
       cannotConfirmFutureMessage: 'Sie können nur vergangene Tage bestätigen. Bitte warten Sie bis morgen, um heute zu bestätigen.',
       confirmationFailed: 'Bestätigung fehlgeschlagen',
@@ -164,6 +173,10 @@ export const de = {
       planned: 'Geplant',
       overtime: 'Überstunden',
       confirmed: 'bestätigt',
+    },
+    gps: {
+      hint: 'Arbeitszeit manuell erfassen, wenn GPS nicht funktioniert hat',
+      logHours: 'Zeit erfassen',
     },
   },
 
@@ -437,6 +450,14 @@ export const de = {
     comingSoonHint: 'Ihre erfassten Arbeitssitzungen werden hier angezeigt',
   },
 
+  // Welcome screen (auth entry point)
+  welcome: {
+    title: 'Open Working Hours',
+    subtitle: 'Schichten erfassen. Privatsphäre schützen.',
+    logIn: 'Anmelden',
+    createAccount: 'Konto erstellen',
+  },
+
   // Email Verification screen
   emailVerification: {
     title: 'Open Working Hours',
@@ -531,5 +552,32 @@ export const de = {
     exporting: 'Exportiere...',
     exportTitle: 'Meine Open Working Hours Daten',
     exportFailed: 'Export fehlgeschlagen. Bitte versuchen Sie es erneut.',
+  },
+
+  // Biometric authentication (Face ID / Touch ID)
+  biometric: {
+    sectionTitle: 'Sicherheit',
+    usePrefix: '',
+    description: 'App schnell und sicher entsperren',
+    promptReason: 'Open Working Hours entsperren',
+    enableFailed: 'Biometrische Entsperrung konnte nicht aktiviert werden. Bitte erneut versuchen.',
+    notAvailable: 'Biometrische Authentifizierung ist auf diesem Gerät nicht verfügbar.',
+    notEnrolled: 'Bitte richten Sie zuerst Face ID oder Touch ID in den Geräteeinstellungen ein.',
+  },
+
+  // Manual Session Form (for logging hours when GPS failed)
+  manualSession: {
+    title: 'Arbeitszeit erfassen',
+    location: 'Standort',
+    selectLocation: 'Standort auswählen',
+    date: 'Datum',
+    start: 'Startzeit',
+    end: 'Endzeit',
+    duration: 'Dauer',
+    save: 'Speichern',
+    errorFuture: 'Keine zukünftigen Zeiten möglich',
+    errorOverlap: 'Überschneidung mit bestehender Sitzung',
+    errorTimes: 'Endzeit muss nach Startzeit liegen',
+    errorNoLocation: 'Bitte zuerst einen Standort hinzufügen',
   },
 };

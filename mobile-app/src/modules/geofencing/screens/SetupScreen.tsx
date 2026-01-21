@@ -249,13 +249,14 @@ export default function SetupScreen({ navigation, route }: Props) {
     });
 
     // Center map on result
+    // Note: Only use animateToRegion, not setRegion - on Android calling both causes conflicts.
+    // The onRegionChangeComplete callback will update the region state after animation.
     const newRegion = {
       latitude: result.latitude,
       longitude: result.longitude,
       latitudeDelta: 0.01,
       longitudeDelta: 0.01,
     };
-    setRegion(newRegion);
     mapRef.current?.animateToRegion(newRegion, 500);
 
     // Clear search

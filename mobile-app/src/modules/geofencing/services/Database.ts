@@ -517,6 +517,118 @@ export class Database {
     await this.db.runAsync('DELETE FROM tracking_sessions WHERE id = ?', id);
   }
 
+  /**
+   * Create a manual session for retroactive time logging.
+   * Used when GPS tracking failed completely and user needs to log hours manually.
+   *
+   * @param locationId - The location this session is for
+   * @param clockIn - Start time (ISO 8601)
+   * @param clockOut - End time (ISO 8601)
+   * @returns The created session
+   * @throws Error if clockOut <= clockIn or if session overlaps with existing sessions
+   */
+  async createManualSession(
+    locationId: string,
+    clockIn: string,
+    clockOut: string
+  ): Promise<TrackingSession> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    // Validate times
+    const clockInTime = new Date(clockIn).getTime();
+    const clockOutTime = new Date(clockOut).getTime();
+
+    if (clockOutTime <= clockInTime) {
+      throw new Error('End time must be after start time');
+    }
+
+    // Check for overlapping sessions at same location
+    const overlaps = await this.getOverlappingSessions(locationId, clockIn, clockOut);
+    if (overlaps.length > 0) {
+      const overlap = overlaps[0];
+      const overlapStart = new Date(overlap.clockIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const overlapEnd = overlap.clockOut
+        ? new Date(overlap.clockOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        : 'ongoing';
+      throw new Error(`Overlaps with existing session (${overlapStart} - ${overlapEnd})`);
+    }
+
+    const id = Crypto.randomUUID();
+    const now = new Date().toISOString();
+    const durationMinutes = Math.round((clockOutTime - clockInTime) / 1000 / 60);
+
+    await this.db.runAsync(
+      `INSERT INTO tracking_sessions
+       (id, location_id, clock_in, clock_out, duration_minutes, tracking_method, state, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      id,
+      locationId,
+      clockIn,
+      clockOut,
+      durationMinutes,
+      'manual',
+      'completed',
+      now,
+      now
+    );
+
+    return {
+      id,
+      locationId,
+      clockIn,
+      clockOut,
+      durationMinutes,
+      trackingMethod: 'manual',
+      state: 'completed',
+      pendingExitAt: null,
+      exitAccuracy: null,
+      checkinAccuracy: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+  }
+
+  /**
+   * Check for sessions that overlap with a given time range at a specific location.
+   * Two sessions overlap if their time ranges intersect.
+   *
+   * @param locationId - The location to check
+   * @param clockIn - Start of the range to check (ISO 8601)
+   * @param clockOut - End of the range to check (ISO 8601)
+   * @param excludeSessionId - Optional session ID to exclude (for editing existing sessions)
+   * @returns Array of overlapping sessions
+   */
+  async getOverlappingSessions(
+    locationId: string,
+    clockIn: string,
+    clockOut: string,
+    excludeSessionId?: string
+  ): Promise<TrackingSession[]> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    // Two time ranges [A, B] and [C, D] overlap if A < D AND C < B
+    // For sessions: existing.clockIn < newClockOut AND newClockIn < existing.clockOut
+    // Handle active sessions (no clockOut) by treating them as extending to "infinity"
+    const query = excludeSessionId
+      ? `SELECT * FROM tracking_sessions
+         WHERE location_id = ?
+           AND id != ?
+           AND clock_in < ?
+           AND (clock_out IS NULL OR clock_out > ?)
+         ORDER BY clock_in ASC`
+      : `SELECT * FROM tracking_sessions
+         WHERE location_id = ?
+           AND clock_in < ?
+           AND (clock_out IS NULL OR clock_out > ?)
+         ORDER BY clock_in ASC`;
+
+    const results = excludeSessionId
+      ? await this.db.getAllAsync<any>(query, locationId, excludeSessionId, clockOut, clockIn)
+      : await this.db.getAllAsync<any>(query, locationId, clockOut, clockIn);
+
+    return results.map((row) => this.mapSession(row));
+  }
+
   // Geofence Events
   async logGeofenceEvent(event: Omit<GeofenceEvent, 'id'>): Promise<GeofenceEvent> {
     if (!this.db) throw new Error('Database not initialized');

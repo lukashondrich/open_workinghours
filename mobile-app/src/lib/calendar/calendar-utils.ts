@@ -136,12 +136,12 @@ export function formatDuration(minutes: number): string {
   const hours = Math.floor(minutes / 60);
   const mins = Math.round(minutes % 60);
   if (hours === 0) {
-    return `${mins}min`;
+    return `${mins}′`;
   }
   if (mins === 0) {
     return `${hours}h`;
   }
-  return `${hours}h ${mins}min`;
+  return `${hours}h ${mins}′`;
 }
 
 /**

@@ -10,6 +10,7 @@ import { AuthProvider } from '@/lib/auth/auth-context';
 import { getDatabase } from '@/modules/geofencing/services/Database';
 import { getGeofenceService } from '@/modules/geofencing/services/GeofenceService';
 import { TrackingManager } from '@/modules/geofencing/services/TrackingManager';
+import * as ExitVerificationService from '@/modules/geofencing/services/ExitVerificationService';
 import { seedTestDeviceDataIfEnabled } from '@/test-utils/deviceDbSeed';
 console.log('SUBMISSION URL', process.env.EXPO_PUBLIC_SUBMISSION_BASE_URL);
 
@@ -72,6 +73,21 @@ export default function App() {
       } else {
         console.log('[App] Notification permission granted');
       }
+
+      // Set up listener for exit verification notifications
+      // These are scheduled silent notifications that trigger GPS checks
+      Notifications.addNotificationReceivedListener(async (notification) => {
+        const data = notification.request.content.data;
+
+        if (data?.type === 'exit-verification' && typeof data?.checkIndex === 'number') {
+          console.log('[App] Exit verification notification received, check:', data.checkIndex);
+          try {
+            await ExitVerificationService.handleVerificationCheck(data.checkIndex);
+          } catch (error) {
+            console.error('[App] Error handling exit verification:', error);
+          }
+        }
+      });
 
       // Re-register any existing geofences (in case app was killed)
       const locations = await db.getActiveLocations();

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   StyleSheet,
@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   Text,
   Linking,
+  Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -21,6 +22,7 @@ import {
   Database,
   FileText,
   Shield,
+  Fingerprint,
 } from 'lucide-react-native';
 
 import { colors, spacing, fontSize, fontWeight } from '@/theme';
@@ -29,6 +31,7 @@ import { ListItem } from '@/components/ui';
 import { Button } from '@/components/ui';
 import type { RootStackParamList } from '@/navigation/AppNavigator';
 import { useAuth } from '@/lib/auth/auth-context';
+import { BiometricService } from '@/lib/auth/BiometricService';
 import { reportIssue } from '@/lib/utils/reportIssue';
 import { seedDashboardTestData, clearDashboardTestData } from '@/test-utils/seedDashboardData';
 
@@ -77,6 +80,62 @@ export default function SettingsScreen() {
   const { signOut, state } = useAuth();
   const [isReporting, setIsReporting] = useState(false);
   const [isSeeding, setIsSeeding] = useState(false);
+
+  // Biometric state
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricEnabled, setBiometricEnabled] = useState(false);
+  const [biometricType, setBiometricType] = useState('Biometrics');
+  const [biometricLoading, setBiometricLoading] = useState(true);
+
+  // Check biometric availability on mount
+  useEffect(() => {
+    async function checkBiometrics() {
+      try {
+        const [available, enrolled, enabled, type] = await Promise.all([
+          BiometricService.isAvailable(),
+          BiometricService.isEnrolled(),
+          BiometricService.isEnabled(),
+          BiometricService.getBiometricType(),
+        ]);
+
+        setBiometricAvailable(available && enrolled);
+        setBiometricEnabled(enabled);
+        setBiometricType(type);
+      } catch (error) {
+        console.error('[SettingsScreen] Failed to check biometrics:', error);
+      } finally {
+        setBiometricLoading(false);
+      }
+    }
+
+    checkBiometrics();
+  }, []);
+
+  const handleBiometricToggle = async (value: boolean) => {
+    if (value) {
+      // Enabling - require biometric authentication first
+      const success = await BiometricService.authenticate(
+        t('biometric.promptReason')
+      );
+
+      if (success) {
+        try {
+          await BiometricService.setEnabled(true);
+          setBiometricEnabled(true);
+        } catch (error) {
+          Alert.alert(t('common.error'), t('biometric.enableFailed'));
+        }
+      }
+    } else {
+      // Disabling - no authentication required
+      try {
+        await BiometricService.setEnabled(false);
+        setBiometricEnabled(false);
+      } catch (error) {
+        Alert.alert(t('common.error'), t('biometric.enableFailed'));
+      }
+    }
+  };
 
   const handleItemPress = (screen: keyof RootStackParamList) => {
     // @ts-ignore - Navigation type checking is complex with mixed params
@@ -216,6 +275,32 @@ export default function SettingsScreen() {
             />
           ))}
 
+          {/* Biometric Section - only show if available */}
+          {!biometricLoading && biometricAvailable && (
+            <View style={styles.biometricSection}>
+              <Text style={styles.sectionTitle}>{t('biometric.sectionTitle')}</Text>
+              <View style={styles.biometricRow}>
+                <View style={styles.biometricInfo}>
+                  <Fingerprint size={ICON_SIZE} color={colors.primary[500]} />
+                  <View style={styles.biometricText}>
+                    <Text style={styles.biometricTitle}>
+                      {t('biometric.usePrefix')} {biometricType}
+                    </Text>
+                    <Text style={styles.biometricDescription}>
+                      {t('biometric.description')}
+                    </Text>
+                  </View>
+                </View>
+                <Switch
+                  value={biometricEnabled}
+                  onValueChange={handleBiometricToggle}
+                  trackColor={{ false: colors.grey[300], true: colors.primary[300] }}
+                  thumbColor={biometricEnabled ? colors.primary[500] : colors.grey[100]}
+                />
+              </View>
+            </View>
+          )}
+
           {/* Legal Section */}
           <View style={styles.legalSection}>
             <Text style={styles.sectionTitle}>{t('settings.legal')}</Text>
@@ -239,9 +324,9 @@ export default function SettingsScreen() {
               </View>
             ) : (
               <Button
-                variant="outline"
+                variant="secondary"
                 onPress={handleReportIssue}
-                icon={<Bug size={20} color={colors.primary[500]} />}
+                icon={<Bug size={20} color={colors.text.primary} />}
                 fullWidth
               >
                 {t('settings.reportIssue')}
@@ -259,7 +344,7 @@ export default function SettingsScreen() {
             ) : (
               <View style={styles.demoButtons}>
                 <Button
-                  variant="outline"
+                  variant="secondary"
                   onPress={handleSeedDemoData}
                   icon={<Database size={20} color={colors.primary[500]} />}
                   fullWidth
@@ -267,7 +352,7 @@ export default function SettingsScreen() {
                   {t('settings.loadDemoData')}
                 </Button>
                 <Button
-                  variant="outline"
+                  variant="secondary"
                   onPress={handleClearDemoData}
                   icon={<Trash2 size={20} color={colors.error.main} />}
                   fullWidth
@@ -345,5 +430,37 @@ const styles = StyleSheet.create({
   },
   signOutSection: {
     marginTop: spacing.xxl,
+  },
+  biometricSection: {
+    marginTop: spacing.xxl,
+    paddingTop: spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: colors.border.default,
+  },
+  biometricRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: spacing.md,
+  },
+  biometricInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: spacing.md,
+  },
+  biometricText: {
+    marginLeft: spacing.md,
+    flex: 1,
+  },
+  biometricTitle: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.medium,
+    color: colors.text.primary,
+  },
+  biometricDescription: {
+    fontSize: fontSize.sm,
+    color: colors.text.secondary,
+    marginTop: spacing.xs,
   },
 });

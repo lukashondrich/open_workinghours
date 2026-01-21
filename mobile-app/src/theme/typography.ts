@@ -5,6 +5,8 @@
  */
 
 export const fontSize = {
+  /** 9px - Ultra-small for zoomed-out calendar */
+  xxs: 9,
   /** 12px - Labels, captions */
   xs: 12,
   /** 14px - Small body text */

@@ -13,6 +13,7 @@ import React, {
 } from 'react';
 import type { AuthState, AuthAction, User } from './auth-types';
 import { AuthStorage } from './AuthStorage';
+import { BiometricService } from './BiometricService';
 
 interface AuthContextValue {
   state: AuthState;
@@ -82,14 +83,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!isMounted) return;
 
         if (auth) {
-          dispatch({
-            type: 'RESTORE_TOKEN',
-            payload: {
-              user: auth.user,
-              token: auth.token,
-              expiresAt: auth.expiresAt,
-            },
-          });
+          // Token exists and is valid - check if biometric unlock is enabled
+          const biometricEnabled = await BiometricService.isEnabled();
+
+          if (biometricEnabled) {
+            // Prompt for biometric authentication
+            const biometricSuccess = await BiometricService.authenticate(
+              'Unlock Open Working Hours'
+            );
+
+            if (!isMounted) return;
+
+            if (biometricSuccess) {
+              // Biometric succeeded - restore session
+              dispatch({
+                type: 'RESTORE_TOKEN',
+                payload: {
+                  user: auth.user,
+                  token: auth.token,
+                  expiresAt: auth.expiresAt,
+                },
+              });
+            } else {
+              // Biometric failed - require full login
+              // Don't clear the token, just don't restore the session
+              // User can try again by restarting app or logging in manually
+              console.log('[AuthProvider] Biometric failed, showing login');
+              dispatch({ type: 'SIGN_OUT' });
+            }
+          } else {
+            // No biometric - just restore
+            dispatch({
+              type: 'RESTORE_TOKEN',
+              payload: {
+                user: auth.user,
+                token: auth.token,
+                expiresAt: auth.expiresAt,
+              },
+            });
+          }
         } else {
           dispatch({ type: 'SIGN_OUT' });
         }
@@ -127,11 +159,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     try {
-      await AuthStorage.clearAuth();
+      // "Lock" behavior: Keep token and biometric preference
+      // On next app launch:
+      // - If biometric enabled → prompt biometric → unlock
+      // - If biometric NOT enabled → auto-restore session
+      // This reduces friction while still providing security for biometric users
       dispatch({ type: 'SIGN_OUT' });
     } catch (error) {
       console.error('[AuthProvider] Failed to sign out:', error);
-      throw new Error('Failed to clear authentication');
+      throw new Error('Failed to sign out');
     }
   };
 

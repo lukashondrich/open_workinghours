@@ -46,6 +46,9 @@ export const initialState: CalendarState = {
   // Last-used tracking for picker priority
   lastUsedTemplateId: null,
   lastUsedAbsenceTemplateId: null,
+  // Manual session form state
+  manualSessionFormOpen: false,
+  manualSessionFormDate: null,
 };
 
 export function calendarReducer(state: CalendarState, action: CalendarAction): CalendarState {
@@ -485,6 +488,24 @@ export function calendarReducer(state: CalendarState, action: CalendarAction): C
 
     case 'SET_LAST_USED_ABSENCE_TEMPLATE':
       return { ...state, lastUsedAbsenceTemplateId: action.templateId };
+
+    // ========================================
+    // Manual Session Form Actions
+    // ========================================
+
+    case 'OPEN_MANUAL_SESSION_FORM':
+      return {
+        ...state,
+        manualSessionFormOpen: true,
+        manualSessionFormDate: action.date ?? null,
+      };
+
+    case 'CLOSE_MANUAL_SESSION_FORM':
+      return {
+        ...state,
+        manualSessionFormOpen: false,
+        manualSessionFormDate: null,
+      };
 
     default:
       return state;

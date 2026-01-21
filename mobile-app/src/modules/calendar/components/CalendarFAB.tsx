@@ -5,22 +5,17 @@ import {
   TouchableOpacity,
   TouchableWithoutFeedback,
   StyleSheet,
-  Animated,
 } from 'react-native';
 import { Plus, X } from 'lucide-react-native';
 
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
 import { useCalendar } from '@/lib/calendar/calendar-context';
 import { t } from '@/lib/i18n';
+import ManualSessionForm from './ManualSessionForm';
 
 export default function CalendarFAB() {
   const { state, dispatch } = useCalendar();
   const [menuVisible, setMenuVisible] = useState(false);
-
-  // Hide FAB when overlays are open or in month view
-  if (state.templatePanelOpen || state.hideFAB || state.view === 'month') {
-    return null;
-  }
 
   const handleFABPress = () => {
     setMenuVisible(!menuVisible);
@@ -32,12 +27,37 @@ export default function CalendarFAB() {
     dispatch({ type: 'TOGGLE_TEMPLATE_PANEL' });
   };
 
+  const handleLogHoursPress = () => {
+    setMenuVisible(false);
+    dispatch({ type: 'OPEN_MANUAL_SESSION_FORM' });
+  };
+
+  const handleCloseManualForm = () => {
+    dispatch({ type: 'CLOSE_MANUAL_SESSION_FORM' });
+  };
+
   const handleOverlayPress = () => {
     setMenuVisible(false);
   };
 
+  // Always render the manual session form (it handles its own visibility)
+  const manualSessionForm = (
+    <ManualSessionForm
+      visible={state.manualSessionFormOpen}
+      defaultDate={state.manualSessionFormDate ?? undefined}
+      onClose={handleCloseManualForm}
+    />
+  );
+
+  // Hide FAB when overlays are open or in month view
+  if (state.templatePanelOpen || state.hideFAB || state.view === 'month') {
+    return manualSessionForm;
+  }
+
   return (
     <>
+      {manualSessionForm}
+
       {/* Overlay to close menu when tapping outside */}
       {menuVisible && (
         <TouchableWithoutFeedback onPress={handleOverlayPress}>
@@ -63,6 +83,14 @@ export default function CalendarFAB() {
               activeOpacity={0.7}
             >
               <Text style={styles.menuItemText}>{t('calendar.fab.shifts')}</Text>
+            </TouchableOpacity>
+            <View style={styles.menuDivider} />
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={handleLogHoursPress}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.menuItemText}>{t('calendar.fab.logHours')}</Text>
             </TouchableOpacity>
           </View>
         )}

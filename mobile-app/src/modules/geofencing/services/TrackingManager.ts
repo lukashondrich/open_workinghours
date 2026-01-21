@@ -3,6 +3,7 @@ import { GeofenceEventData, IgnoreReason } from '../types';
 import { formatDuration } from '@/lib/calendar/calendar-utils';
 import * as Notifications from 'expo-notifications';
 import { trackingEvents } from '@/lib/events/trackingEvents';
+import * as ExitVerificationService from './ExitVerificationService';
 
 // ============================================================================
 // Hysteresis Configuration
@@ -50,14 +51,8 @@ export class TrackingManager {
       console.log('[TrackingManager] Cancelling pending exit - user re-entered');
       await this.db.cancelPendingExit(pendingSession.id);
 
-      const location = await this.db.getLocation(event.locationId);
-      const locationName = location?.name ?? 'Work Location';
-
-      await this.sendNotification(
-        'Welcome back',
-        `Clock-out cancelled at ${locationName} - you're still clocked in`,
-        { sessionId: pendingSession.id }
-      );
+      // Cancel any scheduled verification checks
+      await ExitVerificationService.cancelVerification(pendingSession.id, 'geofence-reentry');
 
       // Process any other pending exits while we're here
       await this.processPendingExits();
@@ -166,21 +161,37 @@ export class TrackingManager {
     }
 
     // Layer 4: Create pending exit (start hysteresis countdown)
-    console.log('[TrackingManager] Creating pending exit - will confirm in 5 minutes');
+    console.log('[TrackingManager] Creating pending exit - scheduling verification checks');
     await this.db.markPendingExit(
       activeSession.id,
       event.timestamp,
       event.accuracy ?? null
     );
 
+    // Get location details for verification
     const location = await this.db.getLocation(event.locationId);
-    const locationName = location?.name ?? 'Work Location';
 
-    await this.sendNotification(
-      'Leaving work area',
-      `Will clock out from ${locationName} in ${EXIT_HYSTERESIS_MINUTES} minutes if you don't return`,
-      { sessionId: activeSession.id, pendingExit: true }
-    );
+    // Determine geofence center coordinates
+    const centerLat = location?.latitude ?? event.latitude;
+    const centerLon = location?.longitude ?? event.longitude;
+
+    // Only schedule verification if we have valid coordinates
+    if (centerLat !== undefined && centerLon !== undefined) {
+      // Schedule verification checks at 1, 3, 5 minutes
+      // These will confirm clock-out only if GPS shows user is confidently outside
+      await ExitVerificationService.scheduleVerificationChecks({
+        sessionId: activeSession.id,
+        locationId: event.locationId,
+        geofenceCenter: {
+          latitude: centerLat,
+          longitude: centerLon,
+        },
+        geofenceRadius: location?.radiusMeters ?? 100,
+        pendingExitTime: event.timestamp,
+      });
+    } else {
+      console.warn('[TrackingManager] No coordinates available for verification - relying on fallback');
+    }
 
     // Process any expired pending exits
     await this.processPendingExits();
@@ -257,6 +268,9 @@ export class TrackingManager {
     if (!activeSession) {
       throw new Error('No active session at this location');
     }
+
+    // Cancel any pending verification (user is manually clocking out)
+    await ExitVerificationService.cancelVerification(activeSession.id, 'manual');
 
     await this.db.clockOut(activeSession.id, new Date().toISOString());
 

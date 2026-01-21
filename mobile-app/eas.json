@@ -8,6 +8,9 @@
       "distribution": "internal",
       "ios": {
         "simulator": false
+      },
+      "android": {
+        "buildType": "apk"
       }
     },
     "development-simulator": {
@@ -21,11 +24,17 @@
       "distribution": "internal",
       "ios": {
         "simulator": false
+      },
+      "android": {
+        "buildType": "apk"
       }
     },
     "production": {
       "ios": {
         "simulator": false
+      },
+      "android": {
+        "buildType": "app-bundle"
       }
     }
   },

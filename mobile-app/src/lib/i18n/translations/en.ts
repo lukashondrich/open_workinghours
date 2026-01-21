@@ -62,6 +62,7 @@ export const en = {
       daysConfirmed: '{{count}}/7 days confirmed',
       submissionsHint: 'Submissions are sent automatically when you confirm each day.',
       reviewHint: 'Enter GPS mode to confirm days. Each confirmed day is submitted immediately.',
+      submitHint: 'Submit each day to finalize your hours',
     },
     templates: {
       title: 'Shift Templates',
@@ -88,6 +89,7 @@ export const en = {
       deleteEmpty: 'This template has no future shifts scheduled.',
       shiftsTab: 'Shifts',
       absencesTab: 'Absences',
+      gpsTab: 'GPS',
       createNew: 'Create new shift...',
       createAndAdd: 'Create & Add',
       createError: 'Failed to create template',
@@ -119,6 +121,10 @@ export const en = {
     fab: {
       shifts: 'Shifts',
       absences: 'Absences',
+      logHours: 'Log Hours',
+    },
+    picker: {
+      logHours: 'Log Tracked Hours',
     },
     batch: {
       placing: 'Placing:',
@@ -126,10 +132,13 @@ export const en = {
       exitHint: 'Tap ✕ to exit batch mode',
     },
     week: {
-      confirm: 'Confirm?',
-      confirmShort: '?',
+      submit: 'Submit',
+      submitShort: '✓',
+      submitTooltipTitle: 'Submitting Your Hours',
+      submitTooltipBody: 'This sends your tracked hours to the study. Once submitted, they cannot be edited.',
+      submitTooltipDismiss: 'Got it',
       continues: 'Continues...',
-      dayConfirmed: '{{day}} confirmed',
+      dayConfirmed: '{{day}} submitted',
       cannotConfirmFutureTitle: 'Cannot confirm future days',
       cannotConfirmFutureMessage: 'You can only confirm days that are in the past. Please wait until tomorrow to confirm today.',
       confirmationFailed: 'Confirmation failed',
@@ -164,6 +173,10 @@ export const en = {
       planned: 'Planned',
       overtime: 'Overtime',
       confirmed: 'confirmed',
+    },
+    gps: {
+      hint: 'Log hours manually when GPS tracking failed',
+      logHours: 'Log Hours',
     },
   },
 
@@ -437,6 +450,14 @@ export const en = {
     comingSoonHint: 'Your tracked work sessions will appear here',
   },
 
+  // Welcome screen (auth entry point)
+  welcome: {
+    title: 'Open Working Hours',
+    subtitle: 'Track your shifts. Protect your privacy.',
+    logIn: 'Log In',
+    createAccount: 'Create Account',
+  },
+
   // Email Verification screen
   emailVerification: {
     title: 'Open Working Hours',
@@ -531,5 +552,32 @@ export const en = {
     exporting: 'Exporting...',
     exportTitle: 'My Open Working Hours Data',
     exportFailed: 'Failed to export data. Please try again.',
+  },
+
+  // Biometric authentication (Face ID / Touch ID)
+  biometric: {
+    sectionTitle: 'Security',
+    usePrefix: 'Use',
+    description: 'Unlock the app quickly and securely',
+    promptReason: 'Unlock Open Working Hours',
+    enableFailed: 'Could not enable biometric unlock. Please try again.',
+    notAvailable: 'Biometric authentication is not available on this device.',
+    notEnrolled: 'Please set up Face ID or Touch ID in your device settings first.',
+  },
+
+  // Manual Session Form (for logging hours when GPS failed)
+  manualSession: {
+    title: 'Log Tracked Hours',
+    location: 'Location',
+    selectLocation: 'Select location',
+    date: 'Date',
+    start: 'Start Time',
+    end: 'End Time',
+    duration: 'Duration',
+    save: 'Save Session',
+    errorFuture: 'Cannot log hours for future dates',
+    errorOverlap: 'Overlaps with existing session',
+    errorTimes: 'End time must be after start time',
+    errorNoLocation: 'Please add a location first',
   },
 };

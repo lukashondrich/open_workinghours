@@ -127,7 +127,7 @@ export default function PermissionsScreen() {
               {t('permissionsScreen.requestPermission')}
             </Button>
 
-            <Button variant="outline" onPress={handleOpenSettings} fullWidth>
+            <Button variant="secondary" onPress={handleOpenSettings} fullWidth>
               {t('permissionsScreen.openSettings')}
             </Button>
           </View>

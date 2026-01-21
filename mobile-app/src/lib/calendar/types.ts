@@ -94,6 +94,9 @@ export interface CalendarState {
   // Last-used tracking for picker priority
   lastUsedTemplateId: string | null
   lastUsedAbsenceTemplateId: string | null
+  // Manual session form state
+  manualSessionFormOpen: boolean
+  manualSessionFormDate: string | null  // Pre-filled date when opened from long-press
 }
 
 export type CalendarAction =
@@ -148,6 +151,9 @@ export type CalendarAction =
   | { type: "SET_HIDE_FAB"; hide: boolean }
   | { type: "SET_LAST_USED_TEMPLATE"; templateId: string }
   | { type: "SET_LAST_USED_ABSENCE_TEMPLATE"; templateId: string }
+  // Manual session form actions
+  | { type: "OPEN_MANUAL_SESSION_FORM"; date?: string }
+  | { type: "CLOSE_MANUAL_SESSION_FORM" }
   | {
       type: "HYDRATE_STATE"
       payload: {

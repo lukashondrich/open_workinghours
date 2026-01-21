@@ -21,6 +21,7 @@ import PermissionsScreen from '@/modules/geofencing/screens/PermissionsScreen';
 import DataPrivacyScreen from '@/modules/geofencing/screens/DataPrivacyScreen';
 
 // Auth screens
+import WelcomeScreen from '@/modules/auth/screens/WelcomeScreen';
 import EmailVerificationScreen from '@/modules/auth/screens/EmailVerificationScreen';
 import RegisterScreen from '@/modules/auth/screens/RegisterScreen';
 import LoginScreen from '@/modules/auth/screens/LoginScreen';
@@ -30,6 +31,7 @@ import { useAuth } from '@/lib/auth/auth-context';
 
 export type RootStackParamList = {
   // Auth stack
+  Welcome: undefined;
   EmailVerification: undefined;
   Register: { email: string };
   Login: { email: string };
@@ -118,10 +120,15 @@ function LoadingScreen() {
 
 /**
  * Auth Stack - For unauthenticated users
+ *
+ * Flow:
+ * - WelcomeScreen: Entry point with "Log In" / "Create Account" choice
+ * - "Log In" → LoginScreen (single code flow for returning users)
+ * - "Create Account" → EmailVerificationScreen → RegisterScreen (new users)
  */
 function AuthStack() {
   const Stack = createNativeStackNavigator<RootStackParamList>();
-  const [mode, setMode] = useState<'verify' | 'register' | 'login'>('verify');
+  const [mode, setMode] = useState<'welcome' | 'verify' | 'register' | 'login'>('welcome');
   const [email, setEmail] = useState('');
 
   return (
@@ -137,6 +144,16 @@ function AuthStack() {
         },
       }}
     >
+      {mode === 'welcome' && (
+        <Stack.Screen name="Welcome" options={{ headerShown: false }}>
+          {() => (
+            <WelcomeScreen
+              onLoginPress={() => setMode('login')}
+              onRegisterPress={() => setMode('verify')}
+            />
+          )}
+        </Stack.Screen>
+      )}
       {mode === 'verify' && (
         <Stack.Screen name="EmailVerification" options={{ title: t('navigation.verifyEmail') }}>
           {() => (
@@ -164,7 +181,7 @@ function AuthStack() {
           {() => (
             <LoginScreen
               email={email}
-              onRegisterPress={() => setMode('register')}
+              onRegisterPress={() => setMode('verify')}
             />
           )}
         </Stack.Screen>

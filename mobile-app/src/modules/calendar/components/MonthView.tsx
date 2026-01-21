@@ -2,6 +2,7 @@ import React, { useMemo, useRef, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, PanResponder, Animated, useWindowDimensions } from 'react-native';
 import { format, startOfMonth, endOfMonth, startOfWeek, addDays, isSameDay, addMonths, subMonths } from 'date-fns';
 import { TreePalm, Thermometer, Check, CircleHelp } from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
 
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/theme';
 import { useCalendar } from '@/lib/calendar/calendar-context';
@@ -202,6 +203,7 @@ export default function MonthView() {
 
     isTransitioningRef.current = true;
     setIsTransitioning(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const targetX = direction === 'prev' ? screenWidth : -screenWidth;
 
     Animated.timing(slideAnim, {

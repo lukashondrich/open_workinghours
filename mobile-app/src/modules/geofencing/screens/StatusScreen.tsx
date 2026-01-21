@@ -17,7 +17,7 @@ import { MapPin } from 'lucide-react-native';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
 import { t } from '@/lib/i18n';
 import { useAuth } from '@/lib/auth/auth-context';
-import { getDatabase } from '@/modules/geofencing/services/Database';
+import { getDatabase, Database } from '@/modules/geofencing/services/Database';
 import { TrackingManager } from '@/modules/geofencing/services/TrackingManager';
 import {
   loadDashboardData,
@@ -170,12 +170,27 @@ export default function StatusScreen() {
     }
   };
 
+  // Process any pending exits that may have expired (fallback mechanism)
+  const processPendingExitsIfNeeded = useCallback(async () => {
+    try {
+      const db = await getDatabase();
+      const trackingManager = new TrackingManager(db);
+      await trackingManager.processPendingExits();
+    } catch (error) {
+      console.error('[StatusScreen] Error processing pending exits:', error);
+    }
+  }, []);
+
   // Refresh on screen focus
   useFocusEffect(
     useCallback(() => {
       loadAllData();
       checkBackgroundPermission();
-    }, [loadAllData])
+
+      // Fallback: process any pending exits when user opens app
+      // This catches cases where verification notifications didn't fire
+      processPendingExitsIfNeeded();
+    }, [loadAllData, processPendingExitsIfNeeded])
   );
 
   // Update every 60 seconds for live data

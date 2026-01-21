@@ -19,6 +19,8 @@ import { formatDuration } from '@/lib/calendar/calendar-utils';
 import { DailySubmissionService } from '@/modules/auth/services/DailySubmissionService';
 import { AuthService } from '@/modules/auth/services/AuthService';
 import { useAuth } from '@/lib/auth/auth-context';
+import { AuthStorage } from '@/lib/auth/AuthStorage';
+import { BiometricService } from '@/lib/auth/BiometricService';
 import { ConsentStorage } from '@/lib/auth/ConsentStorage';
 import { t, getDateLocale } from '@/lib/i18n';
 
@@ -246,12 +248,16 @@ export default function DataPrivacyScreen() {
 
         // Clear consent storage
         await ConsentStorage.clear();
+
+        // Clear auth storage and biometric settings (full cleanup for account deletion)
+        await AuthStorage.clearAuth();
+        await BiometricService.clear();
       } catch (localError) {
         // Log but don't fail - backend is already deleted
         console.error('[DataPrivacyScreen] Local cleanup failed:', localError);
       }
 
-      // Step 3: Sign out
+      // Step 3: Sign out (just updates UI state, storage already cleared above)
       await signOut();
 
       // Step 4: Show success message
@@ -311,7 +317,7 @@ export default function DataPrivacyScreen() {
 
         {/* Export Data Button */}
         <Button
-          variant="outline"
+          variant="secondary"
           onPress={handleExportData}
           loading={isExporting}
           disabled={isExporting}
@@ -380,7 +386,7 @@ export default function DataPrivacyScreen() {
           {failedCount > 0 && (
             <View style={styles.queueActions}>
               <Button
-                variant="outline"
+                variant="secondary"
                 onPress={handleRetryFailed}
                 loading={isProcessingQueue}
                 disabled={isProcessingQueue}
@@ -393,7 +399,7 @@ export default function DataPrivacyScreen() {
         </Card>
 
         <Button
-          variant="outline"
+          variant="secondary"
           onPress={handleDeleteAllData}
           fullWidth
           style={styles.deleteButton}

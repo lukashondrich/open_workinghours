@@ -121,6 +121,11 @@ export default function CalendarHeader() {
           </View>
         )}
       </View>
+
+      {/* Submit hint when GPS mode is active */}
+      {state.view === 'week' && state.reviewMode && (
+        <Text style={styles.submitHint}>{t('calendar.header.submitHint')}</Text>
+      )}
     </View>
   );
 }
@@ -231,5 +236,11 @@ const styles = StyleSheet.create({
   },
   gpsTextActive: {
     color: colors.error.dark,
+  },
+  submitHint: {
+    fontSize: fontSize.xs,
+    color: colors.text.tertiary,
+    marginTop: spacing.sm,
+    textAlign: 'center',
   },
 });

@@ -20,6 +20,7 @@ class DatabaseSettings(BaseModel):
 
 class EmailSettings(BaseModel):
     from_address: EmailStr
+    notification_email: EmailStr | None = None  # Where to send admin notifications (defaults to from_address)
     smtp_host: str
     smtp_port: int = Field(default=587, ge=1, le=65535)
     smtp_username: str

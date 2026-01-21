@@ -39,6 +39,49 @@ def send_email(recipient: str, subject: str, body: str) -> None:
         raise
 
 
+def send_inquiry_notification(
+    inquiry_id: int,
+    name: str,
+    organization: str,
+    role: str,
+    email: str,
+    message: str,
+) -> None:
+    """
+    Send notification email when a new institution inquiry is submitted.
+
+    Sends to notification_email if configured, otherwise from_address.
+    """
+    if settings.email is None:
+        print(f"[email-placeholder] New inquiry #{inquiry_id} from {name} ({organization})")  # noqa: T201
+        return
+
+    recipient = settings.email.notification_email or settings.email.from_address
+    subject = f"[OWH] New Institution Inquiry from {organization}"
+
+    body = f"""New inquiry submitted via the public dashboard.
+
+Inquiry ID: {inquiry_id}
+Name: {name}
+Organization: {organization}
+Role: {role}
+Email: {email}
+
+Message:
+{message}
+
+---
+Reply directly to this inquiry at: {email}
+View all inquiries at: https://api.openworkinghours.org/admin
+"""
+
+    try:
+        send_email(recipient, subject, body)
+    except Exception:  # noqa: BLE001
+        # Log but don't fail the request - inquiry is already saved
+        logger.exception("Failed to send inquiry notification email")
+
+
 def send_verification_email(recipient: str, content: str, subject: str | None = None) -> None:
     """
     Sends a verification email if SMTP credentials are configured.

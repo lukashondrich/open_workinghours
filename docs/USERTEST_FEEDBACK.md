@@ -54,21 +54,28 @@ The GPS telemetry data was **never stored** due to a backend bug:
 
 **Example:** Session spanning yesterday to today shows in week view but is missing from month view.
 
-**Root Cause:** Month view currently only displays confirmed sessions, which confuses users who expect to see their tracked time.
+**Root Cause (Investigated 2025-01-18):**
+Month view had no way to load tracking data because:
+1. GPS toggle (which triggers data load) was only shown in week view
+2. Tracking data only loaded when `reviewMode=true`
+3. If user navigated directly to month view, tracking data never loaded
 
-**Desired Behavior:**
-- Show session in both views, whether active or completed
-- For multi-day sessions:
-  - Past days that are confirmed: show as confirmed
-  - Current day (unconfirmed): show with "pending" or "?" indicator
-  - Even if today's portion can't be confirmed yet, yesterday's confirmed portion should display
+**Solution Implemented (2025-01-18):**
+Hybrid approach - month view always loads tracking data automatically (it's overview-only), while week view keeps the GPS toggle for detailed editing mode.
 
-**Proposed Solution:**
-- In month view, show unconfirmed/active days with a distinct visual indicator (e.g., "?" badge, dashed border, or faded style)
-- Split multi-day sessions so each day's portion can have independent confirmation status display
+**Changes in `calendar-context.tsx`:**
+1. `SET_VIEW` to month now always loads tracking (removed `reviewMode` condition)
+2. `SET_MONTH` in month view now always loads tracking (removed `reviewMode` condition)
+3. `tracking-changed` event refreshes month view regardless of `reviewMode`
+4. New `useEffect` loads tracking on initial mount if starting in month view
+
+**Visual Indicators (already implemented):**
+- Unconfirmed days with activity show "?" icon
+- Confirmed days show overtime with ✓ icon
+- Multi-day sessions correctly split across days
 
 **Priority:** High
-**Status:** Not started
+**Status:** Fixed - needs testing
 
 ---
 
@@ -79,29 +86,34 @@ The GPS telemetry data was **never stored** due to a backend bug:
 - They forgot their phone at home
 - GPS tracking failed entirely (no session created at all)
 
-**Current State:**
-- GPS works correctly → session created → user can edit start/end times ✓
-- GPS partially fails → session exists → user can correct times ✓
-- GPS fails completely → **no session exists → no way to add one** ✗
+**Solution Implemented (2026-01-18):**
+Manual session creation feature with two entry points:
 
-Users can add shifts (planned) and absences, but these are different from tracked sessions.
+1. **FAB Menu** - New "Log Hours" option alongside Shifts and Absences
+2. **Long-press on calendar** - "Log Tracked Hours" option in template picker
 
-**Proposed Solution:**
-Allow manual creation of tracked sessions (same type GPS creates):
-- User selects a past day with no session
-- User enters clock-in and clock-out times
-- System creates a session identical to what GPS would have created
-- Session appears in calendar same as GPS-tracked sessions
-- Session goes through normal confirmation flow
+**Implementation Details:**
+- New `ManualSessionForm` component with location dropdown, date picker, time pickers
+- `Database.createManualSession()` method with overlap validation
+- Sessions created with `tracking_method: 'manual'`, `state: 'completed'`
+- Calendar auto-refreshes via `tracking-changed` event
+- Full i18n support (EN/DE)
 
-**Design Considerations:**
-- Entry point: FAB menu? Long-press on empty day? New option in template picker?
-- Visual indicator: Should manually-created sessions look different from GPS-created ones? (Probably not - same data, same purpose)
-- Time picker: Reuse existing session edit UI
-- Validation: Prevent overlapping sessions, same rules as GPS sessions
+**Files Changed:**
+- `Database.ts` - Added `createManualSession()` and `getOverlappingSessions()`
+- `ManualSessionForm.tsx` - New component
+- `CalendarFAB.tsx` - Added "Log Hours" menu option
+- `WeekView.tsx` - Added "Log Tracked Hours" to template picker
+- `calendar-reducer.ts` / `types.ts` - State management for form
+- `en.ts` / `de.ts` - Translation strings
+
+**Validation:**
+- End time must be after start time
+- Cannot log future dates
+- Cannot overlap with existing sessions at same location
 
 **Priority:** High
-**Status:** Not started
+**Status:** Implemented - needs testing
 
 ---
 
@@ -113,14 +125,19 @@ Allow manual creation of tracked sessions (same type GPS creates):
 
 **Impact:** Users may confirm without understanding the permanence, or hesitate to confirm because they don't understand what it does.
 
-**Potential Solutions:**
-- **Onboarding:** Add explanation during first-time use tutorial
-- **Inline hint:** Add subtle explainer text near confirm button (e.g., "Submits your hours - cannot be edited after")
-- **Confirmation dialog:** Brief modal explaining what happens (risk: adds friction)
-- **Visual preview:** Show what will be submitted before confirming
+**Solution Implemented (2026-01-19):**
+1. **First-time tooltip:** Modal appears on first submit tap explaining what happens
+2. **Clearer labeling:** Button changed from "Confirm?" to "Submit" ("✓" when compact)
+3. **Inline hint:** Header shows "Submit each day to finalize your hours" when GPS mode is active
+
+**Files changed:**
+- `src/lib/storage/OnboardingStorage.ts` (new)
+- `src/lib/i18n/translations/en.ts`, `de.ts`
+- `src/modules/calendar/components/WeekView.tsx`
+- `src/modules/calendar/components/CalendarHeader.tsx`
 
 **Priority:** Medium
-**Status:** Not started - needs solution decision
+**Status:** Implemented - needs device testing
 
 ---
 
@@ -146,10 +163,10 @@ Allow manual creation of tracked sessions (same type GPS creates):
 
 | ID | Issue | Priority | Status |
 |----|-------|----------|--------|
-| UT-1 | GPS failed in hospital | High | Not started |
-| UT-2 | Week/month view sync | High | Not started |
-| UT-3 | Manual past sessions | High | Not started |
-| UT-4 | Confirm clarity | Medium | Not started |
+| UT-1 | GPS telemetry not stored | High | Backend fix done - needs deploy |
+| UT-2 | Week/month view sync | High | Fixed - needs testing |
+| UT-3 | Manual past sessions | High | Implemented - needs testing |
+| UT-4 | Confirm clarity | Medium | Implemented - needs testing |
 | UT-5 | 14-day widget unused | Low | Monitor |
 
 ---
@@ -157,9 +174,8 @@ Allow manual creation of tracked sessions (same type GPS creates):
 ## Next Steps
 
 1. Retrieve and analyze hospital GPS data from UT-1
-2. Design solution for UT-2 (month view pending indicator)
-3. Design 3rd event type for UT-3 (manual tracked session)
-4. Decide on approach for UT-4 (onboarding vs inline hint)
+2. Device testing for UT-2, UT-3, and UT-4 implementations
+3. Deploy backend fix for UT-1
 
 ---
 

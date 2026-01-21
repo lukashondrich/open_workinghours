@@ -16,6 +16,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..database import get_db
+from ..email import send_inquiry_notification
 from ..models import InstitutionInquiry, User, WorkEvent
 from ..schemas import (
     ActivityOut,
@@ -239,9 +240,15 @@ def submit_institution_inquiry(
     db.commit()
     db.refresh(db_inquiry)
 
-    # TODO: Send email notification to admin (contact@openworkinghours.org)
-    # This requires the email service to be configured
-    # For now, just store in DB - admin can check via /admin endpoint
+    # Send email notification to admin
+    send_inquiry_notification(
+        inquiry_id=db_inquiry.inquiry_id,
+        name=inquiry.name,
+        organization=inquiry.organization,
+        role=inquiry.role,
+        email=inquiry.email,
+        message=inquiry.message,
+    )
 
     return InstitutionInquiryOut(
         success=True,
