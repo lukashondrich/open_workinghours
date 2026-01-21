@@ -1,0 +1,87 @@
+export default {
+  expo: {
+    name: "Open Working Hours",
+    slug: "mobile-app",
+    version: "2.0.0",
+    orientation: "portrait",
+    icon: "./assets/icon.png",
+    userInterfaceStyle: "light",
+    newArchEnabled: true,
+    splash: {
+      image: "./assets/splash-icon.png",
+      resizeMode: "contain",
+      backgroundColor: "#ffffff",
+    },
+    ios: {
+      supportsTablet: true,
+      bundleIdentifier: "com.openworkinghours.mobileapp",
+      buildNumber: "39",
+      config: {
+        usesNonExemptEncryption: false,
+      },
+      infoPlist: {
+        NSLocationWhenInUseUsageDescription:
+          "We need your location to automatically track when you're at work.",
+        NSLocationAlwaysAndWhenInUseUsageDescription:
+          "We need your location in the background to automatically clock you in/out when you arrive/leave work.",
+        NSFaceIDUsageDescription:
+          "Use Face ID to quickly unlock Open Working Hours.",
+        UIBackgroundModes: ["location", "location"],
+        ITSAppUsesNonExemptEncryption: false,
+      },
+    },
+    android: {
+      package: "com.openworkinghours.mobileapp",
+      versionCode: 1,
+      adaptiveIcon: {
+        foregroundImage: "./assets/adaptive-icon.png",
+        backgroundColor: "#ffffff",
+      },
+      edgeToEdgeEnabled: true,
+      predictiveBackGestureEnabled: false,
+      permissions: [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.VIBRATE",
+      ],
+      config: {
+        googleMaps: {
+          apiKey: process.env.GOOGLE_MAPS_API_KEY,
+        },
+      },
+    },
+    privacy: "public",
+    rating: {
+      itunesRating: "4+",
+    },
+    web: {
+      favicon: "./assets/favicon.png",
+    },
+    plugins: [
+      "expo-sqlite",
+      [
+        "expo-location",
+        {
+          locationAlwaysAndWhenInUsePermission:
+            "Allow Open Working Hours to use your location to automatically track work hours.",
+          isAndroidBackgroundLocationEnabled: true,
+          isAndroidForegroundServiceEnabled: true,
+        },
+      ],
+      "expo-secure-store",
+      "expo-local-authentication",
+      "expo-mail-composer",
+      "@react-native-community/datetimepicker",
+    ],
+    extra: {
+      authBaseUrl: "https://api.openworkinghours.org",
+      submissionBaseUrl: "https://api.openworkinghours.org",
+      TEST_DB_SEED: false,
+      TEST_PRIVACY_NOISE_SEED: null,
+      eas: {
+        projectId: "911b57e4-6180-4b0f-ae1b-ff195611a680",
+      },
+    },
+  },
+};

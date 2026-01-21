@@ -46,9 +46,7 @@
         "android.permission.VIBRATE"
       ],
       "config": {
-        "googleMaps": {
-          "apiKey": "AIzaSyBjU--QIr33vGL1EAJFl0LQm8eayCrdpvw"
-        }
+        "googleMaps": {}
       }
     },
     "privacy": "public",
