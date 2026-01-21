@@ -652,7 +652,7 @@ Current policy says "daily aggregation at 3 AM". Update to reflect:
 ### Phase 1: MVP Dashboard
 
 **Prerequisites (YOU):**
-- [ ] Set up `contact@openworkinghours.org` email
+- [x] Set up `contact@openworkinghours.org` email (2026-01-21, IONOS Mail Basic + Gmail fetch)
 - [x] ~~Create Datawrapper account~~ (no longer needed - using D3.js)
 - [ ] Provide App Store / TestFlight link when ready
 
@@ -661,7 +661,7 @@ Current policy says "daily aggregation at 3 AM". Update to reflect:
 - [x] Add `GET /dashboard/activity` endpoint (public, returns 30-day activity)
 - [x] Add `POST /dashboard/contact` endpoint
 - [x] Add `institution_inquiries` table + migration
-- [ ] Email notification on new inquiry
+- [x] Email notification on new inquiry (2026-01-21)
 
 **Frontend (Astro + React):**
 - [x] Create `/dashboard` page (EN)
@@ -696,9 +696,13 @@ Current policy says "daily aggregation at 3 AM". Update to reflect:
 
 **Notes (2026-01-18):**
 - Endpoints use `/dashboard/*` prefix (not `/stats/*` as originally planned)
-- Contact form stores to DB but doesn't send email notification yet
 - Nav reordered: Product → Dashboard (with "Live" badge)
 - Cross-links added: homepage hero and product page link to dashboard
+
+**Notes (2026-01-21):**
+- Contact form now sends email notifications to `contact@openworkinghours.org`
+- Email setup: IONOS Mail Basic mailbox with Gmail POP3 fetch
+- Backend config: `EMAIL__NOTIFICATION_EMAIL` env var added to docker-compose.yml
 
 ### Phase 2: Referral System + Polish
 
@@ -752,8 +756,8 @@ Current policy says "daily aggregation at 3 AM". Update to reflect:
 
 ### Before Implementation
 
-- [ ] **Set up contact@openworkinghours.org email** - Required for institution contact form
-- [ ] **Create Datawrapper account** - Or decide on alternative (see below)
+- [x] **Set up contact@openworkinghours.org email** - Done 2026-01-21 (IONOS Mail Basic + Gmail fetch)
+- [x] ~~**Create Datawrapper account**~~ - Not needed, using D3.js
 - [ ] **App Store / TestFlight link** - Update CTAs when available
 - [ ] **OG image creation** - Design shareable social image
 

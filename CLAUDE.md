@@ -137,6 +137,19 @@ Start feature → Create *_PLAN.md → Complete → Extract to ARCHITECTURE.md �
 
 ## Recent Updates (Last 7 Days)
 
+### 2026-01-21: Dashboard Contact Form Email Notifications
+- **Feature:** Contact form submissions now send email notifications
+- **Email setup:** Created `contact@openworkinghours.org` mailbox (IONOS Mail Basic)
+- **Gmail integration:** Configured Gmail to fetch via POP3 + send as contact@
+- **Backend changes:**
+  - Added `EMAIL__NOTIFICATION_EMAIL` config option
+  - Wired `send_inquiry_notification()` to contact form endpoint
+  - Updated `docker-compose.yml` to pass new env var
+- **Security fix:** Moved Google Maps API key to EAS secrets (was accidentally committed)
+  - Created `app.config.js` to reference `process.env.GOOGLE_MAPS_API_KEY`
+  - Restricted API key in Google Cloud Console (package name + SHA-1)
+- **Files:** `backend/app/config.py`, `backend/app/email.py`, `backend/app/routers/dashboard.py`, `backend/docker-compose.yml`, `mobile-app/app.config.js`
+
 ### 2026-01-20: Android Calendar Gesture Fix
 - **Problem:** WeekView calendar gestures (scroll, pinch zoom, week navigation) broken on Android
 - **Root cause:** RNGH GestureDetector + ScrollView don't coordinate well on Android (works fine on iOS)
