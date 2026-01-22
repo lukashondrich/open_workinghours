@@ -88,6 +88,7 @@ export default function InteractiveMap({ locale = 'en' }: Props) {
     Object.values(stateNameToCode).forEach(code => {
       data[code] = 0; // No data
     });
+    data['DE-BE'] = 1; // Berlin = building (1-10)
     return data;
   });
 
