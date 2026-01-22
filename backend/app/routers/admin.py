@@ -649,7 +649,11 @@ def get_dashboard_page(username: str = Depends(verify_admin)) -> str:
             if (events.length > 0) {
                 eventsHtml = events.slice(0, 50).map(e => {
                     const time = new Date(e.timestamp).toLocaleString();
-                    const accuracy = e.accuracy_meters ? e.accuracy_meters.toFixed(1) + 'm' : 'N/A';
+                    // Show accuracy with source: "32.5m (fetch)" or "32.5m (event)" or "N/A"
+                    const sourceLabel = e.accuracy_source === 'active_fetch' ? 'fetch' : e.accuracy_source === 'event' ? 'event' : '';
+                    const accuracy = e.accuracy_meters
+                        ? e.accuracy_meters.toFixed(1) + 'm' + (sourceLabel ? ` (${sourceLabel})` : '')
+                        : 'N/A';
                     const ignoredClass = e.ignored ? 'gps-event-ignored' : '';
                     const ignoredNote = e.ignored ? ` (${e.ignore_reason || 'ignored'})` : '';
 
@@ -693,6 +697,10 @@ def get_dashboard_page(username: str = Depends(verify_admin)) -> str:
                         <div class="gps-stat">
                             <div class="gps-stat-value">${telemetry.signal_degradation_count || 0}</div>
                             <div class="gps-stat-label">Signal Degradation</div>
+                        </div>
+                        <div class="gps-stat">
+                            <div class="gps-stat-value">${telemetry.debounced_events_count || 0}</div>
+                            <div class="gps-stat-label">Debounced</div>
                         </div>
                     </div>
                     <div class="gps-events">

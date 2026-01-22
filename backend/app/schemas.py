@@ -274,6 +274,7 @@ class GpsTelemetryEvent(BaseModel):
     timestamp: str
     event_type: str  # "enter" | "exit"
     accuracy_meters: float | None = None
+    accuracy_source: str | None = None  # "event" | "active_fetch" | null
     ignored: bool = False
     ignore_reason: str | None = None
     location_name: str = "Unknown"
@@ -293,6 +294,7 @@ class GpsTelemetry(BaseModel):
     accuracy_stats: GpsAccuracyStats = Field(default_factory=GpsAccuracyStats)
     ignored_events_count: int = 0
     signal_degradation_count: int = 0
+    debounced_events_count: int = 0
 
 
 class FeedbackIn(BaseModel):
