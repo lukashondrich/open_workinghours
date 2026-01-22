@@ -81,15 +81,13 @@ export default function InteractiveMap({ locale = 'en' }: Props) {
   const [tooltip, setTooltip] = useState<{ x: number; y: number; name: string } | null>(null);
   const t = labels[locale];
 
-  // Mock coverage data for now (all states = no data)
+  // Coverage data - all states start with no data
+  // TODO: Fetch from API when we have real coverage
   const [coverage] = useState<CoverageData>(() => {
     const data: CoverageData = {};
     Object.values(stateNameToCode).forEach(code => {
       data[code] = 0; // No data
     });
-    // Add some mock data for visual testing
-    data['DE-BY'] = 1; // Bavaria = building
-    data['DE-NW'] = 2; // NRW = available
     return data;
   });
 
