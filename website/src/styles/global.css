@@ -339,3 +339,22 @@ a:hover {
   color: var(--color-stone-400);
   font-size: 0.875rem;
 }
+
+/* Footnotes */
+.footnote {
+  color: var(--color-teal-600);
+  text-decoration: none;
+  font-size: 0.75em;
+  vertical-align: super;
+  line-height: 0;
+  margin-left: 1px;
+}
+
+.footnote:hover {
+  text-decoration: underline;
+  color: var(--color-teal-700);
+}
+
+.footnote sup {
+  font-size: inherit;
+}

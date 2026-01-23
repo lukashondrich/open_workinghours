@@ -41,46 +41,37 @@ import Layout from '../layouts/Layout.astro';
         <h2 class="text-stone-900 mb-4">Problem</h2>
         <div class="prose text-stone-700 space-y-4">
           <p>
-            <strong>Chronic overwork in healthcare</strong> carries real human cost: exhaustion, long-term health damage, professional burnout. Patients face increased risk through higher error rates and compromised care quality.
+            Workload in German hospitals regularly exceeds legal limits in many areas.<a href="#ref-1" class="footnote" title="Working Hours Act (ArbZG), § 3"><sup>1</sup></a> Medical and nursing staff systematically work overtime, often without complete documentation.<a href="#ref-2" class="footnote" title="Marburger Bund: Violations of working time documentation"><sup>2</sup></a><a href="#ref-3" class="footnote" title="Deutsches Ärzteblatt: University clinics and time tracking"><sup>3</sup></a> The consequences are documented: elevated burnout rates, attrition of skilled workers, and increased risk of (including preventable) medical errors.<a href="#ref-4" class="footnote" title="WSI-Mitteilungen: Working conditions of nursing staff"><sup>4</sup></a><a href="#ref-5" class="footnote" title="BARMER Nursing Study 2.0"><sup>5</sup></a><a href="#ref-6" class="footnote" title="Medical Service: Treatment error statistics"><sup>6</sup></a> Patients experience longer wait times and reduced quality of care.<a href="#ref-7" class="footnote" title="DKG: Staff shortage"><sup>7</sup></a>
           </p>
           <p>
-            These costs are <strong>largely externalized</strong>:
-          </p>
-          <ul class="space-y-2 ml-4">
-            <li><strong>Not reflected</strong> in staffing decisions or planning.</li>
-            <li><strong>Only partially</strong> captured in incident reports.</li>
-            <li><strong>Rarely appear</strong> as systemic evidence in legal or bargaining contexts.</li>
-          </ul>
-          <p>
-            Unsafe working conditions can persist – even where formal protections exist.
+            These conditions are widely known. Yet structural change remains absent.
           </p>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- Analytical Perspective -->
+  <!-- Analysis -->
   <section class="py-12 sm:py-16">
     <div class="max-w-5xl mx-auto px-4 sm:px-6">
       <div class="max-w-3xl">
         <h2 class="text-stone-900 mb-4">Analysis</h2>
         <div class="prose text-stone-700 space-y-4">
           <p>
-            The problem is <strong>not missing rules, but missing information</strong>.
+            Hospitals operate under considerable economic pressure.<a href="#ref-8" class="footnote" title="DKI: Hospital Barometer 2025"><sup>8</sup></a><a href="#ref-9" class="footnote" title="DKG: Economic situation of hospitals"><sup>9</sup></a> A common response is to reduce staffing costs, leading to chronic understaffing.<a href="#ref-8" class="footnote" title="DKI: Hospital Barometer 2025"><sup>8</sup></a><a href="#ref-10" class="footnote" title="BDO & DKI: Staff shortage in hospitals"><sup>10</sup></a>
           </p>
           <p>
-            Working time regulations exist. Enforcement mechanisms exist. But <strong>systemic evidence of actual working patterns</strong> – aggregated, verifiable, independent of employer reporting – is largely absent.
-          </p>
-          <p>
-            Without this evidence:
+            In functioning systems, corrective mechanisms exist for such failures:
           </p>
           <ul class="space-y-2 ml-4">
-            <li><strong>Complaints remain anecdotal</strong> and easy to dismiss.</li>
-            <li><strong>Unions lack data</strong> for collective bargaining.</li>
-            <li><strong>Regulators can't identify</strong> systemic patterns.</li>
+            <li><strong>Market mechanisms</strong> (where choices exist): Patients and skilled workers choose other institutions, creating economic pressure for change.</li>
+            <li><strong>Legal mechanisms:</strong> Violations of working time regulations or liability cases for treatment errors lead to sanctions that alter decision-makers' calculations.<a href="#ref-1" class="footnote" title="Working Hours Act (ArbZG), § 3"><sup>1</sup></a><a href="#ref-11" class="footnote" title="Federal Labor Court: Obligation to record working hours"><sup>11</sup></a><a href="#ref-6" class="footnote" title="Medical Service: Treatment error statistics"><sup>6</sup></a></li>
           </ul>
           <p>
-            <strong>The problem is infrastructural.</strong>
+            However, both mechanisms require that the underlying problems are visible and demonstrable.
+          </p>
+          <p>
+            Here lies the central bottleneck: Actual workload is often not fully, independently, and comparably documented.<a href="#ref-2" class="footnote" title="Marburger Bund: Violations of working time documentation"><sup>2</sup></a><a href="#ref-3" class="footnote" title="Deutsches Ärzteblatt: University clinics and time tracking"><sup>3</sup></a><a href="#ref-11" class="footnote" title="Federal Labor Court: Obligation to record working hours"><sup>11</sup></a> Without reliable data, there is no basis for evidence. Without evidence, no pressure for action. Without pressure, no correction.
           </p>
         </div>
       </div>
@@ -91,31 +82,28 @@ import Layout from '../layouts/Layout.astro';
   <section class="section-alt py-12 sm:py-16">
     <div class="max-w-5xl mx-auto px-4 sm:px-6">
       <div class="max-w-3xl">
-        <h2 class="text-stone-900 mb-4">Solution</h2>
+        <h2 class="text-stone-900 mb-4">Approach</h2>
         <div class="prose text-stone-700 space-y-4">
           <p>
-            <strong>Open Working Hours</strong> provides this infrastructure: a mobile app for documenting actual working hours, with privacy-preserving aggregation that produces systemic evidence.
+            The bottleneck described above can be addressed through systematic transparency.
+          </p>
+          <p>
+            This platform enables healthcare workers to record their working hours on their own device and contribute anonymously to aggregated statistics. No personal data is published – only aggregated, anonymized metrics at the institutional level, released only when a minimum number of contributors is reached.
+          </p>
+          <p>
+            The goal is to protect individuals while making institutional responsibility visible. Workers should not face additional disadvantages or risks for documenting overwork. Responsibility for working conditions should rest with decision-makers who determine staffing and organizational structures.
+          </p>
+          <p>
+            The resulting data can serve as an evidence base: in collective bargaining, health policy debates, and – where necessary – legal proceedings.
           </p>
         </div>
 
         <!-- Solution Details -->
-        <ul class="mt-6 space-y-4 text-stone-700">
-          <li class="flex gap-3">
-            <span class="text-teal-600 font-semibold select-none">1.</span>
-            <span><strong>What it is:</strong> An iOS app for tracking actual working hours – automatically via geofencing or manually in seconds.</span>
-          </li>
-          <li class="flex gap-3">
-            <span class="text-teal-600 font-semibold select-none">2.</span>
-            <span><strong>For whom:</strong> Physicians, nurses, and healthcare professionals who want to contribute to transparency.</span>
-          </li>
-          <li class="flex gap-3">
-            <span class="text-teal-600 font-semibold select-none">3.</span>
-            <span><strong>Output:</strong> Aggregated, anonymized statistics – by region, specialty, role level.</span>
-          </li>
-          <li class="flex gap-3">
-            <span class="text-teal-600 font-semibold select-none">4.</span>
-            <span><strong>Status:</strong> iOS app in closed beta. Backend deployed. Seeking pilot partners.</span>
-          </li>
+        <ul class="mt-6 space-y-3 text-stone-700 list-disc list-inside">
+          <li><strong>Product:</strong> iOS app for recording actual working hours – automatically via geofencing or manually in seconds.</li>
+          <li><strong>Target group:</strong> Physicians, nurses, and healthcare workers who want to contribute to transparency.</li>
+          <li><strong>Output:</strong> Aggregated, anonymized statistics – by region, specialty, and role level.</li>
+          <li><strong>Status:</strong> iOS app in closed beta. Backend deployed. Seeking pilot partners.</li>
         </ul>
       </div>
     </div>
@@ -173,6 +161,26 @@ import Layout from '../layouts/Layout.astro';
         <a href="/privacy" class="hover:text-teal-600">Read privacy principles</a>
         <a href="/team" class="hover:text-teal-600">Team & Contact</a>
       </div>
+    </div>
+  </section>
+
+  <!-- Sources -->
+  <section class="border-t border-stone-200 py-8 bg-stone-50">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6">
+      <h3 class="text-stone-500 text-sm font-medium uppercase tracking-wide mb-4">Sources</h3>
+      <ol class="text-sm text-stone-600 space-y-2 list-decimal list-inside">
+        <li id="ref-1">Working Hours Act (ArbZG), § 3 – Working hours of employees. <a href="https://www.gesetze-im-internet.de/arbzg/__3.html" target="_blank" rel="noopener" class="text-teal-600 hover:underline">Gesetze-im-Internet</a></li>
+        <li id="ref-2">Marburger Bund: "Massive violations by university clinics against working time documentation requirements…" (25.06.2025). <a href="https://www.marburger-bund.de/" target="_blank" rel="noopener" class="text-teal-600 hover:underline">marburger-bund.de</a></li>
+        <li id="ref-3">Deutsches Ärzteblatt: "Majority of university clinics violate working time documentation" (25.06.2025). <a href="https://www.aerzteblatt.de/" target="_blank" rel="noopener" class="text-teal-600 hover:underline">aerzteblatt.de</a></li>
+        <li id="ref-4">WSI-Mitteilungen: "Working conditions, health and exhaustion among nursing staff in Germany" (Analysis based on BIBB/BAuA employment survey). <a href="https://www.wsi.de/" target="_blank" rel="noopener" class="text-teal-600 hover:underline">wsi.de</a></li>
+        <li id="ref-5">BARMER: "Nursing Study 2.0" – Resource and stress analysis for nursing staff (2023). <a href="https://www.barmer.de/" target="_blank" rel="noopener" class="text-teal-600 hover:underline">barmer.de</a></li>
+        <li id="ref-6">Medical Service Germany: Annual statistics on treatment error assessments (2024) / Press release (30.10.2025). <a href="https://www.md-bund.de/" target="_blank" rel="noopener" class="text-teal-600 hover:underline">md-bund.de</a></li>
+        <li id="ref-7">German Hospital Federation (DKG): "Hospital association demands decisive action against staff shortage" (12.10.2025). <a href="https://www.dkgev.de/" target="_blank" rel="noopener" class="text-teal-600 hover:underline">dkgev.de</a></li>
+        <li id="ref-8">DKI: "Hospital Barometer 2025" (29.12.2025). <a href="https://www.dki.de/" target="_blank" rel="noopener" class="text-teal-600 hover:underline">dki.de</a></li>
+        <li id="ref-9">DKG: "Many hospitals fighting for survival" – Press on economic situation (29.12.2025). <a href="https://www.dkgev.de/" target="_blank" rel="noopener" class="text-teal-600 hover:underline">dkgev.de</a></li>
+        <li id="ref-10">BDO & DKI: "Staff shortage in hospitals – Quo vadis?" (Study, 2024). <a href="https://www.bdo.de/" target="_blank" rel="noopener" class="text-teal-600 hover:underline">bdo.de</a></li>
+        <li id="ref-11">Federal Labor Court (BAG): Decision 1 ABR 22/21 – Obligation to record working hours (13.09.2022) + BMAS FAQ. <a href="https://www.bmas.de/" target="_blank" rel="noopener" class="text-teal-600 hover:underline">bmas.de</a></li>
+      </ol>
     </div>
   </section>
 </Layout>
