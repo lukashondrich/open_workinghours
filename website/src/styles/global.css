@@ -344,17 +344,11 @@ a:hover {
 .footnote {
   color: var(--color-teal-600);
   text-decoration: none;
-  font-size: 0.75em;
-  vertical-align: super;
-  line-height: 0;
+  font-size: 0.85em;
   margin-left: 1px;
 }
 
 .footnote:hover {
   text-decoration: underline;
   color: var(--color-teal-700);
-}
-
-.footnote sup {
-  font-size: inherit;
 }
