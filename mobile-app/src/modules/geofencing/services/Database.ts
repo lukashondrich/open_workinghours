@@ -7,6 +7,7 @@ import {
   WeeklySubmissionRecord,
   DailySubmissionRecord,
   SubmissionStatus,
+  AccuracySource,
 } from '../types';
 import * as Crypto from 'expo-crypto';
 
@@ -213,6 +214,24 @@ export class Database {
       );
 
       console.log('[Database] Migration to version 4 complete');
+    }
+
+    // Migration to version 5: Add accuracy_source column for GPS telemetry tracking
+    if (version < 5) {
+      console.log('[Database] Running migration to version 5 (accuracy_source)');
+
+      await this.db.execAsync(`
+        ALTER TABLE geofence_events ADD COLUMN accuracy_source TEXT;
+      `).catch(() => {
+        // Column may already exist if table was created fresh
+      });
+
+      await this.db.runAsync(
+        `INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (?, datetime('now'))`,
+        5
+      );
+
+      console.log('[Database] Migration to version 5 complete');
     }
   }
 
@@ -506,6 +525,41 @@ export class Database {
     return results.map(r => this.mapSession(r));
   }
 
+  /**
+   * Get sessions for a location within a date range.
+   * Includes all session states (active, pending_exit, completed).
+   *
+   * @param locationId - The location to query
+   * @param startDate - Start date (YYYY-MM-DD), inclusive. null = no lower bound
+   * @param endDate - End date (YYYY-MM-DD), inclusive. null = no upper bound
+   * @returns Sessions ordered by clockIn descending
+   */
+  async getSessionsInRange(
+    locationId: string,
+    startDate: string | null,
+    endDate: string | null
+  ): Promise<TrackingSession[]> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    let query = `SELECT * FROM tracking_sessions WHERE location_id = ?`;
+    const params: (string | null)[] = [locationId];
+
+    if (startDate) {
+      query += ` AND DATE(clock_in) >= ?`;
+      params.push(startDate);
+    }
+
+    if (endDate) {
+      query += ` AND DATE(clock_in) <= ?`;
+      params.push(endDate);
+    }
+
+    query += ` ORDER BY clock_in DESC`;
+
+    const results = await this.db.getAllAsync<any>(query, ...params);
+    return results.map(r => this.mapSession(r));
+  }
+
   async getAllSessions(): Promise<TrackingSession[]> {
     if (!this.db) throw new Error('Database not initialized');
     const results = await this.db.getAllAsync<any>('SELECT * FROM tracking_sessions ORDER BY clock_in DESC');
@@ -637,8 +691,8 @@ export class Database {
 
     await this.db.runAsync(
       `INSERT INTO geofence_events
-       (id, location_id, event_type, timestamp, latitude, longitude, accuracy, ignored, ignore_reason)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (id, location_id, event_type, timestamp, latitude, longitude, accuracy, accuracy_source, ignored, ignore_reason)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       id,
       event.locationId,
       event.eventType,
@@ -646,6 +700,7 @@ export class Database {
       event.latitude ?? null,
       event.longitude ?? null,
       event.accuracy ?? null,
+      event.accuracySource ?? null,
       event.ignored ? 1 : 0,
       event.ignoreReason ?? null
     );
@@ -687,6 +742,46 @@ export class Database {
       ...this.mapEvent(r),
       locationName: r.location_name,
     }));
+  }
+
+  /**
+   * Get the most recent geofence event for a specific location (for debouncing)
+   */
+  async getLastEventForLocation(locationId: string): Promise<GeofenceEvent | null> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const result = await this.db.getFirstAsync<any>(
+      `SELECT * FROM geofence_events WHERE location_id = ? ORDER BY timestamp DESC LIMIT 1`,
+      locationId
+    );
+
+    return result ? this.mapEvent(result) : null;
+  }
+
+  /**
+   * Auto-confirm stale pending exits older than the specified hours.
+   * Returns the number of sessions confirmed.
+   */
+  async confirmStalePendingExits(maxAgeHours: number = 24): Promise<number> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const cutoff = new Date(Date.now() - maxAgeHours * 60 * 60 * 1000).toISOString();
+
+    const result = await this.db.runAsync(
+      `UPDATE tracking_sessions
+       SET state = 'completed',
+           clock_out = pending_exit_at,
+           duration_minutes = ROUND((julianday(pending_exit_at) - julianday(clock_in)) * 24 * 60),
+           updated_at = datetime('now')
+       WHERE state = 'pending_exit' AND pending_exit_at < ?`,
+      cutoff
+    );
+
+    if (result.changes > 0) {
+      console.log(`[Database] Auto-confirmed ${result.changes} stale pending exit(s)`);
+    }
+
+    return result.changes;
   }
 
   // ============================================================================
@@ -834,6 +929,7 @@ export class Database {
       latitude: row.latitude,
       longitude: row.longitude,
       accuracy: row.accuracy,
+      accuracySource: row.accuracy_source as AccuracySource,
       ignored: Boolean(row.ignored),
       ignoreReason: row.ignore_reason,
     };

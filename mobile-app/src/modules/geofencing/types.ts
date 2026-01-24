@@ -28,7 +28,9 @@ export interface TrackingSession {
   updatedAt: string;
 }
 
-export type IgnoreReason = 'poor_accuracy' | 'signal_degradation' | 'no_session' | null;
+export type IgnoreReason = 'poor_accuracy' | 'signal_degradation' | 'no_session' | 'debounced' | null;
+
+export type AccuracySource = 'event' | 'active_fetch' | null;
 
 export interface GeofenceEvent {
   id: string;
@@ -38,6 +40,7 @@ export interface GeofenceEvent {
   latitude?: number;
   longitude?: number;
   accuracy?: number;
+  accuracySource?: AccuracySource;
   ignored: boolean;
   ignoreReason: IgnoreReason;
 }
@@ -53,6 +56,7 @@ export interface GeofenceEventData {
   latitude?: number;
   longitude?: number;
   accuracy?: number;
+  accuracySource?: AccuracySource;
 }
 
 export interface GeofenceConfig {

@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import Constants from 'expo-constants';
-import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, ActivityIndicator, StyleSheet, Platform, AppState, AppStateStatus } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Notifications from 'expo-notifications';
@@ -24,11 +24,37 @@ Notifications.setNotificationHandler({
   }),
 });
 
+// Keep a reference to the TrackingManager for foreground processing
+let globalTrackingManager: TrackingManager | null = null;
+
 export default function App() {
   const [isReady, setIsReady] = useState(false);
+  const appState = useRef(AppState.currentState);
 
   useEffect(() => {
     initializeApp();
+  }, []);
+
+  // Process pending exits when app comes to foreground
+  // This is a safety net to ensure clock-outs happen even if verification notifications didn't fire
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', async (nextAppState: AppStateStatus) => {
+      if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
+        console.log('[App] App came to foreground - processing pending exits');
+        if (globalTrackingManager) {
+          try {
+            await globalTrackingManager.processPendingExits();
+          } catch (error) {
+            console.warn('[App] Error processing pending exits on foreground:', error);
+          }
+        }
+      }
+      appState.current = nextAppState;
+    });
+
+    return () => {
+      subscription.remove();
+    };
   }, []);
 
   const initializeApp = async () => {
@@ -48,6 +74,9 @@ export default function App() {
       // Initialize geofencing
       const geofenceService = getGeofenceService();
       const trackingManager = new TrackingManager(db);
+
+      // Store reference for foreground processing
+      globalTrackingManager = trackingManager;
 
       // Define background task for geofence events
       geofenceService.defineBackgroundTask(async (event) => {
@@ -72,6 +101,28 @@ export default function App() {
         console.warn('[App] Notification permission not granted');
       } else {
         console.log('[App] Notification permission granted');
+      }
+
+      // Set up Android notification channels
+      if (Platform.OS === 'android') {
+        // Channel for silent tracking notifications (exit verification)
+        await Notifications.setNotificationChannelAsync('tracking', {
+          name: 'Work Tracking',
+          importance: Notifications.AndroidImportance.HIGH,
+          sound: null,
+          vibrationPattern: null,
+          lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+        });
+
+        // Channel for audible clock-in/out alerts
+        await Notifications.setNotificationChannelAsync('alerts', {
+          name: 'Clock In/Out Alerts',
+          importance: Notifications.AndroidImportance.HIGH,
+          sound: 'default',
+          vibrationPattern: [0, 250],
+        });
+
+        console.log('[App] Android notification channels created');
       }
 
       // Set up listener for exit verification notifications

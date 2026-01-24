@@ -1,6 +1,6 @@
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
-import { UserLocation, GeofenceEventData } from '../types';
+import { UserLocation, GeofenceEventData, AccuracySource } from '../types';
 import { GEOFENCE_TASK_NAME } from '../constants';
 
 export type GeofenceCallback = (event: GeofenceEventData) => void;
@@ -138,16 +138,35 @@ export class GeofenceService {
         // expo-location may include a location object with the current GPS reading
         const locationData = (data as any).location as Location.LocationObject | undefined;
 
+        // Active GPS fetch if no location data came with the event
+        // This is common because geofencing APIs are battery-optimized and
+        // often fire without a fresh GPS reading
+        let gpsReading = locationData;
+        let accuracySource: AccuracySource = locationData ? 'event' : null;
+
+        if (!gpsReading) {
+          try {
+            gpsReading = await Location.getCurrentPositionAsync({
+              accuracy: Location.Accuracy.Balanced,
+            });
+            accuracySource = 'active_fetch';
+            console.log(`[GeofenceService] Active GPS fetch: accuracy=${gpsReading.coords.accuracy}m`);
+          } catch (fetchError) {
+            console.warn('[GeofenceService] Active GPS fetch failed:', fetchError);
+          }
+        }
+
         const event: GeofenceEventData = {
           eventType: eventType === Location.GeofencingEventType.Enter ? 'enter' : 'exit',
           locationId: region.identifier ?? '',
           timestamp: new Date().toISOString(),
-          latitude: locationData?.coords?.latitude ?? region.latitude,
-          longitude: locationData?.coords?.longitude ?? region.longitude,
-          accuracy: locationData?.coords?.accuracy ?? undefined,
+          latitude: gpsReading?.coords?.latitude ?? region.latitude,
+          longitude: gpsReading?.coords?.longitude ?? region.longitude,
+          accuracy: gpsReading?.coords?.accuracy ?? undefined,
+          accuracySource,
         };
 
-        console.log(`[GeofenceService] Geofence ${event.eventType} event for ${event.locationId}, accuracy: ${event.accuracy ?? 'unknown'}m`);
+        console.log(`[GeofenceService] Geofence ${event.eventType} event for ${event.locationId}, accuracy: ${event.accuracy ?? 'unknown'}m (${accuracySource ?? 'none'})`);
 
         callback(event);
       }

@@ -15,7 +15,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.openworkinghours.mobileapp",
-      "buildNumber": "39",
+      "buildNumber": "42",
       "config": {
         "usesNonExemptEncryption": false
       },
@@ -74,6 +74,7 @@
     "extra": {
       "authBaseUrl": "https://api.openworkinghours.org",
       "submissionBaseUrl": "https://api.openworkinghours.org",
+      "TEST_MODE": false,
       "TEST_DB_SEED": false,
       "TEST_PRIVACY_NOISE_SEED": null,
       "eas": {

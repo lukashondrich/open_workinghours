@@ -296,8 +296,8 @@ export default function StatusScreen() {
         <Text style={styles.headerTitle}>{t('status.appTitle')}</Text>
       </View>
 
-      {/* Permission Warning Banner - disabled for screenshots */}
-      <PermissionWarningBanner visible={false /* !hasBackgroundPermission */} />
+      {/* Permission Warning Banner */}
+      <PermissionWarningBanner visible={!hasBackgroundPermission} />
 
       {/* Scrollable Content */}
       <ScrollView

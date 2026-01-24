@@ -16,6 +16,7 @@
 import * as Notifications from 'expo-notifications';
 import * as Location from 'expo-location';
 import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 import { getDatabase } from './Database';
 import { formatDuration } from '@/lib/calendar/calendar-utils';
 import { trackingEvents } from '@/lib/events/trackingEvents';
@@ -156,6 +157,7 @@ export async function scheduleVerificationChecks(
           seconds: CHECK_INTERVALS_MINUTES[i] * 60,
           type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
         },
+        ...(Platform.OS === 'android' && { channelId: 'tracking' }),
       });
       console.log(`[ExitVerification] Scheduled check ${i + 1} at ${CHECK_INTERVALS_MINUTES[i]} minutes`);
     } catch (error) {
@@ -303,6 +305,7 @@ async function confirmClockOut(state: VerificationState): Promise<void> {
         body: `Clocked out from ${locationName}. Worked ${formatDuration(durationMinutes)}.`,
       },
       trigger: null, // Immediate
+      ...(Platform.OS === 'android' && { channelId: 'alerts' }),
     });
 
     // Notify listeners (Calendar refresh)

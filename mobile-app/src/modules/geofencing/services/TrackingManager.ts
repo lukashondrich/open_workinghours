@@ -2,6 +2,7 @@ import { Database } from './Database';
 import { GeofenceEventData, IgnoreReason } from '../types';
 import { formatDuration } from '@/lib/calendar/calendar-utils';
 import * as Notifications from 'expo-notifications';
+import { Platform } from 'react-native';
 import { trackingEvents } from '@/lib/events/trackingEvents';
 import * as ExitVerificationService from './ExitVerificationService';
 
@@ -11,6 +12,11 @@ import * as ExitVerificationService from './ExitVerificationService';
 
 // Time to wait before confirming clock-out (minutes)
 const EXIT_HYSTERESIS_MINUTES = 5;
+
+// GPS accuracy threshold for immediate clock-out (meters)
+// If exit accuracy is better (lower) than this, clock out immediately without hysteresis
+// If accuracy is worse or N/A, use hysteresis + verification
+const IMMEDIATE_EXIT_ACCURACY_THRESHOLD = 50;
 
 // Ignore exit events with GPS accuracy worse than this (meters)
 // Higher values = more lenient (good for indoor environments)
@@ -24,6 +30,15 @@ const DEGRADATION_FACTOR = 3;
 // Sessions shorter than this are kept but marked as short (not deleted)
 const MIN_SESSION_MINUTES = 5;
 
+// Event debouncing: Ignore events within this cooldown period (milliseconds)
+// Prevents rapid oscillation when GPS bounces near geofence boundary
+const EVENT_COOLDOWN_MS = 10000;
+
+// Stale pending exit cleanup threshold (minutes)
+// If verification doesn't run, pending exits older than this are auto-confirmed
+// This is the "act on Stage 1 info" fallback
+const STALE_PENDING_EXIT_MINUTES = 10;
+
 export class TrackingManager {
   constructor(private db: Database) {}
 
@@ -33,6 +48,27 @@ export class TrackingManager {
   async handleGeofenceEnter(event: GeofenceEventData): Promise<void> {
     console.log('[TrackingManager] Enter event:', event);
 
+    // Debounce: Ignore events that happen too quickly after the last event
+    const recentEvent = await this.db.getLastEventForLocation(event.locationId);
+    if (recentEvent) {
+      const elapsed = Date.now() - new Date(recentEvent.timestamp).getTime();
+      if (elapsed < EVENT_COOLDOWN_MS) {
+        console.log(`[TrackingManager] Debouncing enter - ${elapsed}ms since last event`);
+        await this.db.logGeofenceEvent({
+          locationId: event.locationId,
+          eventType: 'enter',
+          timestamp: event.timestamp,
+          latitude: event.latitude,
+          longitude: event.longitude,
+          accuracy: event.accuracy,
+          accuracySource: event.accuracySource,
+          ignored: true,
+          ignoreReason: 'debounced',
+        });
+        return;
+      }
+    }
+
     // Always log the event for telemetry
     await this.db.logGeofenceEvent({
       locationId: event.locationId,
@@ -41,22 +77,52 @@ export class TrackingManager {
       latitude: event.latitude,
       longitude: event.longitude,
       accuracy: event.accuracy,
+      accuracySource: event.accuracySource,
       ignored: false,
       ignoreReason: null,
     });
 
-    // Check for pending exit to cancel (re-entered before hysteresis expired)
+    // Check for pending exit - either cancel (user came back quickly) or confirm (user was gone)
     const pendingSession = await this.db.getPendingExitSession(event.locationId);
     if (pendingSession) {
-      console.log('[TrackingManager] Cancelling pending exit - user re-entered');
-      await this.db.cancelPendingExit(pendingSession.id);
+      const pendingExitTime = pendingSession.pendingExitAt
+        ? new Date(pendingSession.pendingExitAt).getTime()
+        : 0;
+      const elapsed = Date.now() - pendingExitTime;
+      const hysteresisMs = EXIT_HYSTERESIS_MINUTES * 60 * 1000;
 
-      // Cancel any scheduled verification checks
-      await ExitVerificationService.cancelVerification(pendingSession.id, 'geofence-reentry');
+      if (elapsed > hysteresisMs) {
+        // User was gone for longer than hysteresis - CONFIRM the exit (they really left)
+        console.log(`[TrackingManager] Confirming expired pending exit (${Math.round(elapsed / 60000)} min old) - user returned after leaving`);
+        await this.db.confirmPendingExit(pendingSession.id);
+        await ExitVerificationService.cancelVerification(pendingSession.id, 'confirmed-on-reentry');
 
-      // Process any other pending exits while we're here
-      await this.processPendingExits();
-      return;
+        // Notify of the completed session
+        const completedSession = await this.db.getSession(pendingSession.id);
+        const durationMinutes = completedSession?.durationMinutes ?? 0;
+        const locationName = pendingSession.locationName ?? 'Work Location';
+
+        trackingEvents.emit('tracking-changed');
+
+        if (durationMinutes >= MIN_SESSION_MINUTES) {
+          await this.sendNotification(
+            'Clocked Out',
+            `Clocked out from ${locationName}. Worked ${formatDuration(durationMinutes)}.`,
+            { sessionId: pendingSession.id }
+          );
+        }
+
+        // Continue to clock-in logic below (don't return)
+      } else {
+        // User came back quickly - CANCEL the pending exit (false alarm)
+        console.log(`[TrackingManager] Cancelling pending exit - user re-entered within ${Math.round(elapsed / 1000)}s`);
+        await this.db.cancelPendingExit(pendingSession.id);
+        await ExitVerificationService.cancelVerification(pendingSession.id, 'geofence-reentry');
+
+        // Process any other pending exits while we're here
+        await this.processPendingExits();
+        return;
+      }
     }
 
     // Check if already clocked in (active state)
@@ -100,6 +166,27 @@ export class TrackingManager {
   async handleGeofenceExit(event: GeofenceEventData): Promise<void> {
     console.log('[TrackingManager] Exit event:', event);
 
+    // Debounce: Ignore events that happen too quickly after the last event
+    const recentEvent = await this.db.getLastEventForLocation(event.locationId);
+    if (recentEvent) {
+      const elapsed = Date.now() - new Date(recentEvent.timestamp).getTime();
+      if (elapsed < EVENT_COOLDOWN_MS) {
+        console.log(`[TrackingManager] Debouncing exit - ${elapsed}ms since last event`);
+        await this.db.logGeofenceEvent({
+          locationId: event.locationId,
+          eventType: 'exit',
+          timestamp: event.timestamp,
+          latitude: event.latitude,
+          longitude: event.longitude,
+          accuracy: event.accuracy,
+          accuracySource: event.accuracySource,
+          ignored: true,
+          ignoreReason: 'debounced',
+        });
+        return;
+      }
+    }
+
     // Get active session (includes pending_exit state)
     const activeSession = await this.db.getActiveSession(event.locationId);
     if (!activeSession) {
@@ -111,6 +198,7 @@ export class TrackingManager {
         latitude: event.latitude,
         longitude: event.longitude,
         accuracy: event.accuracy,
+        accuracySource: event.accuracySource,
         ignored: true,
         ignoreReason: 'no_session',
       });
@@ -149,6 +237,7 @@ export class TrackingManager {
       latitude: event.latitude,
       longitude: event.longitude,
       accuracy: event.accuracy,
+      accuracySource: event.accuracySource,
       ignored: false,
       ignoreReason: null,
     });
@@ -160,37 +249,72 @@ export class TrackingManager {
       return;
     }
 
-    // Layer 4: Create pending exit (start hysteresis countdown)
-    console.log('[TrackingManager] Creating pending exit - scheduling verification checks');
-    await this.db.markPendingExit(
-      activeSession.id,
-      event.timestamp,
-      event.accuracy ?? null
-    );
-
-    // Get location details for verification
+    // Get location details
     const location = await this.db.getLocation(event.locationId);
+    const locationName = location?.name ?? 'Work Location';
 
-    // Determine geofence center coordinates
-    const centerLat = location?.latitude ?? event.latitude;
-    const centerLon = location?.longitude ?? event.longitude;
+    // Decision: Immediate clock-out vs. hysteresis based on GPS quality
+    // Good GPS (< 50m) = high confidence, clock out immediately
+    // Bad GPS (>= 50m) or N/A = use hysteresis + verification
+    const hasGoodGps = event.accuracy !== undefined && event.accuracy < IMMEDIATE_EXIT_ACCURACY_THRESHOLD;
 
-    // Only schedule verification if we have valid coordinates
-    if (centerLat !== undefined && centerLon !== undefined) {
-      // Schedule verification checks at 1, 3, 5 minutes
-      // These will confirm clock-out only if GPS shows user is confidently outside
-      await ExitVerificationService.scheduleVerificationChecks({
-        sessionId: activeSession.id,
-        locationId: event.locationId,
-        geofenceCenter: {
-          latitude: centerLat,
-          longitude: centerLon,
-        },
-        geofenceRadius: location?.radiusMeters ?? 100,
-        pendingExitTime: event.timestamp,
-      });
+    if (hasGoodGps) {
+      // IMMEDIATE CLOCK-OUT: Good GPS means high confidence user really left
+      console.log(`[TrackingManager] Good GPS accuracy (${event.accuracy}m < ${IMMEDIATE_EXIT_ACCURACY_THRESHOLD}m) - immediate clock-out`);
+
+      await this.db.clockOut(activeSession.id, event.timestamp);
+
+      // Get updated session with duration
+      const completedSession = await this.db.getSession(activeSession.id);
+      const durationMinutes = completedSession?.durationMinutes ?? 0;
+
+      // Notify listeners
+      trackingEvents.emit('tracking-changed');
+
+      // Send appropriate notification
+      if (durationMinutes < MIN_SESSION_MINUTES) {
+        console.log(`[TrackingManager] Short session (${durationMinutes} min) - keeping for review`);
+        await this.sendNotification(
+          'Short session recorded',
+          `${durationMinutes} min session at ${locationName} saved - you can adjust it in the calendar`,
+          { sessionId: activeSession.id, shortSession: true }
+        );
+      } else {
+        await this.sendNotification(
+          'Clocked Out',
+          `Clocked out from ${locationName}. Worked ${formatDuration(durationMinutes)}.`,
+          { sessionId: activeSession.id }
+        );
+      }
     } else {
-      console.warn('[TrackingManager] No coordinates available for verification - relying on fallback');
+      // HYSTERESIS PATH: Bad GPS or N/A, use verification to confirm
+      console.log(`[TrackingManager] GPS accuracy uncertain (${event.accuracy ?? 'N/A'}m) - using hysteresis + verification`);
+
+      await this.db.markPendingExit(
+        activeSession.id,
+        event.timestamp,
+        event.accuracy ?? null
+      );
+
+      // Determine geofence center coordinates
+      const centerLat = location?.latitude ?? event.latitude;
+      const centerLon = location?.longitude ?? event.longitude;
+
+      // Schedule verification checks (if they run, great; if not, fallback will handle it)
+      if (centerLat !== undefined && centerLon !== undefined) {
+        await ExitVerificationService.scheduleVerificationChecks({
+          sessionId: activeSession.id,
+          locationId: event.locationId,
+          geofenceCenter: {
+            latitude: centerLat,
+            longitude: centerLon,
+          },
+          geofenceRadius: location?.radiusMeters ?? 100,
+          pendingExitTime: event.timestamp,
+        });
+      } else {
+        console.warn('[TrackingManager] No coordinates available for verification - relying on fallback');
+      }
     }
 
     // Process any expired pending exits
@@ -201,6 +325,12 @@ export class TrackingManager {
    * Process pending exits that have exceeded the hysteresis period
    */
   async processPendingExits(): Promise<void> {
+    // First, clean up any stale pending exits (fallback if verification didn't run)
+    // This ensures we "act on Stage 1 info" - if we got an exit event but verification
+    // failed to run, we still clock out after STALE_PENDING_EXIT_MINUTES
+    const staleHours = STALE_PENDING_EXIT_MINUTES / 60;
+    await this.db.confirmStalePendingExits(staleHours);
+
     const expiredPending = await this.db.getExpiredPendingExits(EXIT_HYSTERESIS_MINUTES);
 
     for (const session of expiredPending) {
@@ -328,6 +458,7 @@ export class TrackingManager {
       latitude: event.latitude,
       longitude: event.longitude,
       accuracy: event.accuracy,
+      accuracySource: event.accuracySource,
       ignored: true,
       ignoreReason: reason,
     });
@@ -345,6 +476,7 @@ export class TrackingManager {
       await Notifications.scheduleNotificationAsync({
         content: { title, body, data },
         trigger: null, // Send immediately
+        ...(Platform.OS === 'android' && { channelId: 'alerts' }),
       });
     } catch (error) {
       console.error('[TrackingManager] Failed to send notification:', error);

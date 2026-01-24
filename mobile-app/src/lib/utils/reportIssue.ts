@@ -15,6 +15,7 @@ interface GpsTelemetry {
     timestamp: string;
     event_type: 'enter' | 'exit';
     accuracy_meters: number | null;
+    accuracy_source: string | null;
     ignored: boolean;
     ignore_reason: string | null;
     location_name: string;
@@ -27,6 +28,7 @@ interface GpsTelemetry {
   };
   ignored_events_count: number;
   signal_degradation_count: number;
+  debounced_events_count: number;
 }
 
 interface AppStateSnapshot {
@@ -78,6 +80,7 @@ async function collectGpsTelemetry(): Promise<GpsTelemetry> {
       timestamp: e.timestamp,
       event_type: e.eventType,
       accuracy_meters: e.accuracy ?? null,
+      accuracy_source: e.accuracySource ?? null,
       ignored: e.ignored,
       ignore_reason: e.ignoreReason,
       location_name: e.locationName ?? 'Unknown',
@@ -85,6 +88,7 @@ async function collectGpsTelemetry(): Promise<GpsTelemetry> {
     accuracy_stats: accuracyStats,
     ignored_events_count: recentEvents.filter(e => e.ignored).length,
     signal_degradation_count: recentEvents.filter(e => e.ignoreReason === 'signal_degradation').length,
+    debounced_events_count: recentEvents.filter(e => e.ignoreReason === 'debounced').length,
   };
 }
 
