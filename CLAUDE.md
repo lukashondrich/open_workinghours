@@ -140,17 +140,21 @@ Start feature → Create *_PLAN.md → Complete → Extract to ARCHITECTURE.md �
 
 ## Recent Updates (Last 7 Days)
 
-### 2026-01-26: E2E Testing Migration to Appium
-- **Problem:** Maestro 2.1.0 cannot connect to Android emulators (port 7001 gRPC failure)
-- **Solution:** Migrated E2E tests from Maestro YAML to Appium JavaScript
-- **Result:** Tests now pass on BOTH iOS and Android
-- **Framework:** Appium 3.1.2 + WebdriverIO + Node 22
+### 2026-01-26: E2E Testing - iOS Working, Android WIP
+- **iOS:** 24/24 tests passing ✅
+- **Android:** Tab navigation failing - text/testID not exposed on tab bar
+- **Framework:** Appium 3.1.2 + WebdriverIO + Jest + Node 22
 - **Test location:** `mobile-app/e2e/`
-- **Test runner:** `node run-tests.js [ios|android] [calendar|location|auth|all]`
-- **Known Android limitations:** Some testIDs not exposed (calendar-prev/next, FAB menu items)
-  - Fix: Add `accessible={true}` to those components
-- **Maestro flows kept** in `.maestro/` for reference (iOS only)
-- **Docs:** `docs/E2E_TESTING_PLAN.md` updated with full comparison
+- **Infrastructure:** `npm run infra:ios` or `npm run infra:android` (uses Node 22)
+- **Run tests:** `npm run test:ios` or `npm run test:android`
+- **Key fixes this session:**
+  - Fixed EAS build (removed deprecated privacy/rating fields, fixed .gitignore for assets)
+  - Bilingual selectors (tests work regardless of device locale)
+  - Auto-detect simulators (no hardcoded UDIDs)
+  - Infrastructure script handles Node 22 requirement
+- **Android blocker:** React Navigation bottom tab bar doesn't expose testIDs or text to UiAutomator
+  - Need to investigate `tabBarButton` customization or accessibility props
+- **Docs:** `mobile-app/e2e/README.md` has full setup instructions
 
 ### 2026-01-25: Accessibility Fixes + Maestro-iOS Investigation
 - **Status:** Phase 1-2 accessibility fixes implemented, Maestro testID detection fixed
