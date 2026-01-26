@@ -1,6 +1,9 @@
 /**
  * AuthService - Backend API calls for authentication
  * Endpoints: /verification/*, /auth/*
+ *
+ * Supports TEST_MODE for E2E testing - when enabled, returns mock responses
+ * instead of making real API calls.
  */
 
 import Constants from 'expo-constants';
@@ -14,8 +17,16 @@ import type {
   User,
   UserDataExport,
 } from '@/lib/auth/auth-types';
+import { mockResponses, isValidTestCode } from '@/lib/testing/mockApi';
 
 const BASE_URL = Constants.expoConfig?.extra?.authBaseUrl || 'http://localhost:8000';
+
+/**
+ * Check if test mode is enabled
+ */
+const isTestMode = (): boolean => {
+  return Constants.expoConfig?.extra?.TEST_MODE === true;
+};
 
 export class AuthService {
   /**
@@ -23,6 +34,12 @@ export class AuthService {
    * POST /verification/request
    */
   static async requestVerificationCode(email: string): Promise<VerificationCodeResponse> {
+    // Test mode: return mock response
+    if (isTestMode()) {
+      console.log('[AuthService] TEST_MODE: Returning mock verification request');
+      return mockResponses.verificationRequest;
+    }
+
     try {
       const response = await fetch(`${BASE_URL}/verification/request`, {
         method: 'POST',
@@ -53,6 +70,15 @@ export class AuthService {
    * POST /verification/confirm
    */
   static async verifyCode(email: string, code: string): Promise<VerifyCodeResponse> {
+    // Test mode: validate against test code
+    if (isTestMode()) {
+      console.log('[AuthService] TEST_MODE: Validating test verification code');
+      if (!isValidTestCode(code)) {
+        throw new Error('Invalid verification code');
+      }
+      return mockResponses.verificationConfirm(email);
+    }
+
     try {
       const response = await fetch(`${BASE_URL}/verification/confirm`, {
         method: 'POST',
@@ -94,6 +120,22 @@ export class AuthService {
     token: string;
     expiresAt: Date;
   }> {
+    // Test mode: return mock user
+    if (isTestMode()) {
+      console.log('[AuthService] TEST_MODE: Returning mock registration');
+      const mockUser = mockResponses.authMe(request.email);
+      // Override with actual registration data
+      mockUser.hospitalId = request.hospitalId;
+      mockUser.specialty = request.specialty;
+      mockUser.roleLevel = request.roleLevel;
+      mockUser.stateCode = request.stateCode;
+      return {
+        user: mockUser,
+        token: mockResponses.authRegister.access_token,
+        expiresAt: new Date(mockResponses.authRegister.expires_at),
+      };
+    }
+
     try {
       const response = await fetch(`${BASE_URL}/auth/register`, {
         method: 'POST',
@@ -148,6 +190,19 @@ export class AuthService {
     token: string;
     expiresAt: Date;
   }> {
+    // Test mode: validate code and return mock user
+    if (isTestMode()) {
+      console.log('[AuthService] TEST_MODE: Returning mock login');
+      if (!isValidTestCode(code)) {
+        throw new Error('Invalid verification code');
+      }
+      return {
+        user: mockResponses.authMe(email),
+        token: mockResponses.authLogin.access_token,
+        expiresAt: new Date(mockResponses.authLogin.expires_at),
+      };
+    }
+
     try {
       const response = await fetch(`${BASE_URL}/auth/login`, {
         method: 'POST',

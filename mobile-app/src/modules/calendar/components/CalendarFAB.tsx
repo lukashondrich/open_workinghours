@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   TouchableWithoutFeedback,
   StyleSheet,
+  Platform,
 } from 'react-native';
 import { Plus, X } from 'lucide-react-native';
 
@@ -65,14 +66,22 @@ export default function CalendarFAB() {
         </TouchableWithoutFeedback>
       )}
 
-      <View style={styles.container}>
+      <View style={styles.container} accessible={false}>
         {/* Popup Menu */}
         {menuVisible && (
-          <View style={styles.menu}>
+          <View
+            style={styles.menu}
+            accessibilityRole="menu"
+            accessibilityViewIsModal={Platform.OS === 'ios'}
+            accessibilityLabel={t('calendar.fab.menuLabel')}
+          >
             <TouchableOpacity
               style={styles.menuItem}
               onPress={() => handleOptionPress('absences')}
               activeOpacity={0.7}
+              testID="fab-absences-option"
+              accessibilityRole="menuitem"
+              accessibilityLabel={t('calendar.fab.absences')}
             >
               <Text style={styles.menuItemText}>{t('calendar.fab.absences')}</Text>
             </TouchableOpacity>
@@ -81,6 +90,9 @@ export default function CalendarFAB() {
               style={styles.menuItem}
               onPress={() => handleOptionPress('shifts')}
               activeOpacity={0.7}
+              testID="fab-shifts-option"
+              accessibilityRole="menuitem"
+              accessibilityLabel={t('calendar.fab.shifts')}
             >
               <Text style={styles.menuItemText}>{t('calendar.fab.shifts')}</Text>
             </TouchableOpacity>
@@ -89,6 +101,9 @@ export default function CalendarFAB() {
               style={styles.menuItem}
               onPress={handleLogHoursPress}
               activeOpacity={0.7}
+              testID="fab-log-hours-option"
+              accessibilityRole="menuitem"
+              accessibilityLabel={t('calendar.fab.logHours')}
             >
               <Text style={styles.menuItemText}>{t('calendar.fab.logHours')}</Text>
             </TouchableOpacity>
@@ -101,6 +116,11 @@ export default function CalendarFAB() {
           onPress={handleFABPress}
           activeOpacity={0.8}
           testID="calendar-fab"
+          accessibilityRole="button"
+          accessibilityLabel={menuVisible
+            ? t('calendar.fab.closeMenu')
+            : t('calendar.fab.openMenu')}
+          accessibilityState={{ expanded: menuVisible }}
         >
           {menuVisible ? (
             <X size={28} color={colors.white} />

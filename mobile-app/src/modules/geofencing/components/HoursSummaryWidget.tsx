@@ -160,16 +160,33 @@ export default function HoursSummaryWidget({ data, isLive, onPress }: HoursSumma
     return hasActivity && !day.isConfirmed && !day.isToday;
   }).length;
 
+  // Build accessibility summary for screen readers
+  const accessibilitySummary = t('dashboard.hoursSummary.accessibilitySummary', {
+    planned: formatHours(data.totalPlanned),
+    actual: formatHours(data.totalActual),
+    deviation: formatDeviation(data.deviation),
+    unconfirmed: unconfirmedCount,
+  });
+
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
+    <TouchableOpacity
+      style={styles.card}
+      onPress={onPress}
+      activeOpacity={0.7}
+      accessible={true}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilitySummary}
+      accessibilityHint={t('dashboard.hoursSummary.accessibilityHint')}
+      testID="hours-summary-widget"
+    >
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>{t('dashboard.hoursSummary.title')}</Text>
         <ChevronRight size={20} color={colors.text.tertiary} />
       </View>
 
-      {/* Chart area with Y-axis */}
-      <View style={styles.chartWrapper}>
+      {/* Chart area with Y-axis - marked as not accessible to prevent tree enumeration errors */}
+      <View style={styles.chartWrapper} accessible={false} importantForAccessibility="no-hide-descendants">
         {/* Y-axis */}
         <View style={[styles.yAxis, { height: chartHeight }]}>
           {ticks.slice().reverse().map((h) => (

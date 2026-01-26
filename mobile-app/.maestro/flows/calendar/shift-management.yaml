@@ -1,7 +1,12 @@
-# Calendar Shift Management: Add Template → Place Shift
+# Calendar Shift Management: Add Template → Save
 # Tests the calendar shift creation workflow
-# Prerequisite: User authenticated with at least one location
-# Note: Uses coordinate taps to avoid kAXErrorInvalidUIElement bug with view hierarchy
+#
+# Accessibility status after fixes:
+# ✅ Main screens: Full ID/label support (kAXErrorInvalidUIElement FIXED)
+# ✅ FAB button: Works by ID (accessible={false} on container)
+# ✅ Nav buttons: Works by ID (accessible={false} on container)
+# ✅ Template panel: template-add works by ID
+# ⚠️ Edit form: Coordinates needed (complex nested form accessibility issue)
 appId: com.openworkinghours.mobileapp
 
 ---
@@ -18,68 +23,68 @@ appId: com.openworkinghours.mobileapp
     text: "Abbrechen"
     optional: true
 
-# Navigate to Calendar tab (center bottom)
+# Navigate to Calendar tab
 - tapOn:
-    point: "50%,96%"
-
-# Wait for calendar to render
-- swipe:
-    start: "50%, 50%"
-    end: "50%, 50%"
-    duration: 1000
+    text: "Kalender.*"
 - takeScreenshot: "01_calendar_view"
 
-# Tap FAB (bottom right corner - approximately 85%, 85%)
+# Test navigation buttons by ID
 - tapOn:
-    point: "88%,82%"
+    id: "calendar-prev"
+- tapOn:
+    id: "calendar-next"
 
-# Wait for FAB menu animation
-- swipe:
-    start: "50%, 50%"
-    end: "50%, 50%"
-    duration: 600
+# Open FAB menu by ID
+- tapOn:
+    id: "calendar-fab"
+
+# Wait for FAB menu
+- extendedWaitUntil:
+    visible:
+      text: "Dienste"
+    timeout: 3000
 - takeScreenshot: "02_fab_menu_open"
 
-# Select "Dienste" (Shifts) - second option from bottom in FAB menu
+# Select "Dienste" (Shifts)
 - tapOn:
-    point: "78%,78%"
+    text: "Dienste"
 
-# Wait for template panel animation
-- swipe:
-    start: "50%, 50%"
-    end: "50%, 50%"
-    duration: 800
+# Wait for template panel
+- extendedWaitUntil:
+    visible:
+      id: "template-add"
+    timeout: 3000
 - takeScreenshot: "03_template_panel_open"
 
-# Tap "+ Neu" button (top right of template panel - approximately 85%, 62%)
+# Tap "+ Neu" button by ID
 - tapOn:
-    point: "85%,62%"
+    id: "template-add"
 
-# Wait for edit form animation
+# Wait for edit form
 - swipe:
     start: "50%, 50%"
     end: "50%, 50%"
     duration: 600
 - takeScreenshot: "04_template_editing"
 
-# Tap "Speichern" button (left button in the action row - approximately 25%, 87%)
+# Save template (coordinates - edit form accessibility issue)
 - tapOn:
     point: "25%,87%"
-- takeScreenshot: "05_template_saved"
 
-# Wait for save to complete
+# Wait for save
 - swipe:
     start: "50%, 50%"
     end: "50%, 50%"
-    duration: 600
+    duration: 800
+- takeScreenshot: "05_template_saved"
 
-# Close panel by tapping calendar area
+# Close panel
 - tapOn:
     point: "50%, 30%"
 
-# Wait for panel to close
-- swipe:
-    start: "50%, 50%"
-    end: "50%, 50%"
-    duration: 500
+# Verify FAB is back by ID
+- extendedWaitUntil:
+    visible:
+      id: "calendar-fab"
+    timeout: 3000
 - takeScreenshot: "06_flow_complete"

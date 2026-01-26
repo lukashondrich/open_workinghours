@@ -48,11 +48,13 @@ function CollapsedStatusLine({
   onCheckIn,
   onCheckOut,
   onLocationPress,
+  index,
 }: {
   status: LocationStatus;
   onCheckIn: () => void;
   onCheckOut: () => void;
   onLocationPress: () => void;
+  index: number;
 }) {
   const { location, isCheckedIn, elapsedMinutes } = status;
 
@@ -65,24 +67,44 @@ function CollapsedStatusLine({
     return `${mins}m`;
   };
 
+  const accessibilityLabel = isCheckedIn
+    ? `${location.name}, ${t('status.checkedIn')}${elapsedMinutes !== undefined ? `, ${formatElapsed(elapsedMinutes)}` : ''}`
+    : `${location.name}, ${t('status.notCheckedIn')}`;
+
   if (isCheckedIn) {
     // Active/clocked-in state - prominent design
     return (
-      <View style={[styles.statusLineCard, styles.statusLineCardActive]}>
-        <TouchableOpacity style={styles.statusLineContent} onPress={onLocationPress}>
+      <View
+        style={[styles.statusLineCard, styles.statusLineCardActive]}
+        testID={`location-card-${index}`}
+        accessible={true}
+        accessibilityLabel={accessibilityLabel}
+        accessibilityRole="button"
+      >
+        <TouchableOpacity
+          style={styles.statusLineContent}
+          onPress={onLocationPress}
+          accessibilityLabel={`${location.name}, ${t('status.tapToManage')}`}
+        >
           <View style={[styles.statusDot, styles.statusDotActive]} />
           <Text style={styles.locationName} numberOfLines={1}>
             {location.name}
           </Text>
         </TouchableOpacity>
         <View style={styles.activeControls}>
-          <View style={styles.timeBadge}>
+          <View style={styles.timeBadge} accessibilityElementsHidden={true}>
             <View style={styles.timeBadgeDot} />
             <Text style={styles.timeBadgeText}>
               {elapsedMinutes !== undefined ? formatElapsed(elapsedMinutes) : t('status.checkedIn')}
             </Text>
           </View>
-          <TouchableOpacity style={styles.endButton} onPress={onCheckOut}>
+          <TouchableOpacity
+            style={styles.endButton}
+            onPress={onCheckOut}
+            accessibilityRole="button"
+            accessibilityLabel={t('status.checkOut')}
+            testID={`location-checkout-${index}`}
+          >
             <Text style={styles.endButtonText}>{t('status.end')}</Text>
           </TouchableOpacity>
         </View>
@@ -92,14 +114,30 @@ function CollapsedStatusLine({
 
   // Inactive/not clocked-in state
   return (
-    <View style={styles.statusLineCard}>
-      <TouchableOpacity style={styles.statusLineContent} onPress={onLocationPress}>
+    <View
+      style={styles.statusLineCard}
+      testID={`location-card-${index}`}
+      accessible={true}
+      accessibilityLabel={accessibilityLabel}
+      accessibilityRole="button"
+    >
+      <TouchableOpacity
+        style={styles.statusLineContent}
+        onPress={onLocationPress}
+        accessibilityLabel={`${location.name}, ${t('status.tapToManage')}`}
+      >
         <View style={[styles.statusDot, styles.statusDotInactive]} />
         <Text style={styles.locationName} numberOfLines={1}>
           {location.name}
         </Text>
       </TouchableOpacity>
-      <TouchableOpacity style={styles.checkInButton} onPress={onCheckIn}>
+      <TouchableOpacity
+        style={styles.checkInButton}
+        onPress={onCheckIn}
+        accessibilityRole="button"
+        accessibilityLabel={t('status.checkIn')}
+        testID={`location-checkin-${index}`}
+      >
         <Text style={styles.checkInButtonText}>{t('status.checkIn')}</Text>
       </TouchableOpacity>
     </View>
@@ -314,10 +352,11 @@ export default function StatusScreen() {
         {/* Collapsed Status Lines */}
         {locationStatuses.length > 0 ? (
           <View style={styles.statusSection}>
-            {locationStatuses.map((status) => (
+            {locationStatuses.map((status, index) => (
               <CollapsedStatusLine
                 key={status.location.id}
                 status={status}
+                index={index}
                 onCheckIn={() => handleManualCheckIn(status.location.id)}
                 onCheckOut={() => handleManualCheckOut(status.location.id)}
                 onLocationPress={() => handleLocationPress(status.location)}
@@ -331,7 +370,13 @@ export default function StatusScreen() {
             <Text style={styles.emptySubtext}>
               {t('status.noLocationsHint')}
             </Text>
-            <TouchableOpacity style={styles.addWorkplaceButton} onPress={handleAddWorkplace}>
+            <TouchableOpacity
+              style={styles.addWorkplaceButton}
+              onPress={handleAddWorkplace}
+              accessibilityRole="button"
+              accessibilityLabel={t('status.addWorkplace')}
+              testID="add-workplace-button"
+            >
               <MapPin size={18} color={colors.white} />
               <Text style={styles.addWorkplaceButtonText}>{t('status.addWorkplace')}</Text>
             </TouchableOpacity>

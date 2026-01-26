@@ -446,10 +446,11 @@ export default function SetupScreen({ navigation, route }: Props) {
   }
 
   // Render search results
-  const renderSearchResult = ({ item }: { item: GeocodingResult }) => (
+  const renderSearchResult = ({ item, index }: { item: GeocodingResult; index: number }) => (
     <TouchableOpacity
       style={styles.searchResultItem}
       onPress={() => handleSearchResultSelect(item)}
+      testID={`setup-search-result-${index}`}
     >
       <MapPin size={18} color={colors.text.secondary} />
       <View style={styles.searchResultText}>
@@ -464,7 +465,7 @@ export default function SetupScreen({ navigation, route }: Props) {
       {/* Step Indicator */}
       <View style={styles.headerBar}>
         {step > 1 ? (
-          <TouchableOpacity style={styles.backButton} onPress={handleBack}>
+          <TouchableOpacity style={styles.backButton} onPress={handleBack} testID="setup-back-button">
             <ChevronLeft size={24} color={colors.text.primary} />
           </TouchableOpacity>
         ) : (
@@ -491,6 +492,7 @@ export default function SetupScreen({ navigation, route }: Props) {
                   onChangeText={handleSearchChange}
                   onFocus={() => searchQuery.length >= 3 && setShowSearchResults(true)}
                   returnKeyType="search"
+                  testID="setup-search-input"
                 />
                 {searchQuery.length > 0 && (
                   <TouchableOpacity onPress={clearSearch} style={styles.clearButton}>
@@ -563,6 +565,7 @@ export default function SetupScreen({ navigation, route }: Props) {
               onPress={handleContinue}
               disabled={!pinCoordinate}
               fullWidth
+              testID="setup-continue-step1"
             >
               {t('setup.continue')}
             </Button>
@@ -608,7 +611,7 @@ export default function SetupScreen({ navigation, route }: Props) {
                 {/* View-only mode: show location name and Edit button */}
                 <Text style={styles.stepTitle}>{name}</Text>
                 <Text style={styles.stepHint}>{t('setup.geofenceRadius', { radius })}</Text>
-                <Button onPress={handleStartEdit} fullWidth>
+                <Button onPress={handleStartEdit} fullWidth testID="setup-edit-button">
                   {t('setup.edit')}
                 </Button>
               </>
@@ -627,6 +630,7 @@ export default function SetupScreen({ navigation, route }: Props) {
                     disabled={radius <= 100}
                     icon={<Minus size={20} color={colors.text.primary} />}
                     style={styles.radiusButton}
+                    testID="setup-radius-decrease"
                   >
                     {''}
                   </Button>
@@ -639,12 +643,13 @@ export default function SetupScreen({ navigation, route }: Props) {
                     disabled={radius >= 1000}
                     icon={<Plus size={20} color={colors.text.primary} />}
                     style={styles.radiusButton}
+                    testID="setup-radius-increase"
                   >
                     {''}
                   </Button>
                 </View>
 
-                <Button onPress={handleContinue} fullWidth>
+                <Button onPress={handleContinue} fullWidth testID="setup-continue-step2">
                   {t('setup.continue')}
                 </Button>
               </>
@@ -702,6 +707,7 @@ export default function SetupScreen({ navigation, route }: Props) {
                 autoCapitalize="words"
                 autoFocus
                 containerStyle={styles.nameInput}
+                testID="setup-name-input"
               />
 
               <Button
@@ -709,6 +715,7 @@ export default function SetupScreen({ navigation, route }: Props) {
                 loading={saving}
                 disabled={saving || !name.trim()}
                 fullWidth
+                testID="setup-save-button"
               >
                 {isEditMode ? t('setup.update') : t('setup.save')}
               </Button>

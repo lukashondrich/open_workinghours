@@ -63,6 +63,11 @@ export const en = {
       submissionsHint: 'Submissions are sent automatically when you confirm each day.',
       reviewHint: 'Enter GPS mode to confirm days. Each confirmed day is submitted immediately.',
       submitHint: 'Submit each day to finalize your hours',
+      // Accessibility
+      previousWeek: 'Previous week',
+      nextWeek: 'Next week',
+      previousMonth: 'Previous month',
+      nextMonth: 'Next month',
     },
     templates: {
       title: 'Shift Templates',
@@ -98,6 +103,14 @@ export const en = {
       newShift: 'New Shift',
       startTime: 'Start time',
       duration: 'Duration',
+      // Accessibility
+      panelLabel: 'Template panel',
+      editFormLabel: 'Edit shift template',
+      nameLabel: 'Template name',
+      startTimeLabel: 'Start time, format hours colon minutes',
+      durationHoursLabel: 'Duration hours',
+      durationMinutesLabel: 'Duration minutes',
+      deleteTemplate: 'Delete this template',
     },
     absences: {
       title: 'Absences',
@@ -122,6 +135,10 @@ export const en = {
       shifts: 'Shifts',
       absences: 'Absences',
       logHours: 'Log Hours',
+      // Accessibility
+      openMenu: 'Open add menu',
+      closeMenu: 'Close menu',
+      menuLabel: 'Add options',
     },
     picker: {
       logHours: 'Log Tracked Hours',
@@ -296,6 +313,9 @@ export const en = {
       title: 'Last 14 Days',
       plan: 'Plan',
       actual: 'Actual',
+      // Accessibility
+      accessibilitySummary: 'Last 14 days: {{planned}} planned, {{actual}} tracked, {{deviation}} deviation. {{unconfirmed}} days to confirm.',
+      accessibilityHint: 'Double tap to view calendar',
     },
     nextShift: {
       title: 'Next Shift',
@@ -446,8 +466,35 @@ export const en = {
 
   // Log screen (Work History)
   log: {
-    comingSoon: 'Work History Coming Soon',
-    comingSoonHint: 'Your tracked work sessions will appear here',
+    // Empty state
+    noSessions: 'No Sessions Recorded',
+    noSessionsHint: 'Sessions tracked at this location will appear here',
+
+    // Filters
+    week: 'Week',
+    month: 'Month',
+    all: 'All',
+
+    // Summary
+    sessionCount: '{{count}} sessions',
+    sessionCountOne: '1 session',
+
+    // Session display
+    automatic: 'Automatic',
+    manual: 'Manual',
+    active: 'Active',
+    ongoing: 'ongoing',
+
+    // Confirmation status
+    confirmed: 'Confirmed',
+    tapToConfirm: 'Tap to confirm',
+
+    // Export
+    exportCSV: 'Export CSV',
+    exportFailed: 'Export failed',
+
+    // Errors
+    loadFailed: 'Failed to load history',
   },
 
   // Welcome screen (auth entry point)

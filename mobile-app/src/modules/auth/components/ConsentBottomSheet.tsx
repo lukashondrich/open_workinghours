@@ -112,6 +112,7 @@ export function ConsentBottomSheet({
             style={styles.policyCard}
             onPress={() => openUrl(getTermsUrl(locale))}
             activeOpacity={0.7}
+            testID="consent-terms-link"
           >
             <View style={styles.policyIcon}>
               <FileText size={24} color={colors.primary[500]} />
@@ -127,6 +128,7 @@ export function ConsentBottomSheet({
             style={styles.policyCard}
             onPress={() => openUrl(getPrivacyUrl(locale))}
             activeOpacity={0.7}
+            testID="consent-privacy-link"
           >
             <View style={styles.policyIcon}>
               <Shield size={24} color={colors.primary[500]} />
@@ -172,6 +174,7 @@ export function ConsentBottomSheet({
             style={styles.checkboxRow}
             onPress={() => setAccepted(!accepted)}
             activeOpacity={0.7}
+            testID="consent-checkbox"
           >
             <Checkbox
               checked={accepted}
@@ -188,6 +191,7 @@ export function ConsentBottomSheet({
             loading={loading}
             fullWidth
             size="lg"
+            testID="consent-accept-button"
           >
             {t('consent.accept')}
           </Button>
@@ -196,6 +200,7 @@ export function ConsentBottomSheet({
             style={styles.cancelButton}
             onPress={handleClose}
             activeOpacity={0.7}
+            testID="consent-cancel-button"
           >
             <Text style={styles.cancelText}>{t('common.cancel')}</Text>
           </TouchableOpacity>

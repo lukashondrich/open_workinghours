@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, RouteProp } from '@react-navigation/native';
@@ -16,10 +16,13 @@ type CalendarScreenRouteProp = RouteProp<MainTabParamList, 'Calendar'>;
 
 function CalendarLayout({ targetDate }: { targetDate?: string }) {
   const { state, dispatch } = useCalendar();
+  const lastProcessedTargetDate = useRef<string | undefined>(undefined);
 
   // Navigate to target date's week if provided
   useEffect(() => {
-    if (targetDate) {
+    // Only process if targetDate changed (avoid re-running when dispatch changes)
+    if (targetDate && targetDate !== lastProcessedTargetDate.current) {
+      lastProcessedTargetDate.current = targetDate;
       try {
         const date = parseISO(targetDate);
         const weekStart = startOfWeek(date, { weekStartsOn: 1 });
@@ -28,7 +31,8 @@ function CalendarLayout({ targetDate }: { targetDate?: string }) {
         console.error('[CalendarScreen] Failed to parse targetDate:', error);
       }
     }
-  }, [targetDate, dispatch]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [targetDate]);
 
   return (
     <SafeAreaView style={styles.safeArea}>

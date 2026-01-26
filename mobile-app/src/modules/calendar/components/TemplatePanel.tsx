@@ -262,7 +262,11 @@ export default function TemplatePanel() {
         <TouchableWithoutFeedback onPress={handleClose}>
           <View style={styles.overlay}>
             <TouchableWithoutFeedback onPress={() => {}}>
-              <View style={styles.panel}>
+              <View
+                style={styles.panel}
+                accessible={false}
+                accessibilityLabel={t('calendar.templates.panelLabel')}
+              >
                 {/* Tab Bar */}
                 <View style={styles.tabBar}>
                   <TouchableOpacity
@@ -321,13 +325,21 @@ export default function TemplatePanel() {
                           if (isEditing) {
                             // Edit form
                             return (
-                              <View key={template.id} style={styles.editCard} testID={`template-edit-${template.id}`} accessible={false}>
+                              <View
+                                key={template.id}
+                                style={styles.editCard}
+                                testID={`template-edit-${template.id}`}
+                                accessibilityRole="form"
+                                accessibilityLabel={t('calendar.templates.editFormLabel')}
+                              >
                                 <TextInput
                                   style={styles.input}
                                   value={formData.name || ''}
                                   onChangeText={(value) => setFormData({ ...formData, name: value })}
                                   placeholder={t('calendar.templates.name')}
                                   placeholderTextColor={colors.text.tertiary}
+                                  accessibilityLabel={t('calendar.templates.nameLabel')}
+                                  testID="template-name-input"
                                 />
                                 <View style={styles.row}>
                                   <View style={styles.flexItem}>
@@ -338,6 +350,8 @@ export default function TemplatePanel() {
                                       onChangeText={(value) => setFormData({ ...formData, startTime: value })}
                                       placeholder={t('calendar.templates.startTimePlaceholder')}
                                       placeholderTextColor={colors.text.tertiary}
+                                      accessibilityLabel={t('calendar.templates.startTimeLabel')}
+                                      testID="template-start-time-input"
                                     />
                                   </View>
                                   <View style={[styles.flexItem, styles.durationGroup]}>
@@ -350,6 +364,8 @@ export default function TemplatePanel() {
                                         onChangeText={(value) => setDurationHours(Number(value) || 0)}
                                         placeholder={t('calendar.templates.hoursPlaceholder')}
                                         placeholderTextColor={colors.text.tertiary}
+                                        accessibilityLabel={t('calendar.templates.durationHoursLabel')}
+                                        testID="template-duration-hours-input"
                                       />
                                       <TextInput
                                         style={[styles.input, styles.durationInput]}
@@ -360,6 +376,8 @@ export default function TemplatePanel() {
                                         }
                                         placeholder={t('calendar.templates.minutesPlaceholder')}
                                         placeholderTextColor={colors.text.tertiary}
+                                        accessibilityLabel={t('calendar.templates.durationMinutesLabel')}
+                                        testID="template-duration-minutes-input"
                                       />
                                     </View>
                                   </View>
@@ -396,16 +414,31 @@ export default function TemplatePanel() {
                                 </View>
 
                                 <View style={styles.editActions}>
-                                  <TouchableOpacity style={[styles.primaryButton, styles.saveButton]} onPress={handleSave} testID="template-save">
+                                  <TouchableOpacity
+                                    style={[styles.primaryButton, styles.saveButton]}
+                                    onPress={handleSave}
+                                    testID="template-save"
+                                    accessibilityRole="button"
+                                    accessibilityLabel={t('common.save')}
+                                  >
                                     <Text style={styles.primaryButtonText}>{t('common.save')}</Text>
                                   </TouchableOpacity>
-                                  <TouchableOpacity style={styles.secondaryButton} onPress={handleCancel}>
+                                  <TouchableOpacity
+                                    style={styles.secondaryButton}
+                                    onPress={handleCancel}
+                                    accessibilityRole="button"
+                                    accessibilityLabel={t('common.cancel')}
+                                    testID="template-cancel"
+                                  >
                                     <Text style={styles.secondaryButtonText}>{t('common.cancel')}</Text>
                                   </TouchableOpacity>
                                 </View>
                                 <TouchableOpacity
                                   style={styles.deleteButton}
                                   onPress={() => handleDelete(template.id, template.name)}
+                                  accessibilityRole="button"
+                                  accessibilityLabel={t('calendar.templates.deleteTemplate')}
+                                  testID="template-delete"
                                 >
                                   <Text style={styles.deleteButtonText}>{t('common.delete')}</Text>
                                 </TouchableOpacity>

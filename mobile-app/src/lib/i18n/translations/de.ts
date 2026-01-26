@@ -63,6 +63,11 @@ export const de = {
       submissionsHint: 'Übermittlungen erfolgen automatisch, wenn Sie jeden Tag bestätigen.',
       reviewHint: 'GPS-Modus aktivieren, um Tage zu bestätigen. Jeder bestätigte Tag wird sofort übermittelt.',
       submitHint: 'Jeden Tag einreichen, um die Stunden abzuschließen',
+      // Accessibility
+      previousWeek: 'Vorherige Woche',
+      nextWeek: 'Nächste Woche',
+      previousMonth: 'Vorheriger Monat',
+      nextMonth: 'Nächster Monat',
     },
     templates: {
       title: 'Dienste / Schichten',
@@ -98,6 +103,14 @@ export const de = {
       newShift: 'Neuer Dienst',
       startTime: 'Startzeit',
       duration: 'Dauer',
+      // Accessibility
+      panelLabel: 'Vorlagen-Bereich',
+      editFormLabel: 'Dienstvorlage bearbeiten',
+      nameLabel: 'Vorlagenname',
+      startTimeLabel: 'Startzeit, Format Stunden Doppelpunkt Minuten',
+      durationHoursLabel: 'Dauer Stunden',
+      durationMinutesLabel: 'Dauer Minuten',
+      deleteTemplate: 'Diese Vorlage löschen',
     },
     absences: {
       title: 'Abwesenheit',
@@ -122,6 +135,10 @@ export const de = {
       shifts: 'Dienste',
       absences: 'Abwesenheit',
       logHours: 'Zeit erfassen',
+      // Accessibility
+      openMenu: 'Menü öffnen',
+      closeMenu: 'Menü schließen',
+      menuLabel: 'Hinzufügen-Optionen',
     },
     picker: {
       logHours: 'Arbeitszeit erfassen',
@@ -296,6 +313,9 @@ export const de = {
       title: 'Letzte 14 Tage',
       plan: 'Soll',
       actual: 'Ist',
+      // Accessibility
+      accessibilitySummary: 'Letzte 14 Tage: {{planned}} geplant, {{actual}} erfasst, {{deviation}} Abweichung. {{unconfirmed}} Tage zu bestätigen.',
+      accessibilityHint: 'Doppeltippen um Kalender anzuzeigen',
     },
     nextShift: {
       title: 'Nächster Dienst',
@@ -446,8 +466,35 @@ export const de = {
 
   // Log screen (Work History)
   log: {
-    comingSoon: 'Arbeitsverlauf demnächst verfügbar',
-    comingSoonHint: 'Ihre erfassten Arbeitssitzungen werden hier angezeigt',
+    // Empty state
+    noSessions: 'Keine Sitzungen erfasst',
+    noSessionsHint: 'An diesem Standort erfasste Sitzungen werden hier angezeigt',
+
+    // Filters
+    week: 'Woche',
+    month: 'Monat',
+    all: 'Alle',
+
+    // Summary
+    sessionCount: '{{count}} Sitzungen',
+    sessionCountOne: '1 Sitzung',
+
+    // Session display
+    automatic: 'Automatisch',
+    manual: 'Manuell',
+    active: 'Aktiv',
+    ongoing: 'laufend',
+
+    // Confirmation status
+    confirmed: 'Bestätigt',
+    tapToConfirm: 'Tippen zum Bestätigen',
+
+    // Export
+    exportCSV: 'CSV exportieren',
+    exportFailed: 'Export fehlgeschlagen',
+
+    // Errors
+    loadFailed: 'Verlauf konnte nicht geladen werden',
   },
 
   // Welcome screen (auth entry point)

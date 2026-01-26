@@ -91,11 +91,27 @@ export default function CalendarHeader() {
       </View>
 
       <View style={styles.bottomRow}>
-        <View style={styles.navigation}>
-          <TouchableOpacity style={styles.navButton} onPress={handlePrev}>
+        <View style={styles.navigation} accessible={false}>
+          <TouchableOpacity
+            style={styles.navButton}
+            onPress={handlePrev}
+            accessibilityRole="button"
+            accessibilityLabel={state.view === 'week'
+              ? t('calendar.header.previousWeek')
+              : t('calendar.header.previousMonth')}
+            testID="calendar-prev"
+          >
             <ChevronLeft size={20} color={colors.text.primary} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.navButton} onPress={handleNext}>
+          <TouchableOpacity
+            style={styles.navButton}
+            onPress={handleNext}
+            accessibilityRole="button"
+            accessibilityLabel={state.view === 'week'
+              ? t('calendar.header.nextWeek')
+              : t('calendar.header.nextMonth')}
+            testID="calendar-next"
+          >
             <ChevronRight size={20} color={colors.text.primary} />
           </TouchableOpacity>
         </View>
