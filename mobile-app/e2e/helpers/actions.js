@@ -124,15 +124,57 @@ async function dismissPermissionDialogs(driver) {
 }
 
 /**
+ * Tab bar testID and text mapping
+ */
+const tabConfig = {
+  status: { testId: 'tab-status', de: 'Status', en: 'Status' },
+  calendar: { testId: 'tab-calendar', de: 'Kalender', en: 'Calendar' },
+  settings: { testId: 'tab-settings', de: 'Einstellungen', en: 'Settings' },
+};
+
+/**
  * Navigate to a tab by tapping tab bar
- * Uses fast bilingual selector to handle both German and English
+ * Tries testID first, then falls back to text (bilingual)
  * @param {WebdriverIO.Browser} driver
- * @param {string} tabKey - i18n key: 'status', 'calendar', or 'settings'
+ * @param {string} tabKey - 'status', 'calendar', or 'settings'
  */
 async function navigateToTab(driver, tabKey) {
-  const element = await byI18nFast(driver, tabKey);
-  await element.waitForDisplayed({ timeout: 10000 });
-  await element.click();
+  const config = tabConfig[tabKey];
+  if (!config) {
+    throw new Error(`Unknown tab: ${tabKey}. Valid tabs: ${Object.keys(tabConfig).join(', ')}`);
+  }
+
+  // Try testID first
+  try {
+    const element = await byTestId(driver, config.testId);
+    const exists = await element.isExisting();
+    if (exists) {
+      await element.waitForDisplayed({ timeout: 5000 });
+      await element.click();
+      await driver.pause(500);
+      return;
+    }
+  } catch (e) {
+    // testID not found, try text
+  }
+
+  // Fall back to text (try German first, then English)
+  try {
+    const deElement = await byText(driver, config.de);
+    if (await deElement.isExisting()) {
+      await deElement.waitForDisplayed({ timeout: 5000 });
+      await deElement.click();
+      await driver.pause(500);
+      return;
+    }
+  } catch (e) {
+    // German not found
+  }
+
+  // Try English
+  const enElement = await byText(driver, config.en);
+  await enElement.waitForDisplayed({ timeout: 5000 });
+  await enElement.click();
   await driver.pause(500);
 }
 

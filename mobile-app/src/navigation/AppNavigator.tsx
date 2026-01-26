@@ -77,6 +77,7 @@ function MainTabs() {
         component={StatusScreen}
         options={{
           tabBarLabel: t('navigation.status'),
+          tabBarAccessibilityLabel: 'Status',
           tabBarIcon: ({ color, size }) => (
             <BarChart3 size={size || 24} color={color} />
           ),
@@ -88,6 +89,7 @@ function MainTabs() {
         component={CalendarScreen}
         options={{
           tabBarLabel: t('navigation.calendar'),
+          tabBarAccessibilityLabel: 'Calendar',
           tabBarIcon: ({ color, size }) => (
             <Calendar size={size || 24} color={color} />
           ),
@@ -99,6 +101,7 @@ function MainTabs() {
         component={SettingsScreen}
         options={{
           tabBarLabel: t('navigation.settings'),
+          tabBarAccessibilityLabel: 'Settings',
           tabBarIcon: ({ color, size }) => (
             <Settings size={size || 24} color={color} />
           ),
