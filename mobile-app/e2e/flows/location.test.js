@@ -14,7 +14,7 @@
  */
 
 const { createDriver, getPlatform } = require('../helpers/driver');
-const { byTestId, byText, t } = require('../helpers/selectors');
+const { byTestId, byText, byI18nFast, t, i18n } = require('../helpers/selectors');
 const {
   tapTestId,
   typeTestId,
@@ -33,11 +33,15 @@ describe('Location Setup', () => {
     driver = await createDriver(getPlatform());
     await driver.pause(2000);
     await dismissPermissionDialogs(driver);
-  });
+  }, 180000); // Increase timeout to 3 minutes for Android
 
   afterAll(async () => {
     if (driver) {
-      await driver.deleteSession();
+      try {
+        await driver.deleteSession();
+      } catch (e) {
+        console.log('Session cleanup error (ignored):', e.message);
+      }
     }
   });
 
@@ -45,29 +49,23 @@ describe('Location Setup', () => {
     await navigateToTab(driver, 'settings');
     await driver.pause(500);
 
-    // Verify we're on settings by looking for common elements
-    const settingsText = driver.isIOS ? 'Einstellungen' : 'Settings';
-    const header = await byText(driver, settingsText);
+    // Verify we're on settings by looking for common elements (bilingual)
+    const header = await byI18nFast(driver, 'settings');
     expect(await header.isDisplayed()).toBe(true);
   });
 
   test('should find Work Locations section', async () => {
-    const locationsText = driver.isIOS ? 'Arbeitsorte' : 'Work Locations';
-    const locationsSection = await byText(driver, locationsText);
+    const locationsSection = await byI18nFast(driver, 'workLocations');
 
     // This should always be visible on Settings screen
     expect(await locationsSection.isDisplayed()).toBe(true);
   });
 
   test('should check if Add Location is available', async () => {
-    // Check if "Add new location" button exists
+    // Check if "Add new location" button exists (bilingual)
     // If not, a location is already configured - we'll skip wizard tests
-    const addText = driver.isIOS
-      ? 'Arbeitsplatz hinzufügen'
-      : 'Add workplace';
-
     try {
-      const addButton = await byText(driver, addText);
+      const addButton = await byI18nFast(driver, 'addLocation');
       canTestWizard = await addButton.isDisplayed();
     } catch (e) {
       canTestWizard = false;
@@ -87,11 +85,7 @@ describe('Location Setup', () => {
       return;
     }
 
-    const addText = driver.isIOS
-      ? 'Arbeitsplatz hinzufügen'
-      : 'Add workplace';
-
-    const addButton = await byText(driver, addText);
+    const addButton = await byI18nFast(driver, 'addLocation');
     await addButton.click();
     await driver.pause(1000);
 
@@ -203,9 +197,8 @@ describe('Location Setup', () => {
     await navigateToTab(driver, 'status');
     await driver.pause(500);
 
-    // Verify we're back on status screen
-    const statusText = driver.isIOS ? 'Letzte 14 Tage' : 'Last 14 Days';
-    const statusElement = await byText(driver, statusText);
+    // Verify we're back on status screen (bilingual)
+    const statusElement = await byI18nFast(driver, 'last14Days');
     expect(await statusElement.isDisplayed()).toBe(true);
   });
 });

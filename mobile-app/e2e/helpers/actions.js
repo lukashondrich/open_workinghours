@@ -4,7 +4,7 @@
  * Reusable actions for E2E tests with built-in waits and error handling.
  */
 
-const { byTestId, byText, byI18n, t } = require('./selectors');
+const { byTestId, byText, byI18n, byI18nFast, t, i18n } = require('./selectors');
 
 /**
  * Tap element by testID
@@ -112,23 +112,27 @@ async function dismissAlert(driver, buttonText) {
 }
 
 /**
- * Dismiss common permission dialogs
+ * Dismiss common permission dialogs (handles both German and English)
  * @param {WebdriverIO.Browser} driver
  */
 async function dismissPermissionDialogs(driver) {
-  // Handle notification permission
-  await dismissAlert(driver, t(driver, 'allow'));
+  // Try both languages for Allow button
+  await dismissAlert(driver, 'Allow');
+  await dismissAlert(driver, 'Erlauben');
   // Handle any OK dialogs
-  await dismissAlert(driver, t(driver, 'ok'));
+  await dismissAlert(driver, 'OK');
 }
 
 /**
  * Navigate to a tab by tapping tab bar
+ * Uses fast bilingual selector to handle both German and English
  * @param {WebdriverIO.Browser} driver
  * @param {string} tabKey - i18n key: 'status', 'calendar', or 'settings'
  */
 async function navigateToTab(driver, tabKey) {
-  await tapI18n(driver, tabKey);
+  const element = await byI18nFast(driver, tabKey);
+  await element.waitForDisplayed({ timeout: 10000 });
+  await element.click();
   await driver.pause(500);
 }
 
