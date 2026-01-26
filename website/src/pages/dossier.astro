@@ -1,0 +1,243 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Background and Analysis">
+  <article class="dossier">
+    <div class="dossier-container">
+      <!-- Back link -->
+      <a href="/" class="dossier-back">← Back to homepage</a>
+
+      <!-- Header -->
+      <header class="dossier-header">
+        <h1>Background and Analysis</h1>
+        <p class="dossier-lead">
+          Why we're building Open Working Hours – and what problem we're solving.
+        </p>
+      </header>
+
+      <!-- Background -->
+      <section class="dossier-section">
+        <h2>Background</h2>
+        <p>
+          Workload in German hospitals regularly exceeds legal limits in many areas.<a href="#ref-1" class="dossier-footnote">[1]</a>
+          Medical and nursing staff systematically work overtime, often without complete documentation.<a href="#ref-2" class="dossier-footnote">[2]</a><a href="#ref-3" class="dossier-footnote">[3]</a>
+        </p>
+        <p>
+          The consequences are well documented:
+        </p>
+        <ul>
+          <li>Elevated <strong>burnout rates</strong> and attrition of skilled workers<a href="#ref-4" class="dossier-footnote">[4]</a><a href="#ref-5" class="dossier-footnote">[5]</a></li>
+          <li>Increased <strong>risk of medical errors</strong> – including preventable ones<a href="#ref-6" class="dossier-footnote">[6]</a></li>
+          <li>Longer wait times and <strong>reduced quality of care</strong> for patients<a href="#ref-7" class="dossier-footnote">[7]</a></li>
+        </ul>
+        <p>
+          These conditions are widely known. Yet structural change remains absent.
+        </p>
+      </section>
+
+      <!-- Analysis -->
+      <section class="dossier-section">
+        <h2>Analysis</h2>
+        <p>
+          Hospitals operate under considerable economic pressure.<a href="#ref-8" class="dossier-footnote">[8]</a><a href="#ref-9" class="dossier-footnote">[9]</a> A common response is to reduce staffing costs, leading to chronic understaffing.<a href="#ref-8" class="dossier-footnote">[8]</a><a href="#ref-10" class="dossier-footnote">[10]</a>
+        </p>
+        <p>
+          In functioning systems, corrective mechanisms exist for such failures:
+        </p>
+        <ul>
+          <li><strong>Market mechanisms</strong> (where choices exist): Patients and skilled workers choose other institutions, creating economic pressure for change.</li>
+          <li><strong>Legal mechanisms:</strong> Violations of working time regulations<a href="#ref-1" class="dossier-footnote">[1]</a><a href="#ref-11" class="dossier-footnote">[11]</a> or liability cases for treatment errors<a href="#ref-6" class="dossier-footnote">[6]</a> lead to sanctions that alter decision-makers' calculations.</li>
+        </ul>
+        <p>
+          However, both mechanisms require that the underlying problems are visible and demonstrable.
+        </p>
+        <p>
+          Here lies the central bottleneck: Actual workload is often not fully, independently, and comparably documented.<a href="#ref-2" class="dossier-footnote">[2]</a><a href="#ref-3" class="dossier-footnote">[3]</a><a href="#ref-11" class="dossier-footnote">[11]</a>
+        </p>
+        <ul>
+          <li>Without reliable data, there is no basis for evidence.</li>
+          <li>Without evidence, no pressure for action.</li>
+          <li>Without pressure, no correction.</li>
+        </ul>
+      </section>
+
+      <!-- Approach -->
+      <section class="dossier-section">
+        <h2>Approach</h2>
+        <p>
+          Open Working Hours addresses this bottleneck directly: creating systematic transparency without putting individuals at risk.
+        </p>
+        <p>
+          Workers can record their working hours on their own device and contribute anonymously to aggregated statistics.
+          No personal data is published – only aggregated metrics at the institutional level, released only when a minimum number of contributors is reached.
+        </p>
+        <p>
+          <strong>The principle:</strong>
+        </p>
+        <ul>
+          <li><strong>Protect individuals:</strong> Workers should not face additional disadvantages or risks for documenting overwork.</li>
+          <li><strong>Make institutional responsibility visible:</strong> Responsibility for working conditions should rest with decision-makers who determine staffing and organizational structures.</li>
+        </ul>
+        <p>
+          The resulting data can serve as evidence:
+        </p>
+        <ul>
+          <li>In collective bargaining</li>
+          <li>In health policy debates</li>
+          <li>Where necessary: in legal proceedings</li>
+        </ul>
+      </section>
+
+      <!-- Sources -->
+      <footer class="dossier-sources">
+        <h2>Sources</h2>
+        <ol>
+          <li id="ref-1">Working Hours Act (ArbZG), § 3 – Working hours of employees. <a href="https://www.gesetze-im-internet.de/arbzg/__3.html" target="_blank" rel="noopener">Gesetze-im-Internet</a></li>
+          <li id="ref-2">Marburger Bund: "Massive violations by university clinics against working time documentation requirements…" (25.06.2025). <a href="https://www.marburger-bund.de/" target="_blank" rel="noopener">marburger-bund.de</a></li>
+          <li id="ref-3">Deutsches Ärzteblatt: "Majority of university clinics violate working time documentation" (25.06.2025). <a href="https://www.aerzteblatt.de/" target="_blank" rel="noopener">aerzteblatt.de</a></li>
+          <li id="ref-4">WSI-Mitteilungen: "Working conditions, health and exhaustion among nursing staff in Germany" (Analysis based on BIBB/BAuA employment survey). <a href="https://www.wsi.de/" target="_blank" rel="noopener">wsi.de</a></li>
+          <li id="ref-5">BARMER: "Nursing Study 2.0" – Resource and stress analysis for nursing staff (2023). <a href="https://www.barmer.de/" target="_blank" rel="noopener">barmer.de</a></li>
+          <li id="ref-6">Medical Service Germany: Annual statistics on treatment error assessments (2024) / Press release (30.10.2025). <a href="https://www.md-bund.de/" target="_blank" rel="noopener">md-bund.de</a></li>
+          <li id="ref-7">German Hospital Federation (DKG): "Hospital association demands decisive action against staff shortage" (12.10.2025). <a href="https://www.dkgev.de/" target="_blank" rel="noopener">dkgev.de</a></li>
+          <li id="ref-8">DKI: "Hospital Barometer 2025" (29.12.2025). <a href="https://www.dki.de/" target="_blank" rel="noopener">dki.de</a></li>
+          <li id="ref-9">DKG: "Many hospitals fighting for survival" – Press on economic situation (29.12.2025). <a href="https://www.dkgev.de/" target="_blank" rel="noopener">dkgev.de</a></li>
+          <li id="ref-10">BDO & DKI: "Staff shortage in hospitals – Quo vadis?" (Study, 2024). <a href="https://www.bdo.de/" target="_blank" rel="noopener">bdo.de</a></li>
+          <li id="ref-11">Federal Labor Court (BAG): Decision 1 ABR 22/21 – Obligation to record working hours (13.09.2022) + BMAS FAQ. <a href="https://www.bmas.de/" target="_blank" rel="noopener">bmas.de</a></li>
+        </ol>
+      </footer>
+
+      <!-- Back link bottom -->
+      <a href="/" class="dossier-back dossier-back-bottom">← Back to homepage</a>
+    </div>
+  </article>
+</Layout>
+
+<style>
+  .dossier {
+    padding: 48px 0 80px;
+  }
+
+  .dossier-container {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 0 20px;
+  }
+
+  .dossier-back {
+    display: inline-block;
+    font-size: 0.875rem;
+    color: #0d9488;
+    text-decoration: none;
+    margin-bottom: 32px;
+  }
+
+  .dossier-back:hover {
+    text-decoration: underline;
+  }
+
+  .dossier-back-bottom {
+    margin-top: 48px;
+    margin-bottom: 0;
+  }
+
+  .dossier-header {
+    margin-bottom: 48px;
+    padding-bottom: 32px;
+    border-bottom: 1px solid #e7e5e4;
+  }
+
+  .dossier-header h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #1c1917;
+    margin-bottom: 12px;
+    letter-spacing: -0.02em;
+  }
+
+  .dossier-lead {
+    font-size: 1.125rem;
+    line-height: 1.5;
+    color: #57534e;
+    margin: 0;
+  }
+
+  .dossier-section {
+    margin-bottom: 40px;
+  }
+
+  .dossier-section h2 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #1c1917;
+    margin-bottom: 16px;
+  }
+
+  .dossier-section p {
+    font-size: 1rem;
+    line-height: 1.7;
+    color: #44403c;
+    margin-bottom: 16px;
+  }
+
+  .dossier-section ul {
+    list-style: disc;
+    padding-left: 24px;
+    margin-bottom: 16px;
+  }
+
+  .dossier-section li {
+    font-size: 1rem;
+    line-height: 1.6;
+    color: #44403c;
+    margin-bottom: 8px;
+  }
+
+  .dossier-footnote {
+    color: #0d9488;
+    text-decoration: none;
+    font-size: 0.8em;
+    vertical-align: super;
+  }
+
+  .dossier-footnote:hover {
+    text-decoration: underline;
+  }
+
+  .dossier-sources {
+    margin-top: 48px;
+    padding-top: 32px;
+    border-top: 1px solid #e7e5e4;
+  }
+
+  .dossier-sources h2 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #78716c;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 16px;
+  }
+
+  .dossier-sources ol {
+    list-style: decimal;
+    padding-left: 24px;
+    margin: 0;
+  }
+
+  .dossier-sources li {
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: #57534e;
+    margin-bottom: 8px;
+  }
+
+  .dossier-sources a {
+    color: #0d9488;
+    text-decoration: none;
+  }
+
+  .dossier-sources a:hover {
+    text-decoration: underline;
+  }
+</style>

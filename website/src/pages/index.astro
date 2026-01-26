@@ -2,213 +2,819 @@
 import Layout from '../layouts/Layout.astro';
 ---
 
-<Layout title="Project Dossier">
-  <!-- Hero Section -->
-  <section class="blueprint-grid-hero">
-    <div class="max-w-5xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
-      <div class="grid grid-cols-1 lg:grid-cols-5 gap-10 lg:gap-12 items-center">
-        <!-- Left: Text (3 columns) -->
-        <div class="lg:col-span-3">
-          <span class="badge mb-4 inline-block">Closed Beta</span>
-          <h1 class="text-stone-900 mb-4">Open Working Hours</h1>
-          <p class="text-xl text-stone-600 mb-4">
-            Privacy-preserving infrastructure for documenting and aggregating healthcare working conditions.
+<Layout title="Open Working Hours">
+  <!-- Hero Section - side by side on desktop -->
+  <section class="signal-hero">
+    <div class="signal-container">
+      <div class="signal-hero-grid">
+        <!-- Left: Text and CTAs -->
+        <div class="signal-hero-content">
+          <span class="signal-badge">Closed Beta</span>
+
+          <h1 class="signal-headline">
+            Track hours automatically. Improve working conditions.
+          </h1>
+
+          <p class="signal-subline">
+            Open Working Hours helps healthcare workers document actual working hours easily – and make structural problems visible.
           </p>
-          <a href="/dashboard" class="inline-flex items-center gap-1.5 text-teal-600 hover:text-teal-700 font-medium text-sm">
-            See current coverage across Germany →
-          </a>
+
+          <div class="signal-cta-group">
+            <a href="/dashboard#institutions" class="signal-btn-primary">
+              Become a pilot partner
+            </a>
+            <a href="/product" class="signal-btn-secondary">
+              View product demo
+            </a>
+          </div>
         </div>
 
-        <!-- Right: Phone Mockup (2 columns) -->
-        <div class="lg:col-span-2 flex justify-center lg:justify-end">
-          <div class="phone-mockup-small">
-            <div class="phone-screen">
-              <img
-                src="/screenshots/status-dashboard.png"
-                alt="Status Dashboard showing 14-day work hours overview"
-              />
-            </div>
+        <!-- Right: Phone Mockup -->
+        <div class="signal-hero-image">
+          <div class="signal-phone">
+            <img
+              src="/screenshots/status-dashboard.png"
+              alt="Status Dashboard with 14-day overview"
+            />
           </div>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- Problem Statement -->
-  <section class="section-alt py-12 sm:py-16">
-    <div class="max-w-5xl mx-auto px-4 sm:px-6">
-      <div class="max-w-3xl">
-        <h2 class="text-stone-900 mb-4">Problem</h2>
-        <div class="prose text-stone-700 space-y-4">
-          <p>
-            Workload in German hospitals regularly exceeds legal limits in many areas.<a href="#ref-1" class="footnote" title="Working Hours Act (ArbZG), § 3">[1]</a>
+  <!-- Why Open Working Hours? -->
+  <section class="signal-section signal-section-gray">
+    <div class="signal-container">
+      <div class="signal-intro">
+        <h2 class="signal-section-title text-center">Why Open Working Hours?</h2>
+        <p class="signal-intro-text">
+          Your working hours belong to you – easily recorded, securely stored, never published individually. Together, they create a picture that makes change possible.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Feature 1: Ease of Use -->
+  <section class="signal-section">
+    <div class="signal-container">
+      <div class="signal-feature-row">
+        <div class="signal-feature-text">
+          <h3 class="signal-feature-title">Easy to use</h3>
+          <p class="signal-feature-desc">
+            Tracking working hours shouldn't be an additional burden. With Open Working Hours, it's automatic via geofencing – or manual in just seconds.
           </p>
-          <p>
-            Medical and nursing staff systematically work overtime, often without complete documentation.<a href="#ref-2" class="footnote" title="Marburger Bund: Violations of working time documentation">[2]</a><a href="#ref-3" class="footnote" title="Deutsches Ärzteblatt: University clinics and time tracking">[3]</a>
+          <p class="signal-feature-desc">
+            Create shifts, use templates, keep track. The app is built for everyday hospital life: fast, simple, reliable.
           </p>
-          <p>
-            The consequences are documented:
-          </p>
-          <ul class="space-y-2 ml-4">
-            <li>Elevated <strong>burnout rates</strong> and attrition of skilled workers<a href="#ref-4" class="footnote" title="WSI-Mitteilungen: Working conditions of nursing staff">[4]</a><a href="#ref-5" class="footnote" title="BARMER Nursing Study 2.0">[5]</a></li>
-            <li>Increased <strong>risk of medical errors</strong> – including preventable ones<a href="#ref-6" class="footnote" title="Medical Service: Treatment error statistics">[6]</a></li>
-            <li>Longer wait times and <strong>reduced quality of care</strong> for patients<a href="#ref-7" class="footnote" title="DKG: Staff shortage">[7]</a></li>
-          </ul>
-          <p>
-            These conditions are widely known. Yet structural change remains absent.
-          </p>
+          <a href="/product" class="signal-feature-link">View product demo →</a>
+        </div>
+        <div class="signal-feature-visual">
+          <div class="signal-animation">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240">
+              <style>
+                .geofence-circle {
+                  fill: none;
+                  stroke: #0d9488;
+                  stroke-width: 2;
+                  stroke-dasharray: 8 4;
+                  opacity: 0.6;
+                }
+                .geofence-fill {
+                  fill: #0d9488;
+                  opacity: 0;
+                }
+                .location-pin {
+                  fill: #0d9488;
+                }
+                .person-dot {
+                  fill: #44403c;
+                  animation: movePerson 3s ease-in-out infinite;
+                }
+                .pulse-ring {
+                  fill: none;
+                  stroke: #0d9488;
+                  stroke-width: 2;
+                  opacity: 0;
+                  animation: pulseRing 3s ease-out infinite;
+                }
+                .check-icon {
+                  fill: none;
+                  stroke: #0d9488;
+                  stroke-width: 3;
+                  stroke-linecap: round;
+                  stroke-linejoin: round;
+                  stroke-dasharray: 30;
+                  stroke-dashoffset: 30;
+                  animation: drawCheck 3s ease-out infinite;
+                }
+                .time-badge {
+                  opacity: 0;
+                  animation: showTime 3s ease-out infinite;
+                }
+                .time-text {
+                  font-family: system-ui, -apple-system, sans-serif;
+                  font-size: 11px;
+                  font-weight: 600;
+                  fill: #0d9488;
+                }
+                @keyframes movePerson {
+                  0% { transform: translate(-40px, -40px); opacity: 0; }
+                  10% { opacity: 1; }
+                  50% { transform: translate(0, 0); opacity: 1; }
+                  100% { transform: translate(0, 0); opacity: 1; }
+                }
+                @keyframes pulseRing {
+                  0%, 45% { opacity: 0; transform: scale(0.5); transform-origin: center; }
+                  50% { opacity: 0.8; transform: scale(0.5); transform-origin: center; }
+                  70% { opacity: 0; transform: scale(1.2); transform-origin: center; }
+                  100% { opacity: 0; transform: scale(1.2); transform-origin: center; }
+                }
+                @keyframes drawCheck {
+                  0%, 55% { stroke-dashoffset: 30; opacity: 0; }
+                  60% { opacity: 1; }
+                  75%, 100% { stroke-dashoffset: 0; opacity: 1; }
+                }
+                @keyframes showTime {
+                  0%, 60% { opacity: 0; transform: translateY(5px); }
+                  70%, 100% { opacity: 1; transform: translateY(0); }
+                }
+              </style>
+              <circle class="geofence-circle" cx="120" cy="120" r="65" />
+              <circle class="pulse-ring" cx="120" cy="120" r="65" />
+              <g class="location-pin" transform="translate(120, 105)">
+                <path d="M0 -20 C-11 -20 -20 -11 -20 0 C-20 11 0 30 0 30 C0 30 20 11 20 0 C20 -11 11 -20 0 -20 Z" opacity="0.2"/>
+                <circle cx="0" cy="-2" r="6" opacity="0.4"/>
+              </g>
+              <circle class="person-dot" cx="120" cy="120" r="8" />
+              <path class="check-icon" d="M108 120 L116 128 L132 112" />
+              <g class="time-badge" transform="translate(155, 85)">
+                <rect x="0" y="0" width="42" height="22" rx="4" fill="#e7e5e4" />
+                <text class="time-text" x="21" y="15" text-anchor="middle">09:15</text>
+              </g>
+            </svg>
+          </div>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- Analysis -->
-  <section class="py-12 sm:py-16">
-    <div class="max-w-5xl mx-auto px-4 sm:px-6">
-      <div class="max-w-3xl">
-        <h2 class="text-stone-900 mb-4">Analysis</h2>
-        <div class="prose text-stone-700 space-y-4">
-          <p>
-            Hospitals operate under considerable economic pressure.<a href="#ref-8" class="footnote" title="DKI: Hospital Barometer 2025">[8]</a><a href="#ref-9" class="footnote" title="DKG: Economic situation of hospitals">[9]</a> A common response is to reduce staffing costs, leading to chronic understaffing.<a href="#ref-8" class="footnote" title="DKI: Hospital Barometer 2025">[8]</a><a href="#ref-10" class="footnote" title="BDO & DKI: Staff shortage in hospitals">[10]</a>
+  <!-- Feature 2: Transparency -->
+  <section class="signal-section signal-section-gray">
+    <div class="signal-container">
+      <div class="signal-feature-row">
+        <div class="signal-feature-text">
+          <h3 class="signal-feature-title">Change requires transparency</h3>
+          <p class="signal-feature-desc">
+            Overwork in healthcare is well known – but rarely provable. Without independent data, there's no foundation for change.
           </p>
-          <p>
-            In functioning systems, corrective mechanisms exist for such failures:
+          <p class="signal-feature-desc">
+            Open Working Hours aggregates anonymized working hours into statistics at the institutional level. These can serve as evidence in collective bargaining, policy debates, or legal disputes.
           </p>
-          <ul class="space-y-2 ml-4">
-            <li><strong>Market mechanisms</strong> (where choices exist): Patients and skilled workers choose other institutions, creating economic pressure for change.</li>
-            <li><strong>Legal mechanisms:</strong> Violations of working time regulations<a href="#ref-1" class="footnote" title="Working Hours Act (ArbZG), § 3">[1]</a><a href="#ref-11" class="footnote" title="Federal Labor Court: Obligation to record working hours">[11]</a> or liability cases for treatment errors<a href="#ref-6" class="footnote" title="Medical Service: Treatment error statistics">[6]</a> lead to sanctions that alter decision-makers' calculations.</li>
-          </ul>
-          <p>
-            However, both mechanisms require that the underlying problems are visible and demonstrable.
-          </p>
-          <p>
-            Here lies the central bottleneck: Actual workload is often not fully, independently, and comparably documented.<a href="#ref-2" class="footnote" title="Marburger Bund: Violations of working time documentation">[2]</a><a href="#ref-3" class="footnote" title="Deutsches Ärzteblatt: University clinics and time tracking">[3]</a><a href="#ref-11" class="footnote" title="Federal Labor Court: Obligation to record working hours">[11]</a>
-          </p>
-          <ul class="space-y-1 ml-4">
-            <li>Without reliable data, there is no basis for evidence.</li>
-            <li>Without evidence, no pressure for action.</li>
-            <li>Without pressure, no correction.</li>
-          </ul>
+          <a href="/dossier" class="signal-feature-link">Background and sources →</a>
+        </div>
+        <div class="signal-feature-visual">
+          <div class="signal-animation">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240">
+              <style>
+                .bar {
+                  fill: #0d9488;
+                  transform-origin: bottom;
+                }
+                .bar-1 { animation: growBar1 4s ease-out infinite; }
+                .bar-2 { animation: growBar2 4s ease-out infinite; }
+                .bar-3 { animation: growBar3 4s ease-out infinite; }
+                .bar-4 { animation: growBar4 4s ease-out infinite; }
+                .axis {
+                  stroke: #44403c;
+                  stroke-width: 2;
+                  stroke-linecap: round;
+                }
+                .dot {
+                  fill: #44403c;
+                  opacity: 0;
+                }
+                .dot-1a { animation: dotToBar1a 4s ease-in-out infinite; }
+                .dot-1b { animation: dotToBar1b 4s ease-in-out infinite; }
+                .dot-2a { animation: dotToBar2a 4s ease-in-out infinite; }
+                .dot-2b { animation: dotToBar2b 4s ease-in-out infinite; }
+                .dot-3a { animation: dotToBar3a 4s ease-in-out infinite; }
+                .dot-3b { animation: dotToBar3b 4s ease-in-out infinite; }
+                .dot-4a { animation: dotToBar4a 4s ease-in-out infinite; }
+                .dot-4b { animation: dotToBar4b 4s ease-in-out infinite; }
+                @keyframes dotToBar1a {
+                  0% { transform: translate(0, 0); opacity: 1; }
+                  15% { transform: translate(0, 0); opacity: 1; }
+                  45% { transform: translate(29px, 85px); opacity: 0.8; }
+                  50% { opacity: 0; }
+                  100% { opacity: 0; }
+                }
+                @keyframes dotToBar1b {
+                  0% { transform: translate(0, 0); opacity: 1; }
+                  20% { transform: translate(0, 0); opacity: 1; }
+                  52% { transform: translate(9px, 55px); opacity: 0.8; }
+                  57% { opacity: 0; }
+                  100% { opacity: 0; }
+                }
+                @keyframes dotToBar2a {
+                  0% { transform: translate(0, 0); opacity: 1; }
+                  15% { transform: translate(0, 0); opacity: 1; }
+                  48% { transform: translate(34px, 85px); opacity: 0.8; }
+                  53% { opacity: 0; }
+                  100% { opacity: 0; }
+                }
+                @keyframes dotToBar2b {
+                  0% { transform: translate(0, 0); opacity: 1; }
+                  22% { transform: translate(0, 0); opacity: 1; }
+                  55% { transform: translate(-11px, 50px); opacity: 0.8; }
+                  60% { opacity: 0; }
+                  100% { opacity: 0; }
+                }
+                @keyframes dotToBar3a {
+                  0% { transform: translate(0, 0); opacity: 1; }
+                  18% { transform: translate(0, 0); opacity: 1; }
+                  50% { transform: translate(39px, 55px); opacity: 0.8; }
+                  55% { opacity: 0; }
+                  100% { opacity: 0; }
+                }
+                @keyframes dotToBar3b {
+                  0% { transform: translate(0, 0); opacity: 1; }
+                  25% { transform: translate(0, 0); opacity: 1; }
+                  58% { transform: translate(14px, 35px); opacity: 0.8; }
+                  63% { opacity: 0; }
+                  100% { opacity: 0; }
+                }
+                @keyframes dotToBar4a {
+                  0% { transform: translate(0, 0); opacity: 1; }
+                  12% { transform: translate(0, 0); opacity: 1; }
+                  42% { transform: translate(29px, 85px); opacity: 0.8; }
+                  47% { opacity: 0; }
+                  100% { opacity: 0; }
+                }
+                @keyframes dotToBar4b {
+                  0% { transform: translate(0, 0); opacity: 1; }
+                  18% { transform: translate(0, 0); opacity: 1; }
+                  50% { transform: translate(-6px, 80px); opacity: 0.8; }
+                  55% { opacity: 0; }
+                  100% { opacity: 0; }
+                }
+                @keyframes growBar1 {
+                  0%, 40% { transform: scaleY(0); }
+                  60%, 100% { transform: scaleY(1); }
+                }
+                @keyframes growBar2 {
+                  0%, 45% { transform: scaleY(0); }
+                  65%, 100% { transform: scaleY(1); }
+                }
+                @keyframes growBar3 {
+                  0%, 50% { transform: scaleY(0); }
+                  70%, 100% { transform: scaleY(1); }
+                }
+                @keyframes growBar4 {
+                  0%, 42% { transform: scaleY(0); }
+                  62%, 100% { transform: scaleY(1); }
+                }
+              </style>
+              <circle class="dot dot-1a" cx="45" cy="55" r="6" />
+              <circle class="dot dot-1b" cx="65" cy="85" r="6" />
+              <circle class="dot dot-2a" cx="80" cy="40" r="6" />
+              <circle class="dot dot-2b" cx="125" cy="75" r="6" />
+              <circle class="dot dot-3a" cx="115" cy="55" r="6" />
+              <circle class="dot dot-3b" cx="140" cy="75" r="6" />
+              <circle class="dot dot-4a" cx="165" cy="45" r="6" />
+              <circle class="dot dot-4b" cx="200" cy="50" r="6" />
+              <line class="axis" x1="50" y1="190" x2="50" y2="100" />
+              <line class="axis" x1="50" y1="190" x2="210" y2="190" />
+              <rect class="bar bar-1" x="60" y="140" width="28" height="50" rx="3" />
+              <rect class="bar bar-2" x="100" y="125" width="28" height="65" rx="3" />
+              <rect class="bar bar-3" x="140" y="110" width="28" height="80" rx="3" />
+              <rect class="bar bar-4" x="180" y="130" width="28" height="60" rx="3" />
+            </svg>
+          </div>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- Solution -->
-  <section class="section-alt py-12 sm:py-16">
-    <div class="max-w-5xl mx-auto px-4 sm:px-6">
-      <div class="max-w-3xl">
-        <h2 class="text-stone-900 mb-4">Approach</h2>
-        <div class="prose text-stone-700 space-y-4">
-          <p>
-            The bottleneck described above can be addressed through systematic transparency.
+  <!-- Feature 3: Privacy & Security -->
+  <section class="signal-section">
+    <div class="signal-container">
+      <div class="signal-feature-row">
+        <div class="signal-feature-text">
+          <h3 class="signal-feature-title">Protection for individuals, transparency for structures</h3>
+          <p class="signal-feature-desc">
+            Individual data stays private. No employer, no third parties have access. Only aggregated statistics are published – and only when enough people contribute (k-anonymity).
           </p>
-          <p>
-            This platform enables healthcare workers to record their working hours on their own device and contribute anonymously to aggregated statistics.
+          <p class="signal-feature-desc">
+            GDPR compliant. Data stays in Germany. Export and deletion possible anytime. Privacy by design from the start.
           </p>
-          <p>
-            No personal data is published – only aggregated, anonymized metrics at the institutional level, released only when a minimum number of contributors is reached.
-          </p>
-          <p>
-            The principle:
-          </p>
-          <ul class="space-y-2 ml-4">
-            <li><strong>Protect individuals:</strong> Workers should not face additional disadvantages or risks for documenting overwork.</li>
-            <li><strong>Make institutional responsibility visible:</strong> Responsibility for working conditions should rest with decision-makers who determine staffing and organizational structures.</li>
-          </ul>
-          <p>
-            The resulting data can serve as evidence:
-          </p>
-          <ul class="space-y-1 ml-4">
-            <li>In collective bargaining</li>
-            <li>In health policy debates</li>
-            <li>Where necessary: in legal proceedings</li>
-          </ul>
+          <a href="/privacy" class="signal-feature-link">Privacy principles →</a>
+        </div>
+        <div class="signal-feature-visual">
+          <div class="signal-animation">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240">
+              <style>
+                .shield-fill {
+                  fill: #0d9488;
+                  opacity: 0.15;
+                }
+                .shield-outline {
+                  fill: none;
+                  stroke: #0d9488;
+                  stroke-width: 3;
+                  stroke-linecap: round;
+                  stroke-linejoin: round;
+                }
+                .checkmark {
+                  fill: none;
+                  stroke: white;
+                  stroke-width: 4;
+                  stroke-linecap: round;
+                  stroke-linejoin: round;
+                }
+                .glow-ring {
+                  fill: none;
+                  stroke: #0d9488;
+                  stroke-width: 2;
+                  opacity: 0;
+                  animation: pulseGlow 2s ease-out infinite;
+                }
+                .lock-icon {
+                  fill: #0d9488;
+                }
+                .protected-dots {
+                  fill: #e7e5e4;
+                  opacity: 0.6;
+                }
+                .dot-pulse {
+                  animation: dotPulse 2s ease-in-out infinite;
+                }
+                .dot-pulse-delay-1 { animation-delay: 0.3s; }
+                .dot-pulse-delay-2 { animation-delay: 0.6s; }
+                .dot-pulse-delay-3 { animation-delay: 0.9s; }
+                .dot-pulse-delay-4 { animation-delay: 1.2s; }
+                .dot-pulse-delay-5 { animation-delay: 1.5s; }
+                @keyframes pulseGlow {
+                  0% { opacity: 0; transform: scale(1); transform-origin: center; }
+                  50% { opacity: 0.4; transform: scale(1.05); transform-origin: center; }
+                  100% { opacity: 0; transform: scale(1.1); transform-origin: center; }
+                }
+                @keyframes dotPulse {
+                  0%, 100% { opacity: 0.3; }
+                  50% { opacity: 0.8; }
+                }
+              </style>
+              <circle class="protected-dots dot-pulse" cx="55" cy="100" r="5" />
+              <circle class="protected-dots dot-pulse dot-pulse-delay-1" cx="45" cy="130" r="4" />
+              <circle class="protected-dots dot-pulse dot-pulse-delay-2" cx="60" cy="155" r="5" />
+              <circle class="protected-dots dot-pulse dot-pulse-delay-3" cx="185" cy="95" r="4" />
+              <circle class="protected-dots dot-pulse dot-pulse-delay-4" cx="195" cy="125" r="5" />
+              <circle class="protected-dots dot-pulse dot-pulse-delay-5" cx="180" cy="160" r="4" />
+              <path class="glow-ring" d="M120 45 L120 45 C155 45 180 65 180 95 L180 130 C180 170 120 200 120 200 C120 200 60 170 60 130 L60 95 C60 65 85 45 120 45 Z" />
+              <path class="shield-fill" d="M120 55 C150 55 170 72 170 97 L170 127 C170 160 120 185 120 185 C120 185 70 160 70 127 L70 97 C70 72 90 55 120 55 Z" />
+              <path class="shield-outline" d="M120 55 C150 55 170 72 170 97 L170 127 C170 160 120 185 120 185 C120 185 70 160 70 127 L70 97 C70 72 90 55 120 55 Z" />
+              <path class="checkmark" d="M95 120 L112 137 L145 104" />
+              <g class="lock-icon" transform="translate(110, 200)">
+                <rect x="2" y="8" width="16" height="12" rx="2" />
+                <path d="M5 8 L5 5 C5 2 7 0 10 0 C13 0 15 2 15 5 L15 8" fill="none" stroke="#0d9488" stroke-width="2" stroke-linecap="round" />
+              </g>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Compact Info Grid -->
+  <section class="signal-section signal-section-gray">
+    <div class="signal-container">
+      <div class="signal-info-grid">
+        <div class="signal-info-item">
+          <div class="signal-info-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+            </svg>
+          </div>
+          <h4>Quick start</h4>
+          <p>Automatic via geofencing, manual in seconds.</p>
         </div>
 
-        <!-- Solution Details -->
-        <div class="mt-6 space-y-2 text-stone-700">
-          <p><strong>Product:</strong> iOS app for recording actual working hours – automatically via geofencing or manually in seconds.</p>
-          <p><strong>Target group:</strong> Physicians, nurses, and healthcare workers who want to contribute to transparency.</p>
-          <p><strong>Output:</strong> Aggregated, anonymized statistics – by region, specialty, and role level.</p>
-          <p><strong>Status:</strong> iOS app in closed beta. Backend deployed. Seeking pilot partners.</p>
+        <div class="signal-info-item">
+          <div class="signal-info-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+          </div>
+          <h4>Not an employer tool</h4>
+          <p>Data belongs to users. No third-party access.</p>
+        </div>
+
+        <div class="signal-info-item">
+          <div class="signal-info-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            </svg>
+          </div>
+          <h4>Privacy from the start</h4>
+          <p>Only aggregation with k-anonymity. GDPR compliant.</p>
+        </div>
+
+        <div class="signal-info-item">
+          <div class="signal-info-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+          </div>
+          <h4>Status</h4>
+          <p>iOS app in closed beta. Seeking pilot partners.</p>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- Principles -->
-  <section class="py-12 sm:py-16">
-    <div class="max-w-5xl mx-auto px-4 sm:px-6">
-      <div class="max-w-3xl">
-        <h2 class="text-stone-900 mb-4">Principles</h2>
-        <ul class="space-y-3 text-stone-700">
-          <li class="flex gap-3">
-            <span class="text-teal-600 mt-1">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </span>
-            <span><strong>Low friction:</strong> Automatic tracking via geofencing. Manual entry in seconds.</span>
-          </li>
-          <li class="flex gap-3">
-            <span class="text-teal-600 mt-1">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </span>
-            <span><strong>Not an employer tool:</strong> Data belongs to users. No third-party access.</span>
-          </li>
-          <li class="flex gap-3">
-            <span class="text-teal-600 mt-1">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </span>
-            <span><strong>Privacy by design:</strong> Individual data never published. Only aggregated statistics with k-anonymity.</span>
-          </li>
-          <li class="flex gap-3">
-            <span class="text-teal-600 mt-1">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </span>
-            <span><strong>Full control:</strong> Data export and deletion anytime. GDPR compliant.</span>
-          </li>
-        </ul>
+  <!-- CTA Section -->
+  <section class="signal-section signal-cta-section">
+    <div class="signal-container text-center">
+      <h2 class="signal-section-title">Interested?</h2>
+      <p class="signal-body">
+        We're looking for pilot partners: wards, clinics, or teams who want to be part of this.
+      </p>
+      <div class="signal-cta-group signal-cta-group-center">
+        <a href="/dashboard#institutions" class="signal-btn-primary">
+          Get in touch
+        </a>
+        <a href="/dashboard" class="signal-btn-secondary">
+          View live dashboard
+        </a>
       </div>
     </div>
   </section>
 
-  <!-- Evidence Links -->
-  <section class="border-t border-stone-200 py-8">
-    <div class="max-w-5xl mx-auto px-4 sm:px-6">
-      <h3 class="text-stone-500 text-sm font-medium uppercase tracking-wide mb-4">Learn more</h3>
-      <div class="flex flex-wrap gap-x-8 gap-y-2 text-stone-700">
-        <a href="/product" class="hover:text-teal-600">View product demo</a>
-        <a href="/privacy" class="hover:text-teal-600">Read privacy principles</a>
-        <a href="/team" class="hover:text-teal-600">Team & Contact</a>
-      </div>
-    </div>
-  </section>
-
-  <!-- Sources -->
-  <section class="border-t border-stone-200 py-8 bg-stone-50">
-    <div class="max-w-5xl mx-auto px-4 sm:px-6">
-      <h3 class="text-stone-500 text-sm font-medium uppercase tracking-wide mb-4">Sources</h3>
-      <ol class="text-sm text-stone-600 space-y-2 list-decimal list-inside">
-        <li id="ref-1">Working Hours Act (ArbZG), § 3 – Working hours of employees. <a href="https://www.gesetze-im-internet.de/arbzg/__3.html" target="_blank" rel="noopener" class="text-teal-600 hover:underline">Gesetze-im-Internet</a></li>
-        <li id="ref-2">Marburger Bund: "Massive violations by university clinics against working time documentation requirements…" (25.06.2025). <a href="https://www.marburger-bund.de/" target="_blank" rel="noopener" class="text-teal-600 hover:underline">marburger-bund.de</a></li>
-        <li id="ref-3">Deutsches Ärzteblatt: "Majority of university clinics violate working time documentation" (25.06.2025). <a href="https://www.aerzteblatt.de/" target="_blank" rel="noopener" class="text-teal-600 hover:underline">aerzteblatt.de</a></li>
-        <li id="ref-4">WSI-Mitteilungen: "Working conditions, health and exhaustion among nursing staff in Germany" (Analysis based on BIBB/BAuA employment survey). <a href="https://www.wsi.de/" target="_blank" rel="noopener" class="text-teal-600 hover:underline">wsi.de</a></li>
-        <li id="ref-5">BARMER: "Nursing Study 2.0" – Resource and stress analysis for nursing staff (2023). <a href="https://www.barmer.de/" target="_blank" rel="noopener" class="text-teal-600 hover:underline">barmer.de</a></li>
-        <li id="ref-6">Medical Service Germany: Annual statistics on treatment error assessments (2024) / Press release (30.10.2025). <a href="https://www.md-bund.de/" target="_blank" rel="noopener" class="text-teal-600 hover:underline">md-bund.de</a></li>
-        <li id="ref-7">German Hospital Federation (DKG): "Hospital association demands decisive action against staff shortage" (12.10.2025). <a href="https://www.dkgev.de/" target="_blank" rel="noopener" class="text-teal-600 hover:underline">dkgev.de</a></li>
-        <li id="ref-8">DKI: "Hospital Barometer 2025" (29.12.2025). <a href="https://www.dki.de/" target="_blank" rel="noopener" class="text-teal-600 hover:underline">dki.de</a></li>
-        <li id="ref-9">DKG: "Many hospitals fighting for survival" – Press on economic situation (29.12.2025). <a href="https://www.dkgev.de/" target="_blank" rel="noopener" class="text-teal-600 hover:underline">dkgev.de</a></li>
-        <li id="ref-10">BDO & DKI: "Staff shortage in hospitals – Quo vadis?" (Study, 2024). <a href="https://www.bdo.de/" target="_blank" rel="noopener" class="text-teal-600 hover:underline">bdo.de</a></li>
-        <li id="ref-11">Federal Labor Court (BAG): Decision 1 ABR 22/21 – Obligation to record working hours (13.09.2022) + BMAS FAQ. <a href="https://www.bmas.de/" target="_blank" rel="noopener" class="text-teal-600 hover:underline">bmas.de</a></li>
-      </ol>
-    </div>
-  </section>
 </Layout>
+
+<style>
+  /* Signal-inspired design system */
+
+  .signal-container {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 0 20px;
+  }
+
+  /* Hero Section */
+  .signal-hero {
+    padding: 64px 0 48px;
+    background: #ffffff;
+  }
+
+  .signal-hero-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 40px;
+    align-items: center;
+  }
+
+  @media (min-width: 768px) {
+    .signal-hero-grid {
+      grid-template-columns: 1fr auto;
+      gap: 48px;
+    }
+  }
+
+  .signal-hero-content {
+    text-align: center;
+  }
+
+  @media (min-width: 768px) {
+    .signal-hero-content {
+      text-align: left;
+    }
+  }
+
+  .signal-badge {
+    display: inline-block;
+    padding: 5px 12px;
+    background: #f0fdfa;
+    color: #0d9488;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 16px;
+    margin-bottom: 20px;
+    letter-spacing: 0.02em;
+  }
+
+  .signal-headline {
+    font-size: clamp(1.75rem, 4vw, 2.5rem);
+    font-weight: 700;
+    line-height: 1.2;
+    color: #1c1917;
+    margin-bottom: 16px;
+    letter-spacing: -0.02em;
+  }
+
+  .signal-subline {
+    font-size: 1.0625rem;
+    line-height: 1.5;
+    color: #57534e;
+    max-width: 480px;
+    margin: 0 0 24px;
+  }
+
+  @media (max-width: 767px) {
+    .signal-subline {
+      margin: 0 auto 24px;
+    }
+  }
+
+  /* Buttons */
+  .signal-cta-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+  }
+
+  @media (min-width: 768px) {
+    .signal-cta-group {
+      justify-content: flex-start;
+    }
+  }
+
+  .signal-cta-group-center {
+    justify-content: center;
+  }
+
+  .signal-btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 24px;
+    background: #0d9488;
+    color: #ffffff;
+    font-size: 15px;
+    font-weight: 500;
+    border-radius: 8px;
+    text-decoration: none;
+    transition: background 0.15s ease;
+  }
+
+  .signal-btn-primary:hover {
+    background: #0f766e;
+  }
+
+  .signal-btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 24px;
+    background: #ffffff;
+    color: #44403c;
+    font-size: 15px;
+    font-weight: 500;
+    border: 1px solid #d6d3d1;
+    border-radius: 8px;
+    text-decoration: none;
+    transition: border-color 0.15s ease;
+  }
+
+  .signal-btn-secondary:hover {
+    border-color: #a8a29e;
+  }
+
+  /* Hero phone mockup */
+  .signal-hero-image {
+    display: flex;
+    justify-content: center;
+  }
+
+  @media (min-width: 768px) {
+    .signal-hero-image {
+      justify-content: flex-end;
+    }
+  }
+
+  .signal-phone {
+    width: 220px;
+    background: #1c1917;
+    border-radius: 32px;
+    padding: 8px;
+    box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.2);
+  }
+
+  @media (min-width: 768px) {
+    .signal-phone {
+      width: 260px;
+      border-radius: 36px;
+      padding: 10px;
+    }
+  }
+
+  .signal-phone img {
+    width: 100%;
+    border-radius: 26px;
+    display: block;
+  }
+
+  @media (min-width: 768px) {
+    .signal-phone img {
+      border-radius: 28px;
+    }
+  }
+
+  /* Sections */
+  .signal-section {
+    padding: 56px 0;
+  }
+
+  .signal-section-gray {
+    background: #fafaf9;
+  }
+
+  .signal-section-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1c1917;
+    margin-bottom: 16px;
+    letter-spacing: -0.01em;
+  }
+
+  .signal-section-title.text-center {
+    text-align: center;
+  }
+
+  /* Intro section */
+  .signal-intro {
+    max-width: 640px;
+    margin: 0 auto;
+    text-align: center;
+  }
+
+  .signal-intro-text {
+    font-size: 1rem;
+    line-height: 1.6;
+    color: #57534e;
+  }
+
+  /* Feature rows */
+  .signal-feature-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 32px;
+    align-items: center;
+  }
+
+  @media (min-width: 768px) {
+    .signal-feature-row {
+      grid-template-columns: 1fr 1fr;
+      gap: 48px;
+    }
+  }
+
+  .signal-feature-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #1c1917;
+    margin-bottom: 12px;
+  }
+
+  .signal-feature-desc {
+    font-size: 1rem;
+    line-height: 1.6;
+    color: #44403c;
+    margin-bottom: 12px;
+  }
+
+  .signal-feature-desc:last-of-type {
+    margin-bottom: 16px;
+  }
+
+  .signal-feature-link {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: #0d9488;
+    text-decoration: none;
+    transition: color 0.15s ease;
+  }
+
+  .signal-feature-link:hover {
+    color: #0f766e;
+    text-decoration: underline;
+  }
+
+  .signal-feature-highlight {
+    font-weight: 600;
+    color: #0d9488;
+    font-style: italic;
+  }
+
+  /* Animation container */
+  .signal-animation {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 240px;
+  }
+
+  .signal-animation svg {
+    max-width: 100%;
+    height: auto;
+  }
+
+  /* Placeholder for visuals */
+  .signal-placeholder {
+    background: linear-gradient(135deg, #f5f5f4 0%, #e7e5e4 100%);
+    border: 2px dashed #d6d3d1;
+    border-radius: 12px;
+    padding: 48px 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    min-height: 240px;
+  }
+
+  .signal-placeholder-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+  }
+
+  .signal-placeholder-text {
+    font-size: 14px;
+    color: #78716c;
+    max-width: 200px;
+  }
+
+  /* Info grid */
+  .signal-info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px 32px;
+    max-width: 720px;
+    margin: 0 auto;
+  }
+
+  @media (max-width: 640px) {
+    .signal-info-grid {
+      grid-template-columns: 1fr;
+      gap: 20px;
+    }
+  }
+
+  .signal-info-item {
+    text-align: center;
+  }
+
+  .signal-info-icon {
+    width: 20px;
+    height: 20px;
+    color: #0d9488;
+    margin: 0 auto 8px;
+  }
+
+  .signal-info-icon svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  .signal-info-item h4 {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: #1c1917;
+    margin-bottom: 4px;
+  }
+
+  .signal-info-item p {
+    font-size: 0.875rem;
+    line-height: 1.45;
+    color: #57534e;
+    margin: 0;
+  }
+
+  /* Body text */
+  .signal-body {
+    font-size: 1rem;
+    line-height: 1.6;
+    color: #44403c;
+    margin-bottom: 16px;
+  }
+
+  /* CTA section */
+  .signal-cta-section {
+    background: #ffffff;
+  }
+
+  .signal-cta-section .signal-body {
+    max-width: 440px;
+    margin: 0 auto 24px;
+    text-align: center;
+  }
+
+  /* Utility */
+  .text-center {
+    text-align: center;
+  }
+</style>
