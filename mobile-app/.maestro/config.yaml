@@ -1,0 +1,20 @@
+# Maestro E2E Test Configuration for Open Working Hours
+# https://maestro.mobile.dev/
+
+# Environment variables available in flows
+env:
+  TEST_MODE: "true"
+  TEST_EMAIL: "e2e-test@openworkinghours.org"
+  TEST_VERIFICATION_CODE: "123456"
+
+# Flow execution settings
+flows:
+  # Screenshot naming convention: {flow}_{step}.png
+  # Screenshots are saved to current working directory
+  # Run from .maestro/ folder to keep screenshots contained:
+  #   cd .maestro && maestro test flows/
+
+# Notes:
+# - Screenshots are gitignored (*.png in mobile-app/.gitignore)
+# - For CI/CD, use: maestro test --output ./results/
+# - For debugging, screenshots are ephemeral - delete after use

@@ -1,0 +1,25 @@
+{
+  "mcpServers": {
+    "maestro": {
+      "type": "stdio",
+      "command": "maestro",
+      "args": [
+        "mcp",
+        "--working-dir",
+        "/Users/user01/open_workinghours/mobile-app"
+      ],
+      "env": {
+        "PATH": "/opt/homebrew/opt/openjdk@17/bin:/opt/homebrew/lib/ruby/gems/3.3.0/bin:/opt/homebrew/opt/ruby/bin:/Users/user01/development/flutter/bin:/Users/user01/development/flutter/bin:/Users/user01/Library/Application Support/Code/User/globalStorage/github.copilot-chat/debugCommand:/Users/user01/Library/Application Support/Code/User/globalStorage/github.copilot-chat/copilotCli:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/Library/Apple/usr/bin:/Users/user01/Library/Application Support/Code/User/globalStorage/github.copilot-chat/debugCommand:/Users/user01/Library/Application Support/Code/User/globalStorage/github.copilot-chat/copilotCli:/opt/homebrew/lib/ruby/gems/3.3.0/bin:/opt/homebrew/opt/ruby/bin:/Users/user01/development/flutter/bin:/Users/user01/.rvm/bin:/Users/user01/Library/Android/sdk/emulator:/Users/user01/Library/Android/sdk/platform-tools:/Users/user01/.maestro/bin:/Users/user01/.vscode/extensions/ms-python.debugpy-2025.16.0-darwin-arm64/bundled/scripts/noConfigScripts:/Users/user01/.rvm/bin:/Users/user01/.rvm/bin:/Users/user01/Library/Android/sdk/emulator:/Users/user01/Library/Android/sdk/platform-tools:/Users/user01/.maestro/bin"
+      }
+    },
+    "mobile-mcp": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@mobilenext/mobile-mcp@latest"
+      ],
+      "env": {}
+    }
+  }
+}

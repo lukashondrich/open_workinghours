@@ -321,7 +321,7 @@ export default function TemplatePanel() {
                           if (isEditing) {
                             // Edit form
                             return (
-                              <View key={template.id} style={styles.editCard} testID={`template-edit-${template.id}`}>
+                              <View key={template.id} style={styles.editCard} testID={`template-edit-${template.id}`} accessible={false}>
                                 <TextInput
                                   style={styles.input}
                                   value={formData.name || ''}

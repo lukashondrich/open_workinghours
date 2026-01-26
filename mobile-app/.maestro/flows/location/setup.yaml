@@ -1,0 +1,148 @@
+# Location Setup Flow: Search → Map → Name → Save
+# Tests adding a new work location
+# Prerequisite: User must be authenticated (run after registration flow)
+appId: com.openworkinghours.mobileapp
+
+---
+
+# Stop and relaunch app to clear any accessibility issues
+- stopApp
+- launchApp:
+    clearState: false
+
+# Handle dev client if it shows up
+- tapOn:
+    text: "http://localhost:8081"
+    optional: true
+- tapOn:
+    text: "Erlauben"
+    optional: true
+- tapOn:
+    text: "Continue"
+    optional: true
+
+# Wait for bundle to load
+- extendedWaitUntil:
+    visible:
+      text: "Open Working Hours"
+    timeout: 30000
+
+# Dismiss any open modals
+- tapOn:
+    text: "Abbrechen"
+    optional: true
+
+# Navigate via Settings tab using coordinates (right side of tab bar)
+# Status screen has accessibility issues with the chart component
+- tapOn:
+    point: "83%, 96%"
+
+# Wait for Settings screen to load
+- extendedWaitUntil:
+    visible:
+      text: "Arbeitsorte"
+    timeout: 10000
+
+# Take screenshot
+- takeScreenshot: "01_settings_screen"
+
+# Tap on Arbeitsorte (Work Locations) section
+- tapOn:
+    text: "Arbeitsorte"
+
+# Wait for locations list screen
+- extendedWaitUntil:
+    visible:
+      text: "Neuen Standort hinzufügen"
+    timeout: 10000
+
+# Tap Add button to start setup wizard
+- tapOn:
+    text: "Neuen Standort hinzufügen"
+
+# Wait for setup wizard Step 1
+- extendedWaitUntil:
+    visible:
+      id: "setup-search-input"
+    timeout: 10000
+
+# Dismiss any location error dialogs
+- tapOn:
+    text: "OK"
+    optional: true
+
+# Step 1: Find Your Workplace
+- takeScreenshot: "02_location_step1_search"
+
+# Search for a location (Photon geocoding)
+- tapOn:
+    id: "setup-search-input"
+- inputText: "Berlin Charite"
+
+# Wait for search results to load (network call to Photon API)
+- extendedWaitUntil:
+    visible:
+      id: "setup-search-result-0"
+    timeout: 15000
+- takeScreenshot: "03_location_search_results"
+
+# Select first result
+- tapOn:
+    id: "setup-search-result-0"
+
+# Pin should be placed, continue button enabled
+- assertVisible:
+    id: "setup-continue-step1"
+- takeScreenshot: "04_location_pin_placed"
+
+# Continue to Step 2
+- tapOn:
+    id: "setup-continue-step1"
+
+# Step 2: Adjust Position & Radius
+- extendedWaitUntil:
+    visible:
+      id: "setup-radius-decrease"
+    timeout: 5000
+- assertVisible:
+    id: "setup-radius-increase"
+- takeScreenshot: "05_location_step2_radius"
+
+# Increase radius twice (200m → 300m)
+- tapOn:
+    id: "setup-radius-increase"
+- tapOn:
+    id: "setup-radius-increase"
+- takeScreenshot: "06_location_radius_adjusted"
+
+# Continue to Step 3
+- tapOn:
+    id: "setup-continue-step2"
+
+# Step 3: Name This Location
+- extendedWaitUntil:
+    visible:
+      id: "setup-name-input"
+    timeout: 5000
+- tapOn:
+    id: "setup-name-input"
+- inputText: "Berlin Charite Main Campus"
+- takeScreenshot: "07_location_named"
+
+# Hide keyboard - location saves automatically when Step 3 completes
+- hideKeyboard
+
+# Step 3 has a "Weiter" button at the bottom - tap it to save
+- tapOn:
+    point: "50%, 92%"
+
+# App navigates to clock-in screen after saving - verify location name shows
+- extendedWaitUntil:
+    visible:
+      text: "Berlin Charite Main Campus"
+    timeout: 15000
+- takeScreenshot: "08_location_saved"
+
+# Verify the location was saved and we're on the time tracking screen
+- assertVisible:
+    text: "Einstempeln"

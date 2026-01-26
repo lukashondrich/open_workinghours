@@ -1,0 +1,183 @@
+# Registration Flow: Welcome → Email Verification → Register with Consent
+# Tests the complete new user registration journey
+appId: com.openworkinghours.mobileapp
+
+---
+
+# Launch app with fresh state
+- launchApp:
+    clearState: true
+
+# Wait a moment for app to initialize
+- swipe:
+    start: "50%, 50%"
+    end: "50%, 50%"
+    duration: 500
+
+# Repeatedly dismiss dialogs and navigate to app
+# Try to dismiss notification dialog
+- tapOn:
+    text: "Erlauben"
+    optional: true
+
+# Try to tap Metro server
+- tapOn:
+    text: "http://localhost:8081"
+    optional: true
+
+# Try to dismiss notification dialog again
+- tapOn:
+    text: "Erlauben"
+    optional: true
+
+# Try to tap Continue on onboarding
+- tapOn:
+    text: "Continue"
+    optional: true
+
+# Try to dismiss notification dialog one more time
+- tapOn:
+    text: "Erlauben"
+    optional: true
+
+# Close dev client debug panel - tap outside (gray overlay area)
+- tapOn:
+    point: "50%, 25%"
+
+# Wait a moment for panel to close
+- swipe:
+    start: "50%, 50%"
+    end: "50%, 50%"
+    duration: 500
+
+# Wait for actual app to load
+- extendedWaitUntil:
+    visible:
+      id: "login-button"
+    timeout: 30000
+
+# Welcome Screen - verify both buttons are visible
+- assertVisible:
+    id: "login-button"
+- assertVisible:
+    id: "register-button"
+- takeScreenshot: "01_welcome_screen"
+
+# Tap Create Account to start registration
+- tapOn:
+    id: "register-button"
+
+# Email Verification Screen - Phase 1: Enter Email
+- assertVisible:
+    id: "email-input"
+- tapOn:
+    id: "email-input"
+- inputText: "e2e-test@openworkinghours.org"
+- takeScreenshot: "02_email_entered"
+
+# Hide keyboard and send verification code
+- hideKeyboard
+- swipe:
+    start: "50%, 50%"
+    end: "50%, 50%"
+    duration: 500
+- tapOn:
+    id: "send-code-button"
+- takeScreenshot: "02b_after_send_code"
+
+# Wait for response and dismiss any alert
+- swipe:
+    start: "50%, 50%"
+    end: "50%, 50%"
+    duration: 1000
+- tapOn:
+    text: "OK"
+    optional: true
+
+# Phase 2: Enter Code (mock returns instantly in test mode)
+- extendedWaitUntil:
+    visible:
+      id: "code-input"
+    timeout: 5000
+- tapOn:
+    id: "code-input"
+- inputText: "123456"
+- takeScreenshot: "03_code_entered"
+
+# Verify code
+- hideKeyboard
+- tapOn:
+    id: "verify-code-button"
+- takeScreenshot: "03b_after_verify"
+
+# Handle potential error alert or success
+- swipe:
+    start: "50%, 50%"
+    end: "50%, 50%"
+    duration: 1500
+- tapOn:
+    text: "OK"
+    optional: true
+
+# Registration Screen - fill form
+- extendedWaitUntil:
+    visible:
+      id: "hospital-input"
+    timeout: 10000
+- takeScreenshot: "04_registration_screen"
+
+# Fill hospital
+- tapOn:
+    id: "hospital-input"
+- inputText: "Berlin Charite"
+
+# Fill specialty
+- tapOn:
+    id: "specialty-input"
+- inputText: "Internal Medicine"
+
+# Fill role
+- tapOn:
+    id: "role-input"
+- inputText: "Resident"
+
+# Fill state (optional but let's test it)
+- tapOn:
+    id: "state-input"
+- inputText: "BE"
+- takeScreenshot: "05_registration_filled"
+
+# Hide keyboard before tapping register
+- hideKeyboard
+
+# Submit registration (triggers consent modal)
+- tapOn:
+    id: "register-button"
+
+# Consent Bottom Sheet - should appear
+- assertVisible:
+    id: "consent-terms-link"
+- assertVisible:
+    id: "consent-privacy-link"
+- takeScreenshot: "06_consent_modal"
+
+# Accept consent: tap checkbox then accept button
+- tapOn:
+    id: "consent-checkbox"
+- tapOn:
+    id: "consent-accept-button"
+
+# Wait for navigation to main app
+- swipe:
+    start: "50%, 50%"
+    end: "50%, 50%"
+    duration: 1000
+
+# Should be on main app - verify tab bar is visible (German labels)
+- assertVisible:
+    text: "Status"
+- assertVisible:
+    text: "Kalender"
+- assertVisible:
+    text: "Einstellungen"
+- takeScreenshot: "07_main_app_authenticated"

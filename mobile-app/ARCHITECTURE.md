@@ -673,3 +673,78 @@ npm test -- --testPathPattern=GeofenceService
 3. Run `eas submit --platform ios`
 4. Wait for Apple processing (~15-30 min)
 5. Testers manually update via TestFlight app
+
+### E2E Testing (Maestro)
+
+Automated UI testing using [Maestro](https://maestro.mobile.dev/).
+
+**Setup:**
+```bash
+# Install (one-time)
+curl -Ls "https://get.maestro.mobile.dev" | bash
+brew install openjdk@17
+
+# Add to PATH (~/.zshrc)
+export PATH="/opt/homebrew/opt/openjdk@17/bin:$PATH:$HOME/.maestro/bin"
+```
+
+**Run tests:**
+```bash
+cd mobile-app
+
+# Single flow
+maestro test .maestro/flows/auth/registration.yaml
+
+# All flows
+maestro test .maestro/flows/
+
+# Specific device
+maestro test .maestro/flows/ --device "iPhone 15 Pro Max"
+```
+
+**Available flows:**
+
+| Flow | Path | Status |
+|------|------|--------|
+| Registration | `.maestro/flows/auth/registration.yaml` | ✅ Working |
+| Location Setup | `.maestro/flows/location/setup.yaml` | ✅ Working |
+| Calendar Shifts | `.maestro/flows/calendar/shift-management.yaml` | ✅ Working |
+
+**Directory structure:**
+```
+.maestro/
+├── config.yaml           # Environment variables
+├── flows/
+│   ├── auth/            # Authentication flows
+│   ├── location/        # Location setup flows
+│   └── calendar/        # Calendar/shift flows
+├── scripts/             # Helper scripts
+└── screenshots/         # Gitignored - ephemeral
+```
+
+**Key pattern - Coordinate taps:**
+
+Due to an iOS accessibility bug (`kAXErrorInvalidUIElement`), this app requires coordinate-based taps instead of testID/text matching:
+
+```yaml
+# ❌ Crashes with accessibility error
+- tapOn:
+    id: "calendar-fab"
+
+# ✅ Works reliably
+- tapOn:
+    point: "88%,82%"
+```
+
+This bug affects Maestro CLI but NOT the MCP tools (mobile-mcp, maestro MCP work fine).
+
+**Test mode:**
+
+The app has a `TEST_MODE` flag that enables mock API responses:
+- Set in `app.json` → `expo.extra.TEST_MODE`
+- Or via env var: `TEST_MODE=true npx expo start`
+- Mock responses in `src/lib/testing/mockApi.ts`
+
+**Screenshots:** Gitignored. Delete after debugging sessions.
+
+**For detailed status and known issues:** See `docs/E2E_TESTING_PLAN.md` (planning doc)

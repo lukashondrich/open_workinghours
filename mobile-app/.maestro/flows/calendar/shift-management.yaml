@@ -1,0 +1,85 @@
+# Calendar Shift Management: Add Template → Place Shift
+# Tests the calendar shift creation workflow
+# Prerequisite: User authenticated with at least one location
+# Note: Uses coordinate taps to avoid kAXErrorInvalidUIElement bug with view hierarchy
+appId: com.openworkinghours.mobileapp
+
+---
+
+# Start fresh - launch the app
+- launchApp:
+    clearState: false
+
+# Dismiss any dialogs
+- tapOn:
+    text: "OK"
+    optional: true
+- tapOn:
+    text: "Abbrechen"
+    optional: true
+
+# Navigate to Calendar tab (center bottom)
+- tapOn:
+    point: "50%,96%"
+
+# Wait for calendar to render
+- swipe:
+    start: "50%, 50%"
+    end: "50%, 50%"
+    duration: 1000
+- takeScreenshot: "01_calendar_view"
+
+# Tap FAB (bottom right corner - approximately 85%, 85%)
+- tapOn:
+    point: "88%,82%"
+
+# Wait for FAB menu animation
+- swipe:
+    start: "50%, 50%"
+    end: "50%, 50%"
+    duration: 600
+- takeScreenshot: "02_fab_menu_open"
+
+# Select "Dienste" (Shifts) - second option from bottom in FAB menu
+- tapOn:
+    point: "78%,78%"
+
+# Wait for template panel animation
+- swipe:
+    start: "50%, 50%"
+    end: "50%, 50%"
+    duration: 800
+- takeScreenshot: "03_template_panel_open"
+
+# Tap "+ Neu" button (top right of template panel - approximately 85%, 62%)
+- tapOn:
+    point: "85%,62%"
+
+# Wait for edit form animation
+- swipe:
+    start: "50%, 50%"
+    end: "50%, 50%"
+    duration: 600
+- takeScreenshot: "04_template_editing"
+
+# Tap "Speichern" button (left button in the action row - approximately 25%, 87%)
+- tapOn:
+    point: "25%,87%"
+- takeScreenshot: "05_template_saved"
+
+# Wait for save to complete
+- swipe:
+    start: "50%, 50%"
+    end: "50%, 50%"
+    duration: 600
+
+# Close panel by tapping calendar area
+- tapOn:
+    point: "50%, 30%"
+
+# Wait for panel to close
+- swipe:
+    start: "50%, 50%"
+    end: "50%, 50%"
+    duration: 500
+- takeScreenshot: "06_flow_complete"

@@ -1,6 +1,6 @@
 # Debugging Guide
 
-**Last Updated:** 2026-01-07
+**Last Updated:** 2026-01-24
 
 This guide covers debugging techniques for the Open Working Hours project.
 
@@ -152,6 +152,78 @@ Requires `ADMIN_PASSWORD` from environment.
 
 ---
 
+## E2E Test Debugging
+
+### "Maestro test crashes with kAXErrorInvalidUIElement"
+
+**Cause:** iOS accessibility tree inspection fails on certain screens (Status, Calendar) due to animated chart components.
+
+**Solution:** Use coordinate-based taps instead of testID/text matching:
+```yaml
+# ❌ Crashes
+- tapOn:
+    id: "calendar-fab"
+
+# ✅ Works
+- tapOn:
+    point: "88%,82%"
+```
+
+**Note:** This bug only affects Maestro CLI. MCP tools (mobile-mcp, maestro MCP) work fine.
+
+### "Maestro can't find element by text"
+
+**Common causes:**
+1. Text includes extra accessibility info: "Kalender" is actually "Kalender, tab, 2 of 3"
+2. Element is inside a container with `accessible={true}` that groups children
+3. App is in German - use German text ("Speichern" not "Save")
+
+**Debug with MCP:**
+```bash
+# Use maestro MCP to inspect view hierarchy
+# (doesn't crash like CLI)
+```
+
+### "Test passes locally but coordinates are wrong"
+
+**Cause:** Different device/simulator screen sizes.
+
+**Solution:** Use percentage-based coordinates:
+```yaml
+# ✅ Works across devices
+- tapOn:
+    point: "88%,82%"
+
+# ❌ Breaks on different screen sizes
+- tapOn:
+    point: "378,764"
+```
+
+### "TEST_MODE mock API not working"
+
+1. Check `app.json` → `expo.extra.TEST_MODE` is `true`
+2. Or run with env var: `TEST_MODE=true npx expo start`
+3. Verify mock responses in `src/lib/testing/mockApi.ts`
+4. Check console for `[AuthService] TEST_MODE:` log messages
+
+### Running tests
+
+```bash
+cd mobile-app
+export PATH="/opt/homebrew/opt/openjdk@17/bin:$PATH:$HOME/.maestro/bin"
+
+# Run single flow
+maestro test .maestro/flows/auth/registration.yaml
+
+# Run all flows
+maestro test .maestro/flows/
+
+# Clean up screenshots after
+rm -f *.png
+```
+
+---
+
 ## Performance Profiling
 
 ### React Native
@@ -192,6 +264,8 @@ Things that have tripped us up - save yourself time:
 | **5-min exit hysteresis** | Clock-out waits 5 min after leaving geofence | By design - prevents false clock-outs |
 | **Sessions < 5 min discarded** | Short sessions are noise, auto-deleted | By design - user sees "Session Discarded" notification |
 | **buildNumber must increment** | TestFlight rejects duplicate build numbers | Always bump in `app.json` before `eas build` |
+| **Maestro needs Java 17** | CLI fails without Java | `export PATH="/opt/homebrew/opt/openjdk@17/bin:$PATH"` |
+| **E2E tests need coordinate taps** | testID matching crashes on Calendar/Status | Use `point: "X%,Y%"` instead of `id:` |
 
 ### Backend
 
