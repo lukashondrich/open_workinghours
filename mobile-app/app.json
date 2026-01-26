@@ -15,7 +15,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.openworkinghours.mobileapp",
-      "buildNumber": "42",
+      "buildNumber": "43",
       "config": {
         "usesNonExemptEncryption": false
       },
@@ -48,10 +48,6 @@
       "config": {
         "googleMaps": {}
       }
-    },
-    "privacy": "public",
-    "rating": {
-      "itunesRating": "4+"
     },
     "web": {
       "favicon": "./assets/favicon.png"

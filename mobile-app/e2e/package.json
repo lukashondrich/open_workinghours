@@ -3,12 +3,12 @@
   "version": "1.0.0",
   "description": "E2E tests for Open Working Hours mobile app",
   "scripts": {
-    "test": "jest",
-    "test:ios": "PLATFORM=ios jest",
-    "test:android": "PLATFORM=android jest",
-    "test:auth": "jest flows/auth.test.js",
-    "test:location": "jest flows/location.test.js",
-    "test:calendar": "jest flows/calendar.test.js",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand",
+    "test:ios": "PLATFORM=ios node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand",
+    "test:android": "PLATFORM=android node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand",
+    "test:auth": "node --experimental-vm-modules node_modules/jest/bin/jest.js flows/auth.test.js",
+    "test:location": "node --experimental-vm-modules node_modules/jest/bin/jest.js flows/location.test.js",
+    "test:calendar": "node --experimental-vm-modules node_modules/jest/bin/jest.js flows/calendar.test.js",
     "appium:start": "appium --allow-cors --relaxed-security",
     "appium:install-drivers": "appium driver install xcuitest && appium driver install uiautomator2"
   },

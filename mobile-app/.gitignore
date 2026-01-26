@@ -29,10 +29,12 @@ yarn-error.*
 # macOS
 .DS_Store
 
-# E2E test artifacts
-*.png
+# E2E test artifacts (not app assets)
+e2e/*.png
+e2e/screenshots/*.png
 .maestro/results/
 .maestro/screenshots/
+failure-*.png
 *.pem
 
 # local env files

@@ -3,13 +3,14 @@
  *
  * Tests the location setup wizard:
  * 1. Navigate to Settings
- * 2. Open "Add location" or existing location list
+ * 2. Open "Add location" flow
  * 3. Search for location
  * 4. Adjust radius
  * 5. Name the location
- * 6. Save
+ * 6. Verify save button (don't save to avoid test data)
  *
- * Works with already logged-in state.
+ * Note: Tests are designed to handle variable app state.
+ * If a location is already configured, wizard tests are skipped.
  */
 
 const { createDriver, getPlatform } = require('../helpers/driver');
@@ -18,17 +19,15 @@ const {
   tapTestId,
   typeTestId,
   tapI18n,
-  tapText,
   navigateToTab,
-  waitForTestId,
   waitForText,
   existsTestId,
-  dismissAlert,
   dismissPermissionDialogs,
 } = require('../helpers/actions');
 
 describe('Location Setup', () => {
   let driver;
+  let canTestWizard = false; // Track if we can test the wizard flow
 
   beforeAll(async () => {
     driver = await createDriver(getPlatform());
@@ -46,154 +45,167 @@ describe('Location Setup', () => {
     await navigateToTab(driver, 'settings');
     await driver.pause(500);
 
-    // Verify we're on settings
+    // Verify we're on settings by looking for common elements
     const settingsText = driver.isIOS ? 'Einstellungen' : 'Settings';
-    // Settings screen should have some identifiable content
+    const header = await byText(driver, settingsText);
+    expect(await header.isDisplayed()).toBe(true);
   });
 
   test('should find Work Locations section', async () => {
-    // Look for Work Locations / Arbeitsorte
     const locationsText = driver.isIOS ? 'Arbeitsorte' : 'Work Locations';
+    const locationsSection = await byText(driver, locationsText);
 
-    try {
-      const locationsSection = await byText(driver, locationsText);
-      const isDisplayed = await locationsSection.isDisplayed();
-      expect(isDisplayed).toBe(true);
-    } catch (e) {
-      // May need to scroll to find it
-      console.log('Work Locations section may require scrolling');
-    }
+    // This should always be visible on Settings screen
+    expect(await locationsSection.isDisplayed()).toBe(true);
   });
 
-  test('should open Add Location flow', async () => {
-    // Look for "Add new location" button or "Neuen Standort hinzufügen"
+  test('should check if Add Location is available', async () => {
+    // Check if "Add new location" button exists
+    // If not, a location is already configured - we'll skip wizard tests
     const addText = driver.isIOS
-      ? 'Neuen Standort hinzufügen'
-      : 'Add new location';
+      ? 'Arbeitsplatz hinzufügen'
+      : 'Add workplace';
 
     try {
       const addButton = await byText(driver, addText);
-
-      if (await addButton.isDisplayed()) {
-        await addButton.click();
-        await driver.pause(1000);
-
-        // Step 1: Search should be visible
-        const searchInput = await byTestId(driver, 'setup-search-input');
-        expect(await searchInput.isDisplayed()).toBe(true);
-      } else {
-        // Location may already be set up, try tapping existing location
-        console.log('Add button not visible - location may already exist');
-      }
+      canTestWizard = await addButton.isDisplayed();
     } catch (e) {
-      console.log('Could not find add location button:', e.message);
+      canTestWizard = false;
     }
+
+    if (!canTestWizard) {
+      console.log('  ℹ Location already configured - wizard tests will be skipped');
+    }
+
+    // This test always passes - it's just checking state
+    expect(true).toBe(true);
+  });
+
+  test('should open Add Location flow', async () => {
+    if (!canTestWizard) {
+      console.log('  ⏭ Skipped: location already configured');
+      return;
+    }
+
+    const addText = driver.isIOS
+      ? 'Arbeitsplatz hinzufügen'
+      : 'Add workplace';
+
+    const addButton = await byText(driver, addText);
+    await addButton.click();
+    await driver.pause(1000);
+
+    // Step 1: Search input should be visible
+    const searchInput = await byTestId(driver, 'setup-search-input');
+    expect(await searchInput.isDisplayed()).toBe(true);
   });
 
   test('should search for a location', async () => {
-    try {
-      // Type in search
-      await typeTestId(driver, 'setup-search-input', 'Berlin');
-      await driver.pause(2000); // Wait for search results
-
-      // Tap first search result
-      const firstResult = await byTestId(driver, 'setup-search-result-0');
-
-      if (await firstResult.isDisplayed()) {
-        await firstResult.click();
-        await driver.pause(1000);
-      }
-    } catch (e) {
-      console.log('Search step skipped:', e.message);
+    if (!canTestWizard) {
+      console.log('  ⏭ Skipped: location already configured');
+      return;
     }
+
+    await typeTestId(driver, 'setup-search-input', 'Berlin');
+    await driver.pause(2000); // Wait for search results
+
+    // Tap first search result
+    const firstResult = await byTestId(driver, 'setup-search-result-0');
+    expect(await firstResult.isDisplayed()).toBe(true);
+
+    await firstResult.click();
+    await driver.pause(1000);
   });
 
   test('should proceed to Step 2 (Radius)', async () => {
-    try {
-      // Tap Continue/Weiter to go to radius step
-      await tapTestId(driver, 'setup-continue-step1');
-      await driver.pause(500);
-
-      // Verify radius controls are visible
-      const decreaseBtn = await byTestId(driver, 'setup-radius-decrease');
-      expect(await decreaseBtn.isDisplayed()).toBe(true);
-    } catch (e) {
-      console.log('Step 2 navigation skipped:', e.message);
+    if (!canTestWizard) {
+      console.log('  ⏭ Skipped: location already configured');
+      return;
     }
+
+    await tapTestId(driver, 'setup-continue-step1');
+    await driver.pause(500);
+
+    // Verify radius controls are visible
+    const decreaseBtn = await byTestId(driver, 'setup-radius-decrease');
+    expect(await decreaseBtn.isDisplayed()).toBe(true);
   });
 
   test('should adjust radius', async () => {
-    try {
-      // Increase radius
-      await tapTestId(driver, 'setup-radius-increase');
-      await driver.pause(300);
-
-      // Decrease radius
-      await tapTestId(driver, 'setup-radius-decrease');
-      await driver.pause(300);
-    } catch (e) {
-      console.log('Radius adjustment skipped:', e.message);
+    if (!canTestWizard) {
+      console.log('  ⏭ Skipped: location already configured');
+      return;
     }
+
+    // Increase radius
+    await tapTestId(driver, 'setup-radius-increase');
+    await driver.pause(300);
+
+    // Decrease radius
+    await tapTestId(driver, 'setup-radius-decrease');
+    await driver.pause(300);
+
+    // If we got here without errors, radius controls work
+    expect(true).toBe(true);
   });
 
   test('should proceed to Step 3 (Name)', async () => {
-    try {
-      await tapTestId(driver, 'setup-continue-step2');
-      await driver.pause(500);
-
-      // Verify name input is visible
-      const nameInput = await byTestId(driver, 'setup-name-input');
-      expect(await nameInput.isDisplayed()).toBe(true);
-    } catch (e) {
-      console.log('Step 3 navigation skipped:', e.message);
+    if (!canTestWizard) {
+      console.log('  ⏭ Skipped: location already configured');
+      return;
     }
+
+    await tapTestId(driver, 'setup-continue-step2');
+    await driver.pause(500);
+
+    // Verify name input is visible
+    const nameInput = await byTestId(driver, 'setup-name-input');
+    expect(await nameInput.isDisplayed()).toBe(true);
   });
 
   test('should enter location name', async () => {
-    try {
-      await typeTestId(driver, 'setup-name-input', 'Test Location');
-      await driver.pause(500);
-
-      if (driver.isAndroid) {
-        await driver.hideKeyboard();
-      }
-    } catch (e) {
-      console.log('Name entry skipped:', e.message);
+    if (!canTestWizard) {
+      console.log('  ⏭ Skipped: location already configured');
+      return;
     }
+
+    await typeTestId(driver, 'setup-name-input', 'Test Hospital');
+    await driver.pause(500);
+
+    if (driver.isAndroid) {
+      await driver.hideKeyboard();
+    }
+
+    expect(true).toBe(true);
   });
 
-  test('should save location (or cancel to avoid test data)', async () => {
-    // For test purposes, we'll verify the save button exists
-    // but cancel to avoid creating test data
-
-    try {
-      const saveBtn = await byTestId(driver, 'setup-save-button');
-      expect(await saveBtn.isDisplayed()).toBe(true);
-
-      // Go back instead of saving (avoid test data pollution)
-      await tapTestId(driver, 'setup-back-button');
-      await driver.pause(500);
-      await tapTestId(driver, 'setup-back-button');
-      await driver.pause(500);
-      await tapTestId(driver, 'setup-back-button');
-      await driver.pause(500);
-    } catch (e) {
-      console.log('Save verification skipped:', e.message);
+  test('should have save button visible', async () => {
+    if (!canTestWizard) {
+      console.log('  ⏭ Skipped: location already configured');
+      return;
     }
+
+    // Verify save button exists (but don't tap it - avoid test data)
+    const saveBtn = await byTestId(driver, 'setup-save-button');
+    expect(await saveBtn.isDisplayed()).toBe(true);
+
+    // Go back to cancel (avoid creating test data)
+    console.log('  ℹ Canceling wizard to avoid test data');
+    await tapTestId(driver, 'setup-back-button');
+    await driver.pause(300);
+    await tapTestId(driver, 'setup-back-button');
+    await driver.pause(300);
+    await tapTestId(driver, 'setup-back-button');
+    await driver.pause(300);
   });
 
   test('should return to main app', async () => {
-    // Navigate back to Status to verify we're in main app
     await navigateToTab(driver, 'status');
     await driver.pause(500);
 
+    // Verify we're back on status screen
     const statusText = driver.isIOS ? 'Letzte 14 Tage' : 'Last 14 Days';
-    try {
-      const statusElement = await byText(driver, statusText);
-      expect(await statusElement.isDisplayed()).toBe(true);
-    } catch (e) {
-      // App may show different content if no locations set
-      console.log('Status screen content varies based on setup state');
-    }
+    const statusElement = await byText(driver, statusText);
+    expect(await statusElement.isDisplayed()).toBe(true);
   });
 });

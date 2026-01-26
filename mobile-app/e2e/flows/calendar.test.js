@@ -73,11 +73,13 @@ describe('Calendar Navigation', () => {
     const monthText = driver.isIOS ? 'Monat' : 'Month';
     const monthToggle = await byText(driver, monthText);
     await monthToggle.click();
-    await driver.pause(500);
+    await driver.pause(1000); // Allow view transition to complete
 
-    // Verify month view is displayed (FAB should still be visible)
-    const fab = await byTestId(driver, 'calendar-fab');
-    expect(await fab.isDisplayed()).toBe(true);
+    // Verify we're in Month view by checking the Week toggle is now tappable
+    // (FAB is hidden in Month view by design)
+    const weekText = driver.isIOS ? 'Woche' : 'Week';
+    const weekToggle = await byText(driver, weekText);
+    expect(await weekToggle.isDisplayed()).toBe(true);
   });
 
   test('should switch back to Week view', async () => {

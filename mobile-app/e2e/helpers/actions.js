@@ -136,12 +136,26 @@ async function navigateToTab(driver, tabKey) {
  * Take screenshot and save to file
  * @param {WebdriverIO.Browser} driver
  * @param {string} name
+ * @returns {string} filename of saved screenshot
  */
 async function screenshot(driver, name) {
+  const fs = require('fs');
+  const path = require('path');
+
+  const screenshotsDir = path.join(__dirname, '..', 'screenshots');
+
+  // Ensure screenshots directory exists
+  if (!fs.existsSync(screenshotsDir)) {
+    fs.mkdirSync(screenshotsDir, { recursive: true });
+  }
+
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const filename = `${name}-${driver.platform}-${timestamp}.png`;
+  const filepath = path.join(screenshotsDir, filename);
+
   const data = await driver.takeScreenshot();
-  require('fs').writeFileSync(`./screenshots/${filename}`, data, 'base64');
+  fs.writeFileSync(filepath, data, 'base64');
+
   return filename;
 }
 
