@@ -755,7 +755,9 @@ function byTestId(driver, testId) {
 
 **Android testID limitations:**
 
-Some testIDs don't work on Android. Fix by adding accessibility props:
+Some testIDs don't work on Android. Common fixes:
+
+**1. Regular components** - Add accessibility props:
 
 ```tsx
 // Before (testID not exposed on Android)
@@ -769,6 +771,18 @@ Some testIDs don't work on Android. Fix by adding accessibility props:
   onPress={handlePrev}
 >
 ```
+
+**2. React Navigation Tab Bar** - Use correct property name:
+
+```tsx
+// WRONG - tabBarTestID doesn't exist in React Navigation v7
+<Tab.Screen options={{ tabBarTestID: 'tab-status' }} />
+
+// CORRECT - tabBarButtonTestID passes testID to the button component
+<Tab.Screen options={{ tabBarButtonTestID: 'tab-status' }} />
+```
+
+The `tabBarButtonTestID` property is passed through to `PlatformPressable` which properly exposes it to UiAutomator2 on Android.
 
 **Test mode:**
 

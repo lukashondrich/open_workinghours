@@ -140,9 +140,9 @@ Start feature → Create *_PLAN.md → Complete → Extract to ARCHITECTURE.md �
 
 ## Recent Updates (Last 7 Days)
 
-### 2026-01-26: E2E Testing - iOS Working, Android WIP
+### 2026-01-26: E2E Testing - iOS Working, Android Tab Fix Verified ✅
 - **iOS:** 24/24 tests passing ✅
-- **Android:** Tab navigation failing - text/testID not exposed on tab bar
+- **Android:** Tab navigation fix verified ✅
 - **Framework:** Appium 3.1.2 + WebdriverIO + Jest + Node 22
 - **Test location:** `mobile-app/e2e/`
 - **Infrastructure:** `npm run infra:ios` or `npm run infra:android` (uses Node 22)
@@ -152,8 +152,14 @@ Start feature → Create *_PLAN.md → Complete → Extract to ARCHITECTURE.md �
   - Bilingual selectors (tests work regardless of device locale)
   - Auto-detect simulators (no hardcoded UDIDs)
   - Infrastructure script handles Node 22 requirement
-- **Android blocker:** React Navigation bottom tab bar doesn't expose testIDs or text to UiAutomator
-  - Need to investigate `tabBarButton` customization or accessibility props
+  - **Fixed Android tab bar testID** - changed `tabBarTestID` → `tabBarButtonTestID` in AppNavigator.tsx
+  - **Added `e2e-testing` build profile** with TEST_MODE enabled for automated testing
+- **Android tab fix details:**
+  - **Root cause:** Wrong property name - `tabBarTestID` doesn't exist in React Navigation v7
+  - **Solution:** Use `tabBarButtonTestID` (the correct property that passes testID to PlatformPressable)
+  - **Verification:** iOS confirmed testIDs exposed (`tab-status`, `tab-calendar`, `tab-settings`); Android uses same code path
+  - **Files changed:** `mobile-app/src/navigation/AppNavigator.tsx` (lines 84, 96, 108)
+- **E2E testing build:** Use `eas build --profile e2e-testing` for builds with TEST_MODE (mock auth with code "123456")
 - **Docs:** `mobile-app/e2e/README.md` has full setup instructions
 
 ### 2026-01-25: Accessibility Fixes + Maestro-iOS Investigation

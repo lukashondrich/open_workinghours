@@ -6,6 +6,9 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
+      "env": {
+        "TEST_MODE": "true"
+      },
       "ios": {
         "simulator": false
       },
@@ -24,6 +27,18 @@
       "distribution": "internal",
       "ios": {
         "simulator": false
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "e2e-testing": {
+      "distribution": "internal",
+      "env": {
+        "TEST_MODE": "true"
+      },
+      "ios": {
+        "simulator": true
       },
       "android": {
         "buildType": "apk"

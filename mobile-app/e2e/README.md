@@ -153,6 +153,42 @@ test('should open wizard', async () => {
 
 This allows tests to pass in different app states while clearly logging what was skipped.
 
+## E2E Testing Builds
+
+For automated E2E testing, use the `e2e-testing` build profile which has `TEST_MODE` enabled:
+
+```bash
+# Build for E2E testing (includes mock auth)
+eas build --profile e2e-testing --platform ios
+eas build --profile e2e-testing --platform android
+
+# Install and run
+eas build:run --platform android --profile e2e-testing
+```
+
+**TEST_MODE features:**
+- Mock verification codes - use `123456` to authenticate
+- Skips actual email sending
+- Returns mock API responses for auth flow
+
+**Without TEST_MODE:**
+- Auth flow requires real email verification
+- Tests can only verify UI up to the welcome screen
+
+## Tab Bar Testing (Android Fix)
+
+React Navigation v7 requires `tabBarButtonTestID` (not `tabBarTestID`) for tab buttons to be accessible on Android:
+
+```tsx
+// WRONG - doesn't work on Android
+<Tab.Screen options={{ tabBarTestID: 'tab-status' }} />
+
+// CORRECT - works on both platforms
+<Tab.Screen options={{ tabBarButtonTestID: 'tab-status' }} />
+```
+
+The testIDs `tab-status`, `tab-calendar`, `tab-settings` are now properly exposed on both iOS and Android.
+
 ## Troubleshooting
 
 ### Node version issues

@@ -81,7 +81,7 @@ function MainTabs() {
           tabBarIcon: ({ color, size }) => (
             <BarChart3 size={size || 24} color={color} />
           ),
-          tabBarTestID: 'tab-status',
+          tabBarButtonTestID: 'tab-status',
         }}
       />
       <Tab.Screen
@@ -93,7 +93,7 @@ function MainTabs() {
           tabBarIcon: ({ color, size }) => (
             <Calendar size={size || 24} color={color} />
           ),
-          tabBarTestID: 'tab-calendar',
+          tabBarButtonTestID: 'tab-calendar',
         }}
       />
       <Tab.Screen
@@ -105,7 +105,7 @@ function MainTabs() {
           tabBarIcon: ({ color, size }) => (
             <Settings size={size || 24} color={color} />
           ),
-          tabBarTestID: 'tab-settings',
+          tabBarButtonTestID: 'tab-settings',
         }}
       />
     </Tab.Navigator>
