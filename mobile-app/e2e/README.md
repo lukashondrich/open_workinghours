@@ -5,8 +5,8 @@ Cross-platform E2E tests for Open Working Hours using Appium + Jest.
 ## Prerequisites
 
 - **Node 20 or 22** (Appium 3.x doesn't support Node 23)
-- Appium server running
-- iOS Simulator or Android Emulator running
+- Appium installed globally with drivers
+- iOS Simulator or Android Emulator
 
 ## Quick Start
 
@@ -15,22 +15,38 @@ Cross-platform E2E tests for Open Working Hours using Appium + Jest.
 cd mobile-app/e2e
 npm install
 
-# Install Appium globally and drivers
+# Install Appium globally and drivers (one-time setup)
 npm install -g appium
 appium driver install xcuitest
 appium driver install uiautomator2
 
-# Start Appium server (in separate terminal)
-npm run appium:start
+# Start infrastructure (uses Node 22 automatically)
+npm run infra:ios      # Appium + iOS simulator
+npm run infra:android  # Appium + Android emulator
+npm run infra:both     # Everything
 
-# Boot a simulator/emulator, then run tests
-open -a Simulator  # iOS
+# In another terminal, run tests
 npm run test:ios
-
-# Or for Android
-emulator -avd Pixel_7a  # Your AVD name
 npm run test:android
 ```
+
+## Infrastructure Script
+
+The `start-infra.sh` script handles Node version compatibility and starts all required services:
+
+```bash
+./start-infra.sh          # Appium only
+./start-infra.sh ios      # Appium + boot iOS simulator
+./start-infra.sh android  # Appium + start Android emulator
+./start-infra.sh both     # Everything
+```
+
+**What it does:**
+1. Uses Node 22 (required for Appium 3.x)
+2. Kills any existing Appium processes
+3. Starts Appium server
+4. Optionally boots iOS simulator or Android emulator
+5. Waits for everything to be ready
 
 ## Device Auto-Detection
 
@@ -50,14 +66,15 @@ ANDROID_DEVICE=emulator-5556 npm run test:android
 
 ```
 e2e/
+├── start-infra.sh    # Infrastructure startup script
 ├── helpers/
-│   ├── driver.js      # Appium driver setup + auto-detection
-│   ├── selectors.js   # Cross-platform element selectors
-│   └── actions.js     # Common test actions
+│   ├── driver.js     # Appium driver setup + auto-detection
+│   ├── selectors.js  # Cross-platform element selectors (bilingual)
+│   └── actions.js    # Common test actions
 ├── flows/
-│   ├── auth.test.js   # Registration flow
-│   ├── location.test.js # Location setup wizard
-│   └── calendar.test.js # Calendar navigation
+│   ├── auth.test.js      # Registration flow
+│   ├── location.test.js  # Location setup wizard
+│   └── calendar.test.js  # Calendar navigation
 └── README.md
 ```
 
@@ -96,18 +113,18 @@ const { byTestId } = require('./helpers/selectors');
 const element = await byTestId(driver, 'calendar-fab');
 ```
 
-## Localization
+## Bilingual Text Matching
 
-The app displays German on iOS and English on Android. Use i18n helpers:
+The app can display German or English regardless of platform (depends on device locale).
+Tests handle both languages automatically:
 
 ```javascript
-const { t, byI18n } = require('./helpers/selectors');
+const { byI18nFast } = require('./helpers/selectors');
 
-// Get localized text
-const text = t(driver, 'calendar'); // 'Kalender' on iOS, 'Calendar' on Android
+// Matches either "Kalender" (German) or "Calendar" (English)
+const tab = await byI18nFast(driver, 'calendar');
 
-// Find element by localized text
-const tab = await byI18n(driver, 'calendar');
+// Available keys: status, calendar, settings, week, month, last14Days, etc.
 ```
 
 ## Test Design: Handling Variable State
@@ -138,6 +155,18 @@ This allows tests to pass in different app states while clearly logging what was
 
 ## Troubleshooting
 
+### Node version issues
+Appium 3.x requires Node 20, 22, or 24+ (NOT 23):
+```bash
+node -v  # Check version
+
+# Use the infrastructure script (handles this automatically)
+npm run infra:ios
+
+# Or manually use Node 22
+/opt/homebrew/opt/node@22/bin/node $(which appium) --allow-cors --relaxed-security
+```
+
 ### "No booted iOS simulator found"
 ```bash
 open -a Simulator
@@ -150,17 +179,22 @@ emulator -list-avds  # List available AVDs
 emulator -avd <name>  # Start one
 ```
 
+### WebDriverAgent build timeout
+First run on iOS takes several minutes to build WebDriverAgent. Just wait.
+
 ### "element not found"
 1. Check if app is in expected state (logged in vs. welcome screen)
 2. Verify testID exists in the app code
-3. Try different selector strategy (see selectors.js)
+3. For Android, element may need `accessible={true}` in the component
 
-### Node version issues
-Appium 3.x requires Node 20, 22, or 24+:
-```bash
-node -v  # Check version
-brew install node@22  # Install if needed
-export PATH="/opt/homebrew/opt/node@22/bin:$PATH"
+### Android testIDs not working
+On Android, testID only works if the element has accessibility enabled:
+```tsx
+<TouchableOpacity
+  testID="my-button"
+  accessible={true}  // Required for Android
+  ...
+>
 ```
 
 ## Comparison with Maestro
@@ -171,6 +205,7 @@ export PATH="/opt/homebrew/opt/node@22/bin:$PATH"
 | Android support | Broken (2.1.0) | Works |
 | iOS support | Works | Works |
 | Auto-detection | No | Yes |
+| Bilingual | Manual | Automatic |
 | Debugging | Limited | Full IDE support |
 
 Maestro flows are kept in `.maestro/` for reference (iOS only).
