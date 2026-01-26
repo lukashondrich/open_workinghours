@@ -79,7 +79,9 @@ README.md (User Entry Point)
 | Document | Purpose | Location | Audience |
 |----------|---------|----------|----------|
 | `blueprint.md` | High-level system architecture, completed modules overview | Root | Architects |
-| `mobile-app/ARCHITECTURE.md` | Mobile app details - modules, schemas, key components | Module | Mobile devs |
+| `mobile-app/ARCHITECTURE.md` | Mobile app details - modules, schemas, key components, **E2E testing** | Module | Mobile devs |
+| `mobile-app/e2e/README.md` | Appium E2E test quick start | Module | QA/Mobile devs |
+| `docs/E2E_TESTING_PLAN.md` | E2E testing reference - history, troubleshooting, framework comparison | docs/ | QA/Mobile devs |
 | `backend/ARCHITECTURE.md` | Backend details - API, database, aggregation | Module | Backend devs |
 | `privacy_architecture.md` | Privacy/GDPR technical design, data flows | Root | Technical |
 | `website/README.md` | Website structure and content | Module | Content editors |

@@ -674,76 +674,121 @@ npm test -- --testPathPattern=GeofenceService
 4. Wait for Apple processing (~15-30 min)
 5. Testers manually update via TestFlight app
 
-### E2E Testing (Maestro)
+### E2E Testing (Appium)
 
-Automated UI testing using [Maestro](https://maestro.mobile.dev/).
+Cross-platform E2E testing using [Appium](https://appium.io/) with WebdriverIO.
 
-**Setup:**
+**Why Appium:**
+- Works on both iOS and Android (Maestro has Android connection issues)
+- Uses existing testIDs from the app code
+- JavaScript tests with full IDE debugging support
+
+**Prerequisites:**
 ```bash
-# Install (one-time)
-curl -Ls "https://get.maestro.mobile.dev" | bash
-brew install openjdk@17
+# Node 22 required (Appium 3.x doesn't support Node 23)
+brew install node@22
+export PATH="/opt/homebrew/opt/node@22/bin:$PATH"
 
-# Add to PATH (~/.zshrc)
-export PATH="/opt/homebrew/opt/openjdk@17/bin:$PATH:$HOME/.maestro/bin"
+# Install dependencies
+cd mobile-app/e2e
+npm install
+
+# Install Appium (if not already)
+npm install -g appium
+appium driver install xcuitest
+appium driver install uiautomator2
 ```
 
 **Run tests:**
 ```bash
-cd mobile-app
+# Terminal 1: Start Appium server
+cd /tmp/appium-test  # or any dir with Appium installed
+npx appium --allow-cors --relaxed-security
 
-# Single flow
-maestro test .maestro/flows/auth/registration.yaml
-
-# All flows
-maestro test .maestro/flows/
-
-# Specific device
-maestro test .maestro/flows/ --device "iPhone 15 Pro Max"
+# Terminal 2: Run tests
+cd mobile-app/e2e
+node run-tests.js ios all        # All tests on iOS
+node run-tests.js android all    # All tests on Android
+node run-tests.js ios calendar   # Single flow
 ```
 
-**Available flows:**
+**Test status:**
 
-| Flow | Path | Status |
-|------|------|--------|
-| Registration | `.maestro/flows/auth/registration.yaml` | ✅ Working |
-| Location Setup | `.maestro/flows/location/setup.yaml` | ✅ Working |
-| Calendar Shifts | `.maestro/flows/calendar/shift-management.yaml` | ✅ Working |
+| Flow | iOS | Android |
+|------|-----|---------|
+| Calendar navigation | ✅ | ✅ |
+| Calendar FAB (testID) | ✅ | ✅ |
+| Week nav buttons | ✅ | ⚠️ testID not exposed |
+| Location settings | ✅ | ✅ |
+| Auth state check | ✅ | ✅ |
 
 **Directory structure:**
 ```
-.maestro/
-├── config.yaml           # Environment variables
-├── flows/
-│   ├── auth/            # Authentication flows
-│   ├── location/        # Location setup flows
-│   └── calendar/        # Calendar/shift flows
-├── scripts/             # Helper scripts
-└── screenshots/         # Gitignored - ephemeral
+e2e/
+├── package.json
+├── run-tests.js          # Test runner
+├── README.md             # Setup instructions
+├── helpers/
+│   ├── driver.js         # Appium connection
+│   ├── selectors.js      # Cross-platform testID helpers
+│   └── actions.js        # Common test actions
+└── flows/
+    ├── calendar.test.js
+    ├── location.test.js
+    └── auth.test.js
 ```
 
-**Key pattern - Coordinate taps:**
+**Cross-platform selectors:**
 
-Due to an iOS accessibility bug (`kAXErrorInvalidUIElement`), this app requires coordinate-based taps instead of testID/text matching:
+testIDs are exposed differently on each platform:
 
-```yaml
-# ❌ Crashes with accessibility error
-- tapOn:
-    id: "calendar-fab"
-
-# ✅ Works reliably
-- tapOn:
-    point: "88%,82%"
+```javascript
+// helpers/selectors.js
+function byTestId(driver, testId) {
+  if (driver.isIOS) {
+    return driver.$(`~${testId}`);           // accessibility id
+  } else {
+    return driver.$(`android=new UiSelector().resourceId("${testId}")`);
+  }
+}
 ```
 
-This bug affects Maestro CLI but NOT the MCP tools (mobile-mcp, maestro MCP work fine).
+**Android testID limitations:**
+
+Some testIDs don't work on Android. Fix by adding accessibility props:
+
+```tsx
+// Before (testID not exposed on Android)
+<TouchableOpacity testID="calendar-prev" onPress={handlePrev}>
+
+// After (testID exposed on Android)
+<TouchableOpacity
+  testID="calendar-prev"
+  accessible={true}
+  accessibilityRole="button"
+  onPress={handlePrev}
+>
+```
 
 **Test mode:**
 
-The app has a `TEST_MODE` flag that enables mock API responses:
+The app has a `TEST_MODE` flag for mock API responses:
 - Set in `app.json` → `expo.extra.TEST_MODE`
 - Or via env var: `TEST_MODE=true npx expo start`
 - Mock responses in `src/lib/testing/mockApi.ts`
+
+---
+
+### Legacy: Maestro (iOS only)
+
+Maestro flows are kept in `.maestro/` for reference but are **iOS-only** due to Android connection issues (Maestro 2.1.0 cannot connect to Android emulators).
+
+```bash
+# Run Maestro on iOS only
+maestro test .maestro/flows/auth/registration.yaml
+```
+
+See `docs/E2E_TESTING_PLAN.md` for historical context and migration details.
 
 **Screenshots:** Gitignored. Delete after debugging sessions.
 

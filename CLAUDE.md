@@ -1,6 +1,6 @@
 # Claude Context: Open Working Hours
 
-**Last Updated:** 2026-01-24
+**Last Updated:** 2026-01-26
 **Current Build:** #30 (ready for TestFlight upload)
 
 ---
@@ -67,7 +67,7 @@ All core features complete. User test feedback (Clusters A-F) fully implemented.
    - Backend work → `backend/ARCHITECTURE.md`
    - Deployment → `docs/deployment.md`
    - Debugging issues → `docs/debugging.md`
-   - E2E testing → `mobile-app/ARCHITECTURE.md` → Testing section
+   - E2E testing → `mobile-app/ARCHITECTURE.md` → Testing section, or `mobile-app/e2e/README.md`
    - Known bugs → `docs/KNOWN_ISSUES.md`
    - Privacy (technical) → `privacy_architecture.md`
    - GDPR/Legal compliance → `docs/GDPR_COMPLIANCE.md`
@@ -92,7 +92,8 @@ See `docs/DOCUMENTATION_STRUCTURE.md` for full documentation guidelines.
 | `backend/ARCHITECTURE.md` | Backend API, database, aggregation |
 | `docs/deployment.md` | Docker, Hetzner, production deployment |
 | `docs/debugging.md` | Mobile debugging, backend logs, known gotchas |
-| `docs/E2E_TESTING_PLAN.md` | E2E test status, known issues (planning doc) |
+| `docs/E2E_TESTING_PLAN.md` | E2E testing reference (history, troubleshooting) |
+| `mobile-app/e2e/README.md` | Appium test quick start |
 
 ### Document Lifecycle
 
@@ -138,6 +139,26 @@ Start feature → Create *_PLAN.md → Complete → Extract to ARCHITECTURE.md �
 ---
 
 ## Recent Updates (Last 7 Days)
+
+### 2026-01-26: E2E Testing Migration to Appium
+- **Problem:** Maestro 2.1.0 cannot connect to Android emulators (port 7001 gRPC failure)
+- **Solution:** Migrated E2E tests from Maestro YAML to Appium JavaScript
+- **Result:** Tests now pass on BOTH iOS and Android
+- **Framework:** Appium 3.1.2 + WebdriverIO + Node 22
+- **Test location:** `mobile-app/e2e/`
+- **Test runner:** `node run-tests.js [ios|android] [calendar|location|auth|all]`
+- **Known Android limitations:** Some testIDs not exposed (calendar-prev/next, FAB menu items)
+  - Fix: Add `accessible={true}` to those components
+- **Maestro flows kept** in `.maestro/` for reference (iOS only)
+- **Docs:** `docs/E2E_TESTING_PLAN.md` updated with full comparison
+
+### 2026-01-25: Accessibility Fixes + Maestro-iOS Investigation
+- **Status:** Phase 1-2 accessibility fixes implemented, Maestro testID detection fixed
+- **Root cause found:** Nested accessible elements on iOS prevent Maestro from finding child elements by testID
+- **Fix:** Added `accessible={false}` to container Views in CalendarFAB, CalendarHeader
+- **Now working:** `tapOn: id: "calendar-fab"`, `calendar-prev`, `calendar-next`, `template-add`
+- **Planning:** `docs/ACCESSIBILITY_PLAN.md` (added "Maestro-iOS Compatibility" section)
+- **Files:** `CalendarFAB.tsx`, `CalendarHeader.tsx`, `TemplatePanel.tsx`, `HoursSummaryWidget.tsx`, `StatusScreen.tsx`
 
 ### 2026-01-24: E2E Testing + MCP Integration
 - **Status:** Auth + location flows validated, MCP servers configured
