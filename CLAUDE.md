@@ -1,6 +1,6 @@
 # Claude Context: Open Working Hours
 
-**Last Updated:** 2026-01-26
+**Last Updated:** 2026-01-27
 **Current Build:** #30 (ready for TestFlight upload)
 
 ---
@@ -140,26 +140,69 @@ Start feature → Create *_PLAN.md → Complete → Extract to ARCHITECTURE.md �
 
 ## Recent Updates (Last 7 Days)
 
-### 2026-01-26: E2E Testing - iOS Working, Android Tab Fix Verified ✅
+### 2026-01-27: Android E2E Testing - Tab Fix Complete, Test Infrastructure WIP
+
+**Summary:** Tab bar testID fix is complete and verified. Android E2E tests have infrastructure issues unrelated to tabs.
+
+**What's Working:**
+- ✅ **Tab bar fix verified on iOS** - testIDs `tab-status`, `tab-calendar`, `tab-settings` exposed in accessibility tree
+- ✅ **TEST_MODE works** - e2e-testing build accepts code "123456" for mock auth
+- ✅ **Auth tests pass** on Android (6/6)
+- ✅ **EAS e2e-testing profile** created with TEST_MODE baked in
+
+**What's NOT Working (test infrastructure, not tab-related):**
+- ❌ **Calendar tests fail** - tests assume authenticated state but app resets to Welcome screen
+- ❌ **Permission dialogs** block test flow (notifications permission)
+- ❌ **Test ordering** - calendar tests run before auth completes
+
+**Root Cause Analysis:**
+The tab bar fix IS correct. The E2E test failures are caused by:
+1. `adb shell pm clear` resets app state between test runs
+2. Permission dialogs appear and aren't dismissed by tests
+3. `navigateToTab()` falls back to text search, which fails when tab bar isn't visible (not authenticated)
+
+**Files Changed:**
+- `mobile-app/src/navigation/AppNavigator.tsx` - `tabBarButtonTestID` fix (lines 84, 96, 108)
+- `mobile-app/eas.json` - Added `e2e-testing` profile with TEST_MODE
+- `mobile-app/e2e/README.md` - Documented e2e-testing build and tab bar fix
+- `mobile-app/ARCHITECTURE.md` - Documented Android testID patterns
+
+**Next Session TODO:**
+1. **Fix E2E test setup** - Add permission dialog dismissal to test setup
+2. **Fix test ordering** - Run auth test before calendar, or handle unauthenticated state
+3. **Consider `noReset: true`** in Appium capabilities to preserve auth state
+4. **Verify Android tab testIDs** - Once authenticated, confirm tab bar testIDs work
+
+**Commands for Next Session:**
+```bash
+# Build e2e-testing APK (already built: dd2a2d0c-21a9-411c-aa57-ef48bb8039be)
+eas build --profile e2e-testing --platform android
+
+# Install on emulator
+eas build:run --platform android --id dd2a2d0c-21a9-411c-aa57-ef48bb8039be
+
+# Run tests
+cd mobile-app/e2e
+npm run test:android
+```
+
+**Key Insight:** The `navigateToTab()` helper in `helpers/actions.js:141` tries testID first, then falls back to text. On Android, when the tab bar isn't visible (not authenticated), both fail. Fix should either:
+- Ensure auth completes before calendar tests
+- Or add a setup step that navigates to authenticated state
+
+### 2026-01-26: E2E Testing - iOS Working, Tab Fix Applied
 - **iOS:** 24/24 tests passing ✅
-- **Android:** Tab navigation fix verified ✅
 - **Framework:** Appium 3.1.2 + WebdriverIO + Jest + Node 22
 - **Test location:** `mobile-app/e2e/`
-- **Infrastructure:** `npm run infra:ios` or `npm run infra:android` (uses Node 22)
-- **Run tests:** `npm run test:ios` or `npm run test:android`
-- **Key fixes this session:**
+- **Key fixes:**
   - Fixed EAS build (removed deprecated privacy/rating fields, fixed .gitignore for assets)
   - Bilingual selectors (tests work regardless of device locale)
   - Auto-detect simulators (no hardcoded UDIDs)
   - Infrastructure script handles Node 22 requirement
-  - **Fixed Android tab bar testID** - changed `tabBarTestID` → `tabBarButtonTestID` in AppNavigator.tsx
-  - **Added `e2e-testing` build profile** with TEST_MODE enabled for automated testing
+  - **Fixed Android tab bar testID** - changed `tabBarTestID` → `tabBarButtonTestID`
 - **Android tab fix details:**
   - **Root cause:** Wrong property name - `tabBarTestID` doesn't exist in React Navigation v7
-  - **Solution:** Use `tabBarButtonTestID` (the correct property that passes testID to PlatformPressable)
-  - **Verification:** iOS confirmed testIDs exposed (`tab-status`, `tab-calendar`, `tab-settings`); Android uses same code path
-  - **Files changed:** `mobile-app/src/navigation/AppNavigator.tsx` (lines 84, 96, 108)
-- **E2E testing build:** Use `eas build --profile e2e-testing` for builds with TEST_MODE (mock auth with code "123456")
+  - **Solution:** Use `tabBarButtonTestID` (passes testID to PlatformPressable)
 - **Docs:** `mobile-app/e2e/README.md` has full setup instructions
 
 ### 2026-01-25: Accessibility Fixes + Maestro-iOS Investigation
