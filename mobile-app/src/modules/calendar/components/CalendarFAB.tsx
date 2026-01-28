@@ -5,7 +5,7 @@ import {
   TouchableOpacity,
   TouchableWithoutFeedback,
   StyleSheet,
-  Platform,
+  Modal,
 } from 'react-native';
 import { Plus, X } from 'lucide-react-native';
 
@@ -59,58 +59,71 @@ export default function CalendarFAB() {
     <>
       {manualSessionForm}
 
-      {/* Overlay to close menu when tapping outside */}
-      {menuVisible && (
-        <TouchableWithoutFeedback onPress={handleOverlayPress}>
-          <View style={styles.overlay} />
-        </TouchableWithoutFeedback>
-      )}
-
-      <View style={styles.container} accessible={false}>
-        {/* Popup Menu */}
-        {menuVisible && (
-          <View
-            style={styles.menu}
-            accessibilityRole="menu"
-            accessibilityViewIsModal={Platform.OS === 'ios'}
-            accessibilityLabel={t('calendar.fab.menuLabel')}
-          >
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => handleOptionPress('absences')}
-              activeOpacity={0.7}
-              testID="fab-absences-option"
-              accessibilityRole="menuitem"
-              accessibilityLabel={t('calendar.fab.absences')}
+      {/* Menu Modal - Using Modal ensures elements are in accessibility tree */}
+      <Modal
+        visible={menuVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={handleOverlayPress}
+        statusBarTranslucent
+      >
+        <TouchableWithoutFeedback onPress={handleOverlayPress} accessible={false}>
+          <View style={styles.modalOverlay}>
+            <View
+              style={styles.menuContainer}
+              accessible={false}
+              // @ts-ignore - iOS: trap accessibility focus within modal
+              accessibilityViewIsModal={true}
             >
-              <Text style={styles.menuItemText}>{t('calendar.fab.absences')}</Text>
-            </TouchableOpacity>
-            <View style={styles.menuDivider} />
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => handleOptionPress('shifts')}
-              activeOpacity={0.7}
-              testID="fab-shifts-option"
-              accessibilityRole="menuitem"
-              accessibilityLabel={t('calendar.fab.shifts')}
-            >
-              <Text style={styles.menuItemText}>{t('calendar.fab.shifts')}</Text>
-            </TouchableOpacity>
-            <View style={styles.menuDivider} />
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={handleLogHoursPress}
-              activeOpacity={0.7}
-              testID="fab-log-hours-option"
-              accessibilityRole="menuitem"
-              accessibilityLabel={t('calendar.fab.logHours')}
-            >
-              <Text style={styles.menuItemText}>{t('calendar.fab.logHours')}</Text>
-            </TouchableOpacity>
+              <View
+                style={styles.menu}
+                accessible={false}
+                collapsable={false}
+                accessibilityRole="menu"
+              >
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => handleOptionPress('absences')}
+                  activeOpacity={0.7}
+                  testID="fab-absences-option"
+                  accessible={true}
+                  accessibilityRole="menuitem"
+                  accessibilityLabel={t('calendar.fab.absences')}
+                >
+                  <Text style={styles.menuItemText}>{t('calendar.fab.absences')}</Text>
+                </TouchableOpacity>
+                <View style={styles.menuDivider} />
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => handleOptionPress('shifts')}
+                  activeOpacity={0.7}
+                  testID="fab-shifts-option"
+                  accessible={true}
+                  accessibilityRole="menuitem"
+                  accessibilityLabel={t('calendar.fab.shifts')}
+                >
+                  <Text style={styles.menuItemText}>{t('calendar.fab.shifts')}</Text>
+                </TouchableOpacity>
+                <View style={styles.menuDivider} />
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={handleLogHoursPress}
+                  activeOpacity={0.7}
+                  testID="fab-log-hours-option"
+                  accessible={true}
+                  accessibilityRole="menuitem"
+                  accessibilityLabel={t('calendar.fab.logHours')}
+                >
+                  <Text style={styles.menuItemText}>{t('calendar.fab.logHours')}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
-        )}
+        </TouchableWithoutFeedback>
+      </Modal>
 
-        {/* FAB Button */}
+      {/* FAB Button - Always visible, outside Modal */}
+      <View style={styles.fabContainer} accessible={false}>
         <TouchableOpacity
           style={[styles.fab, menuVisible && styles.fabActive]}
           onPress={handleFABPress}
@@ -134,16 +147,23 @@ export default function CalendarFAB() {
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
+  // Modal overlay - full screen transparent background
+  modalOverlay: {
+    flex: 1,
     backgroundColor: 'transparent',
-    zIndex: 99,
   },
-  container: {
+  // Container for menu positioning within modal
+  menuContainer: {
+    position: 'absolute',
+    right: spacing.xl,
+    // Position menu above where FAB sits (FAB is 56px + spacing.xl from bottom)
+    bottom: spacing.xl + 56 + spacing.sm,
+  },
+  // FAB button container - always visible outside modal
+  fabContainer: {
     position: 'absolute',
     right: spacing.xl,
     bottom: spacing.xl,
-    alignItems: 'center',
     zIndex: 100,
   },
   fab: {
@@ -159,9 +179,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary[600],
   },
   menu: {
-    position: 'absolute',
-    bottom: 64, // Above the FAB
-    right: 0,
     backgroundColor: colors.background.paper,
     borderRadius: borderRadius.lg,
     minWidth: 140,

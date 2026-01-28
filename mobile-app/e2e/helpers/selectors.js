@@ -4,7 +4,13 @@
  * Helpers to find elements by testID and text on both iOS and Android.
  * testID is exposed differently on each platform:
  * - iOS: accessibility id (~testId)
- * - Android: resource-id (UiSelector) - requires accessible={true} on the element
+ * - Android: resource-id via UiSelector
+ *
+ * Android requirements for testID visibility:
+ * 1. Element needs accessible={true}
+ * 2. Parent Views need accessible={false} (prevents child aggregation)
+ * 3. Add collapsable={false} to prevent view flattening
+ * See: https://github.com/facebook/react-native/issues/6560
  */
 
 /**
@@ -17,9 +23,10 @@ async function byTestId(driver, testId) {
   if (driver.isIOS) {
     return driver.$(`~${testId}`);
   } else {
-    // On Android, try both resourceId and content-desc (accessibility label)
-    // testID maps to resourceId, but accessible={true} elements use content-desc
-    return driver.$(`android=new UiSelector().resourceId("${testId}").instance(0)`);
+    // On Android, testID maps to resource-id
+    // Use resourceIdMatches with regex to handle cases with/without package prefix
+    // Pattern matches: "testId" OR "com.package:id/testId"
+    return driver.$(`android=new UiSelector().resourceIdMatches(".*${testId}.*").instance(0)`);
   }
 }
 
@@ -105,6 +112,8 @@ const i18n = {
   // Calendar
   week: { de: 'Woche', en: 'Week' },
   month: { de: 'Monat', en: 'Month' },
+  shifts: { de: 'Schichten', en: 'Shifts' },
+  absences: { de: 'Abwesenheiten', en: 'Absences' },
 
   // Status
   last14Days: { de: 'Letzte 14 Tage', en: 'Last 14 Days' },

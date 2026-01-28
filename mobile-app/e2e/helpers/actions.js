@@ -112,11 +112,73 @@ async function dismissAlert(driver, buttonText) {
 }
 
 /**
+ * Dismiss Android system permission dialogs using resource IDs
+ * @param {WebdriverIO.Browser} driver
+ */
+async function dismissAndroidSystemDialog(driver) {
+  if (!driver.isAndroid) return;
+
+  try {
+    // Android permission controller "Allow" button
+    const allowButton = await driver.$(
+      'android=new UiSelector().resourceId("com.android.permissioncontroller:id/permission_allow_button")'
+    );
+    if (await allowButton.isExisting()) {
+      await allowButton.click();
+      await driver.pause(500);
+      return true;
+    }
+  } catch {
+    // Button not found
+  }
+
+  try {
+    // Android permission controller "Allow" for one-time or while using
+    const allowForeground = await driver.$(
+      'android=new UiSelector().resourceId("com.android.permissioncontroller:id/permission_allow_foreground_only_button")'
+    );
+    if (await allowForeground.isExisting()) {
+      await allowForeground.click();
+      await driver.pause(500);
+      return true;
+    }
+  } catch {
+    // Button not found
+  }
+
+  try {
+    // Notification permission dialog (Android 13+)
+    const allowNotification = await driver.$(
+      'android=new UiSelector().text("Allow")'
+    );
+    if (await allowNotification.isExisting()) {
+      await allowNotification.click();
+      await driver.pause(500);
+      return true;
+    }
+  } catch {
+    // Button not found
+  }
+
+  return false;
+}
+
+/**
  * Dismiss common permission dialogs (handles both German and English)
  * @param {WebdriverIO.Browser} driver
  */
 async function dismissPermissionDialogs(driver) {
-  // Try both languages for Allow button
+  // Handle Android system dialogs first
+  if (driver.isAndroid) {
+    // Try multiple times in case multiple dialogs appear
+    for (let i = 0; i < 3; i++) {
+      const dismissed = await dismissAndroidSystemDialog(driver);
+      if (!dismissed) break;
+      await driver.pause(300);
+    }
+  }
+
+  // Try both languages for app-level Allow button
   await dismissAlert(driver, 'Allow');
   await dismissAlert(driver, 'Erlauben');
   // Handle any OK dialogs
@@ -205,6 +267,103 @@ async function screenshot(driver, name) {
   return filename;
 }
 
+/**
+ * Check if user is authenticated (main app visible)
+ * @param {WebdriverIO.Browser} driver
+ * @returns {Promise<boolean>}
+ */
+async function isAuthenticated(driver) {
+  try {
+    // Check for tab bar presence (indicates main app)
+    const tabStatus = await byTestId(driver, 'tab-status');
+    const exists = await tabStatus.isExisting();
+    if (exists) {
+      const displayed = await tabStatus.isDisplayed();
+      return displayed;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Perform TEST_MODE login flow
+ * @param {WebdriverIO.Browser} driver
+ */
+async function performTestLogin(driver) {
+  try {
+    // Tap Login button
+    const loginButton = await byTestId(driver, 'login-button');
+    await loginButton.waitForDisplayed({ timeout: 5000 });
+    await loginButton.click();
+    await driver.pause(1000);
+
+    // Enter email
+    const emailInput = await byTestId(driver, 'email-input');
+    await emailInput.waitForDisplayed({ timeout: 5000 });
+    await emailInput.setValue('test@example.com');
+
+    if (driver.isAndroid) {
+      try { await driver.hideKeyboard(); } catch { /* ignore */ }
+    }
+
+    // Send code
+    const sendCodeButton = await byTestId(driver, 'send-code-button');
+    await sendCodeButton.click();
+    await driver.pause(1500);
+
+    // Dismiss "Code sent" dialog
+    await dismissAlert(driver, 'OK');
+    await driver.pause(500);
+
+    // Enter verification code (TEST_MODE accepts 123456)
+    const codeInput = await byTestId(driver, 'code-input');
+    await codeInput.waitForDisplayed({ timeout: 5000 });
+    await codeInput.setValue('123456');
+
+    if (driver.isAndroid) {
+      try { await driver.hideKeyboard(); } catch { /* ignore */ }
+    }
+
+    // Tap login/verify button
+    const verifyButton = await byTestId(driver, 'login-button');
+    await verifyButton.click();
+    await driver.pause(3000);
+
+    // Dismiss any permission dialogs after login
+    await dismissPermissionDialogs(driver);
+  } catch (e) {
+    console.log('performTestLogin failed:', e.message);
+    throw e;
+  }
+}
+
+/**
+ * Ensure user is authenticated before running tests
+ * Performs TEST_MODE login if not already logged in
+ * @param {WebdriverIO.Browser} driver
+ */
+async function ensureAuthenticated(driver) {
+  await dismissPermissionDialogs(driver);
+
+  const authenticated = await isAuthenticated(driver);
+  if (authenticated) {
+    console.log('User already authenticated');
+    return;
+  }
+
+  console.log('User not authenticated, performing TEST_MODE login...');
+  await performTestLogin(driver);
+
+  // Verify login succeeded
+  const nowAuthenticated = await isAuthenticated(driver);
+  if (!nowAuthenticated) {
+    throw new Error('Failed to authenticate - tab bar not visible after login');
+  }
+  console.log('TEST_MODE login successful');
+}
+
 module.exports = {
   tapTestId,
   tapText,
@@ -214,7 +373,10 @@ module.exports = {
   waitForText,
   existsTestId,
   dismissAlert,
+  dismissAndroidSystemDialog,
   dismissPermissionDialogs,
+  isAuthenticated,
+  ensureAuthenticated,
   navigateToTab,
   screenshot,
 };

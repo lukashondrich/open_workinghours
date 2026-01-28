@@ -9,6 +9,7 @@
     "test:auth": "node --experimental-vm-modules node_modules/jest/bin/jest.js flows/auth.test.js",
     "test:location": "node --experimental-vm-modules node_modules/jest/bin/jest.js flows/location.test.js",
     "test:calendar": "node --experimental-vm-modules node_modules/jest/bin/jest.js flows/calendar.test.js",
+    "test:shifts": "node --experimental-vm-modules node_modules/jest/bin/jest.js flows/shifts.test.js",
     "infra": "./start-infra.sh",
     "infra:ios": "./start-infra.sh ios",
     "infra:android": "./start-infra.sh android",

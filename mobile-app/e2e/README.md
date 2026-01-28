@@ -73,8 +73,9 @@ e2e/
 │   └── actions.js    # Common test actions
 ├── flows/
 │   ├── auth.test.js      # Registration flow
+│   ├── calendar.test.js  # Calendar navigation
 │   ├── location.test.js  # Location setup wizard
-│   └── calendar.test.js  # Calendar navigation
+│   └── shifts.test.js    # Shift template creation
 └── README.md
 ```
 
@@ -89,9 +90,10 @@ npm run test:ios
 npm run test:android
 
 # Single test file
-npm run test:calendar
 npm run test:auth
+npm run test:calendar
 npm run test:location
+npm run test:shifts
 
 # With debug output
 DEBUG=1 npm run test:ios
@@ -224,14 +226,56 @@ First run on iOS takes several minutes to build WebDriverAgent. Just wait.
 3. For Android, element may need `accessible={true}` in the component
 
 ### Android testIDs not working
-On Android, testID only works if the element has accessibility enabled:
+
+On Android, testID visibility depends on the accessibility tree structure. Common issues:
+
+**Issue 1: Parent View aggregates children**
+
+If a parent View doesn't have `accessible={false}`, it aggregates all children into a single accessibility element, hiding their individual testIDs:
+
 ```tsx
-<TouchableOpacity
-  testID="my-button"
-  accessible={true}  // Required for Android
-  ...
->
+// ❌ BAD - children not visible to Appium
+<View>
+  <TouchableOpacity testID="btn-1" accessible={true}>...</TouchableOpacity>
+  <TouchableOpacity testID="btn-2" accessible={true}>...</TouchableOpacity>
+</View>
+
+// ✅ GOOD - children are individually accessible
+<View accessible={false}>
+  <TouchableOpacity testID="btn-1" accessible={true}>...</TouchableOpacity>
+  <TouchableOpacity testID="btn-2" accessible={true}>...</TouchableOpacity>
+</View>
 ```
+
+**Issue 2: View flattening on Android**
+
+React Native may optimize away Views on Android. Prevent with `collapsable={false}`:
+
+```tsx
+<View accessible={false} collapsable={false}>
+  {/* children now guaranteed to be in tree */}
+</View>
+```
+
+**Issue 3: Absolutely-positioned menus/modals**
+
+Popup menus and modals often need special handling:
+
+```tsx
+<View style={styles.popupMenu}
+      accessible={false}      // Allow children to be found
+      collapsable={false}>    // Prevent flattening
+  <TouchableOpacity
+      testID="menu-item"
+      accessible={true}>      // Mark as accessible
+    <Text>Menu Item</Text>
+  </TouchableOpacity>
+</View>
+```
+
+**References:**
+- [RN Issue #6560](https://github.com/facebook/react-native/issues/6560) - accessible aggregation
+- [RN Issue #30226](https://github.com/facebook/react-native/issues/30226) - testID visibility
 
 ## Comparison with Maestro
 

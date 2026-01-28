@@ -23,6 +23,7 @@ const {
   waitForText,
   existsTestId,
   dismissPermissionDialogs,
+  ensureAuthenticated,
 } = require('../helpers/actions');
 
 describe('Location Setup', () => {
@@ -32,7 +33,8 @@ describe('Location Setup', () => {
   beforeAll(async () => {
     driver = await createDriver(getPlatform());
     await driver.pause(2000);
-    await dismissPermissionDialogs(driver);
+    // Ensure we're authenticated before location tests
+    await ensureAuthenticated(driver);
   }, 180000); // Increase timeout to 3 minutes for Android
 
   afterAll(async () => {

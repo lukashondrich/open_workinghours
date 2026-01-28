@@ -287,17 +287,32 @@ export default function TemplatePanel() {
                   </TouchableOpacity>
                 </View>
 
-                <View style={styles.header}>
+                {/* accessible={false} allows children to appear individually in Android a11y tree */}
+                <View style={styles.header} accessible={false} collapsable={false}>
                   <Text style={styles.headerTitle}>
                     {activeTab === 'shifts' ? t('calendar.templates.title') : t('calendar.absences.title')}
                   </Text>
                   {activeTab === 'shifts' ? (
-                    <TouchableOpacity style={styles.addButton} onPress={handleCreate} testID="template-add">
+                    <TouchableOpacity
+                      style={styles.addButton}
+                      onPress={handleCreate}
+                      testID="template-add"
+                      accessible={true}
+                      accessibilityRole="button"
+                      accessibilityLabel={t('calendar.templates.new')}
+                    >
                       <Plus size={16} color={colors.white} />
                       <Text style={styles.addButtonText}>{t('calendar.templates.new')}</Text>
                     </TouchableOpacity>
                   ) : (
-                    <TouchableOpacity style={styles.addButton} onPress={handleCreateAbsence} testID="absence-add">
+                    <TouchableOpacity
+                      style={styles.addButton}
+                      onPress={handleCreateAbsence}
+                      testID="absence-add"
+                      accessible={true}
+                      accessibilityRole="button"
+                      accessibilityLabel={t('calendar.templates.new')}
+                    >
                       <Plus size={16} color={colors.white} />
                       <Text style={styles.addButtonText}>{t('calendar.templates.new')}</Text>
                     </TouchableOpacity>
@@ -329,8 +344,9 @@ export default function TemplatePanel() {
                                 key={template.id}
                                 style={styles.editCard}
                                 testID={`template-edit-${template.id}`}
-                                accessibilityRole="form"
-                                accessibilityLabel={t('calendar.templates.editFormLabel')}
+                                // accessible={false} allows form inputs to appear individually in Android a11y tree
+                                accessible={false}
+                                collapsable={false}
                               >
                                 <TextInput
                                   style={styles.input}
@@ -413,11 +429,12 @@ export default function TemplatePanel() {
                                   ))}
                                 </View>
 
-                                <View style={styles.editActions}>
+                                <View style={styles.editActions} accessible={false} collapsable={false}>
                                   <TouchableOpacity
                                     style={[styles.primaryButton, styles.saveButton]}
                                     onPress={handleSave}
                                     testID="template-save"
+                                    accessible={true}
                                     accessibilityRole="button"
                                     accessibilityLabel={t('common.save')}
                                   >
@@ -426,6 +443,7 @@ export default function TemplatePanel() {
                                   <TouchableOpacity
                                     style={styles.secondaryButton}
                                     onPress={handleCancel}
+                                    accessible={true}
                                     accessibilityRole="button"
                                     accessibilityLabel={t('common.cancel')}
                                     testID="template-cancel"
@@ -436,6 +454,7 @@ export default function TemplatePanel() {
                                 <TouchableOpacity
                                   style={styles.deleteButton}
                                   onPress={() => handleDelete(template.id, template.name)}
+                                  accessible={true}
                                   accessibilityRole="button"
                                   accessibilityLabel={t('calendar.templates.deleteTemplate')}
                                   testID="template-delete"

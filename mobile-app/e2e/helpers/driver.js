@@ -88,6 +88,9 @@ function getDeviceCapabilities(platform) {
       'appium:appActivity': '.MainActivity',
       'appium:noReset': true,
       'appium:newCommandTimeout': 300,
+      // Increase snapshot depth for complex React Native views
+      'appium:settings[snapshotMaxDepth]': 62,
+      'appium:settings[enableMultiWindows]': true,
     };
   }
 }
