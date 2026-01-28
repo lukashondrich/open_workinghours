@@ -67,75 +67,77 @@ export default function CalendarFAB() {
         onRequestClose={handleOverlayPress}
         statusBarTranslucent
       >
-        <TouchableWithoutFeedback onPress={handleOverlayPress} accessible={false}>
-          <View style={styles.modalOverlay}>
-            {/* Menu positioned above FAB */}
-            <View
-              style={styles.menuContainer}
-              accessible={false}
-              // @ts-ignore - iOS: trap accessibility focus within modal
-              accessibilityViewIsModal={true}
-            >
-              <View
-                style={styles.menu}
-                accessible={false}
-                collapsable={false}
-                accessibilityRole="menu"
-              >
-                <TouchableOpacity
-                  style={styles.menuItem}
-                  onPress={() => handleOptionPress('absences')}
-                  activeOpacity={0.7}
-                  testID="fab-absences-option"
-                  accessible={true}
-                  accessibilityRole="menuitem"
-                  accessibilityLabel={t('calendar.fab.absences')}
-                >
-                  <Text style={styles.menuItemText}>{t('calendar.fab.absences')}</Text>
-                </TouchableOpacity>
-                <View style={styles.menuDivider} />
-                <TouchableOpacity
-                  style={styles.menuItem}
-                  onPress={() => handleOptionPress('shifts')}
-                  activeOpacity={0.7}
-                  testID="fab-shifts-option"
-                  accessible={true}
-                  accessibilityRole="menuitem"
-                  accessibilityLabel={t('calendar.fab.shifts')}
-                >
-                  <Text style={styles.menuItemText}>{t('calendar.fab.shifts')}</Text>
-                </TouchableOpacity>
-                <View style={styles.menuDivider} />
-                <TouchableOpacity
-                  style={styles.menuItem}
-                  onPress={handleLogHoursPress}
-                  activeOpacity={0.7}
-                  testID="fab-log-hours-option"
-                  accessible={true}
-                  accessibilityRole="menuitem"
-                  accessibilityLabel={t('calendar.fab.logHours')}
-                >
-                  <Text style={styles.menuItemText}>{t('calendar.fab.logHours')}</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
+        <View style={styles.modalOverlay} accessible={false}>
+          {/* Overlay dismiss area - separate from menu to avoid grouping */}
+          <TouchableWithoutFeedback onPress={handleOverlayPress}>
+            <View style={StyleSheet.absoluteFill} />
+          </TouchableWithoutFeedback>
 
-            {/* FAB close button inside Modal - must be here to be visible above overlay */}
-            <View style={styles.fabContainerInModal}>
+          {/* Menu - NOT inside TouchableWithoutFeedback */}
+          <View
+            style={styles.menuContainer}
+            accessible={false}
+            collapsable={false}
+          >
+            <View
+              style={styles.menu}
+              accessible={false}
+              collapsable={false}
+              accessibilityRole="menu"
+            >
               <TouchableOpacity
-                style={[styles.fab, styles.fabActive]}
-                onPress={handleFABPress}
-                activeOpacity={0.8}
-                testID="calendar-fab"
-                accessibilityRole="button"
-                accessibilityLabel={t('calendar.fab.closeMenu')}
-                accessibilityState={{ expanded: true }}
+                style={styles.menuItem}
+                onPress={() => handleOptionPress('absences')}
+                activeOpacity={0.7}
+                testID="fab-absences-option"
+                accessible={true}
+                accessibilityRole="menuitem"
+                accessibilityLabel={t('calendar.fab.absences')}
               >
-                <X size={28} color={colors.white} />
+                <Text style={styles.menuItemText}>{t('calendar.fab.absences')}</Text>
+              </TouchableOpacity>
+              <View style={styles.menuDivider} />
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => handleOptionPress('shifts')}
+                activeOpacity={0.7}
+                testID="fab-shifts-option"
+                accessible={true}
+                accessibilityRole="menuitem"
+                accessibilityLabel={t('calendar.fab.shifts')}
+              >
+                <Text style={styles.menuItemText}>{t('calendar.fab.shifts')}</Text>
+              </TouchableOpacity>
+              <View style={styles.menuDivider} />
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={handleLogHoursPress}
+                activeOpacity={0.7}
+                testID="fab-log-hours-option"
+                accessible={true}
+                accessibilityRole="menuitem"
+                accessibilityLabel={t('calendar.fab.logHours')}
+              >
+                <Text style={styles.menuItemText}>{t('calendar.fab.logHours')}</Text>
               </TouchableOpacity>
             </View>
           </View>
-        </TouchableWithoutFeedback>
+
+          {/* FAB close button inside Modal */}
+          <View style={styles.fabContainerInModal}>
+            <TouchableOpacity
+              style={[styles.fab, styles.fabActive]}
+              onPress={handleFABPress}
+              activeOpacity={0.8}
+              testID="calendar-fab"
+              accessibilityRole="button"
+              accessibilityLabel={t('calendar.fab.closeMenu')}
+              accessibilityState={{ expanded: true }}
+            >
+              <X size={28} color={colors.white} />
+            </TouchableOpacity>
+          </View>
+        </View>
       </Modal>
 
       {/* FAB Button - Visible only when menu is closed */}
