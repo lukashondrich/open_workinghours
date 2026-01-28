@@ -69,6 +69,7 @@ export default function CalendarFAB() {
       >
         <TouchableWithoutFeedback onPress={handleOverlayPress} accessible={false}>
           <View style={styles.modalOverlay}>
+            {/* Menu positioned above FAB */}
             <View
               style={styles.menuContainer}
               accessible={false}
@@ -118,30 +119,41 @@ export default function CalendarFAB() {
                 </TouchableOpacity>
               </View>
             </View>
+
+            {/* FAB close button inside Modal - must be here to be visible above overlay */}
+            <View style={styles.fabContainerInModal}>
+              <TouchableOpacity
+                style={[styles.fab, styles.fabActive]}
+                onPress={handleFABPress}
+                activeOpacity={0.8}
+                testID="calendar-fab"
+                accessibilityRole="button"
+                accessibilityLabel={t('calendar.fab.closeMenu')}
+                accessibilityState={{ expanded: true }}
+              >
+                <X size={28} color={colors.white} />
+              </TouchableOpacity>
+            </View>
           </View>
         </TouchableWithoutFeedback>
       </Modal>
 
-      {/* FAB Button - Always visible, outside Modal */}
-      <View style={styles.fabContainer} accessible={false}>
-        <TouchableOpacity
-          style={[styles.fab, menuVisible && styles.fabActive]}
-          onPress={handleFABPress}
-          activeOpacity={0.8}
-          testID="calendar-fab"
-          accessibilityRole="button"
-          accessibilityLabel={menuVisible
-            ? t('calendar.fab.closeMenu')
-            : t('calendar.fab.openMenu')}
-          accessibilityState={{ expanded: menuVisible }}
-        >
-          {menuVisible ? (
-            <X size={28} color={colors.white} />
-          ) : (
+      {/* FAB Button - Visible only when menu is closed */}
+      {!menuVisible && (
+        <View style={styles.fabContainer} accessible={false}>
+          <TouchableOpacity
+            style={styles.fab}
+            onPress={handleFABPress}
+            activeOpacity={0.8}
+            testID="calendar-fab"
+            accessibilityRole="button"
+            accessibilityLabel={t('calendar.fab.openMenu')}
+            accessibilityState={{ expanded: false }}
+          >
             <Plus size={28} color={colors.white} />
-          )}
-        </TouchableOpacity>
-      </View>
+          </TouchableOpacity>
+        </View>
+      )}
     </>
   );
 }
@@ -159,12 +171,18 @@ const styles = StyleSheet.create({
     // Position menu above where FAB sits (FAB is 56px + spacing.xl from bottom)
     bottom: spacing.xl + 56 + spacing.sm,
   },
-  // FAB button container - always visible outside modal
+  // FAB button container - visible when menu closed
   fabContainer: {
     position: 'absolute',
     right: spacing.xl,
     bottom: spacing.xl,
     zIndex: 100,
+  },
+  // FAB button inside modal - visible when menu open
+  fabContainerInModal: {
+    position: 'absolute',
+    right: spacing.xl,
+    bottom: spacing.xl,
   },
   fab: {
     width: 56,
