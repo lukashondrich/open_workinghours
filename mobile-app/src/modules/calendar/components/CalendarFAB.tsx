@@ -3,7 +3,7 @@ import {
   View,
   Text,
   TouchableOpacity,
-  TouchableWithoutFeedback,
+  Pressable,
   StyleSheet,
   Modal,
 } from 'react-native';
@@ -67,13 +67,12 @@ export default function CalendarFAB() {
         onRequestClose={handleOverlayPress}
         statusBarTranslucent
       >
-        <View style={styles.modalOverlay} accessible={false}>
-          {/* Overlay dismiss area - separate from menu to avoid grouping */}
-          <TouchableWithoutFeedback onPress={handleOverlayPress}>
-            <View style={StyleSheet.absoluteFill} />
-          </TouchableWithoutFeedback>
-
-          {/* Menu - NOT inside TouchableWithoutFeedback */}
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={handleOverlayPress}
+          accessible={false}
+        >
+          {/* Menu items are children of Pressable but have accessible={true} */}
           <View
             style={styles.menuContainer}
             accessible={false}
@@ -83,7 +82,6 @@ export default function CalendarFAB() {
               style={styles.menu}
               accessible={false}
               collapsable={false}
-              accessibilityRole="menu"
             >
               <TouchableOpacity
                 style={styles.menuItem}
@@ -137,7 +135,7 @@ export default function CalendarFAB() {
               <X size={28} color={colors.white} />
             </TouchableOpacity>
           </View>
-        </View>
+        </Pressable>
       </Modal>
 
       {/* FAB Button - Visible only when menu is closed */}
