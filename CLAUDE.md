@@ -1,6 +1,6 @@
 # Claude Context: Open Working Hours
 
-**Last Updated:** 2026-01-27
+**Last Updated:** 2026-01-29
 **Current Build:** #30 (ready for TestFlight upload)
 
 ---
@@ -120,6 +120,7 @@ Start feature → Create *_PLAN.md → Complete → Extract to ARCHITECTURE.md �
 - Don't edit web dashboard - it's deprecated
 - Don't submit today or future dates - backend rejects them
 - Don't use `react-native-reanimated` - crashes with Expo SDK 51
+- Don't use `<Modal>` for new UI — invisible to XCUITest E2E tests on iOS (use inline animated Views instead, see `docs/E2E_TESTING_PLAN.md` → 2026-01-29)
 
 ---
 
@@ -141,22 +142,60 @@ Start feature → Create *_PLAN.md → Complete → Extract to ARCHITECTURE.md �
 
 ## Recent Updates (Last 7 Days)
 
+### 2026-01-29: Modal → Inline Rendering Refactor Complete
+
+**Summary:** Replaced all `<Modal>` and conditional rendering with always-rendered inline `<Animated.View>` components across 3 calendar components. All elements now live in the main window's accessibility tree, fixing iOS E2E test visibility. Deleted unused ShiftEditModal.
+
+**Root Cause (identified earlier this day):** React Native's `<Modal>` creates a separate native UIWindow on iOS. XCUITest only queries the main window's accessibility tree, making all Modal content invisible to Appium E2E tests.
+
+**Components Refactored:**
+
+| Component | Before | After |
+|-----------|--------|-------|
+| CalendarFAB | Conditional render (`{menuVisible && ...}`) | Always-rendered, opacity + pointerEvents toggle |
+| TemplatePanel | `<Modal animationType="slide">` | Inline `<Animated.View>` with translateY slide-up |
+| ManualSessionForm | `<Modal>` + early return `if (!visible)` | Inline `<Animated.View>` with translateY slide-up |
+| ShiftEditModal | `<Modal>` (unused) | **Deleted** — was dead code, replaced by native time picker in WeekView |
+
+**Inline Rendering Pattern (shared across components):**
+
+```tsx
+// Outer: always mounted, controls touch + a11y visibility
+<View style={StyleSheet.absoluteFill}
+  pointerEvents={isOpen ? 'auto' : 'none'}
+  accessibilityElementsHidden={!isOpen}>
+  // Wrapper: flex container pushes panel to bottom
+  // iOS: KeyboardAvoidingView; Android: plain View (avoids flicker)
+  <Wrapper style={{ flex: 1, justifyContent: 'flex-end' }}>
+    // Overlay: absoluteFill, tappable to dismiss
+    <Animated.View style={[overlay, { opacity: animValue }]} />
+    // Panel: animated slide-up
+    <Animated.View style={{ transform: [{ translateY }] }}>
+      ...content...
+    </Animated.View>
+  </Wrapper>
+</View>
+```
+
+**Android-Specific Fixes:**
+- **FAB menu clipping:** Android clips children by default. Moved menu + FAB into a shared `absoluteFill` View as siblings (not parent-child), each independently positioned
+- **Keyboard flicker:** `KeyboardAvoidingView` with `behavior="height"` on Android caused rapid layout oscillation with animated `translateY`. Fixed by using plain `View` on Android (system `adjustResize` handles keyboard)
+- **BackHandler:** Added explicit `BackHandler` listeners to replace Modal's `onRequestClose`
+
+**Remaining Modal:**
+- WeekView submit tooltip (`WeekView.tsx:2654`) — low priority, only shows once on first use, not E2E-critical
+
+**Files Changed:**
+- `CalendarFAB.tsx` — Always-render menu, absoluteFill positioning context, hide when ManualSessionForm open
+- `TemplatePanel.tsx` — Removed Modal, added Animated.View + BackHandler, conditional KeyboardAvoidingView wrapper
+- `ManualSessionForm.tsx` — Removed Modal + early return, added Animated.View + BackHandler, iOS picker dismiss overlay
+- `ShiftEditModal.tsx` — **Deleted**
+
+**Detailed session log:** `docs/E2E_TESTING_PLAN.md` → Session Log → 2026-01-29 (second entry)
+
 ### 2026-01-28: Android E2E Stable (32/32), iOS Accessibility Issues
 
-**Summary:** Android E2E tests now fully passing. iOS has accessibility issues with FAB menu and template panel.
-
-**Test Results:**
-- ✅ **Android:** 32/32 tests passing (6 skipped pending APK rebuild)
-- ⚠️ **iOS:** 17/32 passing, 15 failing (XCUITest can't see FAB menu items)
-
-**Fixes Applied:**
-1. **FAB menu coordinates** - Fixed from (55%, 47%) to (79%, 71%) in `shifts.test.js`
-2. **Template panel accessibility** - Added `accessible={false/true}` props in `TemplatePanel.tsx`
-3. **Test skip logic** - Android shifts tests skip gracefully until APK rebuild
-
-**Key Finding:** FAB menu items appear in Maestro's view hierarchy but NOT in XCUITest/Appium accessibility tree. This is a React Native quirk with conditionally-rendered positioned Views.
-
-**Next Steps:** Rebuild APK with accessibility fixes, then address iOS with similar fixes or coordinate taps.
+**Summary:** Android E2E tests now fully passing. iOS has accessibility issues with FAB menu and template panel. See 2026-01-29 entry for root cause and solution.
 
 **Detailed session log:** `docs/E2E_TESTING_PLAN.md` → Session Log → 2026-01-28
 

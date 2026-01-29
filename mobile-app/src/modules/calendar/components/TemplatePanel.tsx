@@ -1,6 +1,5 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import {
-  Modal,
   View,
   Text,
   TouchableOpacity,
@@ -11,6 +10,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  Animated,
+  BackHandler,
 } from 'react-native';
 import { Plus, TreePalm, ThermometerIcon, Pencil, Check } from 'lucide-react-native';
 import { format } from 'date-fns';
@@ -26,6 +27,29 @@ const COLORS: ShiftColor[] = ['teal', 'blue', 'green', 'amber', 'purple'];
 
 export default function TemplatePanel() {
   const { state, dispatch } = useCalendar();
+  const isOpen = state.templatePanelOpen;
+
+  // Animation
+  const animValue = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(animValue, {
+      toValue: isOpen ? 1 : 0,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  }, [isOpen]);
+
+  // Android back button
+  useEffect(() => {
+    if (!isOpen) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      handleClose();
+      return true;
+    });
+    return () => sub.remove();
+  }, [isOpen]);
+
   // Shift editing state
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<ShiftTemplate>>({});
@@ -253,484 +277,502 @@ export default function TemplatePanel() {
     );
   };
 
+  // Slide up from bottom
+  const translateY = animValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: [600, 0],
+  });
+
+  const Wrapper = Platform.OS === 'ios' ? KeyboardAvoidingView : View;
+  const wrapperProps = Platform.OS === 'ios'
+    ? { behavior: 'padding' as const, style: styles.keyboardAvoidingView }
+    : { style: styles.keyboardAvoidingView };
+
   return (
-    <Modal animationType="slide" transparent visible={state.templatePanelOpen} onRequestClose={handleClose}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardAvoidingView}
-      >
+    <View
+      style={StyleSheet.absoluteFill}
+      pointerEvents={isOpen ? 'auto' : 'none'}
+      accessibilityElementsHidden={!isOpen}
+    >
+      <Wrapper {...wrapperProps}>
+        {/* Overlay */}
         <TouchableWithoutFeedback onPress={handleClose}>
-          <View style={styles.overlay}>
-            <TouchableWithoutFeedback onPress={() => {}}>
-              <View
-                style={styles.panel}
-                accessible={false}
-                accessibilityLabel={t('calendar.templates.panelLabel')}
-              >
-                {/* Tab Bar */}
-                <View style={styles.tabBar}>
-                  <TouchableOpacity
-                    style={[styles.tab, activeTab === 'shifts' && styles.tabActive]}
-                    onPress={() => handleTabChange('shifts')}
-                  >
-                    <Text style={[styles.tabText, activeTab === 'shifts' && styles.tabTextActive]}>
-                      {t('calendar.templates.shiftsTab')}
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.tab, activeTab === 'absences' && styles.tabActive]}
-                    onPress={() => handleTabChange('absences')}
-                  >
-                    <Text style={[styles.tabText, activeTab === 'absences' && styles.tabTextActive]}>
-                      {t('calendar.templates.absencesTab')}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
+          <Animated.View style={[styles.overlay, { opacity: animValue }]} />
+        </TouchableWithoutFeedback>
 
-                {/* accessible={false} allows children to appear individually in Android a11y tree */}
-                <View style={styles.header} accessible={false} collapsable={false}>
-                  <Text style={styles.headerTitle}>
-                    {activeTab === 'shifts' ? t('calendar.templates.title') : t('calendar.absences.title')}
-                  </Text>
-                  {activeTab === 'shifts' ? (
-                    <TouchableOpacity
-                      style={styles.addButton}
-                      onPress={handleCreate}
-                      testID="template-add"
-                      accessible={true}
-                      accessibilityRole="button"
-                      accessibilityLabel={t('calendar.templates.new')}
-                    >
-                      <Plus size={16} color={colors.white} />
-                      <Text style={styles.addButtonText}>{t('calendar.templates.new')}</Text>
-                    </TouchableOpacity>
-                  ) : (
-                    <TouchableOpacity
-                      style={styles.addButton}
-                      onPress={handleCreateAbsence}
-                      testID="absence-add"
-                      accessible={true}
-                      accessibilityRole="button"
-                      accessibilityLabel={t('calendar.templates.new')}
-                    >
-                      <Plus size={16} color={colors.white} />
-                      <Text style={styles.addButtonText}>{t('calendar.templates.new')}</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-
-                <ScrollView
-                  style={styles.content}
-                  keyboardShouldPersistTaps="handled"
+        {/* Panel */}
+        <Animated.View style={[styles.panelWrapper, { transform: [{ translateY }] }]}>
+          <TouchableWithoutFeedback onPress={() => {}}>
+            <View
+              style={styles.panel}
+              accessible={false}
+              accessibilityLabel={t('calendar.templates.panelLabel')}
+            >
+              {/* Tab Bar */}
+              <View style={styles.tabBar}>
+                <TouchableOpacity
+                  style={[styles.tab, activeTab === 'shifts' && styles.tabActive]}
+                  onPress={() => handleTabChange('shifts')}
                 >
-                  {/* Shifts Tab */}
-                  {activeTab === 'shifts' && (
-                    <>
-                      {templates.length === 0 && (
-                        <Text style={styles.emptyText}>{t('calendar.templates.empty')}</Text>
-                      )}
+                  <Text style={[styles.tabText, activeTab === 'shifts' && styles.tabTextActive]}>
+                    {t('calendar.templates.shiftsTab')}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.tab, activeTab === 'absences' && styles.tabActive]}
+                  onPress={() => handleTabChange('absences')}
+                >
+                  <Text style={[styles.tabText, activeTab === 'absences' && styles.tabTextActive]}>
+                    {t('calendar.templates.absencesTab')}
+                  </Text>
+                </TouchableOpacity>
+              </View>
 
-                      {/* Compact Radio List */}
-                      <View style={styles.templateList}>
-                        {templates.map((template, index) => {
-                          const isEditing = editingId === template.id;
-                          const palette = getColorPalette(template.color);
-                          const isArmed = state.armedTemplateId === template.id;
+              {/* accessible={false} allows children to appear individually in Android a11y tree */}
+              <View style={styles.header} accessible={false} collapsable={false}>
+                <Text style={styles.headerTitle}>
+                  {activeTab === 'shifts' ? t('calendar.templates.title') : t('calendar.absences.title')}
+                </Text>
+                {activeTab === 'shifts' ? (
+                  <TouchableOpacity
+                    style={styles.addButton}
+                    onPress={handleCreate}
+                    testID="template-add"
+                    accessible={true}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('calendar.templates.new')}
+                  >
+                    <Plus size={16} color={colors.white} />
+                    <Text style={styles.addButtonText}>{t('calendar.templates.new')}</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.addButton}
+                    onPress={handleCreateAbsence}
+                    testID="absence-add"
+                    accessible={true}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('calendar.templates.new')}
+                  >
+                    <Plus size={16} color={colors.white} />
+                    <Text style={styles.addButtonText}>{t('calendar.templates.new')}</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
 
-                          if (isEditing) {
-                            // Edit form
-                            return (
-                              <View
-                                key={template.id}
-                                style={styles.editCard}
-                                testID={`template-edit-${template.id}`}
-                                // accessible={false} allows form inputs to appear individually in Android a11y tree
-                                accessible={false}
-                                collapsable={false}
-                              >
-                                <TextInput
-                                  style={styles.input}
-                                  value={formData.name || ''}
-                                  onChangeText={(value) => setFormData({ ...formData, name: value })}
-                                  placeholder={t('calendar.templates.name')}
-                                  placeholderTextColor={colors.text.tertiary}
-                                  accessibilityLabel={t('calendar.templates.nameLabel')}
-                                  testID="template-name-input"
-                                />
-                                <View style={styles.row}>
-                                  <View style={styles.flexItem}>
-                                    <Text style={styles.label}>{t('calendar.templates.startTime')}</Text>
+              <ScrollView
+                style={styles.content}
+                keyboardShouldPersistTaps="handled"
+              >
+                {/* Shifts Tab */}
+                {activeTab === 'shifts' && (
+                  <>
+                    {templates.length === 0 && (
+                      <Text style={styles.emptyText}>{t('calendar.templates.empty')}</Text>
+                    )}
+
+                    {/* Compact Radio List */}
+                    <View style={styles.templateList}>
+                      {templates.map((template, index) => {
+                        const isEditing = editingId === template.id;
+                        const palette = getColorPalette(template.color);
+                        const isArmed = state.armedTemplateId === template.id;
+
+                        if (isEditing) {
+                          // Edit form
+                          return (
+                            <View
+                              key={template.id}
+                              style={styles.editCard}
+                              testID={`template-edit-${template.id}`}
+                              // accessible={false} allows form inputs to appear individually in Android a11y tree
+                              accessible={false}
+                              collapsable={false}
+                            >
+                              <TextInput
+                                style={styles.input}
+                                value={formData.name || ''}
+                                onChangeText={(value) => setFormData({ ...formData, name: value })}
+                                placeholder={t('calendar.templates.name')}
+                                placeholderTextColor={colors.text.tertiary}
+                                accessibilityLabel={t('calendar.templates.nameLabel')}
+                                testID="template-name-input"
+                              />
+                              <View style={styles.row}>
+                                <View style={styles.flexItem}>
+                                  <Text style={styles.label}>{t('calendar.templates.startTime')}</Text>
+                                  <TextInput
+                                    style={styles.input}
+                                    value={formData.startTime || ''}
+                                    onChangeText={(value) => setFormData({ ...formData, startTime: value })}
+                                    placeholder={t('calendar.templates.startTimePlaceholder')}
+                                    placeholderTextColor={colors.text.tertiary}
+                                    accessibilityLabel={t('calendar.templates.startTimeLabel')}
+                                    testID="template-start-time-input"
+                                  />
+                                </View>
+                                <View style={[styles.flexItem, styles.durationGroup]}>
+                                  <Text style={styles.label}>{t('calendar.templates.duration')}</Text>
+                                  <View style={styles.durationInputs}>
                                     <TextInput
-                                      style={styles.input}
-                                      value={formData.startTime || ''}
-                                      onChangeText={(value) => setFormData({ ...formData, startTime: value })}
-                                      placeholder={t('calendar.templates.startTimePlaceholder')}
+                                      style={[styles.input, styles.durationInput]}
+                                      keyboardType="number-pad"
+                                      value={String(durationHours)}
+                                      onChangeText={(value) => setDurationHours(Number(value) || 0)}
+                                      placeholder={t('calendar.templates.hoursPlaceholder')}
                                       placeholderTextColor={colors.text.tertiary}
-                                      accessibilityLabel={t('calendar.templates.startTimeLabel')}
-                                      testID="template-start-time-input"
+                                      accessibilityLabel={t('calendar.templates.durationHoursLabel')}
+                                      testID="template-duration-hours-input"
+                                    />
+                                    <TextInput
+                                      style={[styles.input, styles.durationInput]}
+                                      keyboardType="number-pad"
+                                      value={String(durationMinutes)}
+                                      onChangeText={(value) =>
+                                        setDurationMinutes(Math.min(55, Number(value) || 0))
+                                      }
+                                      placeholder={t('calendar.templates.minutesPlaceholder')}
+                                      placeholderTextColor={colors.text.tertiary}
+                                      accessibilityLabel={t('calendar.templates.durationMinutesLabel')}
+                                      testID="template-duration-minutes-input"
                                     />
                                   </View>
-                                  <View style={[styles.flexItem, styles.durationGroup]}>
-                                    <Text style={styles.label}>{t('calendar.templates.duration')}</Text>
-                                    <View style={styles.durationInputs}>
-                                      <TextInput
-                                        style={[styles.input, styles.durationInput]}
-                                        keyboardType="number-pad"
-                                        value={String(durationHours)}
-                                        onChangeText={(value) => setDurationHours(Number(value) || 0)}
-                                        placeholder={t('calendar.templates.hoursPlaceholder')}
-                                        placeholderTextColor={colors.text.tertiary}
-                                        accessibilityLabel={t('calendar.templates.durationHoursLabel')}
-                                        testID="template-duration-hours-input"
-                                      />
-                                      <TextInput
-                                        style={[styles.input, styles.durationInput]}
-                                        keyboardType="number-pad"
-                                        value={String(durationMinutes)}
-                                        onChangeText={(value) =>
-                                          setDurationMinutes(Math.min(55, Number(value) || 0))
-                                        }
-                                        placeholder={t('calendar.templates.minutesPlaceholder')}
-                                        placeholderTextColor={colors.text.tertiary}
-                                        accessibilityLabel={t('calendar.templates.durationMinutesLabel')}
-                                        testID="template-duration-minutes-input"
-                                      />
-                                    </View>
-                                  </View>
                                 </View>
+                              </View>
 
-                                <Text style={styles.label}>{t('calendar.templates.color')}</Text>
-                                <View style={styles.colorRow}>
-                                  {COLORS.map((color) => {
-                                    const paletteColor = getColorPalette(color);
-                                    const isSelected = formData.color === color;
-                                    return (
-                                      <TouchableOpacity
-                                        key={color}
-                                        style={[styles.colorDot, { backgroundColor: paletteColor.dot }, isSelected && styles.colorDotSelected]}
-                                        onPress={() => setFormData({ ...formData, color })}
-                                      />
-                                    );
-                                  })}
-                                </View>
-
-                                <Text style={styles.label}>{t('calendar.templates.breakDuration')}</Text>
-                                <View style={styles.breakRow}>
-                                  {[0, 5, 15, 30, 45, 60].map((minutes) => (
+                              <Text style={styles.label}>{t('calendar.templates.color')}</Text>
+                              <View style={styles.colorRow}>
+                                {COLORS.map((color) => {
+                                  const paletteColor = getColorPalette(color);
+                                  const isSelected = formData.color === color;
+                                  return (
                                     <TouchableOpacity
-                                      key={minutes}
-                                      style={[styles.breakButton, breakMinutes === minutes && styles.breakButtonSelected]}
-                                      onPress={() => setBreakMinutes(minutes)}
-                                    >
-                                      <Text style={[styles.breakButtonText, breakMinutes === minutes && styles.breakButtonTextSelected]}>
-                                        {minutes}m
-                                      </Text>
-                                    </TouchableOpacity>
-                                  ))}
-                                </View>
+                                      key={color}
+                                      style={[styles.colorDot, { backgroundColor: paletteColor.dot }, isSelected && styles.colorDotSelected]}
+                                      onPress={() => setFormData({ ...formData, color })}
+                                    />
+                                  );
+                                })}
+                              </View>
 
-                                <View style={styles.editActions} accessible={false} collapsable={false}>
+                              <Text style={styles.label}>{t('calendar.templates.breakDuration')}</Text>
+                              <View style={styles.breakRow}>
+                                {[0, 5, 15, 30, 45, 60].map((minutes) => (
                                   <TouchableOpacity
-                                    style={[styles.primaryButton, styles.saveButton]}
-                                    onPress={handleSave}
-                                    testID="template-save"
-                                    accessible={true}
-                                    accessibilityRole="button"
-                                    accessibilityLabel={t('common.save')}
+                                    key={minutes}
+                                    style={[styles.breakButton, breakMinutes === minutes && styles.breakButtonSelected]}
+                                    onPress={() => setBreakMinutes(minutes)}
                                   >
-                                    <Text style={styles.primaryButtonText}>{t('common.save')}</Text>
+                                    <Text style={[styles.breakButtonText, breakMinutes === minutes && styles.breakButtonTextSelected]}>
+                                      {minutes}m
+                                    </Text>
                                   </TouchableOpacity>
-                                  <TouchableOpacity
-                                    style={styles.secondaryButton}
-                                    onPress={handleCancel}
-                                    accessible={true}
-                                    accessibilityRole="button"
-                                    accessibilityLabel={t('common.cancel')}
-                                    testID="template-cancel"
-                                  >
-                                    <Text style={styles.secondaryButtonText}>{t('common.cancel')}</Text>
-                                  </TouchableOpacity>
-                                </View>
+                                ))}
+                              </View>
+
+                              <View style={styles.editActions} accessible={false} collapsable={false}>
                                 <TouchableOpacity
-                                  style={styles.deleteButton}
-                                  onPress={() => handleDelete(template.id, template.name)}
+                                  style={[styles.primaryButton, styles.saveButton]}
+                                  onPress={handleSave}
+                                  testID="template-save"
                                   accessible={true}
                                   accessibilityRole="button"
-                                  accessibilityLabel={t('calendar.templates.deleteTemplate')}
-                                  testID="template-delete"
+                                  accessibilityLabel={t('common.save')}
                                 >
-                                  <Text style={styles.deleteButtonText}>{t('common.delete')}</Text>
+                                  <Text style={styles.primaryButtonText}>{t('common.save')}</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                  style={styles.secondaryButton}
+                                  onPress={handleCancel}
+                                  accessible={true}
+                                  accessibilityRole="button"
+                                  accessibilityLabel={t('common.cancel')}
+                                  testID="template-cancel"
+                                >
+                                  <Text style={styles.secondaryButtonText}>{t('common.cancel')}</Text>
                                 </TouchableOpacity>
                               </View>
-                            );
-                          }
-
-                          // Compact row: [Edit] [Info] [Color] [Radio]
-                          return (
-                            <TouchableOpacity
-                              key={template.id}
-                              style={styles.templateRow}
-                              onPress={() => handleArm(template.id)}
-                              activeOpacity={0.7}
-                              testID={`template-row-${index}`}
-                            >
-                              {/* Edit button (left) */}
                               <TouchableOpacity
-                                onPress={() => handleEdit(template)}
-                                style={styles.editButtonLeft}
-                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                style={styles.deleteButton}
+                                onPress={() => handleDelete(template.id, template.name)}
+                                accessible={true}
+                                accessibilityRole="button"
+                                accessibilityLabel={t('calendar.templates.deleteTemplate')}
+                                testID="template-delete"
                               >
-                                <Pencil size={18} color={colors.grey[500]} />
+                                <Text style={styles.deleteButtonText}>{t('common.delete')}</Text>
                               </TouchableOpacity>
-
-                              {/* Template info */}
-                              <View style={styles.rowContent}>
-                                <Text style={styles.rowName}>{template.name}</Text>
-                                <Text style={styles.rowMeta}>
-                                  {template.startTime} • {Math.floor(template.duration / 60)}h{template.duration % 60 > 0 ? ` ${template.duration % 60}m` : ''}
-                                </Text>
-                              </View>
-
-                              {/* Color dot */}
-                              <View style={[styles.colorDotSmall, { backgroundColor: palette.dot }]} />
-
-                              {/* Radio indicator (right - easier thumb reach) */}
-                              <View style={[styles.radioOuter, isArmed && styles.radioOuterSelected]}>
-                                {isArmed && <View style={styles.radioInner} />}
-                              </View>
-                            </TouchableOpacity>
+                            </View>
                           );
-                        })}
-                      </View>
-                    </>
-                  )}
+                        }
 
-                  {/* Absences Tab */}
-                  {activeTab === 'absences' && (
-                    <>
-                      {/* Edit Form for Absence */}
-                      {editingAbsenceId && (
-                        <View style={styles.editCard}>
-                          <TextInput
-                            style={styles.input}
-                            value={absenceFormData.name || ''}
-                            onChangeText={(value) => setAbsenceFormData({ ...absenceFormData, name: value })}
-                            placeholder={t('calendar.templates.name')}
-                            placeholderTextColor={colors.text.tertiary}
-                          />
-
-                          <Text style={styles.label}>{t('calendar.absences.typeLabel')}</Text>
-                          <View style={styles.typeRow}>
-                            <TouchableOpacity
-                              style={[styles.typeButton, absenceFormData.type === 'vacation' && styles.typeButtonSelected]}
-                              onPress={() => setAbsenceFormData({ ...absenceFormData, type: 'vacation' })}
-                            >
-                              <TreePalm size={16} color={absenceFormData.type === 'vacation' ? colors.white : colors.grey[600]} />
-                              <Text style={[styles.typeButtonText, absenceFormData.type === 'vacation' && styles.typeButtonTextSelected]}>
-                                {t('calendar.absences.vacation')}
-                              </Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              style={[styles.typeButton, absenceFormData.type === 'sick' && styles.typeButtonSelected]}
-                              onPress={() => setAbsenceFormData({ ...absenceFormData, type: 'sick' })}
-                            >
-                              <ThermometerIcon size={16} color={absenceFormData.type === 'sick' ? colors.white : colors.grey[600]} />
-                              <Text style={[styles.typeButtonText, absenceFormData.type === 'sick' && styles.typeButtonTextSelected]}>
-                                {t('calendar.absences.sick')}
-                              </Text>
-                            </TouchableOpacity>
-                          </View>
-
-                          {/* Full Day Toggle */}
+                        // Compact row: [Edit] [Info] [Color] [Radio]
+                        return (
                           <TouchableOpacity
-                            style={styles.fullDayRow}
-                            onPress={() => setAbsenceFormData({
-                              ...absenceFormData,
-                              isFullDay: !absenceFormData.isFullDay,
-                              startTime: absenceFormData.isFullDay ? '09:00' : null,
-                              endTime: absenceFormData.isFullDay ? '17:00' : null,
-                            })}
+                            key={template.id}
+                            style={styles.templateRow}
+                            onPress={() => handleArm(template.id)}
                             activeOpacity={0.7}
+                            testID={`template-row-${index}`}
                           >
-                            <View style={[styles.checkbox, absenceFormData.isFullDay && styles.checkboxChecked]}>
-                              {absenceFormData.isFullDay && <Check size={14} color={colors.white} />}
+                            {/* Edit button (left) */}
+                            <TouchableOpacity
+                              onPress={() => handleEdit(template)}
+                              style={styles.editButtonLeft}
+                              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                            >
+                              <Pencil size={18} color={colors.grey[500]} />
+                            </TouchableOpacity>
+
+                            {/* Template info */}
+                            <View style={styles.rowContent}>
+                              <Text style={styles.rowName}>{template.name}</Text>
+                              <Text style={styles.rowMeta}>
+                                {template.startTime} • {Math.floor(template.duration / 60)}h{template.duration % 60 > 0 ? ` ${template.duration % 60}m` : ''}
+                              </Text>
                             </View>
-                            <Text style={styles.fullDayLabel}>{t('calendar.absences.fullDay')}</Text>
+
+                            {/* Color dot */}
+                            <View style={[styles.colorDotSmall, { backgroundColor: palette.dot }]} />
+
+                            {/* Radio indicator (right - easier thumb reach) */}
+                            <View style={[styles.radioOuter, isArmed && styles.radioOuterSelected]}>
+                              {isArmed && <View style={styles.radioInner} />}
+                            </View>
                           </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </>
+                )}
 
-                          {/* Time Inputs (shown when not full day) */}
-                          {!absenceFormData.isFullDay && (
-                            <View style={styles.row}>
-                              <View style={styles.flexItem}>
-                                <Text style={styles.label}>{t('calendar.absences.startTime')}</Text>
-                                <TextInput
-                                  style={styles.input}
-                                  value={absenceFormData.startTime || ''}
-                                  onChangeText={(value) => setAbsenceFormData({ ...absenceFormData, startTime: value })}
-                                  placeholder="09:00"
-                                  placeholderTextColor={colors.text.tertiary}
-                                />
-                              </View>
-                              <View style={styles.flexItem}>
-                                <Text style={styles.label}>{t('calendar.absences.endTime')}</Text>
-                                <TextInput
-                                  style={styles.input}
-                                  value={absenceFormData.endTime || ''}
-                                  onChangeText={(value) => setAbsenceFormData({ ...absenceFormData, endTime: value })}
-                                  placeholder="17:00"
-                                  placeholderTextColor={colors.text.tertiary}
-                                />
-                              </View>
-                            </View>
-                          )}
+                {/* Absences Tab */}
+                {activeTab === 'absences' && (
+                  <>
+                    {/* Edit Form for Absence */}
+                    {editingAbsenceId && (
+                      <View style={styles.editCard}>
+                        <TextInput
+                          style={styles.input}
+                          value={absenceFormData.name || ''}
+                          onChangeText={(value) => setAbsenceFormData({ ...absenceFormData, name: value })}
+                          placeholder={t('calendar.templates.name')}
+                          placeholderTextColor={colors.text.tertiary}
+                        />
 
-                          <View style={styles.editActions}>
-                            <TouchableOpacity style={[styles.primaryButton, styles.saveButton]} onPress={handleSaveAbsence}>
-                              <Text style={styles.primaryButtonText}>{t('common.save')}</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.secondaryButton} onPress={handleCancelAbsenceEdit}>
-                              <Text style={styles.secondaryButtonText}>{t('common.cancel')}</Text>
-                            </TouchableOpacity>
-                          </View>
+                        <Text style={styles.label}>{t('calendar.absences.typeLabel')}</Text>
+                        <View style={styles.typeRow}>
                           <TouchableOpacity
-                            style={styles.deleteButton}
-                            onPress={() => handleDeleteAbsence(editingAbsenceId)}
+                            style={[styles.typeButton, absenceFormData.type === 'vacation' && styles.typeButtonSelected]}
+                            onPress={() => setAbsenceFormData({ ...absenceFormData, type: 'vacation' })}
                           >
-                            <Text style={styles.deleteButtonText}>{t('common.delete')}</Text>
+                            <TreePalm size={16} color={absenceFormData.type === 'vacation' ? colors.white : colors.grey[600]} />
+                            <Text style={[styles.typeButtonText, absenceFormData.type === 'vacation' && styles.typeButtonTextSelected]}>
+                              {t('calendar.absences.vacation')}
+                            </Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={[styles.typeButton, absenceFormData.type === 'sick' && styles.typeButtonSelected]}
+                            onPress={() => setAbsenceFormData({ ...absenceFormData, type: 'sick' })}
+                          >
+                            <ThermometerIcon size={16} color={absenceFormData.type === 'sick' ? colors.white : colors.grey[600]} />
+                            <Text style={[styles.typeButtonText, absenceFormData.type === 'sick' && styles.typeButtonTextSelected]}>
+                              {t('calendar.absences.sick')}
+                            </Text>
                           </TouchableOpacity>
                         </View>
-                      )}
 
-                      {!editingAbsenceId && absenceTemplates.length === 0 && (
-                        <Text style={styles.emptyText}>{t('calendar.absences.hint')}</Text>
-                      )}
-
-                      {/* Vacation Section */}
-                      {!editingAbsenceId && vacationTemplates.length > 0 && (
-                        <>
-                          <Text style={styles.sectionTitle}>{t('calendar.absences.vacation')}</Text>
-                          <View style={styles.templateList}>
-                            {vacationTemplates.map((template) => {
-                              const isArmed = state.armedAbsenceTemplateId === template.id;
-                              return (
-                                <TouchableOpacity
-                                  key={template.id}
-                                  style={styles.templateRow}
-                                  onPress={() => handleArmAbsence(template.id)}
-                                  activeOpacity={0.7}
-                                >
-                                  {/* Edit button (left) */}
-                                  <TouchableOpacity
-                                    onPress={() => handleEditAbsence(template)}
-                                    style={styles.editButtonLeft}
-                                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                                  >
-                                    <Pencil size={18} color={colors.grey[500]} />
-                                  </TouchableOpacity>
-
-                                  {/* Icon */}
-                                  <View style={[styles.absenceIconWrapper, { backgroundColor: template.color, marginRight: spacing.sm }]}>
-                                    <TreePalm size={14} color="#6B7280" />
-                                  </View>
-
-                                  {/* Template info */}
-                                  <View style={styles.rowContent}>
-                                    <Text style={styles.rowName}>{template.name}</Text>
-                                    <Text style={styles.rowMeta}>
-                                      {template.isFullDay
-                                        ? t('calendar.absences.fullDay')
-                                        : `${template.startTime} - ${template.endTime}`}
-                                    </Text>
-                                  </View>
-
-                                  {/* Radio indicator (right - easier thumb reach) */}
-                                  <View style={[styles.radioOuter, isArmed && styles.radioOuterSelected]}>
-                                    {isArmed && <View style={styles.radioInner} />}
-                                  </View>
-                                </TouchableOpacity>
-                              );
-                            })}
+                        {/* Full Day Toggle */}
+                        <TouchableOpacity
+                          style={styles.fullDayRow}
+                          onPress={() => setAbsenceFormData({
+                            ...absenceFormData,
+                            isFullDay: !absenceFormData.isFullDay,
+                            startTime: absenceFormData.isFullDay ? '09:00' : null,
+                            endTime: absenceFormData.isFullDay ? '17:00' : null,
+                          })}
+                          activeOpacity={0.7}
+                        >
+                          <View style={[styles.checkbox, absenceFormData.isFullDay && styles.checkboxChecked]}>
+                            {absenceFormData.isFullDay && <Check size={14} color={colors.white} />}
                           </View>
-                        </>
-                      )}
+                          <Text style={styles.fullDayLabel}>{t('calendar.absences.fullDay')}</Text>
+                        </TouchableOpacity>
 
-                      {/* Sick Section */}
-                      {!editingAbsenceId && sickTemplates.length > 0 && (
-                        <>
-                          <Text style={[styles.sectionTitle, { marginTop: spacing.lg }]}>{t('calendar.absences.sick')}</Text>
-                          <View style={styles.templateList}>
-                            {sickTemplates.map((template) => {
-                              const isArmed = state.armedAbsenceTemplateId === template.id;
-                              return (
-                                <TouchableOpacity
-                                  key={template.id}
-                                  style={styles.templateRow}
-                                  onPress={() => handleArmAbsence(template.id)}
-                                  activeOpacity={0.7}
-                                >
-                                  {/* Edit button (left) */}
-                                  <TouchableOpacity
-                                    onPress={() => handleEditAbsence(template)}
-                                    style={styles.editButtonLeft}
-                                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                                  >
-                                    <Pencil size={18} color={colors.grey[500]} />
-                                  </TouchableOpacity>
-
-                                  {/* Icon */}
-                                  <View style={[styles.absenceIconWrapper, { backgroundColor: template.color, marginRight: spacing.sm }]}>
-                                    <ThermometerIcon size={14} color="#92400E" />
-                                  </View>
-
-                                  {/* Template info */}
-                                  <View style={styles.rowContent}>
-                                    <Text style={styles.rowName}>{template.name}</Text>
-                                    <Text style={styles.rowMeta}>
-                                      {template.isFullDay
-                                        ? t('calendar.absences.fullDay')
-                                        : `${template.startTime} - ${template.endTime}`}
-                                    </Text>
-                                  </View>
-
-                                  {/* Radio indicator (right - easier thumb reach) */}
-                                  <View style={[styles.radioOuter, isArmed && styles.radioOuterSelected]}>
-                                    {isArmed && <View style={styles.radioInner} />}
-                                  </View>
-                                </TouchableOpacity>
-                              );
-                            })}
+                        {/* Time Inputs (shown when not full day) */}
+                        {!absenceFormData.isFullDay && (
+                          <View style={styles.row}>
+                            <View style={styles.flexItem}>
+                              <Text style={styles.label}>{t('calendar.absences.startTime')}</Text>
+                              <TextInput
+                                style={styles.input}
+                                value={absenceFormData.startTime || ''}
+                                onChangeText={(value) => setAbsenceFormData({ ...absenceFormData, startTime: value })}
+                                placeholder="09:00"
+                                placeholderTextColor={colors.text.tertiary}
+                              />
+                            </View>
+                            <View style={styles.flexItem}>
+                              <Text style={styles.label}>{t('calendar.absences.endTime')}</Text>
+                              <TextInput
+                                style={styles.input}
+                                value={absenceFormData.endTime || ''}
+                                onChangeText={(value) => setAbsenceFormData({ ...absenceFormData, endTime: value })}
+                                placeholder="17:00"
+                                placeholderTextColor={colors.text.tertiary}
+                              />
+                            </View>
                           </View>
-                        </>
-                      )}
+                        )}
 
-                      {!editingAbsenceId && absenceTemplates.length > 0 && (
-                        <Text style={styles.absenceHint}>
-                          {t('calendar.absences.hint')}
-                        </Text>
-                      )}
-                    </>
-                  )}
-                </ScrollView>
-              </View>
-            </TouchableWithoutFeedback>
-          </View>
-        </TouchableWithoutFeedback>
-      </KeyboardAvoidingView>
-    </Modal>
+                        <View style={styles.editActions}>
+                          <TouchableOpacity style={[styles.primaryButton, styles.saveButton]} onPress={handleSaveAbsence}>
+                            <Text style={styles.primaryButtonText}>{t('common.save')}</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity style={styles.secondaryButton} onPress={handleCancelAbsenceEdit}>
+                            <Text style={styles.secondaryButtonText}>{t('common.cancel')}</Text>
+                          </TouchableOpacity>
+                        </View>
+                        <TouchableOpacity
+                          style={styles.deleteButton}
+                          onPress={() => handleDeleteAbsence(editingAbsenceId)}
+                        >
+                          <Text style={styles.deleteButtonText}>{t('common.delete')}</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+
+                    {!editingAbsenceId && absenceTemplates.length === 0 && (
+                      <Text style={styles.emptyText}>{t('calendar.absences.hint')}</Text>
+                    )}
+
+                    {/* Vacation Section */}
+                    {!editingAbsenceId && vacationTemplates.length > 0 && (
+                      <>
+                        <Text style={styles.sectionTitle}>{t('calendar.absences.vacation')}</Text>
+                        <View style={styles.templateList}>
+                          {vacationTemplates.map((template) => {
+                            const isArmed = state.armedAbsenceTemplateId === template.id;
+                            return (
+                              <TouchableOpacity
+                                key={template.id}
+                                style={styles.templateRow}
+                                onPress={() => handleArmAbsence(template.id)}
+                                activeOpacity={0.7}
+                              >
+                                {/* Edit button (left) */}
+                                <TouchableOpacity
+                                  onPress={() => handleEditAbsence(template)}
+                                  style={styles.editButtonLeft}
+                                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                >
+                                  <Pencil size={18} color={colors.grey[500]} />
+                                </TouchableOpacity>
+
+                                {/* Icon */}
+                                <View style={[styles.absenceIconWrapper, { backgroundColor: template.color, marginRight: spacing.sm }]}>
+                                  <TreePalm size={14} color="#6B7280" />
+                                </View>
+
+                                {/* Template info */}
+                                <View style={styles.rowContent}>
+                                  <Text style={styles.rowName}>{template.name}</Text>
+                                  <Text style={styles.rowMeta}>
+                                    {template.isFullDay
+                                      ? t('calendar.absences.fullDay')
+                                      : `${template.startTime} - ${template.endTime}`}
+                                  </Text>
+                                </View>
+
+                                {/* Radio indicator (right - easier thumb reach) */}
+                                <View style={[styles.radioOuter, isArmed && styles.radioOuterSelected]}>
+                                  {isArmed && <View style={styles.radioInner} />}
+                                </View>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                      </>
+                    )}
+
+                    {/* Sick Section */}
+                    {!editingAbsenceId && sickTemplates.length > 0 && (
+                      <>
+                        <Text style={[styles.sectionTitle, { marginTop: spacing.lg }]}>{t('calendar.absences.sick')}</Text>
+                        <View style={styles.templateList}>
+                          {sickTemplates.map((template) => {
+                            const isArmed = state.armedAbsenceTemplateId === template.id;
+                            return (
+                              <TouchableOpacity
+                                key={template.id}
+                                style={styles.templateRow}
+                                onPress={() => handleArmAbsence(template.id)}
+                                activeOpacity={0.7}
+                              >
+                                {/* Edit button (left) */}
+                                <TouchableOpacity
+                                  onPress={() => handleEditAbsence(template)}
+                                  style={styles.editButtonLeft}
+                                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                >
+                                  <Pencil size={18} color={colors.grey[500]} />
+                                </TouchableOpacity>
+
+                                {/* Icon */}
+                                <View style={[styles.absenceIconWrapper, { backgroundColor: template.color, marginRight: spacing.sm }]}>
+                                  <ThermometerIcon size={14} color="#92400E" />
+                                </View>
+
+                                {/* Template info */}
+                                <View style={styles.rowContent}>
+                                  <Text style={styles.rowName}>{template.name}</Text>
+                                  <Text style={styles.rowMeta}>
+                                    {template.isFullDay
+                                      ? t('calendar.absences.fullDay')
+                                      : `${template.startTime} - ${template.endTime}`}
+                                  </Text>
+                                </View>
+
+                                {/* Radio indicator (right - easier thumb reach) */}
+                                <View style={[styles.radioOuter, isArmed && styles.radioOuterSelected]}>
+                                  {isArmed && <View style={styles.radioInner} />}
+                                </View>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                      </>
+                    )}
+
+                    {!editingAbsenceId && absenceTemplates.length > 0 && (
+                      <Text style={styles.absenceHint}>
+                        {t('calendar.absences.hint')}
+                      </Text>
+                    )}
+                  </>
+                )}
+              </ScrollView>
+            </View>
+          </TouchableWithoutFeedback>
+        </Animated.View>
+      </Wrapper>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   keyboardAvoidingView: {
     flex: 1,
-  },
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.35)',
     justifyContent: 'flex-end',
   },
-  panel: {
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+  panelWrapper: {
     maxHeight: '80%',
+  },
+  panel: {
     backgroundColor: colors.background.paper,
     borderTopLeftRadius: borderRadius.xl,
     borderTopRightRadius: borderRadius.xl,

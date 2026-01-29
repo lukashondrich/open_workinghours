@@ -1,8 +1,8 @@
 # E2E Testing Reference
 
 **Created:** 2026-01-22
-**Updated:** 2026-01-28
-**Status:** ✅ Android 32/32 passing | ⚠️ iOS 17/32 (FAB/template accessibility issue)
+**Updated:** 2026-01-29
+**Status:** ✅ Android 32/32 passing | ⚠️ iOS — Modal→inline refactor complete, E2E re-test pending
 
 > **Quick Start:** See `mobile-app/ARCHITECTURE.md` → Testing section for setup and run commands.
 > This document contains detailed history, troubleshooting, and framework comparison.
@@ -61,7 +61,7 @@ E2E testing uses **Appium** (cross-platform) with JavaScript tests.
 
 **Legend:** ✅ Working | ❌ a11y = XCUITest accessibility issue | ⏭ Skipped pending rebuild
 
-**Key Finding (2026-01-28):** FAB menu items and template panel elements appear in Maestro's view hierarchy but NOT in XCUITest/Appium accessibility tree on iOS. This is a React Native accessibility quirk with conditionally-rendered positioned Views.
+**Key Finding (2026-01-28):** FAB menu items and template panel elements appeared in Maestro's view hierarchy but NOT in XCUITest/Appium accessibility tree on iOS. Root cause: React Native `<Modal>` creates a separate UIWindow invisible to XCUITest. **Fixed (2026-01-29):** All Modals replaced with inline animated Views — elements now always in main window accessibility tree. E2E re-test pending to confirm fix.
 
 ---
 
@@ -977,10 +977,183 @@ Tests skip gracefully with clear message, preventing false failures.
 - `mobile-mcp`: Screenshots, element listing, coordinate taps
 - `mcp__maestro__inspect_view_hierarchy`: Found elements visible to Maestro but not XCUITest
 
+**Next Steps:** Superseded by 2026-01-29 session — see below.
+
+---
+
+### 2026-01-29: iOS Modal Accessibility Deep Investigation
+
+**Goal:** Understand and fix why iOS E2E tests fail for calendar/shifts flows.
+
+**Key Discovery: ALL React Native Modal Content Is Invisible to XCUITest**
+
+Through systematic testing, we confirmed that XCUITest (used by Appium) **cannot see any elements rendered inside React Native's `<Modal>` component** on iOS. This affects 5 components:
+
+| Component | Uses Modal | Impact |
+|-----------|-----------|--------|
+| CalendarFAB | Yes (added this session, then reverted) | FAB menu items invisible |
+| TemplatePanel | Yes (always was) | All template management invisible |
+| ShiftEditModal | Yes | Shift editing invisible |
+| ManualSessionForm | Yes | Manual hour logging invisible |
+| WeekView (partial) | Yes | Unknown scope |
+
+**Verification method:** Opened TemplatePanel via Maestro (which CAN see elements), then used Appium/XCUITest to query — every element (`template-add`, `absence-add`, `template-save`, text labels) returned `not visible`.
+
+**What We Tried (CalendarFAB):**
+
+| Approach | Result | Why It Failed |
+|----------|--------|---------------|
+| Original (conditional render + absolute position) | ❌ | Elements not in accessibility tree until rendered |
+| Wrap in `<Modal>` | ❌ | Modal creates separate UIWindow, XCUITest doesn't query it |
+| Modal + separate absoluteFill dismiss overlay | ❌ | Overlay didn't help |
+| Modal + `<Pressable>` container | ❌ | Same UIWindow issue |
+| Modal + plain `<View>` with responder | ❌ (untested, reverted) | Fundamental Modal limitation |
+
+**Root Cause Analysis:**
+
+1. React Native's `<Modal>` creates a **new native UIWindow** on iOS
+2. XCUITest queries the **main window's** accessibility tree by default
+3. Elements in the Modal's UIWindow are simply not in the tree XCUITest inspects
+4. Maestro works because it uses its own view-hierarchy traversal (XCUIApplication.snapshot() with depth-60 fallback + element-by-element traversal)
+5. This is a **React Native + XCUITest limitation**, not a bug in our code or Appium
+
+**Framework Comparison Research:**
+
+| Framework | iOS | Android | Status |
+|-----------|-----|---------|--------|
+| Appium (XCUITest) | ❌ Can't see Modal content | ✅ Works | Active development |
+| Maestro 2.1.0 | ✅ Sees everything | ❌ gRPC broken on Apple Silicon | Stalled (no release in 12+ months) |
+| Detox | Would hit same Modal issue | Harder setup | Active |
+| Patrol | Flutter only | Flutter only | N/A |
+
+No single framework works reliably on both platforms for React Native. This is an industry-wide gap.
+
+**Recommended Solution: Replace Modals with Inline Rendering**
+
+Instead of `<Modal>`, use animated Views that are always in the DOM:
+
+```tsx
+// BEFORE (invisible to XCUITest):
+<Modal visible={isOpen} transparent>
+  <TemplatePanel />
+</Modal>
+
+// AFTER (always in accessibility tree):
+<Animated.View
+  style={[styles.panel, { transform: [{ translateY: animValue }] }]}
+  pointerEvents={isOpen ? 'auto' : 'none'}
+  accessibilityElementsHidden={!isOpen}
+>
+  <TemplatePanel />
+</Animated.View>
+```
+
+**Why this works:**
+- Elements are always in the native view tree (no conditional rendering)
+- `pointerEvents: 'none'` prevents interaction when hidden
+- `accessibilityElementsHidden` hides from VoiceOver when closed
+- `Animated.View` with `translateY` provides the same slide-up/down animation
+- Visually identical to Modal approach
+
+**Refactor scope:**
+1. CalendarFAB — smallest, prototype here first
+2. TemplatePanel — largest, most complex (tabs, forms, edit mode)
+3. ShiftEditModal — medium (form with inputs)
+4. ManualSessionForm — medium (date/time pickers)
+5. WeekView modal — need to assess
+
+**Why NOT other approaches:**
+- Coordinate taps: Only works for simple taps (FAB menu), not for form inputs in TemplatePanel
+- Hybrid Maestro iOS + Appium Android: ~40-60% more maintenance, Maestro development stalled
+- Replicating Maestro's view traversal: Significant reverse-engineering, fragile
+
+**Other Session Work:**
+- Built 3 EAS builds (e2e-testing profile, iOS + Android)
+- Android emulator had GPU/ADB connectivity issues (resolved by cold boot from Android Studio)
+- Confirmed Maestro MCP gRPC failure on Android (`UNAVAILABLE: io exception`)
+- Reverted CalendarFAB to pre-Modal state (original code is correct, Modal was wrong direction)
+
+**Files Changed (net, after revert):**
+- `CalendarFAB.tsx` — reverted to pre-session state
+- `TemplatePanel.tsx` — accessibility fixes remain from previous session
+- `app.json` — build numbers incremented (iOS: 45, Android: 3)
+
+**Next Steps (next session):** → Completed in second session below.
+
+---
+
+### 2026-01-29 (Session 2): Modal → Inline Rendering Refactor
+
+**Goal:** Replace `<Modal>` with inline animated Views so all elements are in the main window's accessibility tree for XCUITest/Appium.
+
+**Result:** 3 components refactored, 1 deleted. Visually tested on iOS simulator + Android emulator. All panels and overlays behave identically to the Modal versions.
+
+**Components Refactored:**
+
+| Component | Change | Complexity |
+|-----------|--------|------------|
+| CalendarFAB | Conditional render → always-render with opacity/pointerEvents | Low |
+| TemplatePanel | `<Modal>` → `<Animated.View>` slide-up + BackHandler | High |
+| ManualSessionForm | `<Modal>` + early return → `<Animated.View>` slide-up + BackHandler | Medium |
+| ShiftEditModal | **Deleted** — dead code, unused since native time picker replaced it | N/A |
+
+**Shared Inline Rendering Pattern:**
+
+All bottom-sheet components (TemplatePanel, ManualSessionForm) now use this structure:
+```
+absoluteFill root (pointerEvents, accessibilityElementsHidden)
+  └─ Wrapper (flex:1, justifyContent:flex-end)
+       ├─ Overlay (absoluteFill, animated opacity, tap-to-dismiss)
+       └─ panelWrapper (maxHeight:80%, animated translateY)
+            └─ TouchableWithoutFeedback (blocks tap-through)
+                 └─ card (rounded corners, content)
+```
+
+CalendarFAB uses a different pattern (no slide animation):
+```
+absoluteFill root (pointerEvents="box-none")
+  ├─ Overlay (absoluteFill, tap-to-dismiss, conditional pointerEvents)
+  ├─ Menu (absolute position, opacity toggle, accessibilityElementsHidden)
+  └─ FAB button (absolute position, bottom-right)
+```
+
+**Android-Specific Issues Discovered & Fixed:**
+
+1. **FAB menu clipping** — Android clips children beyond parent bounds (unlike iOS). Menu was a child of the FAB container, positioned above it with `bottom: 64`. Fix: moved menu and FAB to be siblings inside a shared `absoluteFill` View, each independently absolutely positioned.
+
+2. **Keyboard flicker in TemplatePanel** — `KeyboardAvoidingView` with `behavior="height"` on Android caused rapid layout oscillation when combined with `Animated.View` translateY. The system `adjustResize` was already handling keyboard avoidance, so `KeyboardAvoidingView` was double-adjusting. Fix: conditional `Wrapper` — `KeyboardAvoidingView` on iOS, plain `View` on Android.
+
+3. **ManualSessionForm dismiss not working** — Panel used `flex: 1` on the wrapper, covering the overlay and blocking tap-to-dismiss. Fix: matched TemplatePanel's flex layout (overlay as absoluteFill, panel pushed to bottom by `justifyContent: flex-end`).
+
+4. **iOS picker not dismissible** — DateTimePicker overlay rendered behind the panel. Fix: added `TouchableWithoutFeedback` background to picker overlay for tap-outside-to-cancel.
+
+5. **FAB not hiding when ManualSessionForm opens** — Previously Modal covered everything. Now FAB needs explicit hide condition. Fix: added `state.manualSessionFormOpen` to FAB's hide condition.
+
+**What Was NOT Refactored:**
+- WeekView submit tooltip modal (`WeekView.tsx:2654`) — only shows once on first use, not E2E-critical. Can be refactored later if needed.
+
+**Files Changed:**
+
+| File | Change |
+|------|--------|
+| `CalendarFAB.tsx` | Rewrote: absoluteFill wrapper, menu + FAB as positioned siblings, hide when ManualSessionForm open |
+| `TemplatePanel.tsx` | Removed Modal, added Animated.View + BackHandler, conditional iOS/Android Wrapper |
+| `ManualSessionForm.tsx` | Removed Modal + early return, added Animated.View + BackHandler + conditional Wrapper, fixed layout to match TemplatePanel |
+| `ShiftEditModal.tsx` | **Deleted** — dead code (WeekView comment: "using native time picker for start time only") |
+
+**E2E Testability Verification:**
+- `accessibilityElementsHidden={!isOpen}` hides closed panels from VoiceOver/TalkBack
+- `pointerEvents: 'none'` prevents interaction with hidden content
+- All elements always in the main window's native view tree
+- `testID` props preserved on all interactive elements
+- No `accessible` or `accessibilityElementsHidden` on root wrappers that would hide the FAB
+
 **Next Steps:**
-1. Rebuild Android APK with accessibility fixes (`eas build --profile e2e-testing`)
-2. Apply similar fixes to iOS or implement coordinate-based taps
-3. Consider adding coordinate tap fallbacks for iOS calendar tests
+1. Build fresh iOS + Android e2e-testing builds (EAS)
+2. Run full Appium E2E suite on iOS — expect previously-failing calendar/shifts tests to pass
+3. Run full Appium E2E suite on Android — confirm no regressions
+4. Remove Android test skip logic for shift template tests
+5. Target: 32/32 on both platforms
 
 ---
 

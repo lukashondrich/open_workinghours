@@ -1,13 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
-  Modal,
   View,
   Text,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   StyleSheet,
   Platform,
   ScrollView,
   ActivityIndicator,
+  Animated,
+  BackHandler,
+  KeyboardAvoidingView,
 } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { ChevronDown, Clock, MapPin, Calendar } from 'lucide-react-native';
@@ -27,6 +30,27 @@ interface Props {
 type PickerMode = 'date' | 'startTime' | 'endTime' | null;
 
 export default function ManualSessionForm({ visible, defaultDate, onClose }: Props) {
+  // Animation
+  const animValue = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(animValue, {
+      toValue: visible ? 1 : 0,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  }, [visible]);
+
+  // Android back button
+  useEffect(() => {
+    if (!visible) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      onClose();
+      return true;
+    });
+    return () => sub.remove();
+  }, [visible]);
+
   // Form state
   const [locations, setLocations] = useState<UserLocation[]>([]);
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
@@ -205,136 +229,164 @@ export default function ManualSessionForm({ visible, defaultDate, onClose }: Pro
     });
   };
 
-  if (!visible) return null;
+  // Slide up from bottom
+  const translateY = animValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: [600, 0],
+  });
+
+  // iOS: KeyboardAvoidingView pushes panel up when keyboard opens
+  // Android: system adjustResize handles it, plain View avoids flicker
+  const Wrapper = Platform.OS === 'ios' ? KeyboardAvoidingView : View;
+  const wrapperProps = Platform.OS === 'ios'
+    ? { behavior: 'padding' as const, style: styles.flexWrapper }
+    : { style: styles.flexWrapper };
 
   return (
-    <Modal transparent animationType="slide" visible={visible} onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <View style={styles.card}>
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.title}>{t('manualSession.title')}</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Text style={styles.closeText}>{t('common.cancel')}</Text>
-            </TouchableOpacity>
-          </View>
+    <View
+      style={StyleSheet.absoluteFill}
+      pointerEvents={visible ? 'auto' : 'none'}
+      accessibilityElementsHidden={!visible}
+    >
+      <Wrapper {...wrapperProps}>
+        {/* Overlay */}
+        <TouchableWithoutFeedback onPress={onClose}>
+          <Animated.View style={[styles.overlay, { opacity: animValue }]} />
+        </TouchableWithoutFeedback>
 
-          {loading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color={colors.primary[500]} />
-            </View>
-          ) : locations.length === 0 ? (
-            <View style={styles.emptyContainer}>
-              <MapPin size={48} color={colors.grey[400]} />
-              <Text style={styles.emptyText}>{t('manualSession.errorNoLocation')}</Text>
-            </View>
-          ) : (
-            <ScrollView style={styles.form} showsVerticalScrollIndicator={false}>
-              {/* Location Selector */}
-              <Text style={styles.label}>{t('manualSession.location')}</Text>
-              <TouchableOpacity
-                style={styles.selector}
-                onPress={() => setShowLocationPicker(!showLocationPicker)}
-              >
-                <MapPin size={20} color={colors.text.secondary} />
-                <Text style={styles.selectorText}>
-                  {selectedLocation?.name || t('manualSession.selectLocation')}
-                </Text>
-                <ChevronDown size={20} color={colors.text.secondary} />
+        {/* Panel */}
+        <Animated.View style={[styles.panelWrapper, { transform: [{ translateY }] }]}>
+          <TouchableWithoutFeedback onPress={() => {}}>
+            <View style={styles.card}>
+            {/* Header */}
+            <View style={styles.header}>
+              <Text style={styles.title}>{t('manualSession.title')}</Text>
+              <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                <Text style={styles.closeText}>{t('common.cancel')}</Text>
               </TouchableOpacity>
+            </View>
 
-              {/* Location Dropdown */}
-              {showLocationPicker && (
-                <View style={styles.dropdown}>
-                  {locations.map((loc) => (
-                    <TouchableOpacity
-                      key={loc.id}
-                      style={[
-                        styles.dropdownItem,
-                        loc.id === selectedLocationId && styles.dropdownItemActive,
-                      ]}
-                      onPress={() => {
-                        setSelectedLocationId(loc.id);
-                        setShowLocationPicker(false);
-                      }}
-                    >
-                      <Text
+            {loading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={colors.primary[500]} />
+              </View>
+            ) : locations.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <MapPin size={48} color={colors.grey[400]} />
+                <Text style={styles.emptyText}>{t('manualSession.errorNoLocation')}</Text>
+              </View>
+            ) : (
+              <ScrollView style={styles.form} showsVerticalScrollIndicator={false}>
+                {/* Location Selector */}
+                <Text style={styles.label}>{t('manualSession.location')}</Text>
+                <TouchableOpacity
+                  style={styles.selector}
+                  onPress={() => setShowLocationPicker(!showLocationPicker)}
+                >
+                  <MapPin size={20} color={colors.text.secondary} />
+                  <Text style={styles.selectorText}>
+                    {selectedLocation?.name || t('manualSession.selectLocation')}
+                  </Text>
+                  <ChevronDown size={20} color={colors.text.secondary} />
+                </TouchableOpacity>
+
+                {/* Location Dropdown */}
+                {showLocationPicker && (
+                  <View style={styles.dropdown}>
+                    {locations.map((loc) => (
+                      <TouchableOpacity
+                        key={loc.id}
                         style={[
-                          styles.dropdownItemText,
-                          loc.id === selectedLocationId && styles.dropdownItemTextActive,
+                          styles.dropdownItem,
+                          loc.id === selectedLocationId && styles.dropdownItemActive,
                         ]}
+                        onPress={() => {
+                          setSelectedLocationId(loc.id);
+                          setShowLocationPicker(false);
+                        }}
                       >
-                        {loc.name}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
-
-              {/* Date Selector */}
-              <Text style={styles.label}>{t('manualSession.date')}</Text>
-              <TouchableOpacity style={styles.selector} onPress={() => openPicker('date')}>
-                <Calendar size={20} color={colors.text.secondary} />
-                <Text style={styles.selectorText}>{formatDate(selectedDate)}</Text>
-                <ChevronDown size={20} color={colors.text.secondary} />
-              </TouchableOpacity>
-
-              {/* Time Selectors */}
-              <View style={styles.timeRow}>
-                <View style={styles.timeColumn}>
-                  <Text style={styles.label}>{t('manualSession.start')}</Text>
-                  <TouchableOpacity style={styles.selector} onPress={() => openPicker('startTime')}>
-                    <Clock size={20} color={colors.text.secondary} />
-                    <Text style={styles.selectorText}>{formatTime(startTime)}</Text>
-                  </TouchableOpacity>
-                </View>
-                <View style={styles.timeColumn}>
-                  <Text style={styles.label}>{t('manualSession.end')}</Text>
-                  <TouchableOpacity style={styles.selector} onPress={() => openPicker('endTime')}>
-                    <Clock size={20} color={colors.text.secondary} />
-                    <Text style={styles.selectorText}>{formatTime(endTime)}</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              {/* Duration Display */}
-              <View style={styles.durationContainer}>
-                <Text style={styles.durationLabel}>{t('manualSession.duration')}</Text>
-                <Text style={[styles.durationValue, !isValidTimes && styles.durationError]}>
-                  {durationText}
-                </Text>
-              </View>
-
-              {/* Validation Errors */}
-              {error && <Text style={styles.error}>{error}</Text>}
-              {!isNotFuture && !error && (
-                <Text style={styles.error}>{t('manualSession.errorFuture')}</Text>
-              )}
-            </ScrollView>
-          )}
-
-          {/* Actions */}
-          {!loading && locations.length > 0 && (
-            <View style={styles.actions}>
-              <TouchableOpacity
-                style={[styles.saveButton, !canSave && styles.saveButtonDisabled]}
-                onPress={handleSave}
-                disabled={!canSave}
-              >
-                {saving ? (
-                  <ActivityIndicator size="small" color={colors.white} />
-                ) : (
-                  <Text style={styles.saveText}>{t('manualSession.save')}</Text>
+                        <Text
+                          style={[
+                            styles.dropdownItemText,
+                            loc.id === selectedLocationId && styles.dropdownItemTextActive,
+                          ]}
+                        >
+                          {loc.name}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
                 )}
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
-      </View>
 
-      {/* Date/Time Pickers */}
+                {/* Date Selector */}
+                <Text style={styles.label}>{t('manualSession.date')}</Text>
+                <TouchableOpacity style={styles.selector} onPress={() => openPicker('date')}>
+                  <Calendar size={20} color={colors.text.secondary} />
+                  <Text style={styles.selectorText}>{formatDate(selectedDate)}</Text>
+                  <ChevronDown size={20} color={colors.text.secondary} />
+                </TouchableOpacity>
+
+                {/* Time Selectors */}
+                <View style={styles.timeRow}>
+                  <View style={styles.timeColumn}>
+                    <Text style={styles.label}>{t('manualSession.start')}</Text>
+                    <TouchableOpacity style={styles.selector} onPress={() => openPicker('startTime')}>
+                      <Clock size={20} color={colors.text.secondary} />
+                      <Text style={styles.selectorText}>{formatTime(startTime)}</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <View style={styles.timeColumn}>
+                    <Text style={styles.label}>{t('manualSession.end')}</Text>
+                    <TouchableOpacity style={styles.selector} onPress={() => openPicker('endTime')}>
+                      <Clock size={20} color={colors.text.secondary} />
+                      <Text style={styles.selectorText}>{formatTime(endTime)}</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* Duration Display */}
+                <View style={styles.durationContainer}>
+                  <Text style={styles.durationLabel}>{t('manualSession.duration')}</Text>
+                  <Text style={[styles.durationValue, !isValidTimes && styles.durationError]}>
+                    {durationText}
+                  </Text>
+                </View>
+
+                {/* Validation Errors */}
+                {error && <Text style={styles.error}>{error}</Text>}
+                {!isNotFuture && !error && (
+                  <Text style={styles.error}>{t('manualSession.errorFuture')}</Text>
+                )}
+              </ScrollView>
+            )}
+
+            {/* Actions */}
+            {!loading && locations.length > 0 && (
+              <View style={styles.actions}>
+                <TouchableOpacity
+                  style={[styles.saveButton, !canSave && styles.saveButtonDisabled]}
+                  onPress={handleSave}
+                  disabled={!canSave}
+                >
+                  {saving ? (
+                    <ActivityIndicator size="small" color={colors.white} />
+                  ) : (
+                    <Text style={styles.saveText}>{t('manualSession.save')}</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        </TouchableWithoutFeedback>
+        </Animated.View>
+      </Wrapper>
+
+      {/* iOS Date/Time Picker — on top of everything */}
       {pickerMode && Platform.OS === 'ios' && (
         <View style={styles.pickerOverlay}>
+          <TouchableWithoutFeedback onPress={cancelIOSPicker}>
+            <View style={StyleSheet.absoluteFill} />
+          </TouchableWithoutFeedback>
           <View style={styles.pickerContainer}>
             <View style={styles.pickerHeader}>
               <TouchableOpacity onPress={cancelIOSPicker}>
@@ -382,22 +434,27 @@ export default function ManualSessionForm({ visible, defaultDate, onClose }: Pro
           minuteInterval={5}
         />
       )}
-    </Modal>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
+  flexWrapper: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
     justifyContent: 'flex-end',
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  panelWrapper: {
+    maxHeight: '80%',
   },
   card: {
     backgroundColor: colors.background.paper,
     borderTopLeftRadius: borderRadius.xl,
     borderTopRightRadius: borderRadius.xl,
-    maxHeight: '80%',
-    ...shadows.lg,
+    paddingBottom: spacing.xxl,
   },
   header: {
     flexDirection: 'row',
@@ -539,7 +596,7 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.semibold,
     color: colors.white,
   },
-  // iOS picker modal
+  // iOS picker
   pickerOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.4)',
