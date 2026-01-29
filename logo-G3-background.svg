@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <!-- G3: 2 donut segments, green background -->
+  <rect width="512" height="512" rx="96" fill="#2E8B6B"/>
+  <g transform="translate(256,256)">
+    <path d="M0,-178 A178,178 0 1,1 -126,126 L-71,71 A100,100 0 1,0 0,-100 Z" fill="#C0E6DD" opacity="0.7"/>
+    <path d="M-126,126 A178,178 0 0,1 0,-178 L0,-100 A100,100 0 0,0 -71,71 Z" fill="#F5F0EB" opacity="0.6"/>
+    <circle r="100" fill="#2E8B6B"/>
+    <line x1="0" y1="0" x2="0" y2="-80" stroke="#F5F0EB" stroke-width="16" stroke-linecap="round"/>
+    <line x1="0" y1="0" x2="-50" y2="50" stroke="#F5F0EB" stroke-width="14" stroke-linecap="round"/>
+    <circle r="12" fill="#F5F0EB"/>
+  </g>
+</svg>

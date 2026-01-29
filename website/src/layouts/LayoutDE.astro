@@ -24,7 +24,9 @@ const navItems = [
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content={description} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -36,9 +38,13 @@ const navItems = [
     <header class="sticky top-0 z-50 bg-stone-50/95 backdrop-blur border-b border-stone-200">
       <nav class="max-w-5xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
         <a href="/de" class="flex items-center gap-2 font-semibold text-stone-900 hover:text-teal-700 transition-colors">
-          <svg class="w-6 h-6 text-teal-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10" />
-            <polyline points="12 6 12 12 16 14" />
+          <svg class="w-6 h-6" viewBox="0 0 512 512" fill="none">
+            <path d="M256,56 A200,200 0 1,1 115,397 L175,336 A113,113 0 1,0 256,143 Z" fill="#C0E6DD" opacity="0.7"/>
+            <path d="M115,397 A200,200 0 0,1 256,56 L256,143 A113,113 0 0,0 175,336 Z" fill="#F5F0EB" opacity="0.6"/>
+            <circle cx="256" cy="256" r="113" fill="#2E8B6B"/>
+            <line x1="256" y1="256" x2="256" y2="164" stroke="#F5F0EB" stroke-width="18" stroke-linecap="round"/>
+            <line x1="256" y1="256" x2="199" y2="313" stroke="#F5F0EB" stroke-width="15" stroke-linecap="round"/>
+            <circle cx="256" cy="256" r="13" fill="#F5F0EB"/>
           </svg>
           Open Working Hours
         </a>
@@ -85,9 +91,13 @@ const navItems = [
           <!-- Left: Logo and tagline -->
           <div class="max-w-xs">
             <div class="flex items-center gap-2 font-semibold text-stone-900 mb-2">
-              <svg class="w-5 h-5 text-teal-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10" />
-                <polyline points="12 6 12 12 16 14" />
+              <svg class="w-5 h-5" viewBox="0 0 512 512" fill="none">
+                <path d="M256,56 A200,200 0 1,1 115,397 L175,336 A113,113 0 1,0 256,143 Z" fill="#C0E6DD" opacity="0.7"/>
+                <path d="M115,397 A200,200 0 0,1 256,56 L256,143 A113,113 0 0,0 175,336 Z" fill="#F5F0EB" opacity="0.6"/>
+                <circle cx="256" cy="256" r="113" fill="#2E8B6B"/>
+                <line x1="256" y1="256" x2="256" y2="164" stroke="#F5F0EB" stroke-width="18" stroke-linecap="round"/>
+                <line x1="256" y1="256" x2="199" y2="313" stroke="#F5F0EB" stroke-width="15" stroke-linecap="round"/>
+                <circle cx="256" cy="256" r="13" fill="#F5F0EB"/>
               </svg>
               Open Working Hours
             </div>
