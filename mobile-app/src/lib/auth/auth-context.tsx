@@ -8,9 +8,11 @@ import React, {
   useContext,
   useReducer,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
+import { AppState, type AppStateStatus } from 'react-native';
 import type { AuthState, AuthAction, User } from './auth-types';
 import { AuthStorage } from './AuthStorage';
 import { BiometricService } from './BiometricService';
@@ -70,6 +72,8 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(authReducer, initialAuthState);
   const [isHydrated, setIsHydrated] = useState(false);
+  const userSignedOut = useRef(false);
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
 
   // Restore auth state on app mount
   useEffect(() => {
@@ -144,9 +148,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  // Re-check auth when app returns from background
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', async (nextState) => {
+      if (
+        appStateRef.current.match(/background/) &&
+        nextState === 'active' &&
+        state.status === 'unauthenticated' &&
+        !userSignedOut.current
+      ) {
+        console.log('[AuthProvider] App foregrounded, re-attempting auth restore');
+        const auth = await AuthStorage.restoreAuth();
+        if (auth) {
+          dispatch({
+            type: 'RESTORE_TOKEN',
+            payload: {
+              user: auth.user,
+              token: auth.token,
+              expiresAt: auth.expiresAt,
+            },
+          });
+        }
+      }
+      appStateRef.current = nextState;
+    });
+
+    return () => subscription.remove();
+  }, [state.status]);
+
   const signIn = async (user: User, token: string, expiresAt: Date) => {
     try {
       await AuthStorage.saveAuth(token, user, expiresAt);
+      userSignedOut.current = false;
       dispatch({
         type: 'SIGN_IN',
         payload: { user, token, expiresAt },
@@ -164,6 +197,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // - If biometric enabled → prompt biometric → unlock
       // - If biometric NOT enabled → auto-restore session
       // This reduces friction while still providing security for biometric users
+      userSignedOut.current = true;
       dispatch({ type: 'SIGN_OUT' });
     } catch (error) {
       console.error('[AuthProvider] Failed to sign out:', error);

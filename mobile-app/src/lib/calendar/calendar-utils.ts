@@ -1,5 +1,11 @@
 import { addDays, startOfMonth, endOfMonth, eachDayOfInterval, format } from 'date-fns';
 import type { ShiftColor, ShiftInstance, TrackingRecord, AbsenceInstance } from './types';
+import {
+  getDayBounds as _getDayBounds,
+  computeOverlapMinutes as _computeOverlapMinutes,
+  getTrackedMinutesForDate as _getTrackedMinutesForDate,
+  computePlannedMinutesForDate,
+} from './time-calculations';
 
 export function getWeekDays(weekStart: Date): Date[] {
   return Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -487,83 +493,10 @@ export function shiftHasAbsenceOverlap(
 // Time Range Overlap Helpers
 // ========================================
 
-/**
- * Get the start and end timestamps for a given date.
- * Uses exclusive end boundary (next day 00:00:00) for cleaner overlap math.
- *
- * @param dateKey - Date string in YYYY-MM-DD format
- * @returns Object with start (00:00:00) and end (next day 00:00:00)
- */
-export function getDayBounds(dateKey: string): { start: Date; end: Date } {
-  const [year, month, day] = dateKey.split('-').map(Number);
-  const start = new Date(year, month - 1, day, 0, 0, 0, 0);
-  const end = new Date(start);
-  end.setDate(start.getDate() + 1);
-  return { start, end };
-}
-
-/**
- * Compute overlap in minutes between a time range and a day range.
- * Handles overnight sessions correctly.
- *
- * @param start - Start of the time range
- * @param end - End of the time range
- * @param rangeStart - Start of the day range
- * @param rangeEnd - End of the day range
- * @returns Overlap in minutes (0 if no overlap)
- */
-export function computeOverlapMinutes(
-  start: Date,
-  end: Date,
-  rangeStart: Date,
-  rangeEnd: Date
-): number {
-  const effectiveStart = start > rangeStart ? start : rangeStart;
-  const effectiveEnd = end < rangeEnd ? end : rangeEnd;
-  const diffMs = effectiveEnd.getTime() - effectiveStart.getTime();
-  if (diffMs <= 0) return 0;
-  return Math.round(diffMs / 60000);
-}
-
-/**
- * Get tracked minutes for a specific date, handling multi-day sessions.
- * A session that spans multiple days will have its time split across those days.
- *
- * @param dateKey - The date to calculate for (YYYY-MM-DD)
- * @param trackingRecords - All tracking records
- * @returns Object with trackedMinutes and hasTracking boolean
- */
-export function getTrackedMinutesForDate(
-  dateKey: string,
-  trackingRecords: Record<string, TrackingRecord>
-): { trackedMinutes: number; hasTracking: boolean } {
-  const { start: dayStart, end: dayEnd } = getDayBounds(dateKey);
-  let trackedMinutes = 0;
-  let hasTracking = false;
-
-  for (const record of Object.values(trackingRecords)) {
-    // Parse record start time
-    const [year, month, day] = record.date.split('-').map(Number);
-    const [startHour, startMinute] = record.startTime.split(':').map(Number);
-    const recordStart = new Date(year, month - 1, day, startHour, startMinute, 0, 0);
-    const recordEnd = new Date(recordStart.getTime() + record.duration * 60000);
-
-    // Calculate overlap with this day
-    const overlap = computeOverlapMinutes(recordStart, recordEnd, dayStart, dayEnd);
-
-    if (overlap > 0) {
-      // Proportionally subtract breaks based on overlap ratio
-      const breakMinutes = record.breakMinutes || 0;
-      const breakRatio = record.duration > 0 ? overlap / record.duration : 0;
-      const proportionalBreak = Math.round(breakMinutes * breakRatio);
-
-      trackedMinutes += overlap - proportionalBreak;
-      hasTracking = true;
-    }
-  }
-
-  return { trackedMinutes: Math.max(0, trackedMinutes), hasTracking };
-}
+// Re-exported from time-calculations.ts (single source of truth)
+export const getDayBounds = _getDayBounds;
+export const computeOverlapMinutes = _computeOverlapMinutes;
+export const getTrackedMinutesForDate = _getTrackedMinutesForDate;
 
 // ========================================
 // Month Summary Helper Functions
@@ -611,13 +544,8 @@ export function getMonthSummary(
     // Calculate day's tracked (handling multi-day sessions)
     const { trackedMinutes: dayTracked } = getTrackedMinutesForDate(dateKey, trackingRecords);
 
-    // Sum planned minutes (from shift instances)
-    let dayPlanned = 0;
-    Object.values(instances)
-      .filter((i) => i.date === dateKey)
-      .forEach((i) => {
-        dayPlanned += i.duration;
-      });
+    // Sum planned minutes (from shift instances, handles overnight shifts)
+    const dayPlanned = computePlannedMinutesForDate(instances, dateKey);
 
     trackedMinutes += dayTracked;
     plannedMinutes += dayPlanned;

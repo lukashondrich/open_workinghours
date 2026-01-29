@@ -70,21 +70,41 @@ export class BiometricService {
    * @returns true if authentication succeeded, false otherwise
    */
   static async authenticate(reason?: string): Promise<boolean> {
+    const prompt = reason || 'Authenticate to continue';
+
     try {
-      const result = await LocalAuthentication.authenticateAsync({
-        promptMessage: reason || 'Authenticate to continue',
-        fallbackLabel: 'Use passcode',
+      // First attempt: biometric only (no passcode fallback)
+      const biometricResult = await LocalAuthentication.authenticateAsync({
+        promptMessage: prompt,
         cancelLabel: 'Cancel',
-        disableDeviceFallback: false, // Allow passcode fallback
+        disableDeviceFallback: true,
       });
 
-      if (result.success) {
+      if (biometricResult.success) {
         return true;
       }
 
-      // Log failure reason for debugging (not shown to user)
-      if (result.error) {
-        console.log('[BiometricService] Auth failed:', result.error);
+      // User explicitly cancelled — don't show passcode
+      if (biometricResult.error === 'user_cancel' || biometricResult.error === 'system_cancel') {
+        console.log('[BiometricService] User cancelled biometric prompt');
+        return false;
+      }
+
+      // Biometric failed for other reason — fall back to passcode
+      console.log('[BiometricService] Biometric failed, falling back to passcode:', biometricResult.error);
+      const fallbackResult = await LocalAuthentication.authenticateAsync({
+        promptMessage: prompt,
+        fallbackLabel: 'Use passcode',
+        cancelLabel: 'Cancel',
+        disableDeviceFallback: false,
+      });
+
+      if (fallbackResult.success) {
+        return true;
+      }
+
+      if (fallbackResult.error) {
+        console.log('[BiometricService] Fallback auth failed:', fallbackResult.error);
       }
 
       return false;

@@ -14,7 +14,10 @@ const { byTestId, byText, byI18n, byI18nFast, t, i18n } = require('./selectors')
  */
 async function tapTestId(driver, testId, timeout = 10000) {
   const element = await byTestId(driver, testId);
-  await element.waitForDisplayed({ timeout });
+  // Use waitForExist instead of waitForDisplayed — XCUITest reports
+  // isDisplayed=false for elements in always-mounted absoluteFill containers
+  // (inline rendering pattern used after Modal→Animated.View refactor)
+  await element.waitForExist({ timeout });
   await element.click();
 }
 
@@ -186,6 +189,92 @@ async function dismissPermissionDialogs(driver) {
 }
 
 /**
+ * Dismiss all system dialogs/alerts at startup (both platforms).
+ * More comprehensive than dismissPermissionDialogs — handles iOS native alerts,
+ * Expo dev menu, notification prompts, and other unexpected popups.
+ * @param {WebdriverIO.Browser} driver
+ * @param {number} maxAttempts - Max dialogs to dismiss sequentially
+ */
+async function dismissSystemDialogs(driver, maxAttempts = 5) {
+  for (let i = 0; i < maxAttempts; i++) {
+    let dismissed = false;
+
+    if (driver.isAndroid) {
+      dismissed = await dismissAndroidSystemDialog(driver);
+    } else {
+      // iOS: check if a native alert is present before trying to accept it.
+      // driver.acceptAlert() retries internally and produces noisy WARN/ERROR logs,
+      // so we check for alert text first.
+      try {
+        const alertText = await driver.getAlertText();
+        // If we got here without throwing, an alert is present
+        if (alertText) {
+          await driver.acceptAlert();
+          dismissed = true;
+          await driver.pause(300);
+        }
+      } catch {
+        // No native alert present
+      }
+    }
+
+    if (!dismissed) {
+      // Try app-level dialogs by button text (Expo dev menu, update prompts, etc.)
+      const buttonTexts = ['OK', 'Allow', 'Erlauben', 'Dismiss', 'Got it', 'Not Now', "Don't Allow"];
+      for (const text of buttonTexts) {
+        try {
+          const btn = await byText(driver, text, true);
+          if (await btn.isExisting()) {
+            await btn.click();
+            dismissed = true;
+            await driver.pause(300);
+            break;
+          }
+        } catch {
+          // Button not found, continue
+        }
+      }
+    }
+
+    if (!dismissed) break;
+  }
+}
+
+/**
+ * Wait for element by testID with retry logic.
+ * Useful for elements that may not appear on first attempt (e.g., FAB menu
+ * that sometimes doesn't open on the first tap).
+ * @param {WebdriverIO.Browser} driver
+ * @param {string} testId
+ * @param {Object} options
+ * @param {Function} [options.retryAction] - Async function to call before retrying
+ * @param {number} [options.timeout=10000] - Wait timeout per attempt (ms)
+ * @param {number} [options.retries=2] - Number of retry attempts after first failure
+ * @param {number} [options.retryDelay=1000] - Delay after retryAction before re-checking (ms)
+ * @returns {Promise<WebdriverIO.Element>} The found element
+ */
+async function waitForTestIdWithRetry(driver, testId, options = {}) {
+  const { retryAction, timeout = 10000, retries = 2, retryDelay = 1000 } = options;
+
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const el = await byTestId(driver, testId);
+      // Use shorter timeout on retries since retryAction should have triggered it
+      await el.waitForExist({ timeout: attempt === 0 ? timeout : Math.floor(timeout / 2) });
+      return el;
+    } catch (e) {
+      if (attempt < retries && retryAction) {
+        console.log(`waitForTestIdWithRetry: '${testId}' not found (attempt ${attempt + 1}/${retries + 1}), retrying...`);
+        await retryAction();
+        await driver.pause(retryDelay);
+      } else {
+        throw new Error(`Element '${testId}' not found after ${attempt + 1} attempt(s): ${e.message}`);
+      }
+    }
+  }
+}
+
+/**
  * Tab bar testID and text mapping
  */
 const tabConfig = {
@@ -345,7 +434,7 @@ async function performTestLogin(driver) {
  * @param {WebdriverIO.Browser} driver
  */
 async function ensureAuthenticated(driver) {
-  await dismissPermissionDialogs(driver);
+  await dismissSystemDialogs(driver);
 
   const authenticated = await isAuthenticated(driver);
   if (authenticated) {
@@ -375,6 +464,8 @@ module.exports = {
   dismissAlert,
   dismissAndroidSystemDialog,
   dismissPermissionDialogs,
+  dismissSystemDialogs,
+  waitForTestIdWithRetry,
   isAuthenticated,
   ensureAuthenticated,
   navigateToTab,

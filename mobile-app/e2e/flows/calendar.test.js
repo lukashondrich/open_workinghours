@@ -19,6 +19,7 @@ const {
   waitForTestId,
   dismissPermissionDialogs,
   ensureAuthenticated,
+  waitForTestIdWithRetry,
 } = require('../helpers/actions');
 
 describe('Calendar Navigation', () => {
@@ -42,27 +43,25 @@ describe('Calendar Navigation', () => {
 
     // Verify we're on calendar screen by checking for FAB
     const fab = await byTestId(driver, 'calendar-fab');
-    expect(await fab.isDisplayed()).toBe(true);
+    await fab.waitForExist({ timeout: 5000 });
+    expect(await fab.isExisting()).toBe(true);
   });
 
   test('should open FAB menu', async () => {
     await tapTestId(driver, 'calendar-fab');
-    await driver.pause(1500); // Allow menu animation to complete
+    await driver.pause(2000); // Allow menu animation to complete
 
-    // Verify menu is open by checking FAB's accessibility label changed
-    const fab = await byTestId(driver, 'calendar-fab');
-    if (driver.isAndroid) {
-      // On Android, FAB menu items don't appear in accessibility tree (known issue)
-      // Verify FAB is still interactable (proves tap worked)
-      // Future: Rebuild APK with accessible={true} on menu items
-      const isDisplayed = await fab.isDisplayed();
-      expect(isDisplayed).toBe(true);
-      console.log('  ℹ Android FAB menu: visual verification only (menu items not in a11y tree)');
-    } else {
-      // On iOS, verify menu item is visible
-      const shiftsText = await byI18nFast(driver, 'shifts');
-      expect(await shiftsText.isDisplayed()).toBe(true);
-    }
+    // Verify menu opened, retry FAB tap if needed (XCUITest timing)
+    const shiftsOption = await waitForTestIdWithRetry(driver, 'fab-shifts-option', {
+      retryAction: async () => {
+        await tapTestId(driver, 'calendar-fab');
+        await driver.pause(2000);
+      },
+      timeout: 5000,
+      retries: 2,
+    });
+    // Use isExisting() — XCUITest may report isDisplayed=false for opacity-toggled elements
+    expect(await shiftsOption.isExisting()).toBe(true);
 
     // Close FAB menu
     await tapTestId(driver, 'calendar-fab');

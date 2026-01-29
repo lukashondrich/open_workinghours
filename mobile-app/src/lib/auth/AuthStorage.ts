@@ -10,6 +10,24 @@ export class AuthStorage {
   private static readonly TOKEN_KEY = 'auth_token';
   private static readonly USER_KEY = 'auth_user';
   private static readonly EXPIRES_KEY = 'auth_expires';
+  private static readonly MAX_RETRIES = 2;
+  private static readonly RETRY_DELAY_MS = 500;
+
+  private static async retryGetItem(key: string): Promise<string | null> {
+    for (let attempt = 0; attempt <= this.MAX_RETRIES; attempt++) {
+      try {
+        return await SecureStore.getItemAsync(key);
+      } catch (error) {
+        if (attempt < this.MAX_RETRIES) {
+          console.warn(`[AuthStorage] Keychain read failed (attempt ${attempt + 1}), retrying...`);
+          await new Promise(resolve => setTimeout(resolve, this.RETRY_DELAY_MS));
+        } else {
+          throw error;
+        }
+      }
+    }
+    return null;
+  }
 
   /**
    * Save authentication data securely
@@ -30,7 +48,7 @@ export class AuthStorage {
    */
   static async getToken(): Promise<string | null> {
     try {
-      return await SecureStore.getItemAsync(this.TOKEN_KEY);
+      return await this.retryGetItem(this.TOKEN_KEY);
     } catch (error) {
       console.error('[AuthStorage] Failed to get token:', error);
       return null;
@@ -42,7 +60,7 @@ export class AuthStorage {
    */
   static async getUser(): Promise<User | null> {
     try {
-      const userJson = await SecureStore.getItemAsync(this.USER_KEY);
+      const userJson = await this.retryGetItem(this.USER_KEY);
       if (!userJson) return null;
       return JSON.parse(userJson) as User;
     } catch (error) {
@@ -56,7 +74,7 @@ export class AuthStorage {
    */
   static async getExpiresAt(): Promise<Date | null> {
     try {
-      const expiresAtStr = await SecureStore.getItemAsync(this.EXPIRES_KEY);
+      const expiresAtStr = await this.retryGetItem(this.EXPIRES_KEY);
       if (!expiresAtStr) return null;
       return new Date(expiresAtStr);
     } catch (error) {

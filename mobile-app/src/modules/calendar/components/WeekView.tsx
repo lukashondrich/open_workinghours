@@ -1181,6 +1181,9 @@ export default function WeekView() {
   }, [weekDays, state.reviewMode, dispatch]);
 
   const getTrackingForDate = (dateKey: string): TrackingRecord[] => {
+    // Use exact date match here — WeekView renders overnight overflow
+    // separately via the overflow badge block (lines 2200+), so overlap-based
+    // filtering would cause duplicate badges for overnight records.
     return Object.values(state.trackingRecords).filter((record) => record.date === dateKey);
   };
 

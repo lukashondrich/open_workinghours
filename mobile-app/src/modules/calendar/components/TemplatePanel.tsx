@@ -302,14 +302,13 @@ export default function TemplatePanel() {
 
         {/* Panel */}
         <Animated.View style={[styles.panelWrapper, { transform: [{ translateY }] }]}>
-          <TouchableWithoutFeedback onPress={() => {}}>
+          <TouchableWithoutFeedback onPress={() => {}} accessible={false}>
             <View
               style={styles.panel}
               accessible={false}
-              accessibilityLabel={t('calendar.templates.panelLabel')}
             >
               {/* Tab Bar */}
-              <View style={styles.tabBar}>
+              <View style={styles.tabBar} accessible={false} collapsable={false}>
                 <TouchableOpacity
                   style={[styles.tab, activeTab === 'shifts' && styles.tabActive]}
                   onPress={() => handleTabChange('shifts')}
@@ -363,6 +362,7 @@ export default function TemplatePanel() {
               <ScrollView
                 style={styles.content}
                 keyboardShouldPersistTaps="handled"
+                accessible={false}
               >
                 {/* Shifts Tab */}
                 {activeTab === 'shifts' && (
@@ -372,7 +372,7 @@ export default function TemplatePanel() {
                     )}
 
                     {/* Compact Radio List */}
-                    <View style={styles.templateList}>
+                    <View style={styles.templateList} accessible={false} collapsable={false}>
                       {templates.map((template, index) => {
                         const isEditing = editingId === template.id;
                         const palette = getColorPalette(template.color);
@@ -551,13 +551,14 @@ export default function TemplatePanel() {
                   <>
                     {/* Edit Form for Absence */}
                     {editingAbsenceId && (
-                      <View style={styles.editCard}>
+                      <View style={styles.editCard} accessible={false} collapsable={false}>
                         <TextInput
                           style={styles.input}
                           value={absenceFormData.name || ''}
                           onChangeText={(value) => setAbsenceFormData({ ...absenceFormData, name: value })}
                           placeholder={t('calendar.templates.name')}
                           placeholderTextColor={colors.text.tertiary}
+                          testID="absence-name-input"
                         />
 
                         <Text style={styles.label}>{t('calendar.absences.typeLabel')}</Text>
@@ -625,17 +626,32 @@ export default function TemplatePanel() {
                           </View>
                         )}
 
-                        <View style={styles.editActions}>
-                          <TouchableOpacity style={[styles.primaryButton, styles.saveButton]} onPress={handleSaveAbsence}>
+                        <View style={styles.editActions} accessible={false} collapsable={false}>
+                          <TouchableOpacity
+                            style={[styles.primaryButton, styles.saveButton]}
+                            onPress={handleSaveAbsence}
+                            testID="absence-save"
+                            accessible={true}
+                            accessibilityRole="button"
+                          >
                             <Text style={styles.primaryButtonText}>{t('common.save')}</Text>
                           </TouchableOpacity>
-                          <TouchableOpacity style={styles.secondaryButton} onPress={handleCancelAbsenceEdit}>
+                          <TouchableOpacity
+                            style={styles.secondaryButton}
+                            onPress={handleCancelAbsenceEdit}
+                            testID="absence-cancel"
+                            accessible={true}
+                            accessibilityRole="button"
+                          >
                             <Text style={styles.secondaryButtonText}>{t('common.cancel')}</Text>
                           </TouchableOpacity>
                         </View>
                         <TouchableOpacity
                           style={styles.deleteButton}
                           onPress={() => handleDeleteAbsence(editingAbsenceId)}
+                          testID="absence-delete"
+                          accessible={true}
+                          accessibilityRole="button"
                         >
                           <Text style={styles.deleteButtonText}>{t('common.delete')}</Text>
                         </TouchableOpacity>
@@ -650,8 +666,8 @@ export default function TemplatePanel() {
                     {!editingAbsenceId && vacationTemplates.length > 0 && (
                       <>
                         <Text style={styles.sectionTitle}>{t('calendar.absences.vacation')}</Text>
-                        <View style={styles.templateList}>
-                          {vacationTemplates.map((template) => {
+                        <View style={styles.templateList} accessible={false} collapsable={false}>
+                          {vacationTemplates.map((template, index) => {
                             const isArmed = state.armedAbsenceTemplateId === template.id;
                             return (
                               <TouchableOpacity
@@ -659,6 +675,7 @@ export default function TemplatePanel() {
                                 style={styles.templateRow}
                                 onPress={() => handleArmAbsence(template.id)}
                                 activeOpacity={0.7}
+                                testID={`absence-row-vacation-${index}`}
                               >
                                 {/* Edit button (left) */}
                                 <TouchableOpacity
@@ -699,8 +716,8 @@ export default function TemplatePanel() {
                     {!editingAbsenceId && sickTemplates.length > 0 && (
                       <>
                         <Text style={[styles.sectionTitle, { marginTop: spacing.lg }]}>{t('calendar.absences.sick')}</Text>
-                        <View style={styles.templateList}>
-                          {sickTemplates.map((template) => {
+                        <View style={styles.templateList} accessible={false} collapsable={false}>
+                          {sickTemplates.map((template, index) => {
                             const isArmed = state.armedAbsenceTemplateId === template.id;
                             return (
                               <TouchableOpacity
@@ -708,6 +725,7 @@ export default function TemplatePanel() {
                                 style={styles.templateRow}
                                 onPress={() => handleArmAbsence(template.id)}
                                 activeOpacity={0.7}
+                                testID={`absence-row-sick-${index}`}
                               >
                                 {/* Edit button (left) */}
                                 <TouchableOpacity

@@ -114,6 +114,10 @@ const i18n = {
   month: { de: 'Monat', en: 'Month' },
   shifts: { de: 'Schichten', en: 'Shifts' },
   absences: { de: 'Abwesenheiten', en: 'Absences' },
+  logHours: { de: 'Stunden erfassen', en: 'Log Hours' },
+  vacation: { de: 'Urlaub', en: 'Vacation' },
+  sick: { de: 'Krank', en: 'Sick' },
+  saveSession: { de: 'Sitzung speichern', en: 'Save Session' },
 
   // Status
   last14Days: { de: 'Letzte 14 Tage', en: 'Last 14 Days' },

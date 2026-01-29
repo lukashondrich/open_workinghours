@@ -250,18 +250,18 @@ export default function ManualSessionForm({ visible, defaultDate, onClose }: Pro
     >
       <Wrapper {...wrapperProps}>
         {/* Overlay */}
-        <TouchableWithoutFeedback onPress={onClose}>
+        <TouchableWithoutFeedback accessible={false} onPress={onClose}>
           <Animated.View style={[styles.overlay, { opacity: animValue }]} />
         </TouchableWithoutFeedback>
 
         {/* Panel */}
         <Animated.View style={[styles.panelWrapper, { transform: [{ translateY }] }]}>
-          <TouchableWithoutFeedback onPress={() => {}}>
+          <TouchableWithoutFeedback accessible={false} onPress={() => {}}>
             <View style={styles.card}>
             {/* Header */}
             <View style={styles.header}>
               <Text style={styles.title}>{t('manualSession.title')}</Text>
-              <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+              <TouchableOpacity testID="manual-session-cancel" onPress={onClose} style={styles.closeButton}>
                 <Text style={styles.closeText}>{t('common.cancel')}</Text>
               </TouchableOpacity>
             </View>
@@ -276,10 +276,11 @@ export default function ManualSessionForm({ visible, defaultDate, onClose }: Pro
                 <Text style={styles.emptyText}>{t('manualSession.errorNoLocation')}</Text>
               </View>
             ) : (
-              <ScrollView style={styles.form} showsVerticalScrollIndicator={false}>
+              <ScrollView accessible={false} style={styles.form} showsVerticalScrollIndicator={false}>
                 {/* Location Selector */}
                 <Text style={styles.label}>{t('manualSession.location')}</Text>
                 <TouchableOpacity
+                  testID="manual-session-location"
                   style={styles.selector}
                   onPress={() => setShowLocationPicker(!showLocationPicker)}
                 >
@@ -320,7 +321,7 @@ export default function ManualSessionForm({ visible, defaultDate, onClose }: Pro
 
                 {/* Date Selector */}
                 <Text style={styles.label}>{t('manualSession.date')}</Text>
-                <TouchableOpacity style={styles.selector} onPress={() => openPicker('date')}>
+                <TouchableOpacity testID="manual-session-date" style={styles.selector} onPress={() => openPicker('date')}>
                   <Calendar size={20} color={colors.text.secondary} />
                   <Text style={styles.selectorText}>{formatDate(selectedDate)}</Text>
                   <ChevronDown size={20} color={colors.text.secondary} />
@@ -330,14 +331,14 @@ export default function ManualSessionForm({ visible, defaultDate, onClose }: Pro
                 <View style={styles.timeRow}>
                   <View style={styles.timeColumn}>
                     <Text style={styles.label}>{t('manualSession.start')}</Text>
-                    <TouchableOpacity style={styles.selector} onPress={() => openPicker('startTime')}>
+                    <TouchableOpacity testID="manual-session-start" style={styles.selector} onPress={() => openPicker('startTime')}>
                       <Clock size={20} color={colors.text.secondary} />
                       <Text style={styles.selectorText}>{formatTime(startTime)}</Text>
                     </TouchableOpacity>
                   </View>
                   <View style={styles.timeColumn}>
                     <Text style={styles.label}>{t('manualSession.end')}</Text>
-                    <TouchableOpacity style={styles.selector} onPress={() => openPicker('endTime')}>
+                    <TouchableOpacity testID="manual-session-end" style={styles.selector} onPress={() => openPicker('endTime')}>
                       <Clock size={20} color={colors.text.secondary} />
                       <Text style={styles.selectorText}>{formatTime(endTime)}</Text>
                     </TouchableOpacity>
@@ -364,6 +365,7 @@ export default function ManualSessionForm({ visible, defaultDate, onClose }: Pro
             {!loading && locations.length > 0 && (
               <View style={styles.actions}>
                 <TouchableOpacity
+                  testID="manual-session-save"
                   style={[styles.saveButton, !canSave && styles.saveButtonDisabled]}
                   onPress={handleSave}
                   disabled={!canSave}

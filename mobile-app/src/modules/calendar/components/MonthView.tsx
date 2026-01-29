@@ -15,6 +15,7 @@ import {
   formatOvertimeDisplay,
   getTrackedMinutesForDate,
 } from '@/lib/calendar/calendar-utils';
+import { computePlannedMinutesForDate, getInstanceWindow, getDayBounds, computeOverlapMinutes } from '@/lib/calendar/time-calculations';
 import { t } from '@/lib/i18n';
 
 const WEEKDAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
@@ -51,8 +52,12 @@ function DayCell({
     return colors.grey[500]; // grey for zero
   };
 
+  const dateKey = format(date, 'yyyy-MM-dd');
+
   return (
     <TouchableOpacity
+      testID={`month-day-${dateKey}`}
+      accessibilityRole="button"
       style={[
         styles.dayCell,
         !isCurrentMonth && styles.dayCellMuted,
@@ -69,16 +74,20 @@ function DayCell({
         {format(date, 'd')}
       </Text>
       {/* Row 1: Shift dots (always present for consistent layout) */}
-      <View style={styles.dotRow}>
-        {indicators.templateColors.map((color: string, idx: number) => (
-          <View key={`${color}-${idx}`} style={[styles.dot, { backgroundColor: color }]} />
-        ))}
-        {indicators.tracked && <View style={[styles.dot, styles.trackedDot]} />}
+      <View style={styles.dotRow} accessible={false}>
+        {indicators.templateColors.length > 0 && (
+          <View testID={`month-day-${dateKey}-shifts`} accessible={false} style={{ flexDirection: 'row', gap: 2 }}>
+            {indicators.templateColors.map((color: string, idx: number) => (
+              <View key={`${color}-${idx}`} style={[styles.dot, { backgroundColor: color }]} />
+            ))}
+          </View>
+        )}
+        {indicators.tracked && <View testID={`month-day-${dateKey}-tracked`} style={[styles.dot, styles.trackedDot]} />}
       </View>
       {/* Row 2: Absence icons (always present for consistent layout) */}
-      <View style={styles.absenceRow}>
-        {indicators.hasVacation && <TreePalm size={10} color="#6B7280" />}
-        {indicators.hasSick && <Thermometer size={10} color="#92400E" />}
+      <View style={styles.absenceRow} accessible={false}>
+        {indicators.hasVacation && <View testID={`month-day-${dateKey}-vacation`}><TreePalm size={10} color="#6B7280" /></View>}
+        {indicators.hasSick && <View testID={`month-day-${dateKey}-sick`}><Thermometer size={10} color="#92400E" /></View>}
       </View>
       {/* Row 3: Confirmation status - overtime for confirmed, ? for unconfirmed with activity */}
       <View style={styles.confirmRow}>
@@ -256,15 +265,19 @@ export default function MonthView() {
   const indicatorsForDate = (date: Date): DayCellIndicators => {
     const dateKey = formatDateKey(date);
     const templateColors: string[] = [];
-    let plannedMinutes = 0;
+    const { start: dayStart, end: dayEnd } = getDayBounds(dateKey);
 
     Object.values(state.instances)
-      .filter((instance) => instance.date === dateKey)
+      .filter((instance) => {
+        const { start, end } = getInstanceWindow(instance);
+        return computeOverlapMinutes(start, end, dayStart, dayEnd) > 0;
+      })
       .forEach((instance) => {
         const palette = getColorPalette(instance.color);
         templateColors.push(palette.dot);
-        plannedMinutes += instance.duration;
       });
+
+    const plannedMinutes = computePlannedMinutesForDate(state.instances, dateKey);
 
     // Get tracked minutes with proper multi-day session handling
     const { trackedMinutes, hasTracking } = getTrackedMinutesForDate(dateKey, state.trackingRecords);

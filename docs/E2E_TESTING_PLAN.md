@@ -1,1176 +1,187 @@
-# E2E Testing Reference
+# E2E Testing
 
-**Created:** 2026-01-22
 **Updated:** 2026-01-29
-**Status:** ✅ Android 32/32 passing | ⚠️ iOS — Modal→inline refactor complete, E2E re-test pending
-
-> **Quick Start:** See `mobile-app/ARCHITECTURE.md` → Testing section for setup and run commands.
-> This document contains detailed history, troubleshooting, and framework comparison.
+**Status:** 32/32 passing on both iOS and Android
 
 ---
 
-## Overview
+## Stack
 
-E2E testing uses **Appium** (cross-platform) with JavaScript tests.
+- **Appium 3.1.2** (Node 20 or 22 — not 23)
+- **XCUITest** driver (iOS), **UiAutomator2** driver (Android)
+- **WebdriverIO** client + **Jest** runner
+- Tests in `mobile-app/e2e/`
 
-**Framework Stack:**
-- Appium 3.1.2 (requires Node 22)
-- XCUITest driver (iOS)
-- UiAutomator2 driver (Android)
-- WebdriverIO client
-
-**Test Location:** `mobile-app/e2e/`
-
-**Why Appium over Maestro:**
-- Maestro 2.1.0 cannot connect to Android emulators (port 7001 gRPC failure)
-- Appium works reliably on both iOS and Android
-- All existing testIDs work with Appium
-- Better debugging support (JavaScript + IDE)
-
----
-
-## Current Test Results (2026-01-28)
-
-| Platform | Suite | Pass | Skip | Fail | Notes |
-|----------|-------|------|------|------|-------|
-| **Android** | auth | 6 | 0 | 0 | ✅ |
-| **Android** | calendar | 7 | 0 | 0 | ✅ |
-| **Android** | location | 3 | 8 | 0 | ✅ (wizard already configured) |
-| **Android** | shifts | 2 | 6 | 0 | ✅ (skipped pending APK rebuild) |
-| **iOS** | auth | 6 | 0 | 0 | ✅ |
-| **iOS** | location | 3 | 8 | 0 | ✅ (wizard already configured) |
-| **iOS** | calendar | 0 | 0 | 7 | ❌ FAB menu items not in XCUITest a11y tree |
-| **iOS** | shifts | 0 | 0 | 8 | ❌ Same accessibility issue |
-
-**Android Total:** 32/32 ✅ | **iOS Total:** 17/32 (15 failing)
-
----
-
-## Flow Status
-
-| Flow | Maestro (iOS) | Appium iOS | Appium Android |
-|------|---------------|------------|----------------|
-| Auth (logged-in check) | ✅ | ✅ | ✅ |
-| Location (settings nav) | ✅ | ✅ | ✅ |
-| Calendar navigation | ✅ | ❌ a11y | ✅ |
-| Calendar FAB (testID) | ✅ | ❌ a11y | ✅ |
-| Calendar week nav | ✅ | ❌ a11y | ✅ |
-| Calendar FAB menu items | ✅ | ❌ a11y | ✅ (coordinate tap) |
-| Tab bar testIDs | ✅ | ✅ | ✅ |
-| Shift template creation | ✅ | ❌ a11y | ⏭ (needs APK rebuild) |
-
-**Legend:** ✅ Working | ❌ a11y = XCUITest accessibility issue | ⏭ Skipped pending rebuild
-
-**Key Finding (2026-01-28):** FAB menu items and template panel elements appeared in Maestro's view hierarchy but NOT in XCUITest/Appium accessibility tree on iOS. Root cause: React Native `<Modal>` creates a separate UIWindow invisible to XCUITest. **Fixed (2026-01-29):** All Modals replaced with inline animated Views — elements now always in main window accessibility tree. E2E re-test pending to confirm fix.
-
----
-
-## Android testID Limitations
-
-Some testIDs don't work on Android because React Native requires explicit accessibility props. To fix:
-
-```tsx
-// Before (testID not exposed on Android)
-<TouchableOpacity testID="calendar-prev" onPress={handlePrev}>
-  <ChevronLeft />
-</TouchableOpacity>
-
-// After (testID exposed on Android)
-<TouchableOpacity
-  testID="calendar-prev"
-  accessible={true}
-  accessibilityRole="button"
-  onPress={handlePrev}
->
-  <ChevronLeft />
-</TouchableOpacity>
-```
-
-**Components needing fixes:**
-- `CalendarHeader.tsx` - prev/next navigation buttons
-- `CalendarFAB.tsx` - menu item options (fab-shifts-option, etc.)
-
-These are tracked in `docs/ACCESSIBILITY_PLAN.md`.
-
----
-
-## Appium Directory Structure
-
-```
-mobile-app/e2e/
-├── package.json          # Dependencies (webdriverio, jest)
-├── jest.config.js        # Jest configuration
-├── helpers/
-│   ├── driver.js         # Appium driver setup
-│   ├── selectors.js      # Cross-platform testID helpers
-│   └── actions.js        # Common actions (tap, type, wait)
-├── flows/
-│   ├── auth.test.js      # Auth registration flow
-│   ├── location.test.js  # Location setup flow
-│   └── calendar.test.js  # Calendar navigation flow
-└── README.md             # Setup and run instructions
-```
-
----
-
-## Cross-Platform Selectors
-
-testIDs are accessed differently on each platform:
-
-```javascript
-// helpers/selectors.js
-function byTestId(driver, testId) {
-  if (driver.isIOS) {
-    return driver.$(`~${testId}`);  // accessibility id
-  } else {
-    return driver.$(`android=new UiSelector().resourceId("${testId}")`);
-  }
-}
-
-// Usage in tests
-const fab = await byTestId(driver, 'calendar-fab');
-await fab.click();
-```
-
----
-
-## Legacy: Maestro Flows (iOS only)
-
-Maestro flows are kept in `.maestro/` for reference but are **iOS-only**:
-
-| Flow | Status | Notes |
-|------|--------|-------|
-| `auth/registration.yaml` | ✅ iOS only | German UI labels |
-| `location/setup.yaml` | ✅ iOS only | German UI labels |
-| `calendar/shift-management.yaml` | ✅ iOS only | Hybrid: testID + coordinates |
-
----
-
-## Completed Work
-
-### 1. Maestro Installation ✅
-- Installed Maestro CLI v2.1.0 via `curl -Ls "https://get.maestro.mobile.dev" | bash`
-- Installed OpenJDK 17 (required dependency): `brew install openjdk@17`
-- PATH setup: `export PATH="/opt/homebrew/opt/openjdk@17/bin:$PATH:$HOME/.maestro/bin"`
-
-### 2. Directory Structure ✅
-```
-mobile-app/.maestro/
-├── config.yaml           # Maestro configuration
-├── flows/
-│   ├── auth/
-│   │   └── registration.yaml
-│   ├── location/
-│   │   └── setup.yaml
-│   └── calendar/
-│       └── shift-management.yaml
-├── scripts/
-│   ├── get-week-date.js  # Helper for dynamic dates
-│   └── run-parallel.sh   # Multi-device runner
-└── results/              # Test output directory
-```
-
-### 3. App Test Mode ✅
-**Files created/modified:**
-
-| File | Changes |
-|------|---------|
-| `app.config.js` | TEST_MODE with env var fallback to app.json value |
-| `app.json` | Added `TEST_MODE: false` in extra (set true for testing) |
-| `src/lib/testing/mockApi.ts` | Created - Mock API responses for auth endpoints |
-| `src/modules/auth/services/AuthService.ts` | Added test mode bypass for all auth methods |
-
-**Mock API Coverage:**
-- `POST /verification/request` → Returns success (logs `[AuthService] TEST_MODE: Returning mock verification request`)
-- `POST /verification/confirm` → Validates test code "123456"
-- `POST /auth/register` → Returns mock user + token
-- `POST /auth/login` → Returns mock user + token
-- `GET /auth/me` → Returns mock user profile
-
-**TEST_MODE Configuration:**
-```javascript
-// app.config.js - uses env var if set, otherwise falls back to app.json
-TEST_MODE: process.env.TEST_MODE !== undefined
-  ? process.env.TEST_MODE === 'true'
-  : appJson.expo.extra.TEST_MODE,
-```
-
-### 4. testIDs Added ✅
-
-| File | testIDs Added |
-|------|---------------|
-| `SetupScreen.tsx` | `setup-search-input`, `setup-search-result-${index}`, `setup-continue-step1`, `setup-continue-step2`, `setup-radius-decrease`, `setup-radius-increase`, `setup-name-input`, `setup-save-button`, `setup-back-button`, `setup-edit-button` |
-| `ConsentBottomSheet.tsx` | `consent-terms-link`, `consent-privacy-link`, `consent-checkbox`, `consent-accept-button`, `consent-cancel-button` |
-| `CalendarFAB.tsx` | `fab-shifts-option`, `fab-absences-option`, `fab-log-hours-option` (FAB already had `calendar-fab`) |
-
-**Pre-existing testIDs (already in codebase):**
-- Auth screens: `login-button`, `register-button`, `email-input`, `code-input`, `send-code-button`, `verify-code-button`, etc.
-- Tab bar: `tabBarTestID` on each tab (doesn't work with Maestro - use text matching instead)
-- Calendar: `calendar-fab`, `template-add`, `template-save`, `template-row-${index}`
-
-### 5. Auth Registration Flow ✅ VALIDATED
-
-The `flows/auth/registration.yaml` flow has been tested and works end-to-end:
-
-**Flow steps:**
-1. Launch app with `clearState: true`
-2. Handle dev client launcher (tap Metro server URL)
-3. Handle notification permission dialogs ("Erlauben")
-4. Handle dev client onboarding ("Continue")
-5. Close dev client debug panel
-6. Welcome screen → tap Register
-7. Email entry → enter test email → tap Send Code
-8. Code entry → enter "123456" → tap Verify
-9. Registration form → fill hospital, specialty, role, state
-10. Consent modal → check checkbox → tap Accept
-11. Verify main app loads (Status, Kalender, Einstellungen tabs)
-
-### 6. Multi-Device Script ✅
-`scripts/run-parallel.sh` created for parallel execution on multiple devices.
-
----
-
-## Known Issues & Learnings
-
-### 1. Dev Client Launcher Screen
-- **Issue:** When using `clearState: true`, the dev client shows its launcher screen instead of auto-connecting
-- **Solution:** Add steps to tap the Metro server URL (`http://localhost:8081`) in the flow
-- **Code:**
-  ```yaml
-  - tapOn:
-      text: "http://localhost:8081"
-      optional: true
-  ```
-
-### 2. Notification Permission Dialogs
-- **Issue:** iOS notification permission dialog appears at various points and blocks interaction
-- **Solution:** Add optional taps for "Erlauben" (German for "Allow") throughout the flow
-- **Code:**
-  ```yaml
-  - tapOn:
-      text: "Erlauben"
-      optional: true
-  ```
-
-### 3. Dev Client Debug Panel
-- **Issue:** After connecting to Metro, a debug panel may open covering the app
-- **Solution:** Tap outside the panel (gray overlay area) to dismiss it
-- **Code:**
-  ```yaml
-  - tapOn:
-      point: "50%, 25%"
-  ```
-
-### 4. TEST_MODE Configuration Override
-- **Issue:** `app.config.js` was overwriting `TEST_MODE` from app.json with env var value (undefined → false)
-- **Solution:** Fixed to use env var only if explicitly set, otherwise use app.json value
-- **File:** `mobile-app/app.config.js`
-
-### 5. Alert Dialogs After Actions
-- **Issue:** Some actions (like sending verification code) show Alert dialogs that block UI
-- **Solution:** Add optional "OK" taps and waits after such actions
-- **Code:**
-  ```yaml
-  - tapOn:
-      text: "OK"
-      optional: true
-  ```
-
-### 6. Keyboard Blocking Buttons
-- **Issue:** On-screen keyboard can block buttons from being tapped
-- **Solution:** Add `hideKeyboard` before tapping buttons
-- **Code:**
-  ```yaml
-  - hideKeyboard
-  - tapOn:
-      id: "send-code-button"
-  ```
-
-### 7. Tab Bar testIDs Don't Work
-- **Issue:** `tabBarTestID` on React Navigation Tab.Screen options not recognized by Maestro
-- **Solution:** Use text matching with German labels
-- **Code:**
-  ```yaml
-  - assertVisible:
-      text: "Status"
-  - assertVisible:
-      text: "Kalender"
-  - assertVisible:
-      text: "Einstellungen"
-  ```
-
-### 8. Auth State Persistence
-- **Issue:** `clearState: true` doesn't clear SecureStore (where auth tokens are stored)
-- **Impact:** Registration test can only run once per app install (user already exists on second run)
-- **Solution:** For repeated testing, either:
-  - Log out before running test
-  - Delete app from simulator
-  - Create a "logout first" helper flow
-
-### 9. App ID Must Match Dev Build
-- **Issue:** Original flow used Expo Go's app ID (`host.exp.Exponent`)
-- **Solution:** Use the actual app bundle ID: `com.openworkinghours.mobileapp`
-
-### 10. Status Screen Accessibility Issues
-- **Issue:** Maestro cannot read view hierarchy on Status screen (HoursSummaryWidget chart causes `kAXErrorInvalidUIElement`)
-- **Solution:** Navigate via Settings tab using coordinate tap instead of text matching
-- **Code:**
-  ```yaml
-  # Navigate via Settings tab to avoid Status screen
-  - tapOn:
-      point: "83%, 96%"
-  ```
-
-### 11. Location Permission Dialogs
-- **Issue:** Simulator shows "Standort nicht verfügbar" (Location unavailable) dialog
-- **Solution:** Add optional "OK" tap to dismiss the dialog
-- **Code:**
-  ```yaml
-  - tapOn:
-      text: "OK"
-      optional: true
-  ```
-
-### 12. kAXErrorInvalidUIElement on Calendar Screen ✅ PARTIALLY FIXED
-- **Issue:** Maestro CLI crashes with `kAXErrorInvalidUIElement` when trying to inspect view hierarchy on Calendar screen
-- **Root causes identified (2026-01-25):**
-  1. **Animated chart components** (HoursSummaryWidget) - Fixed by wrapping with `accessible={true}` and marking children `accessible={false}`
-  2. **Nested accessible elements** - Fixed by adding `accessible={false}` to container Views
-  3. **`accessibilityViewIsModal`** - Hides all children from Maestro; removed from TemplatePanel
-- **What now works by testID:**
-  - `calendar-fab` ✅
-  - `calendar-prev`, `calendar-next` ✅
-  - `template-add` ✅
-  - Tab bar (use text regex: `"Kalender.*"`)
-- **What still needs coordinates:**
-  - Form buttons inside edit modals (save, cancel, delete)
-- **Fix applied to:**
-  - `CalendarFAB.tsx:69` - Added `accessible={false}` to container
-  - `CalendarHeader.tsx:94` - Added `accessible={false}` to navigation View
-  - `TemplatePanel.tsx:267` - Changed `accessibilityViewIsModal` to `accessible={false}`
-  - `HoursSummaryWidget.tsx` - Wrapped chart with accessible summary
-- **Code (now works):**
-  ```yaml
-  # testID-based taps now work for most elements
-  - tapOn:
-      id: "calendar-fab"  # ✅ Works after fix
-  - tapOn:
-      id: "calendar-prev"  # ✅ Works after fix
-
-  # Form buttons still need coordinates
-  - tapOn:
-      point: "25%,87%"  # Save button in edit form
-  ```
-- **Documentation:** See `docs/ACCESSIBILITY_PLAN.md` "Maestro-iOS Compatibility" section
-
-### 13. German UI Labels
-- **Issue:** App is in German, not English - text matching must use German labels
-- **Key labels:**
-  - "Arbeitsorte" (Work locations)
-  - "Neuen Standort hinzufügen" (Add new location)
-  - "Einstellungen" (Settings)
-  - "Einstempeln" (Clock in)
-  - "Speichern" → "Weiter" (Save/Continue)
-
----
-
-## Quick Commands Reference
+## Quick Start
 
 ```bash
-# Setup PATH (add to ~/.zshrc for persistence)
-export PATH="/opt/homebrew/opt/openjdk@17/bin:$PATH:$HOME/.maestro/bin"
-
-# Verify Maestro
-maestro --version
-
-# Start Metro for testing (TEST_MODE enabled via app.json)
-cd mobile-app
-npx expo start --ios --clear
-
-# Or build with TEST_MODE env var
-TEST_MODE=true npx expo run:ios --device "iPhone 15 Pro Max"
-
-# Run single flow
-maestro test .maestro/flows/auth/registration.yaml
-
-# Run all flows
-maestro test .maestro/flows
-
-# Run on specific device
-maestro test .maestro/flows --device "iPhone 15"
-
-# View test results (screenshots, logs)
-ls ~/.maestro/tests/
-```
-
----
-
-## Files Changed
-
-### New Files
-| File | Purpose |
-|------|---------|
-| `mobile-app/.maestro/config.yaml` | Maestro configuration |
-| `mobile-app/.maestro/flows/auth/registration.yaml` | Auth E2E flow (validated) |
-| `mobile-app/.maestro/flows/location/setup.yaml` | Location E2E flow (pending) |
-| `mobile-app/.maestro/flows/calendar/shift-management.yaml` | Calendar E2E flow (pending) |
-| `mobile-app/.maestro/scripts/run-parallel.sh` | Multi-device runner |
-| `mobile-app/.maestro/scripts/get-week-date.js` | Date helper |
-| `mobile-app/src/lib/testing/mockApi.ts` | Mock API responses |
-
-### Modified Files
-| File | Changes |
-|------|---------|
-| `mobile-app/app.config.js` | Fixed TEST_MODE to use env var with app.json fallback |
-| `mobile-app/app.json` | Added `TEST_MODE: false` in extra config |
-| `mobile-app/src/modules/auth/services/AuthService.ts` | Added test mode bypass |
-| `mobile-app/src/modules/geofencing/screens/SetupScreen.tsx` | Added 10 testIDs |
-| `mobile-app/src/modules/auth/components/ConsentBottomSheet.tsx` | Added 5 testIDs |
-| `mobile-app/src/modules/calendar/components/CalendarFAB.tsx` | Added 3 testIDs |
-
----
-
-## Remaining Work
-
-### Phase 1: Validate Remaining Flows
-1. Run location flow: `maestro test .maestro/flows/location/setup.yaml`
-2. Run calendar flow: `maestro test .maestro/flows/calendar/shift-management.yaml`
-3. Fix any issues found
-
-### Phase 2: Android Testing
-1. Start Android emulator
-2. Build Android dev client: `npx expo run:android`
-3. Run flows on Android
-4. Adjust for platform differences (dialog text in English vs German, etc.)
-
-### Phase 3: Multi-Device Parallel
-1. Test parallel script: `./.maestro/scripts/run-parallel.sh ios`
-2. Test on Android: `./.maestro/scripts/run-parallel.sh android`
-3. Test both: `./.maestro/scripts/run-parallel.sh all`
-
-### Phase 4: CI Integration (Future)
-1. Consider Maestro Cloud for CI/CD
-2. Or self-hosted runners with simulators
-
-### Phase 5: Screenshot Management
-1. Set up organized screenshot folder structure
-2. Implement cleanup script for temporary screenshots
-3. Document naming conventions
-
----
-
-## Screenshot Management
-
-**Policy:** Screenshots are debugging artifacts, not documentation. They're gitignored and ephemeral.
-
-### .gitignore Rules (implemented)
-```gitignore
-# E2E test artifacts
-*.png
-.maestro/results/
-.maestro/screenshots/
-```
-
-### Commands
-```bash
-# Run tests (screenshots saved to current directory)
-cd mobile-app/.maestro && maestro test flows/
-
-# Clean up after debugging
-rm -f mobile-app/*.png
-rm -rf mobile-app/.maestro/screenshots/*
-
-# For CI/CD with artifact collection
-maestro test --output ./results/
-```
-
-### Why Not Keep Screenshots?
-- Overwritten every test run
-- Large files (100KB-1MB each)
-- No consistent naming across runs
-- Debugging value expires immediately
-- If you need documentation screenshots, capture them manually with clear names
-
----
-
-## MCP Integration (AI-Assisted Testing)
-
-### Configured MCP Servers
-
-Two MCP servers are configured in `.mcp.json` at project root:
-
-| Server | Purpose | Platforms |
-|--------|---------|-----------|
-| **maestro** | Native Maestro MCP - run flows, debug tests via AI | iOS + Android |
-| **mobile-mcp** | Direct device control via accessibility tree | iOS + Android |
-
-**Configuration file:** `.mcp.json`
-```json
-{
-  "mcpServers": {
-    "maestro": {
-      "type": "stdio",
-      "command": "maestro",
-      "args": ["mcp", "--working-dir", "/Users/user01/open_workinghours/mobile-app"],
-      "env": {
-        "PATH": "/opt/homebrew/opt/openjdk@17/bin:..."
-      }
-    },
-    "mobile-mcp": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@mobilenext/mobile-mcp@latest"],
-      "env": {}
-    }
-  }
-}
-```
-
-### How to Use
-
-1. **Restart Claude Code** (MCP servers load at startup)
-2. AI assistants can then:
-   - Run Maestro flows and see results
-   - Interact with simulators directly (tap, swipe, screenshot)
-   - Write and debug YAML test files
-   - Validate UI after implementing features
-
-### When to Use Which
-
-| Approach | Use Case |
-|----------|----------|
-| **Maestro YAML** | Reproducible CI tests, regression suites |
-| **Maestro MCP** | AI writes/debugs YAML, faster iteration |
-| **mobile-mcp** | Exploratory testing, when testIDs aren't available |
-
-### Research Sources
-
-These MCP servers were chosen based on research (2026-01-24):
-
-- [mobile-mcp](https://github.com/mobile-next/mobile-mcp) - Platform-agnostic, accessibility-first
-- [ios-simulator-mcp](https://github.com/joshuayoes/ios-simulator-mcp) - iOS-specific, featured in Anthropic docs
-- [Maestro MCP](https://mcp.so/server/maestro/mobile-dev-inc) - Native integration with Maestro v2.1.0+
-- [Firebase App Testing Agent](https://firebase.blog/posts/2025/04/app-testing-agent/) - Natural language goals (Android only)
-
-### Comparison: E2E Testing Approaches
-
-| Approach | Pros | Cons | CI/CD Ready |
-|----------|------|------|-------------|
-| **Maestro YAML** | Declarative, version-controlled, parallel sharding | Manual YAML writing | ✅ Maestro Cloud or self-hosted |
-| **Maestro MCP** | AI writes/debugs tests, uses existing flows | Still YAML under the hood | ✅ Same as above |
-| **mobile-mcp** | AI controls devices directly, no scripts | Less structured, harder to reproduce | ⚠️ Needs custom setup |
-| **Firebase Agent** | Natural language, self-healing | Android only, Google lock-in | ✅ Firebase integration |
-
-### Next Steps for MCP
-
-1. Test Maestro MCP after restarting Claude Code
-2. Compare speed with running `maestro test` directly
-3. Evaluate for interactive development workflow
-4. Keep Maestro YAML as the CI/CD source of truth
-
----
-
-## Related Documentation
-
-- `mobile-app/ARCHITECTURE.md` - Mobile app architecture
-- `docs/debugging.md` - Debugging tips
-
----
-
-## Session Log
-
-### 2026-01-25: Maestro-Android Failure → Appium Exploration
-
-**Goal:** Validate existing E2E flows on Android
-
-**Maestro-Android Issue:**
-- **Symptom:** `UNAVAILABLE: io exception` - gRPC connection refused on port 7001
-- **Tried:** Cold reboot emulator, set JAVA_HOME, increase timeout, reinstall Maestro
-- **Result:** None worked. Maestro 2.1.0 cannot connect to Android emulators.
-- **Root cause:** Unknown. [GitHub issue #2749](https://github.com/mobile-dev-inc/maestro/issues/2749) closed without fix.
-- **mobile-mcp works:** Screenshots, element listing, interactions all work on Android
-
-**Language Discovery:**
-- iOS app displays in **German** (Kalender, Einstellungen)
-- Android app displays in **English** (Calendar, Settings)
-- Existing Maestro flows use German labels → would fail on Android anyway
-
-**Framework Comparison:**
-
-| Framework | iOS | Android | testID Support | Setup |
-|-----------|-----|---------|----------------|-------|
-| Maestro 2.1.0 | ✅ Works | ❌ Broken | ✅ `id: "foo"` | Low |
-| Detox | ✅ | ⚠️ [Known issues](https://github.com/wix/Detox/issues/3342) | ✅ `by.id('foo')` | Medium |
-| Appium | ✅ | ✅ | ✅ `accessibility id` | High |
-
-**Decision:** Explore Appium as alternative
-- More setup effort but works reliably on both platforms
-- Can reuse all existing testIDs (maps to `accessibility id` selector)
-- Tests written in JavaScript instead of YAML
-
-**Next steps:**
-1. ~~Set up Appium locally~~ ✅ Done
-2. ~~Write auth flow test for iOS + Android~~ ✅ Done
-3. ~~Compare test code complexity vs Maestro YAML~~ ✅ See below
-
----
-
-### Appium Proof-of-Concept Results
-
-**Setup:**
-- Appium 3.1.2 with Node 22 (Node 23 not supported)
-- XCUITest driver 10.18.1 (iOS)
-- UiAutomator2 driver 6.7.11 (Android)
-- WebdriverIO client
-
-**Test Results:**
-
-| Test | iOS | Android |
-|------|-----|---------|
-| Connect to device | ✅ | ✅ |
-| Launch app | ✅ | ✅ |
-| Find by text | ✅ | ✅ |
-| Find by testID | ✅ `~calendar-fab` | ✅ `resourceId("calendar-fab")` |
-| Tap elements | ✅ | ✅ |
-| Navigate screens | ✅ | ✅ |
-
-**Key Finding:** Appium works on Android where Maestro fails!
-
-**testID Selectors by Platform:**
-```javascript
-// iOS - accessibility id
-const element = await driver.$(`~${testId}`);
-
-// Android - resource id
-const element = await driver.$(`android=new UiSelector().resourceId("${testId}")`);
-
-// Cross-platform helper
-function findByTestId(driver, testId, platform) {
-  if (platform === 'ios') {
-    return driver.$(`~${testId}`);
-  } else {
-    return driver.$(`android=new UiSelector().resourceId("${testId}")`);
-  }
-}
-```
-
----
-
-### Maestro vs Appium: Code Comparison
-
-**Maestro YAML (auth flow excerpt):**
-```yaml
-appId: com.openworkinghours.mobileapp
----
-- launchApp:
-    clearState: true
-- tapOn:
-    id: "register-button"
-- inputText:
-    id: "email-input"
-    text: "test@example.com"
-- tapOn:
-    id: "send-code-button"
-```
-
-**Appium JavaScript (equivalent):**
-```javascript
-const driver = await remote({ /* capabilities */ });
-await driver.$('~register-button').click();
-await driver.$('~email-input').setValue('test@example.com');
-await driver.$('~send-code-button').click();
-```
-
-**Comparison:**
-
-| Aspect | Maestro | Appium |
-|--------|---------|--------|
-| Lines for same flow | ~20 | ~30 |
-| Language | YAML | JavaScript |
-| Learning curve | Low | Medium |
-| IDE support | Limited | Full (types, debugging) |
-| Platform coverage | iOS only (for us) | iOS + Android |
-| testID reuse | ✅ | ✅ |
-| CI/CD | Maestro Cloud | Any CI with simulators |
-
----
-
-### Recommendation
-
-**For this project, switch to Appium because:**
-
-1. **Android works** - Maestro is broken on Android, no ETA for fix
-2. **testIDs transfer** - All existing testIDs work with Appium
-3. **More robust** - Enterprise-proven, better error handling
-4. **Full debugging** - JavaScript with IDE support vs YAML
-
-**Trade-offs accepted:**
-- More verbose test code (30% more lines)
-- Requires Node 22 (not 23)
-- Higher initial setup complexity (already done)
-
-**Migration path:**
-1. ~~Keep Maestro flows as reference~~ ✅ Done
-2. ~~Write Appium equivalents in `/mobile-app/e2e/`~~ ✅ Done
-3. Run on both platforms in CI - Future
-
----
-
-## Quick Commands (Appium)
-
-```bash
-# Prerequisites
-brew install node@22
-export PATH="/opt/homebrew/opt/node@22/bin:$PATH"
-
-# Install dependencies (one-time)
 cd mobile-app/e2e
 npm install
 
-# Start Appium server (in separate terminal)
-cd /tmp/appium-test && npx appium --allow-cors --relaxed-security
+# Start infrastructure (terminal 1)
+npm run infra:ios      # or infra:android, infra:both
 
-# Run tests
-cd mobile-app/e2e
-node run-tests.js ios all        # All tests on iOS
-node run-tests.js android all    # All tests on Android
-node run-tests.js ios calendar   # Single flow
+# Run tests (terminal 2)
+npm run test:ios       # or test:android
+npm run test:shifts    # single suite: auth, calendar, location, shifts
 ```
+
+See `mobile-app/e2e/README.md` for full setup (driver installation, device auto-detection, env overrides).
 
 ---
 
-### 2026-01-25: Maestro-iOS Accessibility Investigation
-- **Goal:** Investigate why Maestro can't find elements by testID even when mobile-mcp sees them
-- **Root cause discovered:** Nested accessible elements on iOS
-  - Container Views intercept accessibility queries
-  - Maestro docs confirm: "nested tappable/accessible elements on iOS" require fix
-- **Solution:** Add `accessible={false}` to container Views
-- **Files fixed:**
-  - `CalendarFAB.tsx:69` - Container around FAB button
-  - `CalendarHeader.tsx:94` - Container around nav arrows
-  - `TemplatePanel.tsx:267` - Changed `accessibilityViewIsModal` to `accessible={false}`
-- **Verified working:**
-  - `tapOn: id: "calendar-fab"` ✅
-  - `tapOn: id: "calendar-prev"` ✅
-  - `tapOn: id: "template-add"` ✅
-- **Remaining issue:** Complex nested forms (edit form inside modal) still need coordinates
-- **Updated shift-management.yaml:** Now uses hybrid approach (testID where possible, coordinates for form)
-- **Documentation:** Added "Maestro-iOS Compatibility" section to ACCESSIBILITY_PLAN.md
+## Test Coverage
 
-### 2026-01-24: MCP Evaluation & Calendar Flow Fix
-- **MCP servers tested:** Both `maestro` and `mobile-mcp` working
-- **Comparison findings:**
-  | Aspect | Maestro MCP | mobile-mcp |
-  |--------|-------------|------------|
-  | App Launch | Timeout issues | ✅ Works |
-  | View Hierarchy | ✅ Full tree with testIDs | ⚠️ Misses some elements |
-  | Tap by testID | ✅ Works | ❌ Not supported |
-  | YAML flows | ✅ `run_flow` tool | ❌ Not available |
-- **Calendar flow fixes:**
-  - Updated `appId` from `host.exp.Exponent` to `com.openworkinghours.mobileapp`
-  - Added coordinate tap fallback for tab navigation
-  - Added `optional: true` with testID + text fallback for Speichern button
-- **Accessibility fix:** Added `accessible={false}` to TemplatePanel edit form container
-  - File: `mobile-app/src/modules/calendar/components/TemplatePanel.tsx:324`
-  - Reason: Parent View was grouping all children into one accessibility element
-  - Effect: Exposes `template-save` testID to Maestro (requires app rebuild)
-- **Recommendation:** Use coordinate taps for this app due to accessibility bug; MCP tools for interactive debugging
-- **Final test result:** ✅ Calendar shift-management flow PASSED with coordinate-based approach
-- **Workaround:** TestID/text-based taps trigger `kAXErrorInvalidUIElement` - use `point: "X%,Y%"` instead
+| Suite | Tests | What's covered |
+|-------|-------|----------------|
+| auth | 6 | Welcome screen → email → code → registration → main app |
+| calendar | 7 | Tab navigation, FAB menu, week prev/next, month/week toggle |
+| shifts | 8 | FAB → shifts panel, create template, edit name, save, persistence, close |
+| location | 11 | Settings nav, add location wizard (search → radius → name), conditional skip if configured |
+| **Total** | **32** | |
 
-### 2026-01-27: Android E2E - Tab Fix Complete, Test Infrastructure Issues Found
+### Not yet covered (next priorities)
 
-**Goal:** Verify Android tab bar testID fix and run full E2E suite
+**High — core user flows:**
+1. Absence template creation (mirrors shift flow, absences tab)
+2. Template arming + day tap (arm template → tap calendar day → verify instance)
+3. Manual session logging (FAB → Log Hours → form → save)
 
-**Tab Bar Fix - COMPLETE ✅**
+**Medium — important but less frequent:**
+4. Shift/absence deletion + confirm alert
+5. Overlap detection (two overlapping shifts → warning)
+6. Settings (language toggle, account info)
+7. Location management (edit/delete existing)
 
-The Android tab navigation blocker was caused by using the wrong React Navigation property:
-
-| Issue | Details |
-|-------|---------|
-| **Symptom** | Tab bar testIDs not exposed to UiAutomator2 |
-| **Root cause** | Used `tabBarTestID` (doesn't exist in React Navigation v7) |
-| **Solution** | Changed to `tabBarButtonTestID` (correct property) |
-| **File** | `mobile-app/src/navigation/AppNavigator.tsx` lines 84, 96, 108 |
-| **Verification** | iOS accessibility tree shows `identifier: "tab-status"` etc. ✅ |
-
-**TEST_MODE Build - WORKING ✅**
-
-Created `e2e-testing` EAS build profile with TEST_MODE enabled:
-
-```json
-// eas.json
-"e2e-testing": {
-  "distribution": "internal",
-  "env": { "TEST_MODE": "true" },
-  "ios": { "simulator": true },
-  "android": { "buildType": "apk" }
-}
-```
-
-- Build ID: `dd2a2d0c-21a9-411c-aa57-ef48bb8039be`
-- APK: `https://expo.dev/artifacts/eas/tj15aKbkvzV1sFnqs8EJY7.apk`
-- Mock auth code "123456" verified working ✅
-
-**Android E2E Test Results**
-
-| Test Suite | Result | Issue |
-|------------|--------|-------|
-| Auth (6 tests) | ✅ PASS | User already logged in - tests skipped gracefully |
-| Calendar (7 tests) | ❌ FAIL | App not authenticated when tests run |
-| Location | Not run | Depends on calendar |
-
-**Root Cause Analysis - Test Infrastructure Issues**
-
-The tab fix IS correct. Calendar test failures are caused by:
-
-1. **App state mismatch**: `pm clear` resets app, tests expect authenticated state
-2. **Permission dialogs**: Notification permission dialog blocks test flow
-3. **Test ordering**: Calendar tests run independently, don't ensure auth first
-4. **navigateToTab() fallback fails**: When tab bar isn't visible (unauthenticated), both testID and text search fail
-
-**Specific Error:**
-```
-element ("android=new UiSelector().textContains("Calendar")") still not displayed after 5000ms
-```
-
-This happens because:
-1. App cleared → shows Welcome screen
-2. `navigateToTab('calendar')` tries testID `tab-calendar` → fails (no tab bar visible)
-3. Falls back to text "Calendar" → fails (no tab bar visible)
-4. Test fails
-
-**Investigation Steps Performed:**
-
-1. ✅ Built e2e-testing APK with TEST_MODE
-2. ✅ Installed on emulator
-3. ✅ Verified TEST_MODE works (code 123456 accepted)
-4. ✅ Ran auth tests → passed
-5. ❌ Ran calendar tests → failed (app on Welcome screen)
-6. ✅ Identified permission dialog blocking
-7. ✅ Diagnosed test ordering/state issue
-
-**Files Changed This Session:**
-
-| File | Change |
-|------|--------|
-| `AppNavigator.tsx` | `tabBarTestID` → `tabBarButtonTestID` |
-| `eas.json` | Added `e2e-testing` profile |
-| `e2e/README.md` | Documented e2e-testing build |
-| `ARCHITECTURE.md` | Documented Android testID patterns |
-| `CLAUDE.md` | Updated status |
-
-**Next Session TODO:**
-
-1. **Add permission dialog handling** to test setup:
-   ```javascript
-   // In beforeAll or helper
-   async function dismissPermissionDialogs(driver) {
-     await dismissAlert(driver, 'Allow');
-     await dismissAlert(driver, 'Don\'t allow');
-   }
-   ```
-
-2. **Fix test ordering** - Options:
-   - Run auth test before calendar (test dependency)
-   - Add auth setup step to calendar test beforeAll
-   - Use `noReset: true` to preserve auth state between runs
-
-3. **Handle fresh app state** in calendar test:
-   ```javascript
-   beforeAll(async () => {
-     // If on Welcome screen, run quick auth
-     const welcomeVisible = await existsTestId(driver, 'register-button');
-     if (welcomeVisible) {
-       await performQuickAuth(driver);
-     }
-   });
-   ```
-
-4. **Verify Android tab testIDs** - Once authenticated:
-   ```javascript
-   // Should find tab by testID
-   const calendarTab = await byTestId(driver, 'tab-calendar');
-   expect(await calendarTab.isDisplayed()).toBe(true);
-   ```
-
-**Commands for Next Session:**
-
-```bash
-# Emulator setup
-emulator -avd Pixel_7a &
-adb wait-for-device
-
-# Install e2e-testing APK (already built)
-eas build:run --platform android --id dd2a2d0c-21a9-411c-aa57-ef48bb8039be
-
-# Run tests
-cd mobile-app/e2e
-npm run test:auth      # Should pass
-npm run test:calendar  # Currently fails - needs fix
-```
-
-**Key Files to Modify:**
-
-| File | What to Fix |
-|------|-------------|
-| `e2e/flows/calendar.test.js` | Add auth check in beforeAll |
-| `e2e/helpers/actions.js` | Add `performQuickAuth()` helper |
-| `e2e/helpers/driver.js` | Consider `noReset: true` option |
+**Lower — complex to simulate:**
+8. Data submission to backend (needs connectivity or mocking)
+9. Geofencing dashboard (needs location simulation)
+10. 14-day planned/tracked hours chart
 
 ---
 
-### 2026-01-28: Android Tests Passing, iOS Accessibility Issues Identified
+## Known Flakiness & Robustness Issues
 
-**Goal:** Verify E2E test stability on both platforms, continue multi-agent workflow exploration
+Track issues here as they appear. The goal is to fix each one with a helper or pattern, not just note it.
 
-**Final Results:**
+| Issue | Frequency | Current workaround | Proper fix |
+|-------|-----------|-------------------|------------|
+| FAB menu items not found on first tap | Occasional (iOS) | Retry logic in `calendar.test.js` with 15s timeout | Generic retry helper for flaky element interactions |
+| `isDisplayed()` unreliable for inline Animated.Views | Always | Use `isExisting()` instead | Document as standard pattern (not a bug) |
+| Android `getValue()` doesn't work on text inputs | Always | Use `getText()` on Android | Platform branch in helper |
+| First iOS run slow (WebDriverAgent build) | First run only | Wait | N/A — one-time cost |
 
-| Platform | Pass | Fail | Notes |
-|----------|------|------|-------|
-| Android | 32/32 | 0 | ✅ All tests passing |
-| iOS | 17/32 | 15 | ❌ FAB/template panel accessibility |
+### Timing log
 
-**Issues Found & Fixed:**
+Track how long test runs take to spot regressions:
 
-1. **Android FAB Menu Coordinate Tap (FIXED)**
-   - **Problem:** Shifts test failing - couldn't tap "Shifts" option in FAB menu
-   - **Root cause:** Wrong coordinates - used (55%, 47%) instead of (79%, 71%)
-   - **Fix:** Updated `shifts.test.js` line 86-87 with correct percentages
-   - **Verification:** Manual testing confirmed tap at (850, 1710) on 1080x2400 screen works
-
-2. **Template Panel Accessibility (FIXED in code, needs APK rebuild)**
-   - **Problem:** `template-add`, `template-name-input`, `template-save` not in Android accessibility tree
-   - **Root cause:** Parent Views aggregate children, hiding individual elements
-   - **Fix:** Added to `TemplatePanel.tsx`:
-     - `accessible={false} collapsable={false}` on container Views
-     - `accessible={true}` on TouchableOpacity buttons
-   - **Note:** Changes require APK rebuild to take effect
-
-3. **iOS XCUITest Accessibility Issue (NOT FIXED)**
-   - **Problem:** FAB menu items and template panel elements not visible to XCUITest
-   - **Observation:** Elements ARE visible in Maestro's view hierarchy
-   - **Root cause:** React Native's handling of conditionally-rendered positioned Views
-   - **Workaround options:** Coordinate taps or fix accessibility props + rebuild
-
-**Files Changed:**
-
-| File | Change |
-|------|--------|
-| `CalendarFAB.tsx` | Added `accessible={true}` to menu items, `accessible={false}` to container |
-| `TemplatePanel.tsx` | Added `accessible={false}` to header/editActions Views, `accessible={true}` to buttons |
-| `shifts.test.js` | Fixed FAB coordinates (79%, 71%), added Android skip logic for template tests |
-
-**Android Test Skip Logic:**
-
-```javascript
-// shifts.test.js - beforeAll
-if (driver.isAndroid) {
-  console.log('⚠️ Android: Skipping detailed shift tests - APK rebuild required');
-  skipAndroidTests = true;
-}
-```
-
-Tests skip gracefully with clear message, preventing false failures.
-
-**MCP Tools Used:**
-- `mobile-mcp`: Screenshots, element listing, coordinate taps
-- `mcp__maestro__inspect_view_hierarchy`: Found elements visible to Maestro but not XCUITest
-
-**Next Steps:** Superseded by 2026-01-29 session — see below.
+| Date | Platform | Total time | Notes |
+|------|----------|-----------|-------|
+| _(fill in next run)_ | | | |
 
 ---
 
-### 2026-01-29: iOS Modal Accessibility Deep Investigation
+## Architecture Decisions
 
-**Goal:** Understand and fix why iOS E2E tests fail for calendar/shifts flows.
+### Why Appium (not Maestro)
 
-**Key Discovery: ALL React Native Modal Content Is Invisible to XCUITest**
+Maestro 2.1.0 cannot connect to Android emulators (gRPC port 7001 failure, no fix available). Appium works on both platforms. Legacy Maestro flows are in `.maestro/` for reference only.
 
-Through systematic testing, we confirmed that XCUITest (used by Appium) **cannot see any elements rendered inside React Native's `<Modal>` component** on iOS. This affects 5 components:
+### Why inline Animated.View (not Modal)
 
-| Component | Uses Modal | Impact |
-|-----------|-----------|--------|
-| CalendarFAB | Yes (added this session, then reverted) | FAB menu items invisible |
-| TemplatePanel | Yes (always was) | All template management invisible |
-| ShiftEditModal | Yes | Shift editing invisible |
-| ManualSessionForm | Yes | Manual hour logging invisible |
-| WeekView (partial) | Yes | Unknown scope |
+React Native's `<Modal>` creates a separate native UIWindow on iOS. XCUITest (used by Appium) only queries the main window's accessibility tree → Modal content is invisible to tests. Inline `Animated.View` with `pointerEvents` and `accessibilityElementsHidden` provides identical UX while keeping elements in the main view tree.
 
-**Verification method:** Opened TemplatePanel via Maestro (which CAN see elements), then used Appium/XCUITest to query — every element (`template-add`, `absence-add`, `template-save`, text labels) returned `not visible`.
+**Pattern:**
+```tsx
+// All overlays/panels/sheets use this pattern
+<View style={StyleSheet.absoluteFill} pointerEvents={isOpen ? 'auto' : 'none'}>
+  <Animated.View style={[styles.panel, { transform: [{ translateY }] }]}>
+    {/* content — always in native view tree */}
+  </Animated.View>
+</View>
+```
 
-**What We Tried (CalendarFAB):**
+### Accessibility props for testability
 
-| Approach | Result | Why It Failed |
-|----------|--------|---------------|
-| Original (conditional render + absolute position) | ❌ | Elements not in accessibility tree until rendered |
-| Wrap in `<Modal>` | ❌ | Modal creates separate UIWindow, XCUITest doesn't query it |
-| Modal + separate absoluteFill dismiss overlay | ❌ | Overlay didn't help |
-| Modal + `<Pressable>` container | ❌ | Same UIWindow issue |
-| Modal + plain `<View>` with responder | ❌ (untested, reverted) | Fundamental Modal limitation |
-
-**Root Cause Analysis:**
-
-1. React Native's `<Modal>` creates a **new native UIWindow** on iOS
-2. XCUITest queries the **main window's** accessibility tree by default
-3. Elements in the Modal's UIWindow are simply not in the tree XCUITest inspects
-4. Maestro works because it uses its own view-hierarchy traversal (XCUIApplication.snapshot() with depth-60 fallback + element-by-element traversal)
-5. This is a **React Native + XCUITest limitation**, not a bug in our code or Appium
-
-**Framework Comparison Research:**
-
-| Framework | iOS | Android | Status |
-|-----------|-----|---------|--------|
-| Appium (XCUITest) | ❌ Can't see Modal content | ✅ Works | Active development |
-| Maestro 2.1.0 | ✅ Sees everything | ❌ gRPC broken on Apple Silicon | Stalled (no release in 12+ months) |
-| Detox | Would hit same Modal issue | Harder setup | Active |
-| Patrol | Flutter only | Flutter only | N/A |
-
-No single framework works reliably on both platforms for React Native. This is an industry-wide gap.
-
-**Recommended Solution: Replace Modals with Inline Rendering**
-
-Instead of `<Modal>`, use animated Views that are always in the DOM:
+XCUITest and UiAutomator2 both aggregate children into a single element when a parent is `accessible={true}` (the default for touchable components). To expose individual elements:
 
 ```tsx
-// BEFORE (invisible to XCUITest):
-<Modal visible={isOpen} transparent>
-  <TemplatePanel />
-</Modal>
-
-// AFTER (always in accessibility tree):
-<Animated.View
-  style={[styles.panel, { transform: [{ translateY: animValue }] }]}
-  pointerEvents={isOpen ? 'auto' : 'none'}
-  accessibilityElementsHidden={!isOpen}
->
-  <TemplatePanel />
-</Animated.View>
+// Container: transparent to accessibility tree
+<View accessible={false} collapsable={false}>
+  // Each interactive child: individually accessible
+  <TouchableOpacity testID="my-btn" accessible={true} accessibilityRole="button">
+    <Text>Tap me</Text>
+  </TouchableOpacity>
+</View>
 ```
 
-**Why this works:**
-- Elements are always in the native view tree (no conditional rendering)
-- `pointerEvents: 'none'` prevents interaction when hidden
-- `accessibilityElementsHidden` hides from VoiceOver when closed
-- `Animated.View` with `translateY` provides the same slide-up/down animation
-- Visually identical to Modal approach
-
-**Refactor scope:**
-1. CalendarFAB — smallest, prototype here first
-2. TemplatePanel — largest, most complex (tabs, forms, edit mode)
-3. ShiftEditModal — medium (form with inputs)
-4. ManualSessionForm — medium (date/time pickers)
-5. WeekView modal — need to assess
-
-**Why NOT other approaches:**
-- Coordinate taps: Only works for simple taps (FAB menu), not for form inputs in TemplatePanel
-- Hybrid Maestro iOS + Appium Android: ~40-60% more maintenance, Maestro development stalled
-- Replicating Maestro's view traversal: Significant reverse-engineering, fragile
-
-**Other Session Work:**
-- Built 3 EAS builds (e2e-testing profile, iOS + Android)
-- Android emulator had GPU/ADB connectivity issues (resolved by cold boot from Android Studio)
-- Confirmed Maestro MCP gRPC failure on Android (`UNAVAILABLE: io exception`)
-- Reverted CalendarFAB to pre-Modal state (original code is correct, Modal was wrong direction)
-
-**Files Changed (net, after revert):**
-- `CalendarFAB.tsx` — reverted to pre-session state
-- `TemplatePanel.tsx` — accessibility fixes remain from previous session
-- `app.json` — build numbers incremented (iOS: 45, Android: 3)
-
-**Next Steps (next session):** → Completed in second session below.
+**Rules:**
+- `TouchableWithoutFeedback` wrappers → `accessible={false}`
+- `ScrollView` with interactive children → `accessible={false}`
+- Container `View` with multiple children → `accessible={false}` + `collapsable={false}`
+- Never put `accessibilityLabel` on a container with interactive children
+- Never use `accessibilityRole="menu"` or `accessibilityViewIsModal` on containers
 
 ---
 
-### 2026-01-29 (Session 2): Modal → Inline Rendering Refactor
+## Cross-Platform Patterns
 
-**Goal:** Replace `<Modal>` with inline animated Views so all elements are in the main window's accessibility tree for XCUITest/Appium.
+### Selectors
 
-**Result:** 3 components refactored, 1 deleted. Visually tested on iOS simulator + Android emulator. All panels and overlays behave identically to the Modal versions.
-
-**Components Refactored:**
-
-| Component | Change | Complexity |
-|-----------|--------|------------|
-| CalendarFAB | Conditional render → always-render with opacity/pointerEvents | Low |
-| TemplatePanel | `<Modal>` → `<Animated.View>` slide-up + BackHandler | High |
-| ManualSessionForm | `<Modal>` + early return → `<Animated.View>` slide-up + BackHandler | Medium |
-| ShiftEditModal | **Deleted** — dead code, unused since native time picker replaced it | N/A |
-
-**Shared Inline Rendering Pattern:**
-
-All bottom-sheet components (TemplatePanel, ManualSessionForm) now use this structure:
-```
-absoluteFill root (pointerEvents, accessibilityElementsHidden)
-  └─ Wrapper (flex:1, justifyContent:flex-end)
-       ├─ Overlay (absoluteFill, animated opacity, tap-to-dismiss)
-       └─ panelWrapper (maxHeight:80%, animated translateY)
-            └─ TouchableWithoutFeedback (blocks tap-through)
-                 └─ card (rounded corners, content)
+```javascript
+// helpers/selectors.js
+byTestId(driver, 'calendar-fab')    // iOS: ~calendar-fab, Android: UiSelector.resourceId
+byI18nFast(driver, 'calendar')      // Matches "Kalender" OR "Calendar"
 ```
 
-CalendarFAB uses a different pattern (no slide animation):
+### Platform-specific behaviors
+
+| Behavior | iOS | Android |
+|----------|-----|---------|
+| testID selector | `~testId` (accessibility id) | `UiSelector().resourceId("testId")` |
+| Text input value | `getValue()` | `getText()` |
+| Back button | Overlay tap (W3C Actions API) | `driver.pressKeyCode(4)` |
+| System permission dialogs | "Allow" / "Erlauben" | Resource ID: `com.android.permissioncontroller:id/permission_allow_button` |
+| App locale | Follows device | Follows device |
+
+### TEST_MODE builds
+
+E2E tests require `TEST_MODE=true` builds (mock auth with code "123456"):
+
+```bash
+eas build --profile e2e-testing --platform ios
+eas build --profile e2e-testing --platform android
 ```
-absoluteFill root (pointerEvents="box-none")
-  ├─ Overlay (absoluteFill, tap-to-dismiss, conditional pointerEvents)
-  ├─ Menu (absolute position, opacity toggle, accessibilityElementsHidden)
-  └─ FAB button (absolute position, bottom-right)
-```
-
-**Android-Specific Issues Discovered & Fixed:**
-
-1. **FAB menu clipping** — Android clips children beyond parent bounds (unlike iOS). Menu was a child of the FAB container, positioned above it with `bottom: 64`. Fix: moved menu and FAB to be siblings inside a shared `absoluteFill` View, each independently absolutely positioned.
-
-2. **Keyboard flicker in TemplatePanel** — `KeyboardAvoidingView` with `behavior="height"` on Android caused rapid layout oscillation when combined with `Animated.View` translateY. The system `adjustResize` was already handling keyboard avoidance, so `KeyboardAvoidingView` was double-adjusting. Fix: conditional `Wrapper` — `KeyboardAvoidingView` on iOS, plain `View` on Android.
-
-3. **ManualSessionForm dismiss not working** — Panel used `flex: 1` on the wrapper, covering the overlay and blocking tap-to-dismiss. Fix: matched TemplatePanel's flex layout (overlay as absoluteFill, panel pushed to bottom by `justifyContent: flex-end`).
-
-4. **iOS picker not dismissible** — DateTimePicker overlay rendered behind the panel. Fix: added `TouchableWithoutFeedback` background to picker overlay for tap-outside-to-cancel.
-
-5. **FAB not hiding when ManualSessionForm opens** — Previously Modal covered everything. Now FAB needs explicit hide condition. Fix: added `state.manualSessionFormOpen` to FAB's hide condition.
-
-**What Was NOT Refactored:**
-- WeekView submit tooltip modal (`WeekView.tsx:2654`) — only shows once on first use, not E2E-critical. Can be refactored later if needed.
-
-**Files Changed:**
-
-| File | Change |
-|------|--------|
-| `CalendarFAB.tsx` | Rewrote: absoluteFill wrapper, menu + FAB as positioned siblings, hide when ManualSessionForm open |
-| `TemplatePanel.tsx` | Removed Modal, added Animated.View + BackHandler, conditional iOS/Android Wrapper |
-| `ManualSessionForm.tsx` | Removed Modal + early return, added Animated.View + BackHandler + conditional Wrapper, fixed layout to match TemplatePanel |
-| `ShiftEditModal.tsx` | **Deleted** — dead code (WeekView comment: "using native time picker for start time only") |
-
-**E2E Testability Verification:**
-- `accessibilityElementsHidden={!isOpen}` hides closed panels from VoiceOver/TalkBack
-- `pointerEvents: 'none'` prevents interaction with hidden content
-- All elements always in the main window's native view tree
-- `testID` props preserved on all interactive elements
-- No `accessible` or `accessibilityElementsHidden` on root wrappers that would hide the FAB
-
-**Next Steps:**
-1. Build fresh iOS + Android e2e-testing builds (EAS)
-2. Run full Appium E2E suite on iOS — expect previously-failing calendar/shifts tests to pass
-3. Run full Appium E2E suite on Android — confirm no regressions
-4. Remove Android test skip logic for shift template tests
-5. Target: 32/32 on both platforms
 
 ---
 
-### 2026-01-24: Auth Flow Validation
-- **Xcode:** Upgraded to 16.x, installed iOS 18.6 simulator
-- **Build:** Successfully built dev client with `npx expo run:ios`
-- **TEST_MODE:** Fixed config override issue in `app.config.js`
-- **Auth Flow:** Validated complete registration flow
-- **Issues Fixed:** Dev client handling, notification dialogs, debug panel, keyboard, alerts
-- **Result:** Auth registration E2E test passing
+## File Reference
 
-### 2026-01-24: Location Flow Validation
-- **Status screen issue:** Discovered Maestro accessibility bug with HoursSummaryWidget chart
-- **Workaround:** Navigate via Settings using coordinate taps to avoid Status screen
-- **Location setup:** Full 3-step wizard working (search → radius → name → save)
-- **Key fixes:**
-  - Use German UI labels ("Arbeitsorte", "Neuen Standort hinzufügen")
-  - Handle location permission dialog with optional "OK" tap
-  - Use coordinate tap for Settings tab and Step 3 save button
-- **Result:** Location setup E2E test passing
+```
+mobile-app/e2e/
+├── helpers/
+│   ├── driver.js       # Appium caps, device auto-detection
+│   ├── selectors.js    # byTestId, byI18nFast, bilingual dictionary
+│   └── actions.js      # tapTestId, ensureAuthenticated, dismissPermissionDialogs
+├── flows/
+│   ├── auth.test.js
+│   ├── calendar.test.js
+│   ├── location.test.js
+│   └── shifts.test.js
+├── start-infra.sh      # Starts Appium + simulator/emulator
+├── jest.config.js      # 120s timeout, verbose
+└── package.json        # webdriverio ^9, jest ^29
+```
+
+---
+
+## Troubleshooting
+
+| Problem | Fix |
+|---------|-----|
+| "No booted iOS simulator found" | `open -a Simulator`, wait for boot |
+| "No running Android emulator found" | `emulator -list-avds` then `emulator -avd <name>` |
+| WebDriverAgent build timeout (iOS) | First run takes minutes — wait |
+| Element not found | Check app state (authenticated?), verify testID in code, check `accessible` props |
+| Android testID invisible | Parent needs `accessible={false}`, element needs `accessible={true}` |
+| Node version error | Use Node 20 or 22 (not 23) — `start-infra.sh` handles this |

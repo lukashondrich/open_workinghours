@@ -5,7 +5,6 @@ import {
   TouchableOpacity,
   TouchableWithoutFeedback,
   StyleSheet,
-  Platform,
 } from 'react-native';
 import { Plus, X } from 'lucide-react-native';
 
@@ -82,16 +81,15 @@ export default function CalendarFAB() {
           style={[styles.menu, { opacity: menuVisible ? 1 : 0 }]}
           pointerEvents={menuVisible ? 'auto' : 'none'}
           accessibilityElementsHidden={!menuVisible}
-          accessibilityRole="menu"
-          accessibilityViewIsModal={Platform.OS === 'ios' && menuVisible}
-          accessibilityLabel={t('calendar.fab.menuLabel')}
+          accessible={false}
         >
           <TouchableOpacity
             style={styles.menuItem}
             onPress={() => handleOptionPress('absences')}
             activeOpacity={0.7}
             testID="fab-absences-option"
-            accessibilityRole="menuitem"
+            accessible={true}
+            accessibilityRole="button"
             accessibilityLabel={t('calendar.fab.absences')}
           >
             <Text style={styles.menuItemText}>{t('calendar.fab.absences')}</Text>
@@ -102,7 +100,8 @@ export default function CalendarFAB() {
             onPress={() => handleOptionPress('shifts')}
             activeOpacity={0.7}
             testID="fab-shifts-option"
-            accessibilityRole="menuitem"
+            accessible={true}
+            accessibilityRole="button"
             accessibilityLabel={t('calendar.fab.shifts')}
           >
             <Text style={styles.menuItemText}>{t('calendar.fab.shifts')}</Text>
@@ -113,7 +112,8 @@ export default function CalendarFAB() {
             onPress={handleLogHoursPress}
             activeOpacity={0.7}
             testID="fab-log-hours-option"
-            accessibilityRole="menuitem"
+            accessible={true}
+            accessibilityRole="button"
             accessibilityLabel={t('calendar.fab.logHours')}
           >
             <Text style={styles.menuItemText}>{t('calendar.fab.logHours')}</Text>

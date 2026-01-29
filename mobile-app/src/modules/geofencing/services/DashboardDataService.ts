@@ -4,10 +4,8 @@ import { getCalendarStorage } from '@/modules/calendar/services/CalendarStorage'
 import type { ShiftInstance, ShiftColor, AbsenceInstance } from '@/lib/calendar/types';
 import {
   getAbsencesForDate,
-  calculateEffectivePlannedMinutes,
-  getDayBounds,
-  computeOverlapMinutes,
 } from '@/lib/calendar/calendar-utils';
+import { computePlannedMinutesForDate, computeEffectivePlannedMinutesForDate, getDayBounds, computeOverlapMinutes } from '@/lib/calendar/time-calculations';
 
 export interface DailyHoursData {
   date: string; // YYYY-MM-DD
@@ -39,44 +37,6 @@ export interface DashboardData {
   isLive: boolean; // true if user is currently clocked in
 }
 
-/**
- * Get planned minutes for a specific date from shift instances
- */
-function computePlannedMinutes(
-  instances: Record<string, ShiftInstance>,
-  dateKey: string
-): number {
-  const { start: dayStart, end: dayEnd } = getDayBounds(dateKey);
-
-  return Object.values(instances).reduce((total, instance) => {
-    // Check if instance is on this date
-    if (instance.date !== dateKey) {
-      // Check for overnight overflow from previous day
-      const prevDate = format(subDays(parseISO(dateKey), 1), 'yyyy-MM-dd');
-      if (instance.date !== prevDate) return total;
-
-      // Calculate if previous day's instance overflows into this day
-      const [year, month, day] = instance.date.split('-').map(Number);
-      const [startHour, startMinute] = instance.startTime.split(':').map(Number);
-      const instanceStart = new Date(year, month - 1, day, startHour, startMinute, 0, 0);
-      const instanceEnd = new Date(instanceStart.getTime() + instance.duration * 60000);
-
-      // Check if it overflows into the current day
-      if (instanceEnd > dayStart) {
-        return total + computeOverlapMinutes(instanceStart, instanceEnd, dayStart, dayEnd);
-      }
-      return total;
-    }
-
-    // Instance is on this date
-    const [year, month, day] = instance.date.split('-').map(Number);
-    const [startHour, startMinute] = instance.startTime.split(':').map(Number);
-    const instanceStart = new Date(year, month - 1, day, startHour, startMinute, 0, 0);
-    const instanceEnd = new Date(instanceStart.getTime() + instance.duration * 60000);
-
-    return total + computeOverlapMinutes(instanceStart, instanceEnd, dayStart, dayEnd);
-  }, 0);
-}
 
 /**
  * Load dashboard data for the Status screen
@@ -155,14 +115,10 @@ export async function loadDashboardData(accountCreatedAt?: string): Promise<Dash
     const hasVacation = dayAbsences.some((a) => a.type === 'vacation');
     const hasSick = dayAbsences.some((a) => a.type === 'sick');
 
-    // Calculate planned minutes (raw)
-    const rawPlannedMinutes = computePlannedMinutes(instances, dateKey);
-
-    // Calculate effective planned minutes (accounting for absences)
-    const shiftsForDay = Object.values(instances).filter((i) => i.date === dateKey);
+    // Calculate planned minutes (accounting for absences + overnight shifts)
     const plannedMinutes = dayAbsences.length > 0
-      ? calculateEffectivePlannedMinutes(shiftsForDay, dayAbsences)
-      : rawPlannedMinutes;
+      ? computeEffectivePlannedMinutesForDate(instances, dayAbsences, dateKey)
+      : computePlannedMinutesForDate(instances, dateKey);
 
     // Calculate actual minutes from sessions
     let actualMinutes = 0;
