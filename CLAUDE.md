@@ -188,86 +188,37 @@ All new UI **must** be testable by Appium (XCUITest on iOS, UiAutomator2 on Andr
 
 ## Recent Updates (Last 7 Days)
 
+### 2026-01-30: E2E Expansion — 51 Tests, Local Build Strategy
+
+**Summary:** Expanded E2E from 32 → 51 tests. Added robustness helpers (`dismissSystemDialogs`, `waitForTestIdWithRetry`). Created 3 new test suites (absences, template arming, manual session). Added testIDs to MonthView, ManualSessionForm, TemplatePanel absence form. Documented local Xcode build strategy to replace EAS for iteration.
+
+**Test Results:** 51/51 passing on iOS. See `docs/E2E_TESTING_PLAN.md` for full coverage table, known issues, and testID reference.
+
+**Key additions:**
+- `dismissSystemDialogs()` — comprehensive iOS/Android dialog dismissal (replaces `dismissPermissionDialogs`)
+- `waitForTestIdWithRetry()` — generic retry helper for flaky elements
+- `absences.test.js` (8 tests), `manual-session.test.js` (8 tests), shifts arming (+3 tests)
+- MonthView day cell testIDs (`month-day-YYYY-MM-DD` + indicator testIDs)
+- ManualSessionForm + TemplatePanel absence form testIDs
+- **Local build strategy:** Xcode 26.2 + CocoaPods verified ready. Use `TEST_MODE=true npx expo run:ios` for simulator builds, EAS only for device/TestFlight. See `docs/E2E_TESTING_PLAN.md` → Build Strategy.
+
+**Detailed reference:** `docs/E2E_TESTING_PLAN.md` (testID reference, build strategy, architecture decisions, session log)
+
 ### 2026-01-29: E2E Tests — Both Platforms 32/32, Zero Skips
 
-**Summary:** Four sessions this day. (1) Identified Modal→inline rendering as the fix for iOS E2E. (2) Refactored CalendarFAB, TemplatePanel, ManualSessionForm from `<Modal>` to inline `<Animated.View>`. (3) Fixed CalendarFAB accessibility props — iOS calendar tests: 0/7 → 7/7. (4) Fixed TemplatePanel accessibility + removed Android skip guards — both platforms now 32/32 with zero skips.
-
-**Session 4: TemplatePanel Accessibility Fix + Android Unskip**
-- **Problem:** TemplatePanel elements (`template-add`, `template-name-input`, `template-save`) not in XCUITest accessibility tree despite inline rendering refactor
-- **Root cause:** `TouchableWithoutFeedback` wrapper around panel is inherently `accessible={true}` on iOS, causing XCUITest to aggregate all children into one element
-- **Fix:** Added `accessible={false}` to `TouchableWithoutFeedback` wrapper, `ScrollView`, tab bar container, and template list container. Removed `accessibilityLabel` from panel View.
-- **Test fixes:** Arming test reopens panel via tab switch + FAB (save closes panel); close test uses W3C Actions API for overlay tap; `isDisplayed` → `isExisting` for XCUITest; `getValue()` → `getText()` for Android UiAutomator2
-- **Android:** Removed all `skipAndroidTests` guards — APK now has accessibility fixes baked in
-
-**Final Test Results (both platforms, e2e-testing build):**
-
-| Suite | iOS | Android |
-|-------|-----|---------|
-| auth | 6/6 | 6/6 |
-| calendar | 7/7 | 7/7 |
-| shifts | **8/8** | **8/8** |
-| location | 11/11 | 11/11 |
-| **Total** | **32/32** | **32/32** |
-
-**Files Changed (Session 4):**
-- `TemplatePanel.tsx` — `accessible={false}` on TouchableWithoutFeedback, ScrollView, tab bar, template list
-- `e2e/flows/shifts.test.js` — Removed Android skip guards, fixed arming/close/getValue tests
-- `e2e/flows/calendar.test.js` — FAB menu retry logic with increased timeout
+**Summary:** Four sessions. Modal→inline rendering, CalendarFAB/TemplatePanel accessibility fixes. Both platforms 32/32 with zero skips.
 
 **Detailed session log:** `docs/E2E_TESTING_PLAN.md` → Session Log → 2026-01-29
 
-### 2026-01-28: Android E2E Stable (32/32), iOS Accessibility Issues
+### 2026-01-28: Android E2E Stable (32/32)
 
-**Summary:** Android E2E tests fully passing. iOS had accessibility issues with FAB menu and template panel — fixed in 2026-01-29 sessions.
+Android fully passing. iOS accessibility issues fixed in 2026-01-29 sessions.
 
-**Detailed session log:** `docs/E2E_TESTING_PLAN.md` → Session Log → 2026-01-28
+### 2026-01-27: Android E2E — All 24 Tests Passing
 
----
+Android permission handling, auth state management, FAB accessibility. Framework: Appium 3.1.2 + WebdriverIO + Jest + Node 22.
 
-### 2026-01-27: Android E2E Testing - All 24 Tests Passing ✅
-
-**Summary:** Android E2E tests fully working. All infrastructure issues resolved.
-
-**Test Results:**
-- ✅ **iOS:** 24/24 tests passing
-- ✅ **Android:** 24/24 tests passing
-- ✅ **Framework:** Appium 3.1.2 + WebdriverIO + Jest + Node 22
-
-**Fixes Implemented:**
-
-1. **Android System Permission Handling** (`helpers/actions.js`)
-   - Added `dismissAndroidSystemDialog()` for Android 13+ permission dialogs
-   - Uses UiAutomator resource IDs: `com.android.permissioncontroller:id/permission_allow_button`
-   - Auto-dismisses notification permission and location permission dialogs
-
-2. **Auth State Management** (`helpers/actions.js`)
-   - Added `isAuthenticated()` - checks if user is logged in (tab bar visible)
-   - Added `ensureAuthenticated()` - performs TEST_MODE login if needed
-   - Calendar and location tests now use `ensureAuthenticated()` in beforeAll
-
-3. **FAB Menu Accessibility** (`CalendarFAB.tsx`)
-   - Added `accessible={true}` to menu items for Android accessibility tree exposure
-   - Note: Requires APK rebuild to take effect; test uses visual verification for now
-
-**Files Changed:**
-- `mobile-app/e2e/helpers/actions.js` - Permission handling, auth helpers
-- `mobile-app/e2e/helpers/selectors.js` - Added `shifts`, `absences` i18n keys
-- `mobile-app/e2e/flows/calendar.test.js` - Use `ensureAuthenticated()`, FAB test fix
-- `mobile-app/e2e/flows/location.test.js` - Use `ensureAuthenticated()`
-- `mobile-app/src/modules/calendar/components/CalendarFAB.tsx` - Added `accessible={true}`
-
-**Known Limitations:**
-- FAB menu items not in Android accessibility tree until APK rebuild
-- Location wizard tests skipped when location already configured (expected behavior)
-
-**Commands:**
-```bash
-# Run Android tests
-cd mobile-app/e2e && npm run test:android
-
-# Run iOS tests
-cd mobile-app/e2e && npm run test:ios
-```
+**Detailed session log:** `docs/E2E_TESTING_PLAN.md` → Session Log → 2026-01-27
 
 ### 2026-01-26: E2E Testing - iOS Working, Tab Fix Applied
 - **iOS:** 24/24 tests passing ✅
