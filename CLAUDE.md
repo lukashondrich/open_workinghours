@@ -222,19 +222,21 @@ All new UI **must** be testable by Appium (XCUITest on iOS, UiAutomator2 on Andr
 
 **Docs updated:** `docs/deployment.md` (new Database Backups section), `docs/data-retention-policy.md` (updated backup architecture)
 
-### 2026-02-03: Android E2E Verification + Documentation Restructure
+### 2026-02-03: E2E Validation — iOS 48/48, Android 45/48
 
-**Summary:** Verified Android E2E tests (45-48/48, ~75-80% stable). Fixed Background Permission dialog blocking. Restructured `e2e/README.md` with Runbook pattern for agent-friendly progressive disclosure.
+**Summary:** Full E2E validation after iOS rebuild to include testID changes. Both platforms verified.
 
 **Platform comparison:**
-| Platform | Tests | Time | Stability |
-|----------|-------|------|-----------|
-| iOS | 48/48 | ~200s | ~100% |
-| Android | 45-48/48 | ~130-160s | ~75-80% |
+| Platform | Tests | Time | Stability | Notes |
+|----------|-------|------|-----------|-------|
+| iOS | 48/48 | ~203s | 100% | Required rebuild for MonthView testIDs |
+| Android | 45/48 | ~176s | 93.75% | 3 failures in shifts (known flakiness) |
 
-**Known flakiness:** Shifts test after absences on Android (~25% failure rate) — panel not consistently dismissed after double-tap.
+**iOS rebuild was required** because uncommitted changes to `MonthView.tsx` added testIDs for vacation/sick icons (`month-day-${dateKey}-vacation`, `month-day-${dateKey}-sick`). Without rebuild, absences tests failed looking for these testIDs.
 
-**Docs:** `e2e/README.md` now has Runbook at top (TL;DR → Platform comparison → Checklist → Quick start → Common issues). Deep reference stays in `docs/E2E_TESTING_PLAN.md`.
+**Android known flakiness:** Shifts test fails ~25% of runs after absences suite — template panel doesn't consistently dismiss after double-tap shift placement, blocking Month toggle.
+
+**Docs:** `e2e/README.md` has Runbook pattern. Deep reference in `docs/E2E_TESTING_PLAN.md`.
 
 ### 2026-02-03 (earlier): TEST_MODE Expansion for E2E Stability
 

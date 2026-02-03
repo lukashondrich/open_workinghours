@@ -441,6 +441,33 @@ These were identified during the 2026-01-31 review. Fixes #2, #5, #7, #8 are don
 
 ## Session Log
 
+### 2026-02-03 (session 3): Full E2E Validation — iOS 48/48, Android 45/48
+
+**Goal:** Validate E2E test suite on both platforms after recent testID and TEST_MODE changes.
+
+**Key finding:** iOS tests failed (6/48) because MonthView testIDs for vacation/sick icons weren't in the installed app. Required `npm run build:ios` to include uncommitted changes.
+
+**Uncommitted changes requiring rebuild:**
+- `MonthView.tsx` — Added `month-day-${dateKey}-vacation` and `month-day-${dateKey}-sick` testIDs
+- `TemplatePanel.tsx`, `ManualSessionForm.tsx` — TEST_MODE animation skipping
+- `mockApi.ts`, `GeocodingService.ts` — TEST_MODE geocoding mocking
+
+**Results after iOS rebuild:**
+
+| Platform | Tests | Time | Pass Rate |
+|----------|-------|------|-----------|
+| iOS | 48/48 | 203s | 100% |
+| Android | 45/48 | 176s | 93.75% |
+
+**Android failures (3):** All in `shifts.test.js` — known flakiness after double-tap shift placement. Template panel doesn't consistently dismiss, blocking Month toggle access.
+
+**Lessons:**
+1. testID changes require app rebuild (baked into native tree)
+2. TEST_MODE changes require rebuild (baked at build time)
+3. Android local builds require working NDK setup — use EAS or existing APK as fallback
+
+---
+
 ### 2026-02-03 (session 2): Android Verification — 45-48/48
 
 **Goal:** Verify Android E2E tests work with recent TEST_MODE expansion.
