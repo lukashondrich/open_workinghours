@@ -6,7 +6,12 @@
  * Free, no API key required, GDPR-friendly (German company).
  *
  * API docs: https://photon.komoot.io/
+ *
+ * TEST_MODE: Returns mock result instantly to avoid network delays
+ * and DNS issues on simulators during E2E testing.
  */
+
+import { isTestMode, mockGeocodingResult } from '@/lib/testing/mockApi';
 
 export interface GeocodingResult {
   id: string;
@@ -84,6 +89,13 @@ export async function searchLocations(
 ): Promise<GeocodingResult[]> {
   if (!query.trim() || query.length < 3) {
     return [];
+  }
+
+  // TEST_MODE: Return mock result instantly for E2E stability
+  // Avoids 8s timeout and DNS issues on simulators
+  if (isTestMode()) {
+    console.log('[GeocodingService] TEST_MODE: Returning mock result');
+    return [mockGeocodingResult];
   }
 
   try {

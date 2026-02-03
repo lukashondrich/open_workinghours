@@ -20,6 +20,7 @@ import { t } from '@/lib/i18n';
 import { getDatabase } from '@/modules/geofencing/services/Database';
 import { trackingEvents } from '@/lib/events/trackingEvents';
 import type { UserLocation } from '@/modules/geofencing/types';
+import { isTestMode } from '@/lib/testing/mockApi';
 
 interface Props {
   visible: boolean;
@@ -34,6 +35,11 @@ export default function ManualSessionForm({ visible, defaultDate, onClose }: Pro
   const animValue = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    // TEST_MODE: Skip animation for instant E2E test interaction
+    if (isTestMode()) {
+      animValue.setValue(visible ? 1 : 0);
+      return;
+    }
     Animated.timing(animValue, {
       toValue: visible ? 1 : 0,
       duration: 300,

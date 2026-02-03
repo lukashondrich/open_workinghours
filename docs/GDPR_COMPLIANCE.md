@@ -149,10 +149,12 @@ No processors outside EU/EEA.
 ### Processor Notes
 
 **Hetzner (Backup Retention):**
-- Automated backups retained for 30 days
+- Daily PostgreSQL backups to Hetzner Object Storage (configured 2026-02-03)
+- **COMPLIANCE mode Object Lock**: Backups are immutable for 30 days
 - When a user deletes their account, their data persists in backups until rotation
 - This is documented in the Privacy Policy and accepted as standard practice
 - After 30 days, deleted user data is fully purged
+- See `docs/deployment.md` → Database Backups section for technical details
 
 **Brevo (Email Delivery):**
 - Used only for transient email delivery (verification codes)

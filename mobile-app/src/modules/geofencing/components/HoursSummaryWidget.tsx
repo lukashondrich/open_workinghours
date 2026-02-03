@@ -22,6 +22,7 @@ import { ChevronRight, TreePalm, Thermometer } from 'lucide-react-native';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
 import { t } from '@/lib/i18n';
 import { formatDuration } from '@/lib/calendar/calendar-utils';
+import { isTestMode } from '@/lib/testing/mockApi';
 import type { DailyHoursData } from '../services/DashboardDataService';
 import { format, parseISO } from 'date-fns';
 import { enUS } from 'date-fns/locale';
@@ -83,6 +84,11 @@ function Bar({ day, maxHours, chartHeight, isLive }: BarProps) {
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
+    // TEST_MODE: Skip pulse animation for stable E2E element detection
+    if (isTestMode()) {
+      pulseAnim.setValue(1);
+      return;
+    }
     if (day.isToday && isLive) {
       const pulse = Animated.loop(
         Animated.sequence([

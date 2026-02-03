@@ -88,14 +88,27 @@ After user deletion:
 
 | Type | Frequency | Retention | Location |
 |------|-----------|-----------|----------|
-| Full database backup | Daily at 02:00 UTC | 30 days | Hetzner Germany |
-| Transaction logs | Continuous | 7 days | Hetzner Germany |
+| Full database backup | Daily at 04:00 UTC | 30 days (immutable) | Hetzner Object Storage (Germany) |
 
-### 4.2 Backup Security
+### 4.2 Backup Architecture (Updated 2026-02-03)
 
-- Backups are encrypted at rest
-- Access restricted to authorized personnel only
-- Stored in same jurisdiction as primary data (Germany)
+Backups use Hetzner Object Storage with **COMPLIANCE mode Object Lock**:
+
+```
+PostgreSQL → pg_dump → gzip → S3 upload → Object Lock (30 days)
+```
+
+- **Bucket:** `owh-backups-prod`
+- **Endpoint:** `fsn1.your-objectstorage.com`
+- **Retention:** 30 days, COMPLIANCE mode (immutable — cannot be deleted by anyone)
+
+### 4.3 Backup Security
+
+- Backups are encrypted at rest (Hetzner Object Storage)
+- **Immutable:** COMPLIANCE mode Object Lock prevents deletion for 30 days
+- S3 credentials on server can upload but cannot delete locked objects
+- Management access (bucket settings, retention policy) requires separate Hetzner Console login with 2FA
+- Stored in same jurisdiction as primary data (Germany, Falkenstein)
 
 ### 4.3 Backup Deletion for Right to Erasure
 
@@ -168,8 +181,10 @@ DELETE FROM users WHERE id = :user_id;
 DELETE FROM verification_codes
 WHERE expires_at < NOW();
 
-# Backup rotation (cron job on server)
-# Configured in Hetzner backup settings: 30-day retention
+# Backup (cron job on server, daily 4 AM UTC)
+~/backup-postgres-s3.sh
+# Uploads to Hetzner Object Storage with COMPLIANCE Object Lock
+# Objects auto-expire after 30 days (immutable until then)
 ```
 
 ### 7.2 Monitoring

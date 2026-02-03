@@ -27,6 +27,7 @@ import { de as deLocale } from 'date-fns/locale/de';
 
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
 import { t, getDateLocale } from '@/lib/i18n';
+import { isTestMode } from '@/lib/testing/mockApi';
 import { useCalendar } from '@/lib/calendar/calendar-context';
 import {
   useZoom,
@@ -146,6 +147,11 @@ function TrackingBadge({
   const [dragEndDelta, setDragEndDelta] = useState(0);
 
   useEffect(() => {
+    // TEST_MODE: Skip pulse animation for stable E2E element detection
+    if (isTestMode()) {
+      pulseAnim.setValue(1);
+      return;
+    }
     if (record.isActive) {
       // Create pulsing animation (0.5Hz = 2 second cycle)
       const pulse = Animated.loop(

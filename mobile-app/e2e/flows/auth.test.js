@@ -1,144 +1,72 @@
 /**
- * Auth Registration E2E Test
+ * Auth Flow E2E Test
  *
- * Tests the full registration flow:
- * 1. Welcome screen → Register
- * 2. Email entry → Send code
- * 3. Code verification (TEST_MODE: "123456")
- * 4. Registration form
- * 5. Consent acceptance
- * 6. Main app loads
+ * Verifies the app is authenticated and the main UI is accessible:
+ * - Tab bar visible (Status, Calendar, Settings)
+ * - Navigation between tabs works
  *
- * IMPORTANT: Requires fresh app state (clearState/noReset: false)
- * and TEST_MODE enabled in the app.
+ * Uses noReset: true (like all other suites) so it never wipes app state.
+ * Uses ensureAuthenticated() — if not logged in, performs TEST_MODE login.
  */
 
 const { createDriver, getPlatform } = require('../helpers/driver');
-const { byTestId, byText, t } = require('../helpers/selectors');
 const {
-  tapTestId,
-  typeTestId,
-  tapI18n,
-  tapText,
-  waitForTestId,
-  waitForText,
-  dismissAlert,
-  dismissPermissionDialogs,
+  ensureAuthenticated,
+  existsTestId,
+  isAuthenticated,
+  navigateToTab,
 } = require('../helpers/actions');
 
-describe('Auth Registration Flow', () => {
+describe('Auth Flow', () => {
   let driver;
 
   beforeAll(async () => {
-    // Start with fresh state for auth testing
-    driver = await createDriver(getPlatform(), {
-      'appium:noReset': false,
-      'appium:fullReset': false,
-    });
-    await driver.pause(3000); // Wait for app to fully load
-    await dismissPermissionDialogs(driver);
-  });
+    driver = await createDriver(getPlatform());
+    await driver.pause(2000);
+
+    // ensureAuthenticated handles activateApp, app-ready wait, and login
+    await ensureAuthenticated(driver);
+  }, 180000);
 
   afterAll(async () => {
     if (driver) {
-      await driver.deleteSession();
-    }
-  });
-
-  test('should display welcome screen with Register button', async () => {
-    // Check if we're on welcome screen (not logged in)
-    // If already logged in, this test should be skipped
-    try {
-      const registerButton = await byTestId(driver, 'register-button');
-      const isDisplayed = await registerButton.isDisplayed();
-
-      if (!isDisplayed) {
-        console.log('User already logged in - skipping auth flow tests');
-        return;
+      try {
+        await driver.deleteSession();
+      } catch (e) {
+        console.log('Session cleanup error (ignored):', e.message);
       }
-
-      expect(isDisplayed).toBe(true);
-    } catch (e) {
-      console.log('Welcome screen not displayed - user may be logged in');
-      // Test passes if user is already logged in
     }
   });
 
-  test('should navigate to email entry', async () => {
-    try {
-      await tapTestId(driver, 'register-button');
-      await driver.pause(1000);
-
-      const emailInput = await byTestId(driver, 'email-input');
-      expect(await emailInput.isDisplayed()).toBe(true);
-    } catch (e) {
-      // Skip if already logged in
-      console.log('Skipping - may already be logged in');
-    }
+  test('should have access to the main app (tab bar visible)', async () => {
+    const authenticated = await isAuthenticated(driver);
+    expect(authenticated).toBe(true);
   });
 
-  test('should enter email and request code', async () => {
-    try {
-      await typeTestId(driver, 'email-input', 'test@example.com');
-      await driver.pause(500);
-
-      // Hide keyboard before tapping button
-      if (driver.isAndroid) {
-        await driver.hideKeyboard();
-      }
-
-      await tapTestId(driver, 'send-code-button');
-      await driver.pause(1500);
-
-      // Dismiss any alert dialogs
-      await dismissAlert(driver, t(driver, 'ok'));
-    } catch (e) {
-      console.log('Skipping email step');
-    }
+  test('should display Status tab', async () => {
+    const exists = await existsTestId(driver, 'tab-status');
+    expect(exists).toBe(true);
   });
 
-  test('should enter verification code', async () => {
-    try {
-      await typeTestId(driver, 'code-input', '123456');
-      await driver.pause(500);
-
-      if (driver.isAndroid) {
-        await driver.hideKeyboard();
-      }
-
-      await tapTestId(driver, 'verify-code-button');
-      await driver.pause(2000);
-    } catch (e) {
-      console.log('Skipping code verification');
-    }
+  test('should display Calendar tab', async () => {
+    const exists = await existsTestId(driver, 'tab-calendar');
+    expect(exists).toBe(true);
   });
 
-  test('should display registration form', async () => {
-    try {
-      const hospitalInput = await byTestId(driver, 'hospital-input');
-      expect(await hospitalInput.isDisplayed()).toBe(true);
-    } catch (e) {
-      console.log('Registration form not displayed');
-    }
+  test('should display Settings tab', async () => {
+    const exists = await existsTestId(driver, 'tab-settings');
+    expect(exists).toBe(true);
   });
 
-  // Note: Full registration form completion requires picker interactions
-  // which are complex on mobile. For now, we verify the form is displayed.
+  test('should be able to navigate between tabs', async () => {
+    await navigateToTab(driver, 'settings');
+    await driver.pause(500);
+    const settingsVisible = await existsTestId(driver, 'tab-settings');
+    expect(settingsVisible).toBe(true);
 
-  test('should be able to access main app after registration', async () => {
-    // If already logged in, verify main app is accessible
-    try {
-      // Look for tab bar as indicator of main app
-      const calendarTabText = driver.isIOS ? 'Kalender' : 'Calendar';
-      const calendarTab = await byText(driver, calendarTabText);
-
-      if (await calendarTab.isDisplayed()) {
-        console.log('Main app is accessible');
-        expect(true).toBe(true);
-      }
-    } catch (e) {
-      // If in registration flow, form should be visible
-      console.log('Still in registration flow or main app accessible');
-    }
+    await navigateToTab(driver, 'status');
+    await driver.pause(500);
+    const statusVisible = await existsTestId(driver, 'tab-status');
+    expect(statusVisible).toBe(true);
   });
 });

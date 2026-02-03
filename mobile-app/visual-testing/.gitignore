@@ -1,0 +1,6 @@
+# Screenshots are ephemeral - regenerate as needed
+screenshots/
+
+# Keep the directory structure
+!screenshots/.gitkeep
+!reports/.gitkeep

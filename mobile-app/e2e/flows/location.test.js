@@ -24,6 +24,7 @@ const {
   existsTestId,
   dismissPermissionDialogs,
   ensureAuthenticated,
+  dismissKeyboard,
 } = require('../helpers/actions');
 
 describe('Location Setup', () => {
@@ -168,9 +169,7 @@ describe('Location Setup', () => {
     await typeTestId(driver, 'setup-name-input', 'Test Hospital');
     await driver.pause(500);
 
-    if (driver.isAndroid) {
-      await driver.hideKeyboard();
-    }
+    await dismissKeyboard(driver);
 
     expect(true).toBe(true);
   });

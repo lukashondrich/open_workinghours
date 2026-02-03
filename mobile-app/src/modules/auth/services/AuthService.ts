@@ -17,16 +17,9 @@ import type {
   User,
   UserDataExport,
 } from '@/lib/auth/auth-types';
-import { mockResponses, isValidTestCode } from '@/lib/testing/mockApi';
+import { mockResponses, isValidTestCode, isTestMode } from '@/lib/testing/mockApi';
 
 const BASE_URL = Constants.expoConfig?.extra?.authBaseUrl || 'http://localhost:8000';
-
-/**
- * Check if test mode is enabled
- */
-const isTestMode = (): boolean => {
-  return Constants.expoConfig?.extra?.TEST_MODE === true;
-};
 
 export class AuthService {
   /**

@@ -454,7 +454,8 @@ const styles = StyleSheet.create({
   summaryFooter: {
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
-    backgroundColor: colors.background.paper,
+    marginHorizontal: -spacing.lg, // Counteract container padding for full-width border
+    backgroundColor: colors.background.default,
     borderTopWidth: 1,
     borderTopColor: colors.border.default,
   },

@@ -105,6 +105,73 @@ SSL is managed by Nginx with Let's Encrypt certificates. Certificates auto-renew
 
 ---
 
+## Database Backups
+
+**Added:** 2026-02-03
+
+PostgreSQL backups are stored in Hetzner Object Storage with **30-day immutable retention** (COMPLIANCE mode Object Lock). Even with S3 credentials, backups cannot be permanently deleted for 30 days.
+
+### Backup Architecture
+
+```
+PostgreSQL (Docker)
+       │
+       │ pg_dump (daily at 4 AM UTC)
+       ▼
+/tmp/owh_backup_YYYY-MM-DD_HH-MM.sql.gz
+       │
+       │ aws s3 cp
+       ▼
+Hetzner Object Storage (fsn1)
+├── Bucket: owh-backups-prod
+├── Object Lock: COMPLIANCE mode
+└── Retention: 30 days (immutable)
+```
+
+### Backup Commands
+
+```bash
+# Manual backup
+~/backup-postgres-s3.sh
+
+# Check backup log
+cat ~/backup.log
+
+# List backups
+aws s3 ls s3://owh-backups-prod/ --endpoint-url https://fsn1.your-objectstorage.com
+
+# List all versions (including after delete markers)
+aws s3api list-object-versions --endpoint-url https://fsn1.your-objectstorage.com --bucket owh-backups-prod
+```
+
+### Backup Script Location
+
+`/home/deploy/backup-postgres-s3.sh` — runs daily via cron at 4 AM UTC.
+
+### Restore Process
+
+```bash
+# Download specific backup
+aws s3 cp s3://owh-backups-prod/owh_backup_2026-02-03_04-00.sql.gz /tmp/ --endpoint-url https://fsn1.your-objectstorage.com
+
+# Restore to PostgreSQL
+gunzip -c /tmp/owh_backup_2026-02-03_04-00.sql.gz | docker exec -i owh-postgres psql -U owh owh
+```
+
+### Object Storage Credentials
+
+S3 credentials are stored in `/home/deploy/.aws/credentials`. These allow upload/list but cannot circumvent the COMPLIANCE lock — objects cannot be permanently deleted for 30 days regardless of credentials.
+
+### Insurance Compliance
+
+This backup setup satisfies IT-Haftpflicht insurance requirements:
+- ✓ Daily backups (exceeds weekly requirement)
+- ✓ 30-day retention (immutable)
+- ✓ Separate access control (S3 ≠ SSH credentials)
+- ✓ 2FA on management (Hetzner Console)
+
+---
+
 ## Monitoring
 
 ### Quick Status Check

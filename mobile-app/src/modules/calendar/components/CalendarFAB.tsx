@@ -6,6 +6,7 @@ import {
   TouchableWithoutFeedback,
   StyleSheet,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Plus, X } from 'lucide-react-native';
 
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
@@ -16,6 +17,14 @@ import ManualSessionForm from './ManualSessionForm';
 export default function CalendarFAB() {
   const { state, dispatch } = useCalendar();
   const [menuVisible, setMenuVisible] = useState(false);
+  const insets = useSafeAreaInsets();
+
+  // Calculate bottom offset to achieve equal margins from right edge and tab bar
+  // The FAB container is inside SafeAreaView, so bottom: spacing.xl positions it
+  // spacing.xl from the safe area boundary. To get spacing.xl from the actual tab bar
+  // (which sits at the screen edge), we need to offset by the bottom safe area inset.
+  // This makes the visual gap from tab bar equal to the right margin from screen edge.
+  const fabBottomOffset = spacing.xl - insets.bottom;
 
   const handleFABPress = () => {
     setMenuVisible(!menuVisible);
@@ -78,7 +87,7 @@ export default function CalendarFAB() {
 
         {/* Menu — always rendered, hidden via opacity + pointerEvents */}
         <View
-          style={[styles.menu, { opacity: menuVisible ? 1 : 0 }]}
+          style={[styles.menu, { bottom: fabBottomOffset + 56 + 8, opacity: menuVisible ? 1 : 0 }]}
           pointerEvents={menuVisible ? 'auto' : 'none'}
           accessibilityElementsHidden={!menuVisible}
           accessible={false}
@@ -122,7 +131,7 @@ export default function CalendarFAB() {
 
         {/* FAB Button */}
         <TouchableOpacity
-          style={[styles.fab, menuVisible && styles.fabActive]}
+          style={[styles.fab, { bottom: fabBottomOffset }, menuVisible && styles.fabActive]}
           onPress={handleFABPress}
           activeOpacity={0.8}
           testID="calendar-fab"
@@ -151,7 +160,7 @@ const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
     right: spacing.xl,
-    bottom: spacing.xl,
+    // bottom is applied dynamically via fabBottomOffset for equal margins
     width: 56,
     height: 56,
     borderRadius: 28,
@@ -165,7 +174,7 @@ const styles = StyleSheet.create({
   },
   menu: {
     position: 'absolute',
-    bottom: spacing.xl + 56 + 8, // FAB bottom offset + FAB height + gap
+    // bottom is applied dynamically: fabBottomOffset + FAB height (56) + gap (8)
     right: spacing.xl,
     backgroundColor: colors.background.paper,
     borderRadius: borderRadius.lg,

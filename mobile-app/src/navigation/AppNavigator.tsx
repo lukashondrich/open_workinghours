@@ -68,6 +68,7 @@ function MainTabs() {
           backgroundColor: colors.background.paper,
           borderTopWidth: 1,
           borderTopColor: colors.border.default,
+          paddingTop: 8, // Balance vertical padding (bottom has safe area ~34pt)
         },
         headerShown: false,
       }}

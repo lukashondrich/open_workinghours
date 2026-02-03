@@ -4,7 +4,7 @@
 #
 # Usage:
 #   ./start-infra.sh          # Start Appium only
-#   ./start-infra.sh ios      # Start Appium + boot iOS simulator
+#   ./start-infra.sh ios      # Start Appium + Metro + boot iOS simulator
 #   ./start-infra.sh android  # Start Appium + start Android emulator
 #   ./start-infra.sh both     # Start everything
 #
@@ -17,6 +17,9 @@
 
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+MOBILE_APP_DIR="$(dirname "$SCRIPT_DIR")"
+
 # Use Node 22 (required for Appium 3.x)
 export PATH="/opt/homebrew/opt/node@22/bin:$PATH"
 
@@ -26,6 +29,8 @@ echo "Using Node: $(node -v)"
 echo "Stopping existing Appium..."
 pkill -f "appium" 2>/dev/null || true
 sleep 1
+
+PIDS_TO_WAIT=()
 
 # Start Appium
 echo "Starting Appium..."
@@ -120,6 +125,33 @@ if [ "$PLATFORM" = "android" ] || [ "$PLATFORM" = "both" ]; then
 fi
 
 echo ""
+# Start Metro bundler for local builds (iOS/both)
+if [ "$PLATFORM" = "ios" ] || [ "$PLATFORM" = "both" ]; then
+  # Check if Metro is already running
+  if curl -s http://127.0.0.1:8081/status > /dev/null 2>&1; then
+    echo "✓ Metro already running on port 8081"
+  else
+    echo ""
+    echo "Starting Metro bundler..."
+    (cd "$MOBILE_APP_DIR" && npx expo start --port 8081 --no-dev --minify) &
+    METRO_PID=$!
+    PIDS_TO_WAIT+=($METRO_PID)
+
+    # Wait for Metro to be ready
+    for i in {1..30}; do
+      if curl -s http://127.0.0.1:8081/status > /dev/null 2>&1; then
+        echo "✓ Metro ready (PID: $METRO_PID)"
+        break
+      fi
+      if [ $i -eq 30 ]; then
+        echo "⚠ Metro may still be starting — tests will wait for it"
+      fi
+      sleep 1
+    done
+  fi
+fi
+
+echo ""
 echo "========================================="
 echo "Infrastructure ready!"
 echo ""
@@ -129,8 +161,12 @@ echo "  npm run test:android  # Android tests"
 echo "  npm test              # All tests"
 echo ""
 echo "Appium running at: http://127.0.0.1:4723"
-echo "To stop: pkill -f appium"
+if [ -n "$METRO_PID" ]; then
+  echo "Metro running at:  http://127.0.0.1:8081"
+fi
+echo "To stop: pkill -f appium; pkill -f 'expo start'"
 echo "========================================="
 
-# Keep script running to show Appium logs
-wait $APPIUM_PID
+# Keep script running (wait on Appium primarily)
+PIDS_TO_WAIT+=($APPIUM_PID)
+wait "${PIDS_TO_WAIT[@]}"

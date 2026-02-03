@@ -1,6 +1,6 @@
 # Claude Context: Open Working Hours
 
-**Last Updated:** 2026-01-29
+**Last Updated:** 2026-02-03
 **Current Build:** #30 (ready for TestFlight upload)
 
 ---
@@ -68,6 +68,7 @@ All core features complete. User test feedback (Clusters A-F) fully implemented.
    - Deployment → `docs/deployment.md`
    - Debugging issues → `docs/debugging.md`
    - E2E testing → `mobile-app/ARCHITECTURE.md` → Testing section, or `mobile-app/e2e/README.md`
+   - Visual/UX testing → `docs/VISUAL_TESTING.md`
    - Known bugs → `docs/KNOWN_ISSUES.md`
    - Privacy (technical) → `privacy_architecture.md`
    - GDPR/Legal compliance → `docs/GDPR_COMPLIANCE.md`
@@ -93,6 +94,7 @@ See `docs/DOCUMENTATION_STRUCTURE.md` for full documentation guidelines.
 | `docs/deployment.md` | Docker, Hetzner, production deployment |
 | `docs/debugging.md` | Mobile debugging, backend logs, known gotchas |
 | `docs/E2E_TESTING_PLAN.md` | E2E testing reference (history, troubleshooting) |
+| `docs/VISUAL_TESTING.md` | Visual/UX testing workflow for UI review |
 | `docs/WORKFLOW_PATTERNS.md` | Multi-agent workflow, task structuring patterns |
 | `mobile-app/e2e/README.md` | Appium test quick start |
 
@@ -188,157 +190,81 @@ All new UI **must** be testable by Appium (XCUITest on iOS, UiAutomator2 on Andr
 
 ## Recent Updates (Last 7 Days)
 
-### 2026-01-30: E2E Expansion — 51 Tests, Local Build Strategy
+### 2026-02-03: Visual Testing — UX Advisor Fixes (4/5 Complete)
 
-**Summary:** Expanded E2E from 32 → 51 tests. Added robustness helpers (`dismissSystemDialogs`, `waitForTestIdWithRetry`). Created 3 new test suites (absences, template arming, manual session). Added testIDs to MonthView, ManualSessionForm, TemplatePanel absence form. Documented local Xcode build strategy to replace EAS for iteration.
+**Summary:** Implemented fixes for UX advisor feedback on Calendar screens. 4 of 5 issues resolved, 1 deferred.
 
-**Test Results:** 51/51 passing on iOS. See `docs/E2E_TESTING_PLAN.md` for full coverage table, known issues, and testID reference.
+**Issues resolved:**
+| # | Issue | Fix | File |
+|---|-------|-----|------|
+| 1 | Summary divider not full width | Extended divider edge-to-edge | `MonthView.tsx` |
+| 2 | Summary background white (should be gray) | Changed to `background.default` | `MonthView.tsx` |
+| 3 | Tab bar vertical padding unequal | Added `paddingTop: 8` to tabBarStyle | `AppNavigator.tsx` |
+| 5 | FAB margins unequal | Used `useSafeAreaInsets()` for dynamic bottom offset | `CalendarFAB.tsx` |
 
-**Key additions:**
-- `dismissSystemDialogs()` — comprehensive iOS/Android dialog dismissal (replaces `dismissPermissionDialogs`)
-- `waitForTestIdWithRetry()` — generic retry helper for flaky elements
-- `absences.test.js` (8 tests), `manual-session.test.js` (8 tests), shifts arming (+3 tests)
-- MonthView day cell testIDs (`month-day-YYYY-MM-DD` + indicator testIDs)
-- ManualSessionForm + TemplatePanel absence form testIDs
-- **Local build strategy:** Xcode 26.2 + CocoaPods verified ready. Use `TEST_MODE=true npx expo run:ios` for simulator builds, EAS only for device/TestFlight. See `docs/E2E_TESTING_PLAN.md` → Build Strategy.
+**Deferred:** Issue #4 (panel should dim tab bar) — requires architectural refactor; tab bar rendered by React Navigation outside screen component tree.
 
-**Detailed reference:** `docs/E2E_TESTING_PLAN.md` (testID reference, build strategy, architecture decisions, session log)
+**Workflow documented:** Updated `docs/visual-testing/FIX_WORKFLOW.md` with manager validation loop and iteration pattern.
 
-### 2026-01-29: E2E Tests — Both Platforms 32/32, Zero Skips
+**Screenshots:** `mobile-app/visual-testing/screenshots/2026-02-03/` contains BEFORE/AFTER pairs for verified fixes.
 
-**Summary:** Four sessions. Modal→inline rendering, CalendarFAB/TemplatePanel accessibility fixes. Both platforms 32/32 with zero skips.
+### 2026-02-03: Immutable Database Backups (Object Storage)
 
-**Detailed session log:** `docs/E2E_TESTING_PLAN.md` → Session Log → 2026-01-29
+**Summary:** Set up automated PostgreSQL backups to Hetzner Object Storage with 30-day immutable retention (COMPLIANCE mode Object Lock). Satisfies IT insurance requirements.
 
-### 2026-01-28: Android E2E Stable (32/32)
+**What's configured:**
+- Daily backups at 4 AM UTC via cron (`~/backup-postgres-s3.sh`)
+- Hetzner Object Storage bucket: `owh-backups-prod`
+- COMPLIANCE mode Object Lock: objects cannot be deleted for 30 days, even with credentials
+- 2FA enabled on Hetzner Console for management access
 
-Android fully passing. iOS accessibility issues fixed in 2026-01-29 sessions.
+**Insurance compliance:** ✓ Weekly backup, ✓ 30-day retention, ✓ Immutable, ✓ Separate access control
 
-### 2026-01-27: Android E2E — All 24 Tests Passing
+**Docs updated:** `docs/deployment.md` (new Database Backups section), `docs/data-retention-policy.md` (updated backup architecture)
 
-Android permission handling, auth state management, FAB accessibility. Framework: Appium 3.1.2 + WebdriverIO + Jest + Node 22.
+### 2026-02-03: Android E2E Verification + Documentation Restructure
 
-**Detailed session log:** `docs/E2E_TESTING_PLAN.md` → Session Log → 2026-01-27
+**Summary:** Verified Android E2E tests (45-48/48, ~75-80% stable). Fixed Background Permission dialog blocking. Restructured `e2e/README.md` with Runbook pattern for agent-friendly progressive disclosure.
 
-### 2026-01-26: E2E Testing - iOS Working, Tab Fix Applied
-- **iOS:** 24/24 tests passing ✅
-- **Framework:** Appium 3.1.2 + WebdriverIO + Jest + Node 22
-- **Test location:** `mobile-app/e2e/`
-- **Key fixes:**
-  - Fixed EAS build (removed deprecated privacy/rating fields, fixed .gitignore for assets)
-  - Bilingual selectors (tests work regardless of device locale)
-  - Auto-detect simulators (no hardcoded UDIDs)
-  - Infrastructure script handles Node 22 requirement
-  - **Fixed Android tab bar testID** - changed `tabBarTestID` → `tabBarButtonTestID`
-- **Android tab fix details:**
-  - **Root cause:** Wrong property name - `tabBarTestID` doesn't exist in React Navigation v7
-  - **Solution:** Use `tabBarButtonTestID` (passes testID to PlatformPressable)
-- **Docs:** `mobile-app/e2e/README.md` has full setup instructions
+**Platform comparison:**
+| Platform | Tests | Time | Stability |
+|----------|-------|------|-----------|
+| iOS | 48/48 | ~200s | ~100% |
+| Android | 45-48/48 | ~130-160s | ~75-80% |
 
-### 2026-01-25: Accessibility Fixes + Maestro-iOS Investigation
-- **Status:** Phase 1-2 accessibility fixes implemented, Maestro testID detection fixed
-- **Root cause found:** Nested accessible elements on iOS prevent Maestro from finding child elements by testID
-- **Fix:** Added `accessible={false}` to container Views in CalendarFAB, CalendarHeader
-- **Now working:** `tapOn: id: "calendar-fab"`, `calendar-prev`, `calendar-next`, `template-add`
-- **Planning:** `docs/ACCESSIBILITY_PLAN.md` (added "Maestro-iOS Compatibility" section)
-- **Files:** `CalendarFAB.tsx`, `CalendarHeader.tsx`, `TemplatePanel.tsx`, `HoursSummaryWidget.tsx`, `StatusScreen.tsx`
+**Known flakiness:** Shifts test after absences on Android (~25% failure rate) — panel not consistently dismissed after double-tap.
 
-### 2026-01-24: E2E Testing + MCP Integration
-- **Status:** Auth + location flows validated, MCP servers configured
-- **Planning:** `docs/E2E_TESTING_PLAN.md` (comprehensive status doc)
-- **Validated flows:**
-  - `auth/registration.yaml` ✅ - Full registration with consent
-  - `location/setup.yaml` ✅ - 3-step wizard (search → radius → name)
-  - `calendar/shift-management.yaml` ⏳ - Pending
-- **MCP servers configured** (`.mcp.json`):
-  - `maestro` - Native Maestro MCP for AI-assisted test writing/debugging
-  - `mobile-mcp` - Direct simulator control via accessibility tree
-- **To use MCP:** Restart Claude Code session (servers load at startup)
-- **Next:** Validate calendar flow, explore CI/CD options (Maestro Cloud vs GitHub Actions)
-- **Files:** `.mcp.json`, `mobile-app/.maestro/*`, `docs/E2E_TESTING_PLAN.md`
+**Docs:** `e2e/README.md` now has Runbook at top (TL;DR → Platform comparison → Checklist → Quick start → Common issues). Deep reference stays in `docs/E2E_TESTING_PLAN.md`.
 
-### 2026-01-21: Dashboard Contact Form Email Notifications
-- **Feature:** Contact form submissions now send email notifications
-- **Email setup:** Created `contact@openworkinghours.org` mailbox (IONOS Mail Basic)
-- **Gmail integration:** Configured Gmail to fetch via POP3 + send as contact@
-- **Backend changes:**
-  - Added `EMAIL__NOTIFICATION_EMAIL` config option
-  - Wired `send_inquiry_notification()` to contact form endpoint
-  - Updated `docker-compose.yml` to pass new env var
-- **Security fix:** Moved Google Maps API key to EAS secrets (was accidentally committed)
-  - Created `app.config.js` to reference `process.env.GOOGLE_MAPS_API_KEY`
-  - Restricted API key in Google Cloud Console (package name + SHA-1)
-- **Files:** `backend/app/config.py`, `backend/app/email.py`, `backend/app/routers/dashboard.py`, `backend/docker-compose.yml`, `mobile-app/app.config.js`
+### 2026-02-03 (earlier): TEST_MODE Expansion for E2E Stability
 
-### 2026-01-20: Android Calendar Gesture Fix
-- **Problem:** WeekView calendar gestures (scroll, pinch zoom, week navigation) broken on Android
-- **Root cause:** RNGH GestureDetector + ScrollView don't coordinate well on Android (works fine on iOS)
-- **Solution:** Platform-specific gesture systems - complete separation, not conditional logic
-- **iOS (unchanged):** RNGH GestureDetector wrapper with pinch + edge swipe gestures
-- **Android (new):**
-  - No GestureDetector wrapper (removed to avoid conflicts)
-  - Custom PanResponder for pinch zoom (two-finger detection)
-  - Velocity-based edge flick for week navigation
-  - Separate scroll end handlers per platform
-- **What didn't work:** Adjusting thresholds, manual activation, RNGH ScrollView, various combinations
-- **Documentation:**
-  - `docs/ANDROID_GESTURE_FIX_PLAN.md` - Full exploration history
-  - `docs/ANDROID_BUILD_PLAN.md` - Detailed "what worked/didn't work" notes
-  - `mobile-app/ARCHITECTURE.md` - "Android Gesture System" section
-- **Files:** `mobile-app/src/modules/calendar/components/WeekView.tsx`
+**Summary:** Expanded TEST_MODE to skip animations and mock geocoding, reducing test flakiness and improving speed.
 
-### 2026-01-19: Android Build Setup
-- **Planning:** `docs/ANDROID_BUILD_PLAN.md` (in progress)
-- **Configuration complete:**
-  - `app.json`: Android package, versionCode, permissions, Google Maps API key
-  - `eas.json`: Android build profiles (development, preview, production)
-  - `expo-location` plugin: Background location enabled for Android
-- **Google Maps:** API key configured for `react-native-maps` (required on Android, iOS uses MapKit)
-- **Android-specific fixes:**
-  - Map animation: Fixed search result not moving map (removed conflicting `setRegion` call)
-  - Button styling: Changed `variant="outline"` to `variant="secondary"` across all screens (gray border issue on Android)
-  - Week swipe navigation: Added RNGH Pan gesture for edge detection (Android lacks iOS bounce behavior)
-- **Development setup:**
-  - Installed `expo-dev-client` for hot reload
-  - Android emulator (Pixel 7a) configured with adb
-  - Development + preview builds created on EAS
-- **Known issues for next session:** Calendar view UI issues, week swipe needs testing, app icon placeholder
-- **Files:** `mobile-app/app.json`, `mobile-app/eas.json`, `SetupScreen.tsx`, `WeekView.tsx`, multiple screens for button styling
+**Results:** 48/48 iOS tests pass in ~200s (down from ~280s baseline). 3 consecutive runs with <4% variance.
 
-### 2026-01-19: German Website Copy Overhaul + Micro-Polish
-- **Complete DE copy revision:** All German pages updated with professional, consistent copy
-- **New German legal pages:** `/de/impressum` and `/de/datenschutzerklaerung` with proper `LayoutDE`
-- **EN legal pages cleaned up:** `/imprint` and `/privacy-policy` now fully English with DE links section
-- **Terminology standardization:**
-  - "Schichten" (not "Dienste") for shifts throughout
-  - "Freigeschaltet" (not "Verfügbar") in dashboard legend
-  - "Arbeitgeberzugriff" standardized across all DE pages (including app-privacy-policy)
-  - "Verschlüsselung bei der Übertragung" (translated from "Encryption in Transit")
-  - "Schutzschwelle (k=11)" consistent throughout DE dashboard
-- **i18n improvements:**
-  - Added `hreflang` alternates and `canonical` URLs to all legal pages
-  - LayoutDE footer now links to German legal pages
-  - Added `<slot name="head" />` to both layouts for custom head content
-- **Copy polish:**
-  - Neutral-institutional form options: "Gewerkschaft/Berufsverband", "Wissenschaft/Forschung"
-  - "Privacy by Design" capitalization consistent
-  - En-dash (–) standardized in ranges (1–10)
-  - Removed absolute "no personal data" claims; server logs acknowledged
-- **Bullet formatting fixes:** Converted problematic `ul/li` + manual bullets to `div` throughout
-- **Dashboard micro-polish (same day):**
-  - EN/DE KPI label: "States Nearing Threshold" / "Bundesländer nahe an der Schwelle"
-  - K-anonymity bullet: Added EMA/Health Canada public-disclosure guidance reference
-  - DE dossier: Solution block converted to proper `<ul>` bullet list
-  - Map legend: Removed duplicate static legend (InteractiveMap component has complete legend)
-  - "Krankenhäuser" (plural) in map legend
-  - DE dashboard: TestFlight changed from button to text line (matches EN)
-- **Files:** All pages under `website/src/pages/de/`, `website/src/pages/dashboard.astro`, `website/src/pages/team.astro`, `website/src/pages/imprint.astro`, `website/src/pages/privacy-policy.astro`, `website/src/layouts/Layout.astro`, `website/src/layouts/LayoutDE.astro`, `website/src/components/InteractiveMap/InteractiveMap.tsx`
+**What TEST_MODE now controls:**
+- **Mock auth** — code `123456` works (existing)
+- **Mock geocoding** — returns "Charité Berlin" instantly, no network
+- **Skip panel animations** — TemplatePanel/ManualSessionForm open instantly
+- **Skip pulse animations** — tracking badges have stable opacity
 
-### 2026-01-18: Public Dashboard + Interactive Map
-- **Planning:** `docs/PUBLIC_DASHBOARD_PLAN.md`, `docs/INTERACTIVE_MAP_PLAN.md` (Phase 1 complete)
-- **Interactive D3.js map:** 16 German states, 1,220 hospital dots, bilingual (EN/DE)
-- **Website pages:** `/dashboard` (EN), `/de/dashboard` (DE)
-- **Files:** `website/src/components/InteractiveMap/`, `backend/app/routers/dashboard.py`
+**Key friction point:** Tests may skip flows if app state persists from previous runs. Solution: uninstall app before rebuild for clean state.
+
+**Files changed:** `mockApi.ts` (isTestMode helper), `GeocodingService.ts`, `TemplatePanel.tsx`, `ManualSessionForm.tsx`, `WeekView.tsx`, `HoursSummaryWidget.tsx`
+
+**Docs updated:** `mobile-app/e2e/README.md` (pre-flight checklist, TEST_MODE features), `docs/E2E_TESTING_PLAN.md` (session log)
+
+### 2026-01-31: Android Re-verification — 48/48 Both Platforms
+
+**Summary:** Re-verified Android after iOS-only expansion. Fixed platform-specific issues (activateApp, acceptAlert no-ops, permission dialogs). Both platforms 48/48.
+
+**Detailed reference:** `docs/E2E_TESTING_PLAN.md` → Session Log → 2026-01-31
+
+### 2026-01-30: E2E — 52 Tests, Local Builds, Robustness Fixes
+
+**Summary:** Expanded E2E from 32 → 52 tests. Verified local Xcode builds, fixed shift arming, manual session, absence arming.
+
+**Detailed reference:** `docs/E2E_TESTING_PLAN.md` (session log has full friction-point table)
 
 ---
 

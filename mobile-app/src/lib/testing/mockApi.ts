@@ -1,15 +1,28 @@
 /**
  * Mock API responses for E2E testing
  *
- * When TEST_MODE is enabled, AuthService returns these mock responses
- * instead of making real API calls.
+ * When TEST_MODE is enabled, services return mock responses
+ * instead of making real API calls. This eliminates flakiness from:
+ * - Network latency
+ * - External API availability (Photon geocoding)
+ * - Animation timing variance
  */
 
+import Constants from 'expo-constants';
 import type {
   VerificationCodeResponse,
   VerifyCodeResponse,
   User,
 } from '@/lib/auth/auth-types';
+import type { GeocodingResult } from '@/modules/geofencing/services/GeocodingService';
+
+/**
+ * Check if TEST_MODE is enabled (for E2E testing)
+ * Set via app.json → app.config.js → Constants.expoConfig.extra.TEST_MODE
+ */
+export const isTestMode = (): boolean => {
+  return Constants.expoConfig?.extra?.TEST_MODE === true;
+};
 
 // Test user data
 export const TEST_USER_EMAIL = 'e2e-test@openworkinghours.org';
@@ -92,3 +105,16 @@ export const mockResponses = {
 export function isValidTestCode(code: string): boolean {
   return code.trim() === TEST_VERIFICATION_CODE;
 }
+
+/**
+ * Mock geocoding result for location setup wizard
+ * Uses Charité hospital in Berlin - a well-known healthcare location
+ */
+export const mockGeocodingResult: GeocodingResult = {
+  id: '13.378400-52.525300',
+  name: 'Charité – Universitätsmedizin Berlin',
+  address: 'Charitéplatz 1, 10117 Berlin',
+  latitude: 52.5253,
+  longitude: 13.3784,
+  type: 'hospital',
+};
