@@ -4,3 +4,6 @@ node_modules/
 # Test artifacts
 screenshots/
 *.png
+# Build artifacts
+app-release.apk
+*.apk
