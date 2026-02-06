@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
-  Text,
   TouchableOpacity,
   TouchableWithoutFeedback,
   StyleSheet,
@@ -12,6 +11,7 @@ import {
   BackHandler,
   KeyboardAvoidingView,
 } from 'react-native';
+import { AppText as Text } from '@/components/ui/AppText';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { ChevronDown, Clock, MapPin, Calendar } from 'lucide-react-native';
 
@@ -241,12 +241,11 @@ export default function ManualSessionForm({ visible, defaultDate, onClose }: Pro
     outputRange: [600, 0],
   });
 
-  // iOS: KeyboardAvoidingView pushes panel up when keyboard opens
-  // Android: system adjustResize handles it, plain View avoids flicker
-  const Wrapper = Platform.OS === 'ios' ? KeyboardAvoidingView : View;
+  // KeyboardAvoidingView: iOS uses 'padding', Android uses 'height'
+  // (Android 'height' tested working on SDK 54/RN 0.81.5/Fabric)
   const wrapperProps = Platform.OS === 'ios'
     ? { behavior: 'padding' as const, style: styles.flexWrapper }
-    : { style: styles.flexWrapper };
+    : { behavior: 'height' as const, style: styles.flexWrapper };
 
   return (
     <View
@@ -254,7 +253,7 @@ export default function ManualSessionForm({ visible, defaultDate, onClose }: Pro
       pointerEvents={visible ? 'auto' : 'none'}
       accessibilityElementsHidden={!visible}
     >
-      <Wrapper {...wrapperProps}>
+      <KeyboardAvoidingView {...wrapperProps}>
         {/* Overlay */}
         <TouchableWithoutFeedback accessible={false} onPress={onClose}>
           <Animated.View style={[styles.overlay, { opacity: animValue }]} />
@@ -387,7 +386,7 @@ export default function ManualSessionForm({ visible, defaultDate, onClose }: Pro
           </View>
         </TouchableWithoutFeedback>
         </Animated.View>
-      </Wrapper>
+      </KeyboardAvoidingView>
 
       {/* iOS Date/Time Picker — on top of everything */}
       {pickerMode && Platform.OS === 'ios' && (

@@ -1,10 +1,8 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import {
   View,
-  Text,
   TouchableOpacity,
   StyleSheet,
-  TextInput,
   ScrollView,
   TouchableWithoutFeedback,
   KeyboardAvoidingView,
@@ -13,6 +11,8 @@ import {
   Animated,
   BackHandler,
 } from 'react-native';
+import { AppText as Text } from '@/components/ui/AppText';
+import { AppTextInput as TextInput } from '@/components/ui/AppTextInput';
 import { Plus, TreePalm, ThermometerIcon, Pencil, Check } from 'lucide-react-native';
 import { format } from 'date-fns';
 
@@ -283,10 +283,9 @@ export default function TemplatePanel() {
     outputRange: [600, 0],
   });
 
-  const Wrapper = Platform.OS === 'ios' ? KeyboardAvoidingView : View;
   const wrapperProps = Platform.OS === 'ios'
     ? { behavior: 'padding' as const, style: styles.keyboardAvoidingView }
-    : { style: styles.keyboardAvoidingView };
+    : { behavior: 'height' as const, style: styles.keyboardAvoidingView };
 
   return (
     <View
@@ -294,7 +293,7 @@ export default function TemplatePanel() {
       pointerEvents={isOpen ? 'auto' : 'none'}
       accessibilityElementsHidden={!isOpen}
     >
-      <Wrapper {...wrapperProps}>
+      <KeyboardAvoidingView {...wrapperProps}>
         {/* Overlay */}
         <TouchableWithoutFeedback onPress={handleClose}>
           <Animated.View style={[styles.overlay, { opacity: animValue }]} />
@@ -773,7 +772,7 @@ export default function TemplatePanel() {
             </View>
           </TouchableWithoutFeedback>
         </Animated.View>
-      </Wrapper>
+      </KeyboardAvoidingView>
     </View>
   );
 }

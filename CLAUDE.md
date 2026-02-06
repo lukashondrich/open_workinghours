@@ -1,6 +1,6 @@
 # Claude Context: Open Working Hours
 
-**Last Updated:** 2026-02-03
+**Last Updated:** 2026-02-05
 **Current Build:** #30 (ready for TestFlight upload)
 
 ---
@@ -61,14 +61,13 @@ All core features complete. User test feedback (Clusters A-F) fully implemented.
 **Reading order for new contributors:**
 
 1. **This file** (CLAUDE.md) - Current state, quick overview
-2. **`docs/DOCUMENTATION_STRUCTURE.md`** - How docs are organized
+2. **`docs/WORKFLOW_PATTERNS.md`** - **Read before starting any task** (how to structure work, use subagents)
 3. **Then based on your task:**
    - Mobile work → `mobile-app/ARCHITECTURE.md`
    - Backend work → `backend/ARCHITECTURE.md`
    - Deployment → `docs/deployment.md`
    - Debugging issues → `docs/debugging.md`
-   - E2E testing → `mobile-app/ARCHITECTURE.md` → Testing section, or `mobile-app/e2e/README.md`
-   - Visual/UX testing → `docs/VISUAL_TESTING.md`
+   - **Testing (E2E, Visual)** → `docs/WORKFLOW_PATTERNS.md` → Testing section
    - Known bugs → `docs/KNOWN_ISSUES.md`
    - Privacy (technical) → `privacy_architecture.md`
    - GDPR/Legal compliance → `docs/GDPR_COMPLIANCE.md`
@@ -89,14 +88,12 @@ See `docs/DOCUMENTATION_STRUCTURE.md` for full documentation guidelines.
 | `blueprint.md` | System architecture, completed modules |
 | `privacy_architecture.md` | Technical privacy design (k-anonymity, data flows) |
 | `docs/GDPR_COMPLIANCE.md` | Legal compliance status, checklist, links to DPIA/RoPA |
-| `mobile-app/ARCHITECTURE.md` | Mobile app details, schemas, patterns, **E2E testing** |
+| `mobile-app/ARCHITECTURE.md` | Mobile app details, schemas, patterns |
 | `backend/ARCHITECTURE.md` | Backend API, database, aggregation |
 | `docs/deployment.md` | Docker, Hetzner, production deployment |
 | `docs/debugging.md` | Mobile debugging, backend logs, known gotchas |
-| `docs/E2E_TESTING_PLAN.md` | E2E testing reference (history, troubleshooting) |
-| `docs/VISUAL_TESTING.md` | Visual/UX testing workflow for UI review |
-| `docs/WORKFLOW_PATTERNS.md` | Multi-agent workflow, task structuring patterns |
-| `mobile-app/e2e/README.md` | Appium test quick start |
+| **`docs/WORKFLOW_PATTERNS.md`** | **How to do work: subagents, testing workflows** → `docs/testing/` |
+| `docs/ISSUE_PLANNING_2026-02-05.md` | Current issue backlog (UX feedback, 7 issues in 4 groups) |
 
 ### Document Lifecycle
 
@@ -189,6 +186,28 @@ All new UI **must** be testable by Appium (XCUITest on iOS, UiAutomator2 on Andr
 ---
 
 ## Recent Updates (Last 7 Days)
+
+### 2026-02-05: Issue Planning — UX Expert Feedback (7 Issues)
+
+**Summary:** Collected and analyzed 7 issues from UX expert feedback. Grouped by file dependencies into 4 implementation groups.
+
+**Groups:**
+| Group | Name | Issues | Status |
+|-------|------|--------|--------|
+| A | Geofencing Module Screens | 1, 2, 5 | Pending |
+| B | Authentication - Lock Screen | 4 | Pending |
+| C | Calendar - Picker Unification | 3, 6 | Pending |
+| D | Calendar - Day View | 7 | Pending |
+
+**Key issues:**
+- Location list tap behavior (select vs navigate)
+- Consent status color mismatch
+- Lock Screen with Face ID + Passcode options (Pattern A, like N26)
+- Dismissable permission warning with 1-week re-show
+- Unify duplicate picker UIs + add GPS/Log Hours tab
+- New Day View for calendar
+
+**Full details:** `docs/ISSUE_PLANNING_2026-02-05.md`
 
 ### 2026-02-03: Visual Testing — UX Advisor Fixes (4/5 Complete)
 

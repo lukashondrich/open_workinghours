@@ -7,6 +7,8 @@
  *   import { Button, Card, Input, ListItem, InfoBox, Badge } from '@/components/ui';
  */
 
+export { AppText } from './AppText';
+export { AppTextInput } from './AppTextInput';
 export { Button } from './Button';
 export { Card } from './Card';
 export { Checkbox } from './Checkbox';

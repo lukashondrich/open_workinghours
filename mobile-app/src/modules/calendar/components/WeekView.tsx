@@ -1,7 +1,6 @@
 import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
@@ -17,8 +16,9 @@ import {
   NativeSyntheticEvent,
   useWindowDimensions,
   Platform,
-  TextInput,
 } from 'react-native';
+import { AppText as Text } from '@/components/ui/AppText';
+import { AppTextInput as TextInput } from '@/components/ui/AppTextInput';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import * as Haptics from 'expo-haptics';

@@ -1,21 +1,35 @@
 # Workflow Patterns
 
-Reusable patterns for implementing features and fixing issues in this codebase.
+How to structure work, parallelize tasks, and use subagents effectively.
 
 ---
 
-## Multi-Agent Task Workflow
+## Overview
 
-A structured approach for complex, multi-step tasks that benefits from parallel execution and clear progress tracking.
+For complex or specialized work, lean towards using subagents. This keeps the main conversation focused and recoverable.
 
-### When to Use
+| Workflow | Approach | Documentation |
+|----------|----------|---------------|
+| Building Features | Task decomposition, parallel execution | Below |
+| Bug Investigation | Reproduce → fix → test | Below |
+| **Testing** | **Use specialized subagents** | **[docs/testing/](./testing/)** |
+| Deployment | See deployment.md | `docs/deployment.md` |
 
-- Tasks with 3+ distinct phases or steps
-- Work that can be parallelized (independent subtasks)
-- Complex debugging or investigation
-- Cross-cutting changes (multiple files/systems)
+---
 
-### Structure
+## Building Features
+
+```
+1. Read CLAUDE.md + relevant ARCHITECTURE.md
+2. Create *_PLAN.md if complex
+3. Implement with tests
+4. Update ARCHITECTURE.md
+5. Archive plan doc
+```
+
+### Multi-Phase Task Workflow
+
+For complex features with 3+ distinct phases, use task decomposition:
 
 ```
 Phase 1: Setup/Infrastructure (Sequential)
@@ -32,100 +46,20 @@ Phase 3: Integration & Verification (Sequential)
     └── Task 3.2: Documentation update
 ```
 
-### Task Definition Template
-
-Each task should include:
+**Task definition:**
 
 | Field | Description | Example |
 |-------|-------------|---------|
 | **Subject** | Brief imperative title | "Add permission dialog handling" |
-| **Description** | What needs to be done, acceptance criteria | "Add auto-dismissal for Android notification permission dialog" |
-| **ActiveForm** | Present continuous for progress display | "Adding permission handling" |
+| **Description** | What needs to be done | "Add auto-dismissal for Android notification permission dialog" |
+| **ActiveForm** | Present continuous for progress | "Adding permission handling" |
 | **Dependencies** | What must complete first | blockedBy: ["1"] |
 
-### Dependency Rules
-
-1. **Sequential tasks**: Use `blockedBy` to create dependency chain
-2. **Parallel tasks**: No dependencies between them, can run simultaneously
-3. **Integration tasks**: Block on all implementation tasks
-
-### Example: Android E2E Testing (2026-01-27)
-
-**Phase 1: Infrastructure (Sequential)**
-```
-Task 1: Install e2e-testing APK and verify TEST_MODE
-  - Download APK from EAS
-  - Install on emulator
-  - Verify code "123456" works
-```
-
-**Phase 2: Investigation (Parallel)**
-```
-Task 2: Verify tab testIDs on Android
-  - Navigate to each tab using testID
-  - Confirm accessibility tree exposure
-
-Task 3: Add permission dialog handling
-  - Add Android system dialog dismissal
-  - Handle notification permission
-
-Task 4: Fix test ordering and state management
-  - Add ensureAuthenticated() helper
-  - Update tests to use it
-```
-
-**Phase 3: Integration**
-```
-Task 5: Run full test suite and document results
-  - Execute npm run test:android
-  - Update CLAUDE.md with results
-```
-
-### Progress Tracking
-
-Update task status as you work:
-
-```
-pending → in_progress → completed
-```
-
-- Mark `in_progress` BEFORE starting work
-- Mark `completed` only when fully done
-- If blocked, note the blocker in task comments
-
-### Escalation Triggers
-
-Stop and reassess when:
-
-- Build/install failures
-- Unclear requirements about expected behavior
-- Architectural decisions affecting multiple files
-- Test failures with unclear root cause
-
-### Verification Checklist
-
-After each phase:
-
-- [ ] All phase tasks marked complete
-- [ ] Verification step passed (tests, manual check)
-- [ ] No regressions introduced
-- [ ] Documentation updated if needed
+**Progress tracking:** `pending → in_progress → completed`
 
 ---
 
-## Other Workflow Patterns
-
-### Feature Implementation
-
-```
-1. Read CLAUDE.md + relevant ARCHITECTURE.md
-2. Create *_PLAN.md if complex
-3. Implement with tests
-4. Update ARCHITECTURE.md
-5. Archive plan doc
-```
-
-### Bug Investigation
+## Bug Investigation
 
 ```
 1. Reproduce the issue
@@ -135,35 +69,45 @@ After each phase:
 5. Document in KNOWN_ISSUES.md if relevant
 ```
 
-### Deployment
+**Escalation triggers** — stop and reassess when:
+- Build/install failures
+- Unclear requirements
+- Architectural decisions affecting multiple files
+- Test failures with unclear root cause
+
+---
+
+## Testing
+
+**→ See [docs/testing/](./testing/)** for testing workflows.
+
+Testing often involves screenshots or long-running processes. Lean towards using specialized subagents:
+
+| Test Type | Subagent | Documentation |
+|-----------|----------|---------------|
+| E2E Regression | Bash | [testing/e2e-regression.md](./testing/e2e-regression.md) |
+| Visual Inspection | general-purpose | [testing/visual-inspection.md](./testing/visual-inspection.md) |
+
+---
+
+## Deployment
 
 See `docs/deployment.md` for production deployment workflow.
 
 ---
 
-## Tips
-
-- **Parallelize aggressively**: If tasks don't depend on each other, run them simultaneously
-- **Fail fast**: Verify prerequisites before starting main work
-- **Document as you go**: Update docs while context is fresh
-- **Time-box investigation**: Set limits on debugging before escalating
-
----
-
-## Android E2E Testing Patterns
+## Technical Patterns
 
 ### testID Visibility on Android
 
-React Native's `testID` maps to `resource-id` on Android. Common issues:
+React Native's `testID` maps to `resource-id` on Android.
 
-**Problem**: Elements inside Views aren't visible to Appium/UiAutomator.
+**Problem:** Elements inside Views aren't visible to Appium/UiAutomator.
 
-**Solution**: Add `accessible={false}` to parent Views:
+**Solution:** Add `accessible={false}` to parent Views:
 ```jsx
-<View accessible={false}>        {/* Allows children to be individually accessible */}
-  <TouchableOpacity
-    testID="my-button"
-    accessible={true}>           {/* Makes this element findable */}
+<View accessible={false}>
+  <TouchableOpacity testID="my-button" accessible={true}>
     <Text>Click me</Text>
   </TouchableOpacity>
 </View>
@@ -173,8 +117,12 @@ React Native's `testID` maps to `resource-id` on Android. Common issues:
 1. Parent View needs `accessible={false}` to prevent child aggregation
 2. Tappable elements need `accessible={true}` to appear in tree
 3. Add `collapsable={false}` to prevent Android view flattening
-4. Use `resourceIdMatches(".*testId.*")` selector for robustness
 
-**References:**
-- [RN Issue #6560](https://github.com/facebook/react-native/issues/6560) - accessible aggregation
-- [RN Issue #30226](https://github.com/facebook/react-native/issues/30226) - testID visibility
+---
+
+## Tips
+
+- **Parallelize aggressively**: If tasks don't depend on each other, run them simultaneously
+- **Fail fast**: Verify prerequisites before starting main work
+- **Document as you go**: Update docs while context is fresh
+- **Lean towards subagents**: For testing, exploration, and risky operations

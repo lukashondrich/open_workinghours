@@ -64,10 +64,13 @@ function MainTabs() {
       screenOptions={{
         tabBarActiveTintColor: colors.primary[500],
         tabBarInactiveTintColor: colors.grey[500],
+        tabBarAllowFontScaling: false,
         tabBarStyle: {
           backgroundColor: colors.background.paper,
           borderTopWidth: 1,
           borderTopColor: colors.border.default,
+        },
+        tabBarItemStyle: {
           paddingTop: 8, // Balance vertical padding (bottom has safe area ~34pt)
         },
         headerShown: false,
