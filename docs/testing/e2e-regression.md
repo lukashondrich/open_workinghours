@@ -71,6 +71,7 @@ DO NOT:
 - Use mobile-mcp tools
 - Attempt to fix failing tests
 - Wait longer than the timeouts above — abort and report instead
+- Diagnose root causes — report observations only (e.g., "test X failed with error Y", not "the feature is broken because Z")
 
 REPORT FORMAT:
 ## E2E Regression Results — [Platform]
@@ -187,6 +188,30 @@ lsof -i :8081
 cd mobile-app/e2e
 npm run build:ios      # or build:android
 ```
+
+---
+
+## For the Main Agent
+
+**Don't blindly trust subagent diagnoses.** Subagents are good at execution but can misdiagnose failures. When a subagent reports a failure:
+1. Read the **observations** (what failed, what error)
+2. Investigate the code yourself before concluding root cause
+3. A "TEST_MODE bypass not working" might actually be a race condition
+
+**Run both platforms in parallel.** Spawn iOS + Android E2E in a single message:
+```javascript
+// Single message with two Task calls = parallel execution
+Task({ subagent_type: "Bash", prompt: "Run E2E for iOS..." })
+Task({ subagent_type: "Bash", prompt: "Run E2E for Android..." })
+```
+
+**Some features require manual testing.** E2E can't test:
+- Biometric authentication (requires enrolled Face ID / fingerprint)
+- Lock screen (TEST_MODE bypasses it)
+- Permission dialogs in all states
+- Features requiring specific device setup
+
+For these, document that manual testing is needed or rely on code review.
 
 ---
 

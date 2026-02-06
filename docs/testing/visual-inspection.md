@@ -79,6 +79,7 @@ DO NOT:
 - Accumulate more than 5-6 full-resolution images
 - Guess at issues — mark uncertain instead
 - Test code changes on Release build without Metro — changes won't be visible
+- Diagnose root causes — report observations only (e.g., "element X is not visible", not "the feature is broken because Y")
 
 REPORT FORMAT:
 
@@ -134,6 +135,30 @@ convert path/to/full.png -resize 50% path/to/downsampled.png
 
 # Analyze downsampled, keep full for human review
 ```
+
+---
+
+## For the Main Agent
+
+**Don't blindly trust subagent conclusions.** Subagents report what they observe, but may misinterpret. When reviewing results:
+1. Look at the **observations** (what's visible, what's missing)
+2. Consider whether the app state was correct for the test
+3. Investigate code yourself before concluding something is broken
+
+**Run both platforms in parallel.** Spawn iOS + Android visual inspection in a single message:
+```javascript
+// Single message with two Task calls = parallel execution
+Task({ subagent_type: "general-purpose", prompt: "Visual inspection iOS..." })
+Task({ subagent_type: "general-purpose", prompt: "Visual inspection Android..." })
+```
+
+**Some UI states can't be visually tested.** Visual inspection can't verify:
+- Lock screen (TEST_MODE bypasses authentication)
+- Biometric prompts (require device enrollment)
+- Permission dialogs in specific states
+- Screens requiring specific app state (e.g., active geofencing session)
+
+For these, document that manual testing is needed.
 
 ---
 
