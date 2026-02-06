@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { X } from 'lucide-react-native';
 import type { RootStackParamList } from '@/navigation/AppNavigator';
 import { t } from '@/lib/i18n';
 
@@ -9,9 +10,10 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 interface Props {
   visible: boolean;
+  onDismiss?: () => void;
 }
 
-export default function PermissionWarningBanner({ visible }: Props) {
+export default function PermissionWarningBanner({ visible, onDismiss }: Props) {
   const navigation = useNavigation<NavigationProp>();
 
   if (!visible) {
@@ -24,6 +26,15 @@ export default function PermissionWarningBanner({ visible }: Props) {
 
   return (
     <View style={styles.container}>
+      {onDismiss && (
+        <TouchableOpacity
+          style={styles.dismissButton}
+          onPress={onDismiss}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <X size={18} color="#C62828" />
+        </TouchableOpacity>
+      )}
       <View style={styles.content}>
         <Text style={styles.icon}>⚠️</Text>
         <View style={styles.textContainer}>
@@ -49,6 +60,14 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     marginVertical: 12,
     borderRadius: 8,
+    position: 'relative',
+  },
+  dismissButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    padding: 4,
+    zIndex: 1,
   },
   content: {
     flexDirection: 'row',

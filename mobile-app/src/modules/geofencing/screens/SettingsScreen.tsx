@@ -6,7 +6,6 @@ import {
   Alert,
   ActivityIndicator,
   Text,
-  Linking,
   Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -26,13 +25,14 @@ import {
 } from 'lucide-react-native';
 
 import { colors, spacing, fontSize, fontWeight } from '@/theme';
-import { t, getDateLocale } from '@/lib/i18n';
+import { t } from '@/lib/i18n';
 import { ListItem } from '@/components/ui';
 import { Button } from '@/components/ui';
 import type { RootStackParamList } from '@/navigation/AppNavigator';
 import { useAuth } from '@/lib/auth/auth-context';
 import { BiometricService } from '@/lib/auth/BiometricService';
 import { reportIssue } from '@/lib/utils/reportIssue';
+import { openTermsUrl, openPrivacyUrl } from '@/lib/utils/legalUrls';
 import { seedDashboardTestData, clearDashboardTestData } from '@/test-utils/seedDashboardData';
 
 type SettingsScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -187,21 +187,6 @@ export default function SettingsScreen() {
     );
   };
 
-  const handleOpenTerms = () => {
-    const locale = getDateLocale();
-    const url = locale === 'de'
-      ? 'https://openworkinghours.org/de/terms'
-      : 'https://openworkinghours.org/terms';
-    Linking.openURL(url);
-  };
-
-  const handleOpenPrivacy = () => {
-    const locale = getDateLocale();
-    const url = locale === 'de'
-      ? 'https://openworkinghours.org/de/privacy'
-      : 'https://openworkinghours.org/privacy';
-    Linking.openURL(url);
-  };
 
   const handleSeedDemoData = () => {
     Alert.alert(
@@ -307,12 +292,12 @@ export default function SettingsScreen() {
             <ListItem
               title={t('settings.termsOfService')}
               icon={<FileText size={ICON_SIZE} color={colors.primary[500]} />}
-              onPress={handleOpenTerms}
+              onPress={openTermsUrl}
             />
             <ListItem
               title={t('settings.privacyPolicy')}
               icon={<Shield size={ICON_SIZE} color={colors.primary[500]} />}
-              onPress={handleOpenPrivacy}
+              onPress={openPrivacyUrl}
             />
           </View>
 

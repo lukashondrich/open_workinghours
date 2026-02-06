@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
+import * as SecureStore from 'expo-secure-store';
 import { AppText as Text } from '@/components/ui/AppText';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -35,6 +36,9 @@ type StatusScreenNavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<MainTabParamList, 'Status'>,
   NativeStackNavigationProp<RootStackParamList>
 >;
+
+const PERMISSION_WARNING_DISMISSED_KEY = 'permission_warning_dismissed_at';
+const DISMISS_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 interface LocationStatus {
   location: UserLocation;
@@ -153,6 +157,7 @@ export default function StatusScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [hasBackgroundPermission, setHasBackgroundPermission] = useState(true);
+  const [warningDismissed, setWarningDismissed] = useState(false);
 
   const loadAllData = useCallback(async () => {
     try {
@@ -202,9 +207,40 @@ export default function StatusScreen() {
   const checkBackgroundPermission = async () => {
     try {
       const { status } = await Location.getBackgroundPermissionsAsync();
-      setHasBackgroundPermission(status === 'granted');
+      const isGranted = status === 'granted';
+      setHasBackgroundPermission(isGranted);
+
+      if (isGranted) {
+        // Permission granted - clear any dismiss timestamp so warning shows
+        // immediately if permission is revoked again
+        await SecureStore.deleteItemAsync(PERMISSION_WARNING_DISMISSED_KEY);
+        setWarningDismissed(false);
+      } else {
+        // Check if warning was dismissed recently
+        const dismissedAt = await SecureStore.getItemAsync(PERMISSION_WARNING_DISMISSED_KEY);
+        if (dismissedAt) {
+          const dismissedTime = parseInt(dismissedAt, 10);
+          const now = Date.now();
+          if (now - dismissedTime < DISMISS_DURATION_MS) {
+            setWarningDismissed(true);
+          } else {
+            // Expired - show warning again
+            setWarningDismissed(false);
+            await SecureStore.deleteItemAsync(PERMISSION_WARNING_DISMISSED_KEY);
+          }
+        }
+      }
     } catch (error) {
       console.error('[StatusScreen] Failed to check background permission:', error);
+    }
+  };
+
+  const handleDismissWarning = async () => {
+    try {
+      await SecureStore.setItemAsync(PERMISSION_WARNING_DISMISSED_KEY, Date.now().toString());
+      setWarningDismissed(true);
+    } catch (error) {
+      console.error('[StatusScreen] Failed to save dismiss timestamp:', error);
     }
   };
 
@@ -335,7 +371,10 @@ export default function StatusScreen() {
       </View>
 
       {/* Permission Warning Banner */}
-      <PermissionWarningBanner visible={!hasBackgroundPermission} />
+      <PermissionWarningBanner
+        visible={!hasBackgroundPermission && !warningDismissed}
+        onDismiss={handleDismissWarning}
+      />
 
       {/* Scrollable Content */}
       <ScrollView

@@ -13,7 +13,7 @@ import MapView, { Circle, Marker, Region } from 'react-native-maps';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Location from 'expo-location';
-import { MapPin, Plus } from 'lucide-react-native';
+import { MapPin, Plus, ChevronRight } from 'lucide-react-native';
 
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
 import { t } from '@/lib/i18n';
@@ -95,18 +95,21 @@ export default function LocationsListScreen() {
     }
   };
 
-  const handleLocationTap = (location: UserLocation) => {
+  const handleLocationSelect = (location: UserLocation) => {
     setSelectedLocation(location);
 
     // Animate map to location
-    setRegion({
+    const newRegion = {
       latitude: location.latitude,
       longitude: location.longitude,
       latitudeDelta: 0.01,
       longitudeDelta: 0.01,
-    });
+    };
+    setRegion(newRegion);
+    mapRef.current?.animateToRegion(newRegion, 300);
+  };
 
-    // Navigate to tracking screen
+  const handleLocationNavigate = (location: UserLocation) => {
     navigation.navigate('Tracking', { locationId: location.id });
   };
 
@@ -229,7 +232,7 @@ export default function LocationsListScreen() {
     return (
       <TouchableOpacity
         style={[styles.locationCard, isSelected && styles.locationCardSelected]}
-        onPress={() => handleLocationTap(item)}
+        onPress={() => handleLocationSelect(item)}
         onLongPress={() => handleLocationLongPress(item)}
         delayLongPress={500}
       >
@@ -238,6 +241,13 @@ export default function LocationsListScreen() {
           <Text style={styles.locationName}>{item.name}</Text>
           <Text style={styles.locationRadius}>{t('locations.radiusLabel', { radius: item.radiusMeters })}</Text>
         </View>
+        <TouchableOpacity
+          style={styles.locationNavigateButton}
+          onPress={() => handleLocationNavigate(item)}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <ChevronRight size={24} color={colors.grey[400]} />
+        </TouchableOpacity>
       </TouchableOpacity>
     );
   };
@@ -381,6 +391,9 @@ const styles = StyleSheet.create({
   },
   locationInfo: {
     flex: 1,
+  },
+  locationNavigateButton: {
+    padding: spacing.xs,
   },
   locationName: {
     fontSize: fontSize.md,

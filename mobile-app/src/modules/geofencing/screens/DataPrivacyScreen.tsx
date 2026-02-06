@@ -6,7 +6,9 @@ import {
   ScrollView,
   Alert,
   Share,
+  TouchableOpacity,
 } from 'react-native';
+import { ChevronRight } from 'lucide-react-native';
 import { format, parseISO } from 'date-fns';
 import { de as deLocale } from 'date-fns/locale/de';
 
@@ -23,6 +25,7 @@ import { AuthStorage } from '@/lib/auth/AuthStorage';
 import { BiometricService } from '@/lib/auth/BiometricService';
 import { ConsentStorage } from '@/lib/auth/ConsentStorage';
 import { t, getDateLocale } from '@/lib/i18n';
+import { openTermsUrl, openPrivacyUrl } from '@/lib/utils/legalUrls';
 
 interface DataSummary {
   locationCount: number;
@@ -289,23 +292,39 @@ export default function DataPrivacyScreen() {
         <Card style={styles.summaryCard}>
           <Text style={styles.summaryTitle}>{t('dataPrivacyScreen.consentStatus')}</Text>
 
-          <View style={styles.summaryRow}>
+          <TouchableOpacity style={styles.summaryRowTappable} onPress={openTermsUrl}>
             <Text style={styles.summaryLabel}>{t('dataPrivacyScreen.termsAccepted')}</Text>
-            <Text style={[styles.summaryValue, styles.summaryValueSuccess]}>
-              {authState.user?.termsAcceptedVersion
-                ? t('dataPrivacyScreen.accepted')
-                : t('dataPrivacyScreen.notAccepted')}
-            </Text>
-          </View>
+            <View style={styles.summaryValueRow}>
+              <Text style={[
+                styles.summaryValue,
+                authState.user?.termsAcceptedVersion
+                  ? styles.summaryValueSuccess
+                  : styles.summaryValueNotAccepted
+              ]}>
+                {authState.user?.termsAcceptedVersion
+                  ? t('dataPrivacyScreen.accepted')
+                  : t('dataPrivacyScreen.notAccepted')}
+              </Text>
+              <ChevronRight size={16} color={colors.grey[400]} />
+            </View>
+          </TouchableOpacity>
 
-          <View style={styles.summaryRow}>
+          <TouchableOpacity style={styles.summaryRowTappable} onPress={openPrivacyUrl}>
             <Text style={styles.summaryLabel}>{t('dataPrivacyScreen.privacyAccepted')}</Text>
-            <Text style={[styles.summaryValue, styles.summaryValueSuccess]}>
-              {authState.user?.privacyAcceptedVersion
-                ? t('dataPrivacyScreen.accepted')
-                : t('dataPrivacyScreen.notAccepted')}
-            </Text>
-          </View>
+            <View style={styles.summaryValueRow}>
+              <Text style={[
+                styles.summaryValue,
+                authState.user?.privacyAcceptedVersion
+                  ? styles.summaryValueSuccess
+                  : styles.summaryValueNotAccepted
+              ]}>
+                {authState.user?.privacyAcceptedVersion
+                  ? t('dataPrivacyScreen.accepted')
+                  : t('dataPrivacyScreen.notAccepted')}
+              </Text>
+              <ChevronRight size={16} color={colors.grey[400]} />
+            </View>
+          </TouchableOpacity>
 
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>{t('dataPrivacyScreen.acceptedOnLabel')}</Text>
@@ -460,6 +479,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.md,
   },
+  summaryRowTappable: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+    paddingVertical: spacing.xs,
+    marginHorizontal: -spacing.xs,
+    paddingHorizontal: spacing.xs,
+  },
+  summaryValueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
   summaryLabel: {
     fontSize: fontSize.md,
     color: colors.text.secondary,
@@ -474,6 +507,9 @@ const styles = StyleSheet.create({
   },
   summaryValueSuccess: {
     color: colors.success.main,
+  },
+  summaryValueNotAccepted: {
+    color: colors.warning.main,
   },
   exportButton: {
     marginBottom: spacing.xl,

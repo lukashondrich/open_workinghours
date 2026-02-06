@@ -20,6 +20,7 @@ import { FileText, Shield, Check, ChevronRight } from 'lucide-react-native';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
 import { Button, Checkbox } from '@/components/ui';
 import { t } from '@/lib/i18n';
+import { getTermsUrl, getPrivacyUrl } from '@/lib/utils/legalUrls';
 
 interface ConsentBottomSheetProps {
   visible: boolean;
@@ -28,17 +29,6 @@ interface ConsentBottomSheetProps {
   mode?: 'initial' | 'update';
   loading?: boolean;
 }
-
-// Policy URLs - use device locale to determine language
-const getTermsUrl = (locale: string) =>
-  locale.startsWith('de')
-    ? 'https://openworkinghours.org/de/terms'
-    : 'https://openworkinghours.org/terms';
-
-const getPrivacyUrl = (locale: string) =>
-  locale.startsWith('de')
-    ? 'https://openworkinghours.org/de/app-privacy-policy'
-    : 'https://openworkinghours.org/app-privacy-policy';
 
 export function ConsentBottomSheet({
   visible,
@@ -49,9 +39,6 @@ export function ConsentBottomSheet({
 }: ConsentBottomSheetProps) {
   const sheetRef = useRef<RBSheet>(null);
   const [accepted, setAccepted] = useState(false);
-
-  // Get current locale for URL selection
-  const locale = t('_locale') || 'en';
 
   useEffect(() => {
     if (visible) {
@@ -110,7 +97,7 @@ export function ConsentBottomSheet({
           {/* Policy Links */}
           <TouchableOpacity
             style={styles.policyCard}
-            onPress={() => openUrl(getTermsUrl(locale))}
+            onPress={() => openUrl(getTermsUrl())}
             activeOpacity={0.7}
             testID="consent-terms-link"
           >
@@ -126,7 +113,7 @@ export function ConsentBottomSheet({
 
           <TouchableOpacity
             style={styles.policyCard}
-            onPress={() => openUrl(getPrivacyUrl(locale))}
+            onPress={() => openUrl(getPrivacyUrl())}
             activeOpacity={0.7}
             testID="consent-privacy-link"
           >
