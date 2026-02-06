@@ -27,6 +27,11 @@ All docs connect back to `CLAUDE.md` (the entry point):
 ```
 CLAUDE.md (Entry Point)
 │
+├─► docs/WORKFLOW_PATTERNS.md ★ READ BEFORE STARTING WORK
+│   └─► docs/testing/
+│       ├─► e2e-regression.md (how to run E2E tests)
+│       └─► visual-inspection.md (how to do visual testing)
+│
 ├─► docs/DOCUMENTATION_STRUCTURE.md (this file - guidelines)
 │
 ├─► mobile-app/ARCHITECTURE.md (mobile work)
@@ -56,6 +61,8 @@ README.md (User Entry Point)
 
 **Navigation principle:** If lost, return to `CLAUDE.md`.
 
+**Critical for AI assistants:** Read `WORKFLOW_PATTERNS.md` before starting any task—it defines how to structure work, when to use subagents, and testing workflows.
+
 ---
 
 ## Target Structure
@@ -65,6 +72,8 @@ README.md (User Entry Point)
 | Document | Purpose | Location | Audience |
 |----------|---------|----------|----------|
 | `CLAUDE.md` | AI assistant quick context - current state, pointers, do's/don'ts | Root | AI assistants |
+| **`docs/WORKFLOW_PATTERNS.md`** | **How to structure work, use subagents, testing workflows** | docs/ | **AI assistants** |
+| `docs/testing/*.md` | Specific workflow templates (E2E, visual inspection) | docs/testing/ | AI assistants |
 | `README.md` | Project setup, installation, quick start | Root | New developers |
 | `docs/deployment.md` | Docker, Hetzner, env vars, production deployment | docs/ | DevOps |
 | `docs/debugging.md` | Mobile debugging, backend logs, common issues | docs/ | Developers |
@@ -73,23 +82,30 @@ README.md (User Entry Point)
 - Answers "how do I...?" questions
 - Updated when processes change
 - CLAUDE.md should be slim (~150-200 lines) to minimize token usage
+- **WORKFLOW_PATTERNS.md is the single source of truth for task execution patterns**
 
 ### Factual Knowledge (What It Is)
 
 | Document | Purpose | Location | Audience |
 |----------|---------|----------|----------|
 | `blueprint.md` | High-level system architecture, completed modules overview | Root | Architects |
-| `mobile-app/ARCHITECTURE.md` | Mobile app details - modules, schemas, key components, **E2E testing** | Module | Mobile devs |
-| `mobile-app/e2e/README.md` | Appium E2E test quick start | Module | QA/Mobile devs |
-| `docs/E2E_TESTING_PLAN.md` | E2E testing reference - history, troubleshooting, framework comparison | docs/ | QA/Mobile devs |
+| `mobile-app/ARCHITECTURE.md` | Mobile app details - modules, schemas, key components | Module | Mobile devs |
 | `backend/ARCHITECTURE.md` | Backend details - API, database, aggregation | Module | Backend devs |
 | `privacy_architecture.md` | Privacy/GDPR technical design, data flows | Root | Technical |
 | `website/README.md` | Website structure and content | Module | Content editors |
+
+**Deep references (accessed via WORKFLOW_PATTERNS.md → docs/testing/):**
+| Document | Purpose |
+|----------|---------|
+| `mobile-app/e2e/README.md` | Appium E2E test quick start |
+| `docs/E2E_TESTING_PLAN.md` | E2E testing history, troubleshooting |
+| `docs/VISUAL_TESTING.md` | Visual testing design checklist |
 
 **Characteristics:**
 - Answers "what is...?" and "how does X work?" questions
 - Updated when features are FINISHED and tested
 - Module-specific docs live in module folders (close to code)
+- Testing docs are deep references, not entry points (use WORKFLOW_PATTERNS.md)
 
 ### Legal & Compliance (GDPR)
 
@@ -277,7 +293,7 @@ This guide itself should be referenced in CLAUDE.md's documentation pointers sec
 
 ## Known Documentation Gaps
 
-**Status:** Updated 2026-01-07
+**Status:** Updated 2026-02-05
 
 Most previously identified gaps have been addressed:
 
@@ -285,6 +301,8 @@ Most previously identified gaps have been addressed:
 |-----|--------|-------|
 | State shapes (CalendarState, AuthState) | ✅ Documented | Added to `mobile-app/ARCHITECTURE.md` Key Types section |
 | Key interfaces (ShiftTemplate, TrackingRecord, AbsenceInstance) | ✅ Documented | Added to `mobile-app/ARCHITECTURE.md` Key Types section |
+| Testing discovery path | ✅ Fixed | Consolidated under `WORKFLOW_PATTERNS.md` → `docs/testing/` |
+| Subagent workflow guidance | ✅ Documented | `docs/testing/` has templates for E2E and visual testing |
 | Component props | Low priority | Not needed - code is self-documenting |
 | File → function mapping | Skipped | Over-documentation, not worth maintaining |
 | Test coverage details | Low priority | Run `npm test` to see current state |
