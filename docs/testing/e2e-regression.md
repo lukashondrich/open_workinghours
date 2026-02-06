@@ -50,13 +50,21 @@ PREREQUISITES:
    iOS: xcrun simctl list devices | grep -i booted
    Android: adb devices
 2. Check Appium running: lsof -i :4723
+3. Check build type — CRITICAL:
+   - Release builds do NOT hot-reload. Code changes require rebuild.
+   - If testing code changes, ensure app is Debug build OR rebuild first.
+   - See "Debug vs Release Builds" section below.
 
 WORKFLOW:
-1. Verify prerequisites
-2. If Appium not running: cd mobile-app/e2e && npm run infra:[platform] &
+1. Verify prerequisites (simulator, Appium)
+2. Check build type:
+   - If testing CODE CHANGES: ensure Debug build with Metro, or rebuild first
+   - If Release build with no Metro: code changes WON'T be reflected — rebuild!
+   - Check Metro: lsof -i :8081
+3. If Appium not running: cd mobile-app/e2e && npm run infra:[platform] &
    Wait 15 seconds
-3. Run tests: cd mobile-app/e2e && npm run test:[platform]
-4. Capture full output
+4. Run tests: cd mobile-app/e2e && npm run test:[platform]
+5. Capture full output
 
 DO NOT:
 - Take screenshots
@@ -112,20 +120,102 @@ REPORT FORMAT:
 
 ---
 
+## Debug vs Release Builds
+
+**Critical:** Release builds are compiled native code. They do NOT hot-reload. If you're testing code changes against a Release build, your changes won't appear.
+
+### How to Check Build Type
+
+```bash
+# iOS — check if Metro bundler is connected
+# If app shows "Metro waiting on..." or responds to reload, it's Debug
+# If app runs standalone without Metro, it's Release
+
+# Look for build configuration in recent builds:
+ls -la mobile-app/ios/build/Build/Products/
+# Debug-iphonesimulator/ = Debug build
+# Release-iphonesimulator/ = Release build
+```
+
+### Build Type Behavior
+
+| Build Type | Hot Reload? | When to Use |
+|------------|-------------|-------------|
+| Debug (`npx expo run:ios`) | ✅ Yes — Metro serves JS | Development, quick iteration |
+| Release (`--configuration Release`) | ❌ No — compiled | E2E tests, production testing |
+| E2E build (`npm run build:ios` in e2e/) | ❌ No — Release + TEST_MODE | Automated E2E testing |
+
+### Decision Flow
+
+```
+Testing code changes?
+    │
+    ├─► YES: Do you have a Debug build running with Metro?
+    │       ├─► YES: Code will hot-reload, test directly
+    │       └─► NO: Rebuild first, then test
+    │
+    └─► NO (just running existing tests): Release build is fine
+```
+
+### Commands
+
+```bash
+# Debug build (hot-reloads, for development)
+cd mobile-app && npx expo run:ios
+
+# E2E build (Release + TEST_MODE, for automated tests)
+cd mobile-app/e2e && npm run build:ios
+
+# Check if Metro is running (Debug mode indicator)
+lsof -i :8081
+```
+
+---
+
 ## When Rebuild is Needed
 
 | Scenario | Rebuild? |
 |----------|----------|
-| Changed JS logic only | No — Metro serves latest |
+| Changed JS logic only | No — Metro serves latest (Debug only!) |
 | Changed testID or accessible props | **Yes** |
 | Added/removed native modules | **Yes** |
 | TEST_MODE code changes | **Yes** |
+| Running Release build with code changes | **Yes** — Release doesn't hot-reload |
 
 ```bash
-# Rebuild
+# Rebuild for E2E
 cd mobile-app/e2e
 npm run build:ios      # or build:android
 ```
+
+---
+
+## Resuming After Fixes
+
+If E2E tests fail and you fix the code:
+
+```
+1. Subagent reports failures → returns agentId
+2. You fix the code
+3. Rebuild if needed (see "When Rebuild is Needed")
+4. Resume the SAME subagent:
+
+   Task({
+     subagent_type: "Bash",
+     resume: "<agentId from step 1>",
+     prompt: "Code has been fixed and rebuilt. Please re-run the failed tests."
+   })
+```
+
+**Why resume instead of starting fresh?**
+- Preserves context — subagent knows which tests failed
+- Can focus on re-running failed tests only
+- Provides before/after comparison in report
+
+**When to start fresh instead:**
+- Running full regression (not just re-testing failures)
+- Previous subagent timed out or hit errors
+- Significant changes since last run
 
 ---
 

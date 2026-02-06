@@ -44,6 +44,13 @@ CONTEXT:
 CHECKS TO PERFORM:
 [List specific checks]
 
+PREREQUISITE — Build Type Check:
+Before starting visual inspection of CODE CHANGES:
+1. Check if Metro bundler is running: lsof -i :8081
+2. If NO Metro → app is Release build → changes WON'T be visible
+3. Either start Debug build (npx expo run:ios) or rebuild Release
+4. If just reviewing existing UI (no code changes), Release is fine
+
 WORKFLOW:
 
 For each check:
@@ -71,6 +78,7 @@ CONTEXT MANAGEMENT:
 DO NOT:
 - Accumulate more than 5-6 full-resolution images
 - Guess at issues — mark uncertain instead
+- Test code changes on Release build without Metro — changes won't be visible
 
 REPORT FORMAT:
 
@@ -126,6 +134,35 @@ convert path/to/full.png -resize 50% path/to/downsampled.png
 
 # Analyze downsampled, keep full for human review
 ```
+
+---
+
+## Resuming After Fixes
+
+If a subagent finds issues that require code changes and rebuild:
+
+```
+1. Subagent reports issue → returns agentId
+2. You fix the code
+3. Rebuild the app (npx expo run:ios or npm run build:ios)
+4. Resume the SAME subagent:
+
+   Task({
+     subagent_type: "general-purpose",
+     resume: "<agentId from step 1>",
+     prompt: "App has been rebuilt with fixes. Please re-verify the issues you found."
+   })
+```
+
+**Why resume instead of starting fresh?**
+- Preserves context — subagent remembers what it checked and what failed
+- More efficient — doesn't re-do passing checks
+- Better report — can show before/after comparison
+
+**When to start fresh instead:**
+- Significant time has passed (context may be stale)
+- Testing completely different features
+- Previous subagent hit errors or got confused
 
 ---
 
