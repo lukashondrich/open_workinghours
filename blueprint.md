@@ -1,6 +1,6 @@
 # Open Working Hours - System Blueprint
 
-**Last Updated:** 2026-01-07
+**Last Updated:** 2026-02-09
 
 ---
 
@@ -32,7 +32,7 @@ This document provides a high-level architectural overview of the Open Working H
 
 | Component | Purpose | Status | Documentation |
 |-----------|---------|--------|---------------|
-| **Mobile App** | iOS app for healthcare workers to track hours | Production (TestFlight) | [`mobile-app/ARCHITECTURE.md`](mobile-app/ARCHITECTURE.md) |
+| **Mobile App** | iOS + Android app for healthcare workers to track hours | Production (TestFlight) + Android internal testing | [`mobile-app/ARCHITECTURE.md`](mobile-app/ARCHITECTURE.md) |
 | **Backend** | FastAPI server with auth, storage, aggregation | Production (Hetzner) | [`backend/ARCHITECTURE.md`](backend/ARCHITECTURE.md) |
 | **Website** | Astro dossier site for outreach | Live | [`website/README.md`](website/README.md) |
 | **Next.js Dashboard** | Web analytics dashboard | Deprecated | — |
@@ -47,6 +47,10 @@ The mobile app is organized into feature modules:
 Automatic clock-in/out via GPS geofencing with manual fallback.
 - Background location tracking with `expo-location`
 - 5-minute exit hysteresis to prevent false clock-outs
+- Exit verification: scheduled GPS checks at 1, 3, 5 min with confidence-based distance logic
+- Active GPS fetch for accuracy data when geofence events lack it
+- Event debouncing (10s cooldown) to prevent rapid oscillation
+- Immediate clock-out for high-confidence exits (accuracy <50m)
 - Sessions < 5 min filtered as noise
 
 ### Module 2: Authentication & Submission
@@ -54,13 +58,19 @@ Email-based passwordless auth with daily data submission.
 - 6-digit verification codes via Brevo SMTP
 - JWT tokens (30-day expiry)
 - Daily submissions to backend (past dates only)
+- Biometric unlock (Face ID/Touch ID) with Lock Screen (N26 pattern)
+- WelcomeScreen with Log In / Create Account split (streamlined returning user flow)
 
 ### Calendar Module
-Shift planning with reusable templates.
+Shift planning with reusable templates and unified picker UI.
 - Pinch-to-zoom with focal point
-- Double-tap to place shifts
+- Unified InlinePicker (centered modal) for shifts, absences, and manual GPS hours
+- Double-tap to place armed shifts/absences
 - Overlap detection
 - Absence tracking (vacation, sick days)
+- Manual session creation for GPS failure fallback
+- Month view with summary footer (tracked/planned hours, overtime, absence counts)
+- Progressive disclosure at 4 zoom levels
 
 ### Status Dashboard
 14-day rolling overview of hours worked vs planned.
@@ -91,6 +101,34 @@ Shift planning with reusable templates.
 - `GET /admin` - Admin dashboard
 
 **Full details:** [`backend/ARCHITECTURE.md`](backend/ARCHITECTURE.md)
+
+### Database Backups
+- Automated PostgreSQL backups to Hetzner Object Storage (daily, 4 AM UTC)
+- 30-day immutable retention (COMPLIANCE mode Object Lock)
+- Satisfies IT insurance requirements
+
+---
+
+## E2E Testing Infrastructure
+
+Cross-platform E2E testing using Appium with XCUITest (iOS) and UiAutomator2 (Android).
+- 48+ tests across auth, calendar, geofencing, shifts, absences, manual sessions
+- TEST_MODE system: mock auth, mock geocoding, skip animations
+- Local builds required (Xcode for iOS, EAS for Android)
+- All overlays use `Animated.View` (not `Modal`) for accessibility tree visibility
+
+**Full details:** [`mobile-app/e2e/README.md`](mobile-app/e2e/README.md), [`docs/E2E_TESTING_PLAN.md`](docs/E2E_TESTING_PLAN.md)
+
+---
+
+## Architectural Constraints
+
+| Constraint | Reason |
+|------------|--------|
+| No `<Modal>` for overlays | Invisible to XCUITest/Appium — use inline `Animated.View` with `pointerEvents` |
+| No `react-native-reanimated` | Crashes with Expo SDK 51 |
+| No `accessibilityRole="menu"` on containers | Causes XCUITest to aggregate children |
+| Platform-specific gesture handling | Android lacks iOS native gesture coordination for RNGH + ScrollView |
 
 ---
 
@@ -133,3 +171,5 @@ See [`privacy_architecture.md`](privacy_architecture.md) for full privacy design
 | [`docs/deployment.md`](docs/deployment.md) | Production deployment |
 | [`docs/debugging.md`](docs/debugging.md) | Debugging guide |
 | [`docs/DOCUMENTATION_STRUCTURE.md`](docs/DOCUMENTATION_STRUCTURE.md) | Doc organization |
+| [`docs/WORKFLOW_PATTERNS.md`](docs/WORKFLOW_PATTERNS.md) | How to structure work, use subagents |
+| [`docs/E2E_TESTING_PLAN.md`](docs/E2E_TESTING_PLAN.md) | E2E testing history, known issues |

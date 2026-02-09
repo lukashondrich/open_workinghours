@@ -1,6 +1,6 @@
 # Mobile App Architecture
 
-**Last Updated:** 2026-01-16
+**Last Updated:** 2026-02-09
 **Platform:** React Native + Expo
 **Current Build:** #30 (TestFlight)
 
@@ -23,6 +23,11 @@ Quick reference for common tasks:
 | **Add a reducer action** | `src/lib/calendar/types.ts` (CalendarAction type) |
 | **Modify shift rendering** | `src/modules/calendar/components/WeekView.tsx` |
 | **Change template panel** | `src/modules/calendar/components/TemplatePanel.tsx` |
+| **Change inline picker** | `src/modules/calendar/components/InlinePicker.tsx` |
+| **Change manual session form** | `src/modules/calendar/components/ManualSessionForm.tsx` |
+| **Change lock screen** | `src/modules/auth/screens/LockScreen.tsx` |
+| **Change biometric auth** | `src/lib/auth/BiometricService.ts` |
+| **View work history / export CSV** | `src/modules/geofencing/screens/LogScreen.tsx`, `src/modules/geofencing/utils/exportHistory.ts` |
 | **Edit geofence logic** | `src/modules/geofencing/services/GeofenceService.ts` |
 | **Change clock-in/out** | `src/modules/geofencing/services/TrackingManager.ts` |
 | **Cross-module events** | `src/lib/events/trackingEvents.ts` |
@@ -68,12 +73,12 @@ mobile-app/
 │   │   └── i18n/               # Translations (en.ts, de.ts)
 │   │
 │   ├── modules/
-│   │   ├── auth/               # Login, registration screens
-│   │   │   ├── screens/
+│   │   ├── auth/               # Login, registration, lock screen
+│   │   │   ├── screens/        # WelcomeScreen, LoginScreen, LockScreen
 │   │   │   └── services/       # AuthService
 │   │   │
 │   │   ├── calendar/           # Calendar feature
-│   │   │   ├── components/     # WeekView, MonthView, TemplatePanel, CalendarFAB
+│   │   │   ├── components/     # WeekView, MonthView, InlinePicker, TemplatePanel, CalendarFAB, ManualSessionForm
 │   │   │   └── services/       # CalendarStorage, DailyAggregator
 │   │   │
 │   │   └── geofencing/         # Location tracking
@@ -100,6 +105,7 @@ Automatic clock-in/out based on GPS location with robust hysteresis.
 **Key Files:**
 - `GeofenceService.ts` - Manages geofence regions, extracts GPS accuracy
 - `TrackingManager.ts` - Handles clock-in/out logic with hysteresis
+- `ExitVerificationService.ts` - Scheduled GPS checks to verify exits (1/3/5 min)
 - `Database.ts` - SQLite operations, pending exit state management
 
 **Behavior:**
@@ -129,26 +135,88 @@ All methods that modify sessions (`clockOut()`, `updateSession()`) enforce this 
 EXIT_HYSTERESIS_MINUTES = 5     // Wait before confirming clock-out
 GPS_ACCURACY_THRESHOLD = 100    // Ignore exits with accuracy > 100m
 DEGRADATION_FACTOR = 3          // Ignore if accuracy 3x worse than check-in
+EVENT_COOLDOWN_MS = 10000       // Debounce rapid geofence events (10s)
 ```
+
+**Exit Verification Service (`ExitVerificationService.ts`):**
+- On geofence exit → schedules 3 silent notifications at 1, 3, 5 minutes
+- Each notification triggers a quick GPS check (`Location.Accuracy.Balanced`, 5s timeout)
+- Confidence-based distance logic (Haversine): `isConfidentlyInside` / `isConfidentlyOutside` / `isUncertain`
+- Confidently inside → cancel pending exit (false alarm)
+- Confidently outside at 5 min → confirm clock-out + send notification
+- Uncertain at 5 min → leave pending, let fallback handle it
+- State persisted in SecureStore (survives app termination)
+- Integrated into TrackingManager: scheduled on exit, cancelled on re-entry/manual clock-out
+- Fallback: `processPendingExitsIfNeeded()` on StatusScreen focus
+
+**GPS Telemetry & Accuracy:**
+- Active GPS fetch when geofence events lack location data (common on both platforms)
+- `accuracy_source` field tracks data origin: `'event'` (rare), `'active_fetch'` (common), or `null` (failed)
+- Event debouncing: 10-second cooldown per location prevents rapid oscillation
+- Stale exit cleanup: pending exits >24h auto-confirmed
+- Telemetry included in Report Issue for parameter tuning
+- Database schema v5 adds `accuracy_source` column
+
+**Clock-out Reliability (Build #42):**
+- Immediate clock-out for good GPS accuracy (<50m, no hysteresis)
+- Expired pending exits (>5min) confirmed on next ENTER event
+- App foreground trigger processes pending exits
+- Philosophy: "bias toward logging out" — act on EXIT event if verification doesn't run
+
+**Geofencing UX (Group A fixes):**
+- Location list: tap to select + show on map, edit icon to navigate to edit screen
+- Consent status: color now matches actual acceptance state (green/warning)
+- Permission warning banner: dismissable with X button, re-shows after 1 week (AsyncStorage timestamp)
 
 ### Module 2: Authentication & Submission
 
-Email-based passwordless auth with daily data submission.
+Email-based passwordless auth with daily data submission, biometric unlock, and lock screen.
 
 **Key Files:**
 - `AuthService.ts` - Login, registration, token management
+- `BiometricService.ts` - Face ID/Touch ID/Fingerprint auth, passcode fallback
+- `LockScreen.tsx` - Lock screen with biometric + passcode + email options
+- `WelcomeScreen.tsx` - Initial screen with Log In / Create Account choice
 - `DailySubmissionService.ts` - Submits confirmed days to backend
 - `ConsentBottomSheet.tsx` - GDPR consent modal
 - `ConsentStorage.ts` - Local consent record persistence
 - `consent-types.ts` - Consent types and version constants
 
-**Flow:**
-1. User enters email → receives 6-digit code
-2. User enters code → receives JWT token
-3. **User reviews Terms & Privacy Policy in consent modal**
-4. User accepts → consent saved locally + sent to backend
-5. Token stored in expo-secure-store
-6. Daily submissions sent with JWT auth
+**Auth Flow:**
+```
+App Launch
+    │
+    ▼
+Token exists & valid?
+    │
+    ├── No → WelcomeScreen → "Log In" (single code) or "Create Account" (registration)
+    │
+    Yes
+    │
+    ▼
+Biometric enabled? → No → Restore session → MainTabs
+    │
+    Yes → LockScreen
+    │
+    ├── Face ID/Touch ID → Success → MainTabs
+    ├── "Use device passcode" → Passcode prompt → Success → MainTabs
+    └── "Sign in with email" → Sign out → WelcomeScreen
+```
+
+**Lock Screen (N26/Revolut pattern):**
+- Auto-prompts biometric on mount
+- Primary: "Unlock with Face ID/Touch ID" button
+- Secondary: "Use device passcode" link → `BiometricService.authenticateWithPasscodeOnly()`
+- Tertiary: "Sign in with email" link → full sign out
+- TEST_MODE bypass for E2E testing
+- Auth state `'locked'` → renders LockScreen in AppNavigator
+
+**Biometric Service:**
+- `authenticate()` — biometric with passcode fallback
+- `authenticateWithPasscodeOnly()` — passcode-only prompt
+- `isEnabled()` / `setEnabled()` — preference in SecureStore
+- `getBiometricType()` — localized string ("Face ID", "Fingerprint", etc.)
+- Settings toggle in SettingsScreen (hidden when device lacks biometrics)
 
 **GDPR Consent:**
 - Shown as bottom sheet modal during registration
@@ -171,31 +239,58 @@ Email-based passwordless auth with daily data submission.
 
 ### Calendar Module
 
-Shift planning with templates and instances.
+Shift planning with templates, instances, and a unified inline picker.
 
 **Key Files:**
 - `WeekView.tsx` - Main calendar view with pinch-zoom
-- `MonthView.tsx` - Monthly overview
+- `MonthView.tsx` - Monthly overview with summary footer
+- `InlinePicker.tsx` - Unified shift/absence/GPS picker (centered modal)
+- `ManualSessionForm.tsx` - Manual tracked session creation form
 - `TemplatePanel.tsx` - Shift/absence template management (compact radio list)
-- `CalendarFAB.tsx` - Floating action button for adding shifts/absences
-- `CalendarHeader.tsx` - Header with navigation and GPS visibility toggle
+- `CalendarFAB.tsx` - Floating action button (Shifts/Absences/Log Hours)
+- `CalendarHeader.tsx` - Header with navigation, week badge, GPS toggle
 - `CalendarStorage.ts` - SQLite persistence
 - `calendar-reducer.ts` - State management
 
+**InlinePicker (Unified Picker UI):**
+- Centered modal with three tabs: Shifts, Absences, GPS
+- Two modes: **direct placement** (with targetDate → places immediately) and **arming** (without targetDate → arms for double-tap)
+- Entry points: FAB, WeekView (tap/long-press), MonthView (long-press)
+- Edit icon (pencil) on LEFT of template rows, inline edit form with name/time/color/break duration
+- Focus ring on target day in both WeekView and MonthView
+- Blocked on locked/confirmed days
+- 28 testIDs for E2E compatibility
+
+**Interaction Model:**
+
+| View | Action | Not Armed | Armed |
+|------|--------|-----------|-------|
+| WeekView | Single tap | Open InlinePicker | Blocked |
+| WeekView | Double tap | Open InlinePicker | Place shift/absence |
+| WeekView | Long press | Open InlinePicker | Open InlinePicker |
+| MonthView | Single tap | Navigate to WeekView | Delayed navigate (allows double-tap) |
+| MonthView | Double tap | Navigate to WeekView | Place armed shift |
+| MonthView | Long press | Open InlinePicker | Open InlinePicker |
+
 **Week View Features:**
-- Pinch-to-zoom with focal point
-- Double-tap to place shifts/absences (or open template picker if none armed)
+- Pinch-to-zoom with focal point (ref-based, platform-specific gesture handling)
 - Swipe to navigate weeks
-- Drag handles to adjust times
+- Drag handles to adjust shift/tracking times
 - Absences (vacation, sick days) with full CRUD
-- FAB for quick access to template panel
-- GPS visibility toggle (eye icon) - shows tracked time on calendar
-- Progressive disclosure - text hides at low zoom levels (thresholds: 32px/56px)
+- FAB for quick access to InlinePicker
+- GPS visibility toggle (eye icon) — shows tracked time on calendar
+- Progressive disclosure at 4 zoom levels:
+  - Full (≥56px): start/end times + duration (12px font)
+  - Reduced (32-55px): duration only (12px font)
+  - Compact (20-31px): duration + end time (9px font)
+  - Minimal (12-19px): end time only (9px font)
+- First-time "Submit" tooltip explaining confirmation permanence
+- Submit button (was "Confirm?") with review mode header hint
 
 **Month View Features:**
 - Grid uses fixed 6-week (42 cell) layout for consistent height across all months
 - Day cells show: day number, shift dots (colored), tracked dot (rose), absence icons
-- Per-day overtime for confirmed days (e.g., "+1h 30m ✓") - color-coded green/red/grey
+- Per-day overtime for confirmed days (e.g., "+1h 30m ✓") — color-coded green/red/grey
 - Unconfirmed days with activity show ? icon
 - Monthly summary footer: tracked hours, planned hours, overtime, vacation/sick counts
 - Confirmation nudge: "(X confirmed)" hint when some overtime is unconfirmed
@@ -204,6 +299,15 @@ Shift planning with templates and instances.
 - GPS toggle and FAB hidden (month view is overview-only)
 - Full month tracking data loaded when switching to month view in review mode
 - Multi-day sessions correctly split across days using `getTrackedMinutesForDate()`
+- Armed shift banner in fixed-height slot inside `Animated.View` (no layout shift)
+
+**Manual Session Creation:**
+- Allows manual entry of tracked hours when GPS fails completely
+- Entry via FAB "Log Hours" or long-press "Log Tracked Hours"
+- Form: Location dropdown → Date → Start time → End time → Save
+- Uses existing `tracking_method: 'manual'` field for auditing
+- Validates: no future dates, end > start, no same-location overlaps
+- Emits `tracking-changed` event for immediate calendar refresh
 
 ### Status Dashboard
 
@@ -533,6 +637,106 @@ const handleHorizontalScrollEndDrag = Platform.OS === 'ios'
 
 **See also:** `docs/ANDROID_GESTURE_FIX_PLAN.md` for full exploration history
 
+### Month View UX Improvements (2026-01-16)
+- **Expanded grid**: Dynamic cell heights fill available space (removed fixed `aspectRatio: 1`)
+- **Confirmation icons**: ✓ (confirmed, teal) and ? (unconfirmed with activity, grey) replace green background tint
+- **Monthly summary footer**: tracked hours, planned hours, overtime (color-coded), vacation/sick counts
+- **Per-day overtime**: "+1h 30m ✓" display, confirmation nudge when partial
+- **Swipe navigation**: PanResponder with 200ms slide animation
+- **Multi-day session fix**: `getTrackedMinutesForDate()` with proper overlap calculation and proportional break allocation
+- **Month tracking data**: Full month loaded when switching to month view in review mode
+- **Header title click**: Navigates to current month
+- **Consistent layout**: Always 42 cells (6 weeks), absence row with minHeight, hint reserves space
+- **Code cleanup**: Deduplicated time helpers in `calendar-utils.ts` (single source of truth)
+
+### Manual Session Creation (2026-01-18)
+- **Problem**: No way to record hours when GPS fails completely
+- **Solution**: `ManualSessionForm.tsx` — location dropdown, date, start/end time pickers
+- **Entry points**: FAB "Log Hours" option + long-press "Log Tracked Hours" in WeekView
+- **Data model**: Uses existing `tracking_method: 'manual'` field, `state: 'completed'`
+- **Validation**: No future dates, end > start, no same-location overlaps
+- **Refresh**: Emits `tracking-changed` event for immediate calendar update
+
+### Auth UX Improvements (2026-01-19)
+- **WelcomeScreen**: Initial screen with "Log In" / "Create Account" choice
+- **Streamlined login**: Returning users go directly to LoginScreen (single code, no double verification)
+- **Email preview fix**: Verification code moved to first line of email body for inbox preview visibility
+- **Biometric unlock**: Face ID/Touch ID/Fingerprint via `expo-local-authentication`
+  - `BiometricService.ts` with `authenticate()`, `authenticateWithPasscodeOnly()`, `isEnabled()`/`setEnabled()`
+  - Settings toggle (hidden when device lacks biometrics)
+  - Preference stored in `expo-secure-store`
+  - iOS `NSFaceIDUsageDescription` configured in `app.json`
+
+### Confirm Action Clarity (2026-01-19)
+- **First-time tooltip**: Modal explaining "this sends hours to the study, can't be edited after"
+- **Stored in AsyncStorage**: `hasSeenConfirmTooltip` flag, shown once then dismissed forever
+- **Button relabeling**: "Confirm?" → "Submit" (compact: "✓")
+- **Review mode hint**: "Submit each day to finalize your hours" in header
+- **New file**: `src/lib/storage/onboardingStorage.ts` for onboarding flags
+
+### Zoomed-Out Timing Info (2026-01-19)
+- **Problem**: Tracking blocks showed no timing info at low zoom levels
+- **Solution**: Added two compact disclosure levels with 9px font (`xxs` in typography.ts)
+- **Compact (20-31px)**: Duration centered + end time at bottom edge (9px)
+- **Minimal (12-19px)**: End time only at bottom edge (9px)
+- **Thresholds**: `DISCLOSURE_COMPACT_HEIGHT = 20`, reuses existing 32px/56px levels
+
+### Work History Screen (2026-01-22)
+- **Replaced placeholder LogScreen** with full work history for a location
+- **SectionList** grouped by date with session cards (time, duration, method, active badge)
+- **Date range filters**: Week / Month / All preset tabs
+- **Summary card**: Total hours + session count
+- **CSV export**: Via share sheet (`exportHistory.ts`), format: Date/Day/Clock In/Out/Duration/Method/Status
+- **Confirmation status**: Date headers show confirmed ✓ or "Tap to confirm", tapping navigates to Calendar
+- **States**: Loading, empty (icon + hint), data, exporting
+- **Pull-to-refresh** and refresh on screen focus
+- **Database**: `getSessionsInRange()` method with optional date bounds
+- **i18n**: Full EN + DE translations
+- **Files**: `LogScreen.tsx` (rewrite), `exportHistory.ts` (new), `Database.ts` (new method)
+
+### Geofencing Robustness: GPS Telemetry (2026-01-24)
+- **Active GPS fetch**: Requests position when geofence events lack location data
+- **Event debouncing**: 10-second cooldown prevents rapid oscillation (database-backed, not in-memory)
+- **Telemetry**: `accuracy_source` field tracks GPS data origin (event/active_fetch/null)
+- **Permission warning**: Re-enabled on StatusScreen
+- **Android notification channels**: `tracking` (silent) and `alerts` (audible)
+- **Stale exit cleanup**: Pending exits >24h auto-confirmed
+- **Clock-out reliability (Build #42)**: Immediate clock-out for accuracy <50m, expired pending exits confirmed on ENTER, app foreground trigger
+- **Database migration v5**: Adds `accuracy_source` column to `geofence_events`
+- **Backend**: `accuracy_source` field added to `GpsTelemetryEvent` schema
+
+### UX Expert Feedback — Group A: Geofencing Screens (2026-02-05)
+- **Location list tap**: Split into select (pan map) + edit icon (navigate to edit screen)
+- **Consent status color**: Conditional styling — green when accepted, warning when not
+- **Permission warning dismiss**: X button with 1-week re-show via AsyncStorage timestamp
+- **Files**: `LocationsListScreen.tsx`, `DataPrivacyScreen.tsx`, `PermissionWarningBanner.tsx`, `StatusScreen.tsx`
+
+### UX Expert Feedback — Group B: Lock Screen (2026-02-06)
+- **New LockScreen**: N26/Revolut pattern with Face ID + passcode + email options
+- **Auth state**: Added `'locked'` status to AuthState, `SET_LOCKED` and `UNLOCK` actions
+- **BiometricService**: Added `authenticateWithPasscodeOnly()` method
+- **AppNavigator**: Renders LockScreen when `authState.status === 'locked'`
+- **Auto-prompt**: Biometric prompted on mount, TEST_MODE bypass for E2E
+- **Files**: `LockScreen.tsx` (new), `auth-context.tsx`, `BiometricService.ts`, `AppNavigator.tsx`, `auth-types.ts`
+
+### UX Expert Feedback — Group C: InlinePicker Unification (2026-02-09)
+- **Unified picker**: `InlinePicker.tsx` replaces duplicate picker UIs (TemplatePanel + old WeekView inline picker)
+- **Three tabs**: Shifts, Absences, GPS (Log Hours)
+- **Two modes**: Direct placement (targetDate set) and arming (targetDate null, from FAB)
+- **Edit UX**: Edit button on LEFT, inline edit form with color picker + break duration
+- **MonthView interactions**: Single tap → WeekView, long press → picker, double-tap → place armed shift
+- **WeekView interactions**: Single tap blocked when armed, double-tap places, long press opens picker
+- **Batch indicator**: Armed shift banner in fixed-height slot (no layout shift) in both views
+- **28 testIDs** added for E2E compatibility
+- **Tab sync fix**: FAB → Absences correctly opens Absences tab
+- **Files**: `InlinePicker.tsx` (new), `CalendarScreen.tsx`, `WeekView.tsx`, `MonthView.tsx`, `CalendarFAB.tsx`, `types.ts`, `calendar-reducer.ts`
+
+### Visual Polish (2026-02-09)
+- **CalendarHeader title overflow**: `flex: 1` + `adjustsFontSizeToFit` with `minimumFontScale={0.8}`, same-month range shortening ("Apr. 20 - 26")
+- **MonthView banner layout shift**: Banner inside `Animated.View` with fixed-height slot (height: 44, marginBottom: 8)
+- **Android tab bar overlap**: Wrapper View with `paddingBottom: Math.max(insets.bottom, 48)` for Android 15+ edge-to-edge
+- **Key learnings**: Android hot reload can silently fail; sibling Views after `Animated.View flex:1` may not render on Android; Android 15+ enforces edge-to-edge regardless of config
+
 ---
 
 ## Key Types
@@ -613,6 +817,13 @@ interface CalendarState {
   absenceTemplates: Record<string, AbsenceTemplate>
   absenceInstances: Record<string, AbsenceInstance>
   armedAbsenceTemplateId: string | null
+  // InlinePicker state
+  inlinePickerOpen: boolean
+  inlinePickerTargetDate: string | null    // YYYY-MM-DD when opened via tap/long-press
+  inlinePickerTab: 'shifts' | 'absences' | 'gps'
+  // Manual session state
+  manualSessionFormOpen: boolean
+  manualSessionFormDate: string | null     // Pre-filled date from long-press
   // UI state
   hideFAB: boolean          // Hide FAB when overlays are open
 }
@@ -640,6 +851,13 @@ type CalendarAction =
   // Absences
   | { type: "ARM_ABSENCE"; templateId: string }
   | { type: "ADD_ABSENCE_INSTANCE"; instance: AbsenceInstance }
+  // InlinePicker
+  | { type: "OPEN_INLINE_PICKER"; date?: string; tab?: 'shifts' | 'absences' | 'gps' }
+  | { type: "CLOSE_INLINE_PICKER" }
+  | { type: "SET_INLINE_PICKER_TAB"; tab: 'shifts' | 'absences' | 'gps' }
+  // Manual session
+  | { type: "OPEN_MANUAL_SESSION_FORM"; payload?: { date?: string } }
+  | { type: "CLOSE_MANUAL_SESSION_FORM" }
   // ... and more
 ```
 
@@ -721,6 +939,8 @@ node run-tests.js ios calendar   # Single flow
 | Week nav buttons | ✅ | ⚠️ testID not exposed |
 | Location settings | ✅ | ✅ |
 | Auth state check | ✅ | ✅ |
+
+**Known gap (2026-02-09):** E2E tests need updating after InlinePicker refactor — tests were written for TemplatePanel flow. Current: 35/48 iOS, 30/48 Android. 28 new testIDs added but test scripts not yet updated.
 
 **Directory structure:**
 ```

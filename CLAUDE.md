@@ -93,7 +93,7 @@ See `docs/DOCUMENTATION_STRUCTURE.md` for full documentation guidelines.
 | `docs/deployment.md` | Docker, Hetzner, production deployment |
 | `docs/debugging.md` | Mobile debugging, backend logs, known gotchas |
 | **`docs/WORKFLOW_PATTERNS.md`** | **How to do work: subagents, testing workflows** → `docs/testing/` |
-| `docs/ISSUE_PLANNING_2026-02-05.md` | Current issue backlog (UX feedback, 7 issues in 4 groups) |
+| `archive/ISSUE_PLANNING_2026-02-05.md` | Archived: UX feedback issues (Groups A/B/C complete, D dropped) |
 
 ### Document Lifecycle
 
@@ -187,6 +187,53 @@ All new UI **must** be testable by Appium (XCUITest on iOS, UiAutomator2 on Andr
 
 ## Recent Updates (Last 7 Days)
 
+### 2026-02-09: Visual Polish — CalendarHeader + MonthView + Android Tab Bar
+
+**Summary:** Fixed three visual issues: header title overflow, MonthView batch banner (Android), and tab bar overlap (Android edge-to-edge).
+
+**Changes:**
+| File | Fix | Status |
+|------|-----|--------|
+| `CalendarHeader.tsx` | Title: `flex: 1` + `adjustsFontSizeToFit` + same-month range shortening | ✅ Both platforms |
+| `MonthView.tsx` | Batch banner moved inside `Animated.View` with fixed-height slot (no layout shift) | ✅ Both platforms |
+| `AppNavigator.tsx` | Android tab bar: wrapper `View` with `paddingBottom` to clear system nav bar | ✅ Android (iOS unaffected) |
+
+**Root causes found:**
+- Android batch banner: Views rendered as siblings OUTSIDE `Animated.View` were invisible on Android (hot reload was also stale — debug build via `expo run:android` required)
+- Android tab bar: Android 15+ enforces edge-to-edge regardless of `edgeToEdgeEnabled` setting; tab bar needs explicit bottom padding
+
+---
+
+### 2026-02-09: Group C Complete — Unified InlinePicker
+
+**Summary:** Completed Group C (Issues 3, 6) — unified picker UI for calendar shifts/absences. Manually tested and working.
+
+**Key changes:**
+| Component | Changes |
+|-----------|---------|
+| `InlinePicker.tsx` | New component: centered modal with Shifts/Absences/GPS tabs |
+| Edit UX | Edit button moved to LEFT of rows; inline edit form (no bottom sheet) with color picker + break duration |
+| MonthView | Single tap → WeekView; long press → picker; double-tap → place armed shift; batch indicator |
+| WeekView | Single tap blocked when armed; double-tap places shift; long press opens picker |
+| Tab sync | Fixed: FAB → Absences now correctly opens Absences tab |
+| testIDs | 28 testIDs added for E2E compatibility |
+
+**Interaction summary:**
+| View | Not Armed | Armed |
+|------|-----------|-------|
+| MonthView single tap | Navigate to WeekView | Delayed navigate (allows double-tap) |
+| MonthView double tap | Navigate to WeekView | Place armed shift |
+| MonthView long press | Open picker | Open picker |
+| WeekView single tap | Open picker | Blocked |
+| WeekView double tap | Open picker | Place armed shift |
+| WeekView long press | Open picker | Open picker |
+
+**E2E status:** Tests need updating for new UI flow (35/48 iOS, 30/48 Android)
+
+**Full details:** `docs/ISSUE_PLANNING_2026-02-05.md` → Group C section
+
+---
+
 ### 2026-02-05: Issue Planning — UX Expert Feedback (7 Issues)
 
 **Summary:** Collected and analyzed 7 issues from UX expert feedback. Grouped by file dependencies into 4 implementation groups.
@@ -194,9 +241,9 @@ All new UI **must** be testable by Appium (XCUITest on iOS, UiAutomator2 on Andr
 **Groups:**
 | Group | Name | Issues | Status |
 |-------|------|--------|--------|
-| A | Geofencing Module Screens | 1, 2, 5 | Pending |
+| A | Geofencing Module Screens | 1, 2, 5 | ✅ Complete |
 | B | Authentication - Lock Screen | 4 | Pending |
-| C | Calendar - Picker Unification | 3, 6 | Pending |
+| C | Calendar - Picker Unification | 3, 6 | ✅ Complete |
 | D | Calendar - Day View | 7 | Pending |
 
 **Key issues:**

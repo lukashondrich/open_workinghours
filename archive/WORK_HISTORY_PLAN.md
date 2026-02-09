@@ -1,8 +1,7 @@
 # Work History Screen Implementation Plan
 
 **Created:** 2026-01-22
-**Status:** Planning
-**Updated:** 2026-01-22 (simplified after review)
+**Status:** Complete — fully implemented. Archived 2026-02-09. Content integrated into `mobile-app/ARCHITECTURE.md`.
 
 ---
 
