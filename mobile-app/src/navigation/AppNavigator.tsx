@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, Platform } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BarChart3, Calendar, Settings } from 'lucide-react-native';
 
 import { colors, fontSize, fontWeight } from '@/theme';
@@ -25,6 +26,7 @@ import WelcomeScreen from '@/modules/auth/screens/WelcomeScreen';
 import EmailVerificationScreen from '@/modules/auth/screens/EmailVerificationScreen';
 import RegisterScreen from '@/modules/auth/screens/RegisterScreen';
 import LoginScreen from '@/modules/auth/screens/LoginScreen';
+import LockScreen from '@/modules/auth/screens/LockScreen';
 
 import { getDatabase } from '@/modules/geofencing/services/Database';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -59,7 +61,20 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
 function MainTabs() {
+  const insets = useSafeAreaInsets();
+  // Android 15+ enforces edge-to-edge: app draws behind system nav bar.
+  // Use safe area insets (adapts to 3-button, gesture, or no nav bar).
+  // Fallback to 48dp if insets report 0 (some Android versions/configurations).
+  const androidBottomPadding = Platform.OS === 'android'
+    ? Math.max(insets.bottom, 48)
+    : 0;
+
   return (
+    <View style={{
+      flex: 1,
+      backgroundColor: androidBottomPadding > 0 ? colors.background.paper : undefined,
+      paddingBottom: androidBottomPadding,
+    }}>
     <Tab.Navigator
       screenOptions={{
         tabBarActiveTintColor: colors.primary[500],
@@ -113,6 +128,7 @@ function MainTabs() {
         }}
       />
     </Tab.Navigator>
+    </View>
   );
 }
 
@@ -198,12 +214,12 @@ function AuthStack() {
 }
 
 export default function AppNavigator() {
-  const { state: authState } = useAuth();
+  const { state: authState, unlock, signOut } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     // Just check if auth is loaded, don't wait for location check
-    if (authState.status === 'authenticated' || authState.status === 'unauthenticated') {
+    if (authState.status === 'authenticated' || authState.status === 'unauthenticated' || authState.status === 'locked') {
       setIsLoading(false);
     }
   }, [authState.status]);
@@ -213,6 +229,18 @@ export default function AppNavigator() {
     return (
       <NavigationContainer>
         <LoadingScreen />
+      </NavigationContainer>
+    );
+  }
+
+  // Show Lock Screen if user has biometric enabled and needs to unlock
+  if (authState.status === 'locked') {
+    return (
+      <NavigationContainer>
+        <LockScreen
+          onUnlock={unlock}
+          onSignInWithEmail={signOut}
+        />
       </NavigationContainer>
     );
   }

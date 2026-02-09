@@ -97,6 +97,10 @@ export interface CalendarState {
   // Manual session form state
   manualSessionFormOpen: boolean
   manualSessionFormDate: string | null  // Pre-filled date when opened from long-press
+  // Inline picker state (unified picker for shifts/absences/GPS)
+  inlinePickerOpen: boolean
+  inlinePickerTargetDate: string | null  // YYYY-MM-DD when opened with target (direct placement mode)
+  inlinePickerTab: 'shifts' | 'absences' | 'gps'
 }
 
 export type CalendarAction =
@@ -154,6 +158,10 @@ export type CalendarAction =
   // Manual session form actions
   | { type: "OPEN_MANUAL_SESSION_FORM"; date?: string }
   | { type: "CLOSE_MANUAL_SESSION_FORM" }
+  // Inline picker actions
+  | { type: "OPEN_INLINE_PICKER"; targetDate?: string; tab?: 'shifts' | 'absences' | 'gps' }
+  | { type: "CLOSE_INLINE_PICKER" }
+  | { type: "SET_INLINE_PICKER_TAB"; tab: 'shifts' | 'absences' | 'gps' }
   | {
       type: "HYDRATE_STATE"
       payload: {

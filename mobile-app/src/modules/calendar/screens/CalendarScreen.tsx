@@ -10,6 +10,7 @@ import WeekView from '../components/WeekView';
 import MonthView from '../components/MonthView';
 import TemplatePanel from '../components/TemplatePanel';
 import CalendarFAB from '../components/CalendarFAB';
+import InlinePicker from '../components/InlinePicker';
 import type { MainTabParamList } from '@/navigation/AppNavigator';
 
 type CalendarScreenRouteProp = RouteProp<MainTabParamList, 'Calendar'>;
@@ -41,6 +42,11 @@ function CalendarLayout({ targetDate }: { targetDate?: string }) {
         {state.view === 'week' ? <WeekView /> : <MonthView />}
         <TemplatePanel />
         <CalendarFAB />
+        <InlinePicker
+          visible={state.inlinePickerOpen}
+          targetDate={state.inlinePickerTargetDate}
+          onClose={() => dispatch({ type: 'CLOSE_INLINE_PICKER' })}
+        />
       </View>
     </SafeAreaView>
   );

@@ -115,6 +115,40 @@ export class BiometricService {
   }
 
   /**
+   * Authenticate using device passcode only (skip biometric)
+   * Used when user explicitly chooses "Use device passcode" option on Lock Screen
+   *
+   * @param reason - The reason shown to the user
+   * @returns true if authentication succeeded, false otherwise
+   */
+  static async authenticateWithPasscodeOnly(reason?: string): Promise<boolean> {
+    const prompt = reason || 'Enter passcode';
+
+    try {
+      // On iOS, this will show the passcode prompt directly
+      // disableDeviceFallback: false allows passcode as the primary method
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: prompt,
+        cancelLabel: 'Cancel',
+        disableDeviceFallback: false,
+      });
+
+      if (result.success) {
+        return true;
+      }
+
+      if (result.error) {
+        console.log('[BiometricService] Passcode auth failed:', result.error);
+      }
+
+      return false;
+    } catch (error) {
+      console.error('[BiometricService] Passcode auth error:', error);
+      return false;
+    }
+  }
+
+  /**
    * Check if user has enabled biometric unlock in app settings
    */
   static async isEnabled(): Promise<boolean> {

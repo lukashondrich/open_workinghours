@@ -1,8 +1,8 @@
 import React, { useMemo, useRef, useState, useCallback } from 'react';
-import { View, StyleSheet, TouchableOpacity, PanResponder, Animated, useWindowDimensions } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, PanResponder, Animated, useWindowDimensions, Alert } from 'react-native';
 import { AppText as Text } from '@/components/ui/AppText';
 import { format, startOfMonth, endOfMonth, startOfWeek, addDays, isSameDay, addMonths, subMonths } from 'date-fns';
-import { TreePalm, Thermometer, Check, CircleHelp } from 'lucide-react-native';
+import { TreePalm, Thermometer, Check, CircleHelp, X } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/theme';
@@ -15,11 +15,15 @@ import {
   getMonthSummary,
   formatOvertimeDisplay,
   getTrackedMinutesForDate,
+  findOverlappingShift,
 } from '@/lib/calendar/calendar-utils';
+import { getCalendarStorage } from '@/modules/calendar/services/CalendarStorage';
+import type { AbsenceInstance } from '@/lib/calendar/types';
 import { computePlannedMinutesForDate, getInstanceWindow, getDayBounds, computeOverlapMinutes } from '@/lib/calendar/time-calculations';
 import { t } from '@/lib/i18n';
 
 const WEEKDAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
+const DOUBLE_TAP_DELAY = 300; // ms
 
 interface DayCellIndicators {
   templateColors: string[];
@@ -34,15 +38,19 @@ interface DayCellIndicators {
 function DayCell({
   date,
   onPress,
+  onLongPress,
   indicators,
   isToday,
   isCurrentMonth,
+  isTargetDay,
 }: {
   date: Date;
   onPress: (date: Date) => void;
+  onLongPress: (date: Date) => void;
   indicators: DayCellIndicators;
   isToday: boolean;
   isCurrentMonth: boolean;
+  isTargetDay: boolean;
 }) {
   const overtimeDisplay = formatOvertimeDisplay(indicators.overtimeMinutes);
 
@@ -63,8 +71,11 @@ function DayCell({
         styles.dayCell,
         !isCurrentMonth && styles.dayCellMuted,
         isToday && styles.dayCellToday,
+        isTargetDay && styles.dayCellTarget,
       ]}
       onPress={() => onPress(date)}
+      onLongPress={() => onLongPress(date)}
+      delayLongPress={400}
     >
       <Text
         style={[
@@ -207,6 +218,11 @@ export default function MonthView() {
   // Ref to track transitioning state (avoids stale closure)
   const isTransitioningRef = useRef(false);
 
+  // Track last tap for double-tap detection
+  const lastTapRef = useRef<{ dateKey: string; time: number }>({ dateKey: '', time: 0 });
+  // Track pending single-tap timeout (to cancel if double-tap occurs)
+  const pendingTapTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   // Animated month navigation
   const animateToMonth = useCallback((direction: 'prev' | 'next') => {
     if (isTransitioningRef.current) return;
@@ -258,9 +274,121 @@ export default function MonthView() {
     })
   ).current;
 
-  const handleDayPress = (date: Date) => {
-    dispatch({ type: 'SET_VIEW', view: 'week' });
-    dispatch({ type: 'SET_WEEK', date });
+  // Handle day tap - single tap navigates, double tap places armed shift
+  const handleDayPress = async (date: Date) => {
+    const dateKey = formatDateKey(date);
+
+    // Block tap on locked days
+    const dayStatus = state.confirmedDayStatus[dateKey];
+    if (dayStatus?.status === 'locked') return;
+
+    const now = Date.now();
+    const lastTap = lastTapRef.current;
+    const isDoubleTap = lastTap.dateKey === dateKey && (now - lastTap.time) < DOUBLE_TAP_DELAY;
+
+    // Update last tap tracking
+    lastTapRef.current = { dateKey, time: now };
+
+    // Double tap when armed: place the shift/absence
+    if (isDoubleTap && (state.armedTemplateId || state.armedAbsenceTemplateId)) {
+      // Cancel any pending single-tap action
+      if (pendingTapTimeoutRef.current) {
+        clearTimeout(pendingTapTimeoutRef.current);
+        pendingTapTimeoutRef.current = null;
+      }
+
+      // Place armed shift
+      if (state.armedTemplateId) {
+        const template = state.templates[state.armedTemplateId];
+        if (template) {
+          const overlap = findOverlappingShift(dateKey, template.startTime, template.duration, state.instances);
+          if (overlap) {
+            Alert.alert(t('calendar.week.overlapTitle'), t('calendar.week.overlapMessage', { name: overlap.name }));
+            return;
+          }
+          dispatch({ type: 'PLACE_SHIFT', date: dateKey });
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
+        return;
+      }
+
+      // Place armed absence
+      if (state.armedAbsenceTemplateId) {
+        const absenceTemplate = state.absenceTemplates[state.armedAbsenceTemplateId];
+        if (absenceTemplate) {
+          const startTime = absenceTemplate.isFullDay ? '00:00' : (absenceTemplate.startTime || '00:00');
+          const endTime = absenceTemplate.isFullDay ? '23:59' : (absenceTemplate.endTime || '23:59');
+
+          const newInstance: Omit<AbsenceInstance, 'id' | 'createdAt' | 'updatedAt'> = {
+            templateId: absenceTemplate.id,
+            type: absenceTemplate.type,
+            date: dateKey,
+            startTime,
+            endTime,
+            isFullDay: absenceTemplate.isFullDay,
+            name: absenceTemplate.name,
+            color: absenceTemplate.color,
+          };
+
+          try {
+            const storage = await getCalendarStorage();
+            const created = await storage.createAbsenceInstance(newInstance);
+            dispatch({ type: 'ADD_ABSENCE_INSTANCE', instance: created });
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          } catch (error) {
+            console.error('[MonthView] Failed to create absence instance:', error);
+          }
+        }
+        return;
+      }
+    }
+
+    // Single tap behavior
+    if (state.armedTemplateId || state.armedAbsenceTemplateId) {
+      // When armed: delay navigation to allow time for potential double-tap
+      pendingTapTimeoutRef.current = setTimeout(() => {
+        // Navigate to week view after delay (if no second tap came)
+        const weekStart = startOfWeek(date, { weekStartsOn: 1 });
+        dispatch({ type: 'SET_WEEK', date: weekStart });
+        dispatch({ type: 'SET_VIEW', view: 'week' });
+      }, DOUBLE_TAP_DELAY + 50); // Small buffer
+    } else {
+      // Not armed: navigate immediately
+      const weekStart = startOfWeek(date, { weekStartsOn: 1 });
+      dispatch({ type: 'SET_WEEK', date: weekStart });
+      dispatch({ type: 'SET_VIEW', view: 'week' });
+    }
+  };
+
+  // Long press: Open inline picker with target date
+  const handleDayLongPress = (date: Date) => {
+    const dateKey = formatDateKey(date);
+
+    // Block on locked days
+    const dayStatus = state.confirmedDayStatus[dateKey];
+    if (dayStatus?.status === 'locked') return;
+
+    dispatch({ type: 'OPEN_INLINE_PICKER', targetDate: dateKey });
+  };
+
+  // Get armed template info for batch indicator
+  const armedTemplate = state.armedTemplateId
+    ? state.templates[state.armedTemplateId]
+    : null;
+  const armedAbsenceTemplate = state.armedAbsenceTemplateId
+    ? state.absenceTemplates[state.armedAbsenceTemplateId]
+    : null;
+
+
+
+  // Exit batch mode (disarm any armed template)
+  const handleExitBatchMode = () => {
+    if (state.armedTemplateId) {
+      dispatch({ type: 'DISARM_SHIFT' });
+    }
+    if (state.armedAbsenceTemplateId) {
+      dispatch({ type: 'DISARM_ABSENCE' });
+    }
   };
 
   const indicatorsForDate = (date: Date): DayCellIndicators => {
@@ -350,14 +478,49 @@ export default function MonthView() {
               <DayCell
                 date={date}
                 onPress={handleDayPress}
+                onLongPress={handleDayLongPress}
                 indicators={indicatorsForDate(date)}
                 isToday={isSameDay(date, new Date())}
                 isCurrentMonth={date.getMonth() === state.currentMonth.getMonth()}
+                isTargetDay={state.inlinePickerTargetDate === formatDateKey(date)}
               />
             </View>
           ))}
         </View>
+        {/* Batch mode indicator — inside Animated.View for Android compatibility; fixed slot prevents layout shift */}
+        <View style={styles.batchIndicatorSlot}>
+          {(armedTemplate || armedAbsenceTemplate) && (
+            <View style={styles.batchIndicator}>
+              <View
+                style={[
+                  styles.batchDot,
+                  {
+                    backgroundColor: armedTemplate
+                      ? getColorPalette(armedTemplate.color).dot
+                      : armedAbsenceTemplate?.color || '#6B7280',
+                  },
+                ]}
+              />
+              <View style={styles.batchTextContainer}>
+                <Text style={styles.batchText}>
+                  {t('calendar.batch.placing')} {armedTemplate?.name || armedAbsenceTemplate?.name}
+                </Text>
+                <Text style={styles.batchHint}>
+                  {t('calendar.batch.doubleTapHint')}
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={handleExitBatchMode}
+                style={styles.batchCloseBtn}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <X size={18} color={colors.text.secondary} />
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
       </Animated.View>
+
       <MonthlySummaryFooter
         trackedHours={summary.trackedMinutes / 60}
         plannedHours={summary.plannedMinutes / 60}
@@ -404,6 +567,10 @@ const styles = StyleSheet.create({
   },
   dayCellToday: {
     backgroundColor: colors.primary[50],
+  },
+  dayCellTarget: {
+    borderWidth: 2,
+    borderColor: colors.primary[500],
   },
   dayLabel: {
     fontSize: fontSize.sm,
@@ -453,7 +620,8 @@ const styles = StyleSheet.create({
   },
   // Summary Footer Styles
   summaryFooter: {
-    paddingVertical: spacing.md,
+    paddingTop: spacing.sm,
+    paddingBottom: 0,
     paddingHorizontal: spacing.lg,
     marginHorizontal: -spacing.lg, // Counteract container padding for full-width border
     backgroundColor: colors.background.default,
@@ -470,7 +638,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   summaryValue: {
-    fontSize: fontSize.lg,
+    fontSize: fontSize.md,
     fontWeight: fontWeight.semibold,
     color: colors.text.primary,
   },
@@ -481,7 +649,7 @@ const styles = StyleSheet.create({
   },
   summaryDivider: {
     width: 1,
-    height: 40,
+    height: 28,
     backgroundColor: colors.border.default,
   },
   confirmedHint: {
@@ -493,8 +661,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     gap: spacing.md,
-    marginTop: spacing.sm,
-    minHeight: 32, // Consistent height even when empty
+    marginTop: spacing.xs,
+    minHeight: 20, // Consistent height even when empty
   },
   absenceChip: {
     flexDirection: 'row',
@@ -509,5 +677,45 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs,
     fontWeight: fontWeight.medium,
     color: colors.text.secondary,
+  },
+  // Batch mode indicator — fixed-height slot in normal flow (no absolute positioning)
+  batchIndicatorSlot: {
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  batchIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.background.paper,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+    borderColor: colors.border.light,
+  },
+  batchDot: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    marginRight: spacing.sm,
+  },
+  batchTextContainer: {
+    flex: 1,
+  },
+  batchText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+    color: colors.text.primary,
+  },
+  batchHint: {
+    fontSize: fontSize.xs,
+    color: colors.text.tertiary,
+    marginTop: 1,
+  },
+  batchCloseBtn: {
+    padding: spacing.xs,
+    marginLeft: spacing.sm,
   },
 });

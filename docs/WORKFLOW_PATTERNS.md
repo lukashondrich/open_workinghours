@@ -118,6 +118,24 @@ React Native's `testID` maps to `resource-id` on Android.
 2. Tappable elements need `accessible={true}` to appear in tree
 3. Add `collapsable={false}` to prevent Android view flattening
 
+### Android Hot Reload Can Silently Fail
+
+**Problem:** Changes to React Native code may appear to apply on Android (console.log fires, state is correct) but the **visual output doesn't update**. This can waste hours debugging layout/rendering issues that don't actually exist in the code.
+
+**When it happens:**
+- Navigation-level components (`AppNavigator.tsx`)
+- Components inside `Animated.View` hierarchies
+- After native config changes (`app.json`, `gradle.properties`)
+
+**How to verify your code is actually running:**
+1. **Check Metro connection:** Open dev menu (`adb shell input keyevent 82`) — confirm "Connected to" shows the Metro URL
+2. **Force full reload:** Dev menu → Reload (hot reload alone is not sufficient)
+3. **When in doubt, rebuild:** `JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" npx expo run:android`
+
+**Native config changes** (`app.json` android section, `gradle.properties`) always require a rebuild — hot reload cannot apply them. Note: `expo run:android` reuses the existing `android/` directory; changes to `app.json` may need manual updates in `gradle.properties` or a `npx expo prebuild --platform android --clean`.
+
+**Rule of thumb:** If a visual change works on iOS but not Android, verify fresh code is running before investigating Android-specific rendering issues.
+
 ---
 
 ## Tips

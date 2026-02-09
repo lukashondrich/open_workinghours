@@ -14,7 +14,10 @@ export default function CalendarHeader() {
   const weekEnd = addDays(weekStart, 6);
   const weekNumber = getISOWeek(weekStart);
   const locale = getDateLocale() === 'de' ? deLocale : undefined;
-  const weekRangeLabel = `${format(weekStart, 'MMM d', { locale })} - ${format(weekEnd, 'MMM d', { locale })}`;
+  const sameMonth = weekStart.getMonth() === weekEnd.getMonth();
+  const weekRangeLabel = sameMonth
+    ? `${format(weekStart, 'MMM d', { locale })} - ${format(weekEnd, 'd', { locale })}`
+    : `${format(weekStart, 'MMM d', { locale })} - ${format(weekEnd, 'MMM d', { locale })}`;
   const monthLabel = format(state.currentMonth, 'LLLL yyyy', { locale });
   const title = state.view === 'week' ? weekRangeLabel : monthLabel;
 
@@ -63,10 +66,10 @@ export default function CalendarHeader() {
   return (
     <View style={styles.container}>
       <View style={styles.topRow}>
-        <TouchableOpacity onPress={handleToday} activeOpacity={0.7}>
+        <TouchableOpacity onPress={handleToday} activeOpacity={0.7} style={styles.titleSide}>
           <Text style={styles.label}>{t('calendar.header.title')}</Text>
           <View style={styles.titleRow}>
-            <Text style={styles.title}>{title}</Text>
+            <Text style={styles.title} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{title}</Text>
             {state.view === 'week' && (
               <View style={styles.weekBadge}>
                 <Text style={styles.weekBadgeText}>W{weekNumber}</Text>
@@ -160,6 +163,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.md,
   },
+  titleSide: {
+    flex: 1,
+    marginRight: spacing.md,
+  },
   label: {
     fontSize: fontSize.xs,
     letterSpacing: 3,
@@ -167,6 +174,8 @@ const styles = StyleSheet.create({
     color: colors.text.tertiary,
   },
   title: {
+    flex: 1,
+    flexShrink: 1,
     fontSize: fontSize.xxl,
     fontWeight: fontWeight.semibold,
     color: colors.text.primary,

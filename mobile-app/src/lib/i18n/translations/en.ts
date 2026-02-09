@@ -97,12 +97,9 @@ export const en = {
       gpsTab: 'GPS',
       createNew: 'Create new shift...',
       createAndAdd: 'Create & Add',
+      createAndArm: 'Create & Select',
       createError: 'Failed to create template',
       manage: 'Manage templates...',
-      namePlaceholder: 'Shift name',
-      newShift: 'New Shift',
-      startTime: 'Start time',
-      duration: 'Duration',
       // Accessibility
       panelLabel: 'Template panel',
       editFormLabel: 'Edit shift template',
@@ -127,6 +124,7 @@ export const en = {
       empty: 'No absence templates yet',
       createNew: 'Create new absence...',
       createAndAdd: 'Create & Add',
+      createAndArm: 'Create & Select',
       createError: 'Failed to create absence',
       namePlaceholder: 'Absence name',
       manage: 'Manage absences...',
@@ -142,6 +140,7 @@ export const en = {
     },
     picker: {
       logHours: 'Log Tracked Hours',
+      addTo: 'Add to {{date}}',
     },
     batch: {
       placing: 'Placing:',
@@ -610,6 +609,15 @@ export const en = {
     enableFailed: 'Could not enable biometric unlock. Please try again.',
     notAvailable: 'Biometric authentication is not available on this device.',
     notEnrolled: 'Please set up Face ID or Touch ID in your device settings first.',
+  },
+
+  // Lock Screen (biometric unlock)
+  lock: {
+    title: 'Open Working Hours',
+    unlockWith: 'Unlock with {{type}}',
+    usePasscode: 'Use device passcode',
+    signInWithEmail: 'Sign in with email',
+    authFailed: 'Authentication failed. Try again.',
   },
 
   // Manual Session Form (for logging hours when GPS failed)

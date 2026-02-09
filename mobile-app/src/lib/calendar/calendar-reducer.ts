@@ -49,6 +49,10 @@ export const initialState: CalendarState = {
   // Manual session form state
   manualSessionFormOpen: false,
   manualSessionFormDate: null,
+  // Inline picker state
+  inlinePickerOpen: false,
+  inlinePickerTargetDate: null,
+  inlinePickerTab: 'shifts',
 };
 
 export function calendarReducer(state: CalendarState, action: CalendarAction): CalendarState {
@@ -505,6 +509,35 @@ export function calendarReducer(state: CalendarState, action: CalendarAction): C
         ...state,
         manualSessionFormOpen: false,
         manualSessionFormDate: null,
+      };
+
+    // ========================================
+    // Inline Picker Actions
+    // ========================================
+
+    case 'OPEN_INLINE_PICKER':
+      return {
+        ...state,
+        inlinePickerOpen: true,
+        inlinePickerTargetDate: action.targetDate ?? null,
+        inlinePickerTab: action.tab ?? 'shifts',
+        // Disarm any armed templates when opening picker (clean slate)
+        armedTemplateId: null,
+        armedAbsenceTemplateId: null,
+        mode: 'viewing',
+      };
+
+    case 'CLOSE_INLINE_PICKER':
+      return {
+        ...state,
+        inlinePickerOpen: false,
+        inlinePickerTargetDate: null,
+      };
+
+    case 'SET_INLINE_PICKER_TAB':
+      return {
+        ...state,
+        inlinePickerTab: action.tab,
       };
 
     default:

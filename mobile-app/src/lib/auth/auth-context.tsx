@@ -21,6 +21,7 @@ interface AuthContextValue {
   state: AuthState;
   signIn: (user: User, token: string, expiresAt: Date) => Promise<void>;
   signOut: () => Promise<void>;
+  unlock: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -64,6 +65,20 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
         expiresAt: null,
       };
 
+    case 'SET_LOCKED':
+      return {
+        status: 'locked',
+        user: action.payload.user,
+        token: action.payload.token,
+        expiresAt: action.payload.expiresAt,
+      };
+
+    case 'UNLOCK':
+      return {
+        ...state,
+        status: 'authenticated',
+      };
+
     default:
       return state;
   }
@@ -91,30 +106,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const biometricEnabled = await BiometricService.isEnabled();
 
           if (biometricEnabled) {
-            // Prompt for biometric authentication
-            const biometricSuccess = await BiometricService.authenticate(
-              'Unlock Open Working Hours'
-            );
-
-            if (!isMounted) return;
-
-            if (biometricSuccess) {
-              // Biometric succeeded - restore session
-              dispatch({
-                type: 'RESTORE_TOKEN',
-                payload: {
-                  user: auth.user,
-                  token: auth.token,
-                  expiresAt: auth.expiresAt,
-                },
-              });
-            } else {
-              // Biometric failed - require full login
-              // Don't clear the token, just don't restore the session
-              // User can try again by restarting app or logging in manually
-              console.log('[AuthProvider] Biometric failed, showing login');
-              dispatch({ type: 'SIGN_OUT' });
-            }
+            // Biometric enabled - set status to 'locked' and show Lock Screen
+            // The Lock Screen will handle the biometric prompt
+            console.log('[AuthProvider] Biometric enabled, showing Lock Screen');
+            dispatch({
+              type: 'SET_LOCKED',
+              payload: {
+                user: auth.user,
+                token: auth.token,
+                expiresAt: auth.expiresAt,
+              },
+            });
           } else {
             // No biometric - just restore
             dispatch({
@@ -205,13 +207,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const unlock = () => {
+    // Called from Lock Screen after successful biometric/passcode authentication
+    // Transitions from 'locked' to 'authenticated'
+    dispatch({ type: 'UNLOCK' });
+  };
+
   // Don't render children until auth state is restored
   if (!isHydrated) {
     return null; // Or a loading spinner
   }
 
   return (
-    <AuthContext.Provider value={{ state, signIn, signOut }}>
+    <AuthContext.Provider value={{ state, signIn, signOut, unlock }}>
       {children}
     </AuthContext.Provider>
   );

@@ -97,12 +97,9 @@ export const de = {
       gpsTab: 'GPS',
       createNew: 'Neuen Dienst erstellen...',
       createAndAdd: 'Erstellen & Hinzufügen',
+      createAndArm: 'Erstellen & Auswählen',
       createError: 'Vorlage konnte nicht erstellt werden',
       manage: 'Vorlagen verwalten...',
-      namePlaceholder: 'Name des Dienstes',
-      newShift: 'Neuer Dienst',
-      startTime: 'Startzeit',
-      duration: 'Dauer',
       // Accessibility
       panelLabel: 'Vorlagen-Bereich',
       editFormLabel: 'Dienstvorlage bearbeiten',
@@ -127,6 +124,7 @@ export const de = {
       empty: 'Noch keine Abwesenheitsvorlagen',
       createNew: 'Neue Abwesenheit erstellen...',
       createAndAdd: 'Erstellen & Hinzufügen',
+      createAndArm: 'Erstellen & Auswählen',
       createError: 'Abwesenheit konnte nicht erstellt werden',
       namePlaceholder: 'Name der Abwesenheit',
       manage: 'Abwesenheiten verwalten...',
@@ -142,6 +140,7 @@ export const de = {
     },
     picker: {
       logHours: 'Arbeitszeit erfassen',
+      addTo: 'Hinzufügen am {{date}}',
     },
     batch: {
       placing: 'Platziere:',
@@ -610,6 +609,15 @@ export const de = {
     enableFailed: 'Biometrische Entsperrung konnte nicht aktiviert werden. Bitte erneut versuchen.',
     notAvailable: 'Biometrische Authentifizierung ist auf diesem Gerät nicht verfügbar.',
     notEnrolled: 'Bitte richten Sie zuerst Face ID oder Touch ID in den Geräteeinstellungen ein.',
+  },
+
+  // Lock Screen (biometric unlock)
+  lock: {
+    title: 'Open Working Hours',
+    unlockWith: 'Mit {{type}} entsperren',
+    usePasscode: 'Geräte-PIN verwenden',
+    signInWithEmail: 'Mit E-Mail anmelden',
+    authFailed: 'Authentifizierung fehlgeschlagen. Erneut versuchen.',
   },
 
   // Manual Session Form (for logging hours when GPS failed)

@@ -32,8 +32,8 @@ export default function CalendarFAB() {
 
   const handleOptionPress = (tab: 'shifts' | 'absences') => {
     setMenuVisible(false);
-    dispatch({ type: 'SET_TEMPLATE_PANEL_TAB', tab });
-    dispatch({ type: 'TOGGLE_TEMPLATE_PANEL' });
+    dispatch({ type: 'OPEN_INLINE_PICKER', tab });
+    // No targetDate = arming mode
   };
 
   const handleLogHoursPress = () => {
@@ -59,7 +59,7 @@ export default function CalendarFAB() {
   );
 
   // Hide FAB when overlays are open or in month view
-  if (state.templatePanelOpen || state.manualSessionFormOpen || state.hideFAB || state.view === 'month') {
+  if (state.templatePanelOpen || state.manualSessionFormOpen || state.inlinePickerOpen || state.hideFAB || state.view === 'month') {
     return manualSessionForm;
   }
 

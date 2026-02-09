@@ -4,7 +4,7 @@
  */
 
 export interface AuthState {
-  status: 'idle' | 'loading' | 'authenticated' | 'unauthenticated';
+  status: 'idle' | 'loading' | 'authenticated' | 'unauthenticated' | 'locked';
   user: User | null;
   token: string | null;
   expiresAt: Date | null;
@@ -28,7 +28,9 @@ export type AuthAction =
   | { type: 'SIGN_IN'; payload: { user: User; token: string; expiresAt: Date } }
   | { type: 'SIGN_OUT' }
   | { type: 'RESTORE_TOKEN'; payload: { user: User; token: string; expiresAt: Date } }
-  | { type: 'SET_LOADING' };
+  | { type: 'SET_LOADING' }
+  | { type: 'SET_LOCKED'; payload: { user: User; token: string; expiresAt: Date } }
+  | { type: 'UNLOCK' };
 
 export interface VerificationCodeResponse {
   success: boolean;
