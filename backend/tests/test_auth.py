@@ -92,7 +92,8 @@ class TestAuthLogin:
         response = client.post("/auth/login", json=login_payload)
 
         # May fail without proper verification setup - that's expected
-        assert response.status_code in [200, 400, 404]
+        # 401 = user not found or invalid code (enumeration-resistant, no longer 404)
+        assert response.status_code in [200, 400, 401]
 
     def test_demo_account_login(self, client: TestClient, test_db: Session):
         """Test demo account bypass for Apple App Review."""

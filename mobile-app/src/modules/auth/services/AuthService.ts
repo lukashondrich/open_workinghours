@@ -79,6 +79,7 @@ export class AuthService {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          email: email.trim().toLowerCase(),
           code: code.trim(),
         }),
       });

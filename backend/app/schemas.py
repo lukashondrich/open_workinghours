@@ -19,7 +19,12 @@ class VerificationRequestOut(BaseModel):
 
 
 class VerificationConfirmIn(BaseModel):
+    email: EmailStr
     code: str = Field(..., min_length=6, max_length=128)
+
+    @validator("email")
+    def _lowercase_email(cls, value: str) -> str:
+        return value.lower()
 
 
 class VerificationConfirmOut(BaseModel):

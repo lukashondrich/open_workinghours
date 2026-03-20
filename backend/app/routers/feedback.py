@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import FeedbackReport
+from ..rate_limit import rate_limit
 from ..schemas import FeedbackIn, FeedbackOut
 
 router = APIRouter(prefix="/feedback", tags=["feedback"])
@@ -19,6 +20,7 @@ router = APIRouter(prefix="/feedback", tags=["feedback"])
 def submit_feedback(
     payload: FeedbackIn,
     db: Session = Depends(get_db),
+    _rl: None = Depends(rate_limit(10, 60)),
 ) -> FeedbackOut:
     """
     Submit bug report / feedback from mobile app

@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import User, WorkEvent, VerificationRequest, StatsByStateSpecialty, FeedbackReport
+from ..rate_limit import rate_limit
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 security = HTTPBasic()
@@ -48,7 +49,7 @@ def verify_admin(credentials: Annotated[HTTPBasicCredentials, Depends(security)]
 
 
 @router.get("/", response_class=HTMLResponse)
-def get_dashboard_page(username: str = Depends(verify_admin)) -> str:
+def get_dashboard_page(username: str = Depends(verify_admin), _rl: None = Depends(rate_limit(10, 60))) -> str:
     """Serve the admin dashboard HTML page"""
     return """
 <!DOCTYPE html>
@@ -486,6 +487,11 @@ def get_dashboard_page(username: str = Depends(verify_admin)) -> str:
     </div>
 
     <script>
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        }
+
         async function fetchDashboardData() {
             try {
                 const response = await fetch('/admin/data');
@@ -578,33 +584,34 @@ def get_dashboard_page(username: str = Depends(verify_admin)) -> str:
 
                 reportsList.innerHTML = data.reports.map(report => {
                     const timestamp = new Date(report.created_at).toLocaleString();
-                    const userInfo = report.user_email || 'Anonymous';
+                    const userInfo = escapeHtml(report.user_email) || 'Anonymous';
+                    const statusClass = escapeHtml(report.resolved);
 
                     return `
-                        <div class="report-card ${report.resolved}" onclick="toggleReport(this)">
+                        <div class="report-card ${statusClass}" onclick="toggleReport(this)">
                             <div class="report-header">
-                                <div class="report-timestamp">${timestamp}</div>
-                                <span class="report-status ${report.resolved}">${report.resolved}</span>
+                                <div class="report-timestamp">${escapeHtml(timestamp)}</div>
+                                <span class="report-status ${statusClass}">${statusClass}</span>
                             </div>
                             <div class="report-user">
                                 📧 ${userInfo}
-                                ${report.specialty ? `| ${report.specialty}` : ''}
-                                ${report.hospital_id ? `| ${report.hospital_id}` : ''}
+                                ${report.specialty ? `| ${escapeHtml(report.specialty)}` : ''}
+                                ${report.hospital_id ? `| ${escapeHtml(report.hospital_id)}` : ''}
                             </div>
-                            ${report.description ? `<div class="report-description">${report.description}</div>` : ''}
+                            ${report.description ? `<div class="report-description">${escapeHtml(report.description)}</div>` : ''}
                             <div class="report-details">
                                 <div class="report-details-grid">
                                     <div class="report-detail-item">
                                         <div class="report-detail-label">App Version</div>
-                                        Build #${report.app_state.app.build_number} (v${report.app_state.app.version})
+                                        Build #${escapeHtml(report.app_state.app.build_number)} (v${escapeHtml(report.app_state.app.version)})
                                     </div>
                                     <div class="report-detail-item">
                                         <div class="report-detail-label">Platform</div>
-                                        ${report.app_state.app.platform} ${report.app_state.app.os_version || ''}
+                                        ${escapeHtml(report.app_state.app.platform)} ${escapeHtml(report.app_state.app.os_version || '')}
                                     </div>
                                     <div class="report-detail-item">
                                         <div class="report-detail-label">Device</div>
-                                        ${report.app_state.app.device_model || 'Unknown'}
+                                        ${escapeHtml(report.app_state.app.device_model || 'Unknown')}
                                     </div>
                                     <div class="report-detail-item">
                                         <div class="report-detail-label">Locations</div>
@@ -616,7 +623,7 @@ def get_dashboard_page(username: str = Depends(verify_admin)) -> str:
                                     </div>
                                     <div class="report-detail-item">
                                         <div class="report-detail-label">Last Submission</div>
-                                        ${report.app_state.work_events.last_submission || 'Never'}
+                                        ${escapeHtml(report.app_state.work_events.last_submission || 'Never')}
                                     </div>
                                 </div>
                                 ${renderGpsTelemetry(report.app_state.gps_telemetry)}
@@ -652,20 +659,20 @@ def get_dashboard_page(username: str = Depends(verify_admin)) -> str:
                     // Show accuracy with source: "32.5m (fetch)" or "32.5m (event)" or "N/A"
                     const sourceLabel = e.accuracy_source === 'active_fetch' ? 'fetch' : e.accuracy_source === 'event' ? 'event' : '';
                     const accuracy = e.accuracy_meters
-                        ? e.accuracy_meters.toFixed(1) + 'm' + (sourceLabel ? ` (${sourceLabel})` : '')
+                        ? e.accuracy_meters.toFixed(1) + 'm' + (sourceLabel ? ` (${escapeHtml(sourceLabel)})` : '')
                         : 'N/A';
                     const ignoredClass = e.ignored ? 'gps-event-ignored' : '';
-                    const ignoredNote = e.ignored ? ` (${e.ignore_reason || 'ignored'})` : '';
+                    const ignoredNote = e.ignored ? ` (${escapeHtml(e.ignore_reason || 'ignored')})` : '';
 
                     return `
                         <div class="gps-event ${ignoredClass}">
                             <div>
-                                <span class="gps-event-type ${e.event_type}">${e.event_type.toUpperCase()}</span>
-                                @ ${e.location_name}${ignoredNote}
+                                <span class="gps-event-type ${escapeHtml(e.event_type)}">${escapeHtml(e.event_type.toUpperCase())}</span>
+                                @ ${escapeHtml(e.location_name)}${ignoredNote}
                             </div>
                             <div>
                                 <span title="Accuracy">${accuracy}</span>
-                                <span style="color: #999; margin-left: 8px;">${time}</span>
+                                <span style="color: #999; margin-left: 8px;">${escapeHtml(time)}</span>
                             </div>
                         </div>
                     `;
@@ -718,7 +725,8 @@ def get_dashboard_page(username: str = Depends(verify_admin)) -> str:
 @router.get("/data")
 def get_dashboard_data(
     username: str = Depends(verify_admin),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _rl: None = Depends(rate_limit(30, 60)),
 ) -> dict:
     """Get dashboard data (JSON) for the admin interface"""
 
@@ -769,6 +777,7 @@ def get_feedback_reports(
     limit: int = 100,
     username: str = Depends(verify_admin),
     db: Session = Depends(get_db),
+    _rl: None = Depends(rate_limit(10, 60)),
 ) -> dict:
     """Get bug reports and feedback from mobile app users
 
@@ -821,6 +830,7 @@ def get_logs(
     search: str | None = None,
     level: str | None = None,
     username: str = Depends(verify_admin),
+    _rl: None = Depends(rate_limit(10, 60)),
 ) -> dict:
     """Get logs from Docker containers with filtering
 
@@ -846,12 +856,20 @@ def get_logs(
             )
         elif source == "aggregation":
             # Get aggregation logs from log files
+            import glob as glob_module
+            log_files = sorted(glob_module.glob("/home/deploy/logs/aggregation*.log"))
+            if not log_files:
+                return {
+                    "source": source,
+                    "lines_requested": lines,
+                    "logs": "",
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                }
             result = subprocess.run(
-                ["tail", "-n", str(lines), "/home/deploy/logs/aggregation*.log"],
+                ["tail", "-n", str(lines)] + log_files,
                 capture_output=True,
                 text=True,
                 timeout=10,
-                shell=True
             )
         elif source == "nginx":
             result = subprocess.run(

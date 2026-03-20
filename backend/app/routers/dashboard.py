@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..email import send_inquiry_notification
+from ..rate_limit import rate_limit
 from ..models import InstitutionInquiry, User, WorkEvent
 from ..schemas import (
     ActivityOut,
@@ -220,6 +221,7 @@ def get_activity(db: Session = Depends(get_db)) -> ActivityOut:
 def submit_institution_inquiry(
     inquiry: InstitutionInquiryIn,
     db: Session = Depends(get_db),
+    _rl: None = Depends(rate_limit(5, 3600)),
 ) -> InstitutionInquiryOut:
     """
     Submit a contact form inquiry from institutions.

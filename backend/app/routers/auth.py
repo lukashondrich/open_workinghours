@@ -15,6 +15,7 @@ from ..config import get_settings
 from ..database import get_db
 from ..dependencies import get_current_user
 from ..models import FeedbackReport, User, VerificationRequest, VerificationStatus, WorkEvent
+from ..rate_limit import rate_limit
 from ..schemas import AuthTokenOut, ConsentUpdateIn, UserDataExportOut, UserLoginIn, UserOut, UserRegisterIn
 from ..security import create_user_access_token, hash_code, hash_email
 
@@ -31,6 +32,7 @@ def _get_db_session():
 def register_user(
     payload: UserRegisterIn,
     db: Session = Depends(_get_db_session),
+    _rl: None = Depends(rate_limit(5, 60)),
 ) -> AuthTokenOut:
     """
     Register a new user account.
@@ -70,8 +72,8 @@ def register_user(
 
     if existing_user is not None:
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="User with this email already exists. Please use /auth/login instead.",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Registration failed. Please verify your email and try again.",
         )
 
     # Create new user with consent data
@@ -107,6 +109,7 @@ def register_user(
 def login_user(
     payload: UserLoginIn,
     db: Session = Depends(_get_db_session),
+    _rl: None = Depends(rate_limit(5, 60)),
 ) -> AuthTokenOut:
     """
     Login existing user with email + verification code.
@@ -193,8 +196,8 @@ def login_user(
     if user is None:
         db.commit()  # Still commit the verification status
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found. Please register first via /auth/register.",
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid verification code.",
         )
 
     db.commit()

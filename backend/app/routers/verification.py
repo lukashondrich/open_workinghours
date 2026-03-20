@@ -3,12 +3,13 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 
 from collections.abc import Generator
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from .. import email as email_service
 from ..database import get_db
 from ..models import VerificationRequest, VerificationStatus
+from ..rate_limit import rate_limit
 from ..schemas import (
     VerificationConfirmIn,
     VerificationConfirmOut,
@@ -36,15 +37,16 @@ def request_verification(
     payload: VerificationRequestIn,
     background: BackgroundTasks,
     db: Session = Depends(_get_db_session),
+    _rl: None = Depends(rate_limit(5, 60)),
 ) -> VerificationRequestOut:
     email = payload.email.strip().lower()
     domain = email.split("@")[-1]
 
     domain_allowlist = allowed_domains()
     if domain_allowlist is not None and domain not in domain_allowlist:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email domain is not authorised",
+        # Return same success response to prevent email enumeration
+        return VerificationRequestOut(
+            message="Verification email sent. Please check your inbox."
         )
 
     hashed_email = hash_email(email)
@@ -93,12 +95,16 @@ def request_verification(
 def confirm_verification(
     payload: VerificationConfirmIn,
     db: Session = Depends(_get_db_session),
+    _rl: None = Depends(rate_limit(10, 60)),
 ) -> VerificationConfirmOut:
     now = datetime.now(timezone.utc)
+    email = payload.email.strip().lower()
+    email_digest = hash_email(email)
     digest = hash_code(payload.code)
 
     record = (
         db.query(VerificationRequest)
+        .filter(VerificationRequest.email_hash == email_digest)
         .filter(VerificationRequest.code_hash == digest)
         .one_or_none()
     )

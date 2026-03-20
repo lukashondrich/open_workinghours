@@ -4,6 +4,10 @@ from __future__ import annotations
 import os
 from typing import Generator
 
+# Override database URL BEFORE any app imports so database.py creates a
+# SQLite engine instead of trying to connect to PostgreSQL from .env.
+os.environ.setdefault("DATABASE__URL", "sqlite:///:memory:")
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -46,6 +50,15 @@ def test_db() -> Generator[Session, None, None]:
         Base.metadata.drop_all(bind=engine)
 
 
+@pytest.fixture(autouse=True)
+def _reset_rate_limits():
+    """Reset rate limit state between every test."""
+    from app.rate_limit import store
+    store.reset()
+    yield
+    store.reset()
+
+
 @pytest.fixture(scope="function")
 def client(test_db: Session) -> TestClient:
     """
@@ -60,6 +73,23 @@ def client(test_db: Session) -> TestClient:
             pass
 
     app.dependency_overrides[get_db] = override_get_db
+
+    # Also override router-specific _get_db_session / get_db_session functions
+    # that call get_db() directly (bypassing FastAPI's dependency override system)
+    from app.routers.analytics import _get_db_session as analytics_get_db
+    from app.routers.auth import _get_db_session as auth_get_db
+    from app.routers.reports import _get_db_session as reports_get_db
+    from app.routers.stats import _get_db_session as stats_get_db
+    from app.routers.submissions import _get_db_session as submissions_get_db
+    from app.routers.verification import _get_db_session as verification_get_db
+    from app.dependencies import get_db_session as deps_get_db
+    app.dependency_overrides[analytics_get_db] = override_get_db
+    app.dependency_overrides[auth_get_db] = override_get_db
+    app.dependency_overrides[reports_get_db] = override_get_db
+    app.dependency_overrides[stats_get_db] = override_get_db
+    app.dependency_overrides[submissions_get_db] = override_get_db
+    app.dependency_overrides[verification_get_db] = override_get_db
+    app.dependency_overrides[deps_get_db] = override_get_db
 
     with TestClient(app) as test_client:
         yield test_client

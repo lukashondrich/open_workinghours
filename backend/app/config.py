@@ -39,6 +39,12 @@ class Settings(BaseSettings):
     environment: str = Field(default="development")
     allowed_email_domains_file: Path | None = Field(default=None)
 
+    cors_origins: list[str] = Field(
+        default=["http://localhost:3000", "http://localhost:8000", "http://localhost:4321"],
+        description="Allowed CORS origins (localhost:4321 = Astro website dev server)",
+    )
+    docs_enabled: bool = Field(default=True)
+
     security: SecuritySettings
     database: DatabaseSettings
     email: EmailSettings | None = None

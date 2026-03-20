@@ -96,20 +96,7 @@ export default function RegisterScreen({ email, onLoginPress }: RegisterScreenPr
       setShowConsent(false);
 
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-
-      // Check for specific error cases
-      if (errorMessage.includes('already exists')) {
-        Alert.alert(
-          t('auth.register.accountExists'),
-          t('auth.register.accountExistsMessage'),
-          [
-            { text: t('common.cancel'), style: 'cancel' },
-            { text: t('auth.register.goToLogin'), onPress: onLoginPress },
-          ]
-        );
-      } else {
-        Alert.alert(t('auth.register.registrationFailed'), errorMessage);
-      }
+      Alert.alert(t('auth.register.registrationFailed'), errorMessage);
     } finally {
       setLoading(false);
     }
