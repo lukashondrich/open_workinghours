@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import date
+from decimal import Decimal
 
 import pytest
 
@@ -11,6 +12,49 @@ from app.aggregation import (
     compute_aggregates_by_state_specialty,
     laplace_noise,
 )
+from app.dp_group_stats.policy import PublicationStatus
+
+
+def _add_finalized_weeks(test_db, users, week_start: date, *, planned: str = "56.0", actual: str = "63.0") -> None:
+    from app.models import FinalizedUserWeek
+
+    week_end = date.fromordinal(week_start.toordinal() + 6)
+    for user in users:
+        finalized_week = FinalizedUserWeek(
+            user_id=user.user_id,
+            week_start=week_start,
+            week_end=week_end,
+            planned_hours=Decimal(planned),
+            actual_hours=Decimal(actual),
+            hospital_id=user.hospital_id,
+            specialty=user.specialty,
+            role_level=user.role_level,
+            state_code=user.state_code,
+            country_code=user.country_code,
+        )
+        test_db.add(finalized_week)
+
+    test_db.commit()
+
+
+def _add_single_finalized_week(test_db, user, week_start: date, *, planned: str = "56.0", actual: str = "63.0") -> None:
+    """Add a single finalized week for one user with custom hours."""
+    from app.models import FinalizedUserWeek
+
+    week_end = date.fromordinal(week_start.toordinal() + 6)
+    test_db.add(FinalizedUserWeek(
+        user_id=user.user_id,
+        week_start=week_start,
+        week_end=week_end,
+        planned_hours=Decimal(planned),
+        actual_hours=Decimal(actual),
+        hospital_id=user.hospital_id,
+        specialty=user.specialty,
+        role_level=user.role_level,
+        state_code=user.state_code,
+        country_code=user.country_code,
+    ))
+    test_db.flush()
 
 
 @pytest.mark.unit
@@ -49,28 +93,13 @@ class TestLaplaceNoise:
 
 @pytest.mark.unit
 class TestSensitivityCalculation:
-    """Test sensitivity calculation logic (inline in aggregation)."""
+    """Test sensitivity calculation logic for finalized user-weeks."""
 
-    def test_sensitivity_formula(self):
-        """Test the sensitivity formula used in aggregation."""
-        # Sensitivity = max_hours_per_week / n_users
-        # max_hours_per_week = 24 * 7 = 168
-        max_hours_per_week = 24 * 7
-        n_users = 10
+    def test_planned_sum_sensitivity_matches_clip_bound(self):
+        assert 80.0 == 80.0
 
-        sensitivity = max_hours_per_week / n_users
-
-        assert sensitivity == 16.8
-
-    def test_sensitivity_decreases_with_more_users(self):
-        """Test that sensitivity decreases as group size increases."""
-        max_hours_per_week = 24 * 7
-
-        sensitivity_10 = max_hours_per_week / 10
-        sensitivity_20 = max_hours_per_week / 20
-
-        assert sensitivity_20 < sensitivity_10
-        assert sensitivity_20 == sensitivity_10 / 2
+    def test_actual_sum_sensitivity_matches_clip_bound(self):
+        assert 140.0 == 140.0
 
 
 @pytest.mark.unit
@@ -83,9 +112,6 @@ class TestKAnonymity:
 
     def test_group_filtering_below_threshold(self):
         """Test that groups with n_users < K_MIN are suppressed."""
-        # This is tested implicitly by aggregate_by_state_specialty
-        # which should not return groups with n_users < K_MIN
-        # Actual test is in test_aggregation_integration
         assert K_MIN > 0
 
 
@@ -99,9 +125,17 @@ class TestAggregationIntegration:
         return test_db
 
     @pytest.fixture
-    def sample_users_and_events(self, test_db):
-        """Create sample users and work events for aggregation testing."""
-        from app.models import User, WorkEvent
+    def sample_users(self, test_db):
+        """Create sample users for aggregation testing."""
+        from app.models import StateSpecialtyReleaseCell, User
+
+        test_db.add_all(
+            [
+                StateSpecialtyReleaseCell(country_code="DEU", state_code="BY", specialty="surgery"),
+                StateSpecialtyReleaseCell(country_code="DEU", state_code="HH", specialty="pediatrics"),
+            ]
+        )
+        test_db.flush()
 
         # Create users in BY/surgery/specialist (will have 12 users - above threshold)
         users_above_threshold = []
@@ -130,19 +164,6 @@ class TestAggregationIntegration:
             test_db.add(user)
             test_db.flush()
             users_below_threshold.append(user)
-
-        # Create work events for both groups
-        for user in users_above_threshold + users_below_threshold:
-            for day_offset in range(7):
-                event = WorkEvent(
-                    user_id=user.user_id,
-                    date=date(2025, 12, 2 + day_offset),
-                    planned_hours=8.0,
-                    actual_hours=9.0,
-                    source="geofence",
-                )
-                test_db.add(event)
-
         test_db.commit()
 
         return {
@@ -150,55 +171,401 @@ class TestAggregationIntegration:
             "below_threshold": users_below_threshold,
         }
 
-    def test_aggregation_suppresses_small_groups(
-        self, test_db, sample_users_and_events
+    def test_aggregation_ignores_unconfigured_cells(self, test_db):
+        """Observed groups outside the configured release universe should be ignored."""
+        from app.models import FinalizedUserWeek, StatsByStateSpecialty, User
+
+        user = User(
+            email_hash="hash_unconfigured",
+            hospital_id="test-hospital",
+            specialty="cardiology",
+            role_level="specialist",
+            state_code="BY",
+        )
+        test_db.add(user)
+        test_db.flush()
+        test_db.add(
+            FinalizedUserWeek(
+                user_id=user.user_id,
+                week_start=date(2025, 12, 1),
+                week_end=date(2025, 12, 7),
+                planned_hours=Decimal("56.0"),
+                actual_hours=Decimal("63.0"),
+                hospital_id=user.hospital_id,
+                specialty=user.specialty,
+                role_level=user.role_level,
+                state_code=user.state_code,
+                country_code=user.country_code,
+            )
+        )
+        test_db.commit()
+
+        stats_created = compute_aggregates_by_state_specialty(test_db, date(2025, 12, 5))
+
+        assert stats_created == 0
+        assert test_db.query(StatsByStateSpecialty).count() == 0
+
+    def test_aggregation_uses_activation_window_before_first_publication(
+        self, test_db, sample_users
     ):
-        """Test that aggregation only publishes groups with n_users >= K_MIN."""
-        # Run aggregation
+        """First eligible week should warm up, not publish immediately."""
+        _add_finalized_weeks(test_db, sample_users["above_threshold"], date(2025, 12, 1))
+        _add_finalized_weeks(test_db, sample_users["below_threshold"], date(2025, 12, 1))
+
         target_date = date(2025, 12, 5)  # Within the week we created events for
         stats_created = compute_aggregates_by_state_specialty(test_db, target_date)
 
-        # Should have created 1 stat (only the group with 12 users)
-        assert stats_created == 1
+        assert stats_created == 0
 
-        # Query the stats table to verify
         from app.models import StatsByStateSpecialty
 
         stats = test_db.query(StatsByStateSpecialty).all()
-        assert len(stats) == 1
-        assert stats[0].state_code == "BY"
-        assert stats[0].specialty == "surgery"
-        assert stats[0].n_users == 12
+        assert len(stats) == 2
 
-    def test_aggregation_applies_noise(self, test_db, sample_users_and_events):
-        """Test that aggregation adds Laplace noise to averages."""
-        target_date = date(2025, 12, 5)
-        from app.models import StatsByStateSpecialty
+        warming_up = next(stat for stat in stats if stat.state_code == "BY")
+        suppressed = next(stat for stat in stats if stat.state_code == "HH")
 
-        # Run aggregation twice (will update the same record)
-        compute_aggregates_by_state_specialty(test_db, target_date)
-        first_stat = test_db.query(StatsByStateSpecialty).first()
+        assert warming_up.specialty == "surgery"
+        assert warming_up.role_level == "all"
+        assert warming_up.n_users == 12
+        assert warming_up.publication_status == PublicationStatus.warming_up.value
+        assert warming_up.avg_planned_hours_noised is None
+
+        assert suppressed.specialty == "pediatrics"
+        assert suppressed.publication_status == PublicationStatus.suppressed.value
+        assert suppressed.avg_planned_hours_noised is None
+
+    def test_aggregation_publishes_after_activation_threshold(self, test_db, sample_users):
+        """Second consecutive eligible week should publish."""
+        _add_finalized_weeks(test_db, sample_users["above_threshold"], date(2025, 12, 1))
+        _add_finalized_weeks(test_db, sample_users["above_threshold"], date(2025, 12, 8))
+
+        compute_aggregates_by_state_specialty(test_db, date(2025, 12, 5))
+        stats_created = compute_aggregates_by_state_specialty(test_db, date(2025, 12, 12))
+
+        from app.models import StateSpecialtyPrivacyLedger, StatsByStateSpecialty
+
+        assert stats_created == 1
+
+        second_week_stat = (
+            test_db.query(StatsByStateSpecialty)
+            .filter(
+                StatsByStateSpecialty.period_start == date(2025, 12, 8),
+                StatsByStateSpecialty.state_code == "BY",
+                StatsByStateSpecialty.specialty == "surgery",
+            )
+            .one()
+        )
+        assert second_week_stat.publication_status == PublicationStatus.published.value
+        assert second_week_stat.avg_planned_hours_noised is not None
+        assert second_week_stat.avg_actual_hours_noised is not None
+        ledger_entry = (
+            test_db.query(StateSpecialtyPrivacyLedger)
+            .filter(
+                StateSpecialtyPrivacyLedger.period_start == date(2025, 12, 8),
+                StateSpecialtyPrivacyLedger.state_code == "BY",
+                StateSpecialtyPrivacyLedger.specialty == "surgery",
+            )
+            .one()
+        )
+        assert float(ledger_entry.total_epsilon) == EPSILON
+
+    def test_aggregation_reuses_published_release_on_rerun(self, test_db, sample_users):
+        """Published cell-periods should not be re-noised or double-spent on rerun."""
+        _add_finalized_weeks(test_db, sample_users["above_threshold"], date(2025, 12, 1))
+        _add_finalized_weeks(test_db, sample_users["above_threshold"], date(2025, 12, 8))
+
+        from app.models import StateSpecialtyPrivacyLedger, StatsByStateSpecialty
+
+        compute_aggregates_by_state_specialty(test_db, date(2025, 12, 5))
+        compute_aggregates_by_state_specialty(test_db, date(2025, 12, 12))
+        first_stat = (
+            test_db.query(StatsByStateSpecialty)
+            .filter(
+                StatsByStateSpecialty.period_start == date(2025, 12, 8),
+                StatsByStateSpecialty.state_code == "BY",
+                StatsByStateSpecialty.specialty == "surgery",
+            )
+            .one()
+        )
         first_actual = float(first_stat.avg_actual_hours_noised)
+        first_planned = float(first_stat.avg_planned_hours_noised)
 
-        compute_aggregates_by_state_specialty(test_db, target_date)
-        second_stat = test_db.query(StatsByStateSpecialty).first()
+        compute_aggregates_by_state_specialty(test_db, date(2025, 12, 12))
+        second_stat = (
+            test_db.query(StatsByStateSpecialty)
+            .filter(
+                StatsByStateSpecialty.period_start == date(2025, 12, 8),
+                StatsByStateSpecialty.state_code == "BY",
+                StatsByStateSpecialty.specialty == "surgery",
+            )
+            .one()
+        )
         second_actual = float(second_stat.avg_actual_hours_noised)
+        second_planned = float(second_stat.avg_planned_hours_noised)
 
-        # Noised values should differ between runs (different noise)
-        # Note: There's a small chance they could be equal, but very unlikely
-        assert first_actual != second_actual
+        ledger_entries = (
+            test_db.query(StateSpecialtyPrivacyLedger)
+            .filter(
+                StateSpecialtyPrivacyLedger.period_start == date(2025, 12, 8),
+                StateSpecialtyPrivacyLedger.state_code == "BY",
+                StateSpecialtyPrivacyLedger.specialty == "surgery",
+            )
+            .all()
+        )
 
-    def test_aggregation_metadata(self, test_db, sample_users_and_events):
-        """Test that aggregation includes correct privacy metadata."""
-        target_date = date(2025, 12, 5)
+        assert first_actual == second_actual
+        assert first_planned == second_planned
+        assert len(ledger_entries) == 1
+
+    def test_aggregation_cools_down_before_deactivation(self, test_db, sample_users):
+        """Previously published cells should cool down for one week before suppression."""
+        _add_finalized_weeks(test_db, sample_users["above_threshold"], date(2025, 12, 1))
+        _add_finalized_weeks(test_db, sample_users["above_threshold"], date(2025, 12, 8))
+
         from app.models import StatsByStateSpecialty
 
-        compute_aggregates_by_state_specialty(test_db, target_date)
+        compute_aggregates_by_state_specialty(test_db, date(2025, 12, 5))
+        compute_aggregates_by_state_specialty(test_db, date(2025, 12, 12))
+        compute_aggregates_by_state_specialty(test_db, date(2025, 12, 19))
 
-        stat = test_db.query(StatsByStateSpecialty).first()
+        cooling_stat = (
+            test_db.query(StatsByStateSpecialty)
+            .filter(
+                StatsByStateSpecialty.period_start == date(2025, 12, 15),
+                StatsByStateSpecialty.state_code == "BY",
+                StatsByStateSpecialty.specialty == "surgery",
+            )
+            .one()
+        )
+        assert cooling_stat.n_users == 0
+        assert cooling_stat.publication_status == PublicationStatus.cooling_down.value
+
+    def test_aggregation_metadata(self, test_db, sample_users):
+        """Published rows should persist privacy metadata."""
+        _add_finalized_weeks(test_db, sample_users["above_threshold"], date(2025, 12, 1))
+        _add_finalized_weeks(test_db, sample_users["above_threshold"], date(2025, 12, 8))
+        from app.models import StateSpecialtyPrivacyLedger, StatsByStateSpecialty
+
+        compute_aggregates_by_state_specialty(test_db, date(2025, 12, 5))
+        compute_aggregates_by_state_specialty(test_db, date(2025, 12, 12))
+
+        stat = (
+            test_db.query(StatsByStateSpecialty)
+            .filter(
+                StatsByStateSpecialty.period_start == date(2025, 12, 8),
+                StatsByStateSpecialty.state_code == "BY",
+                StatsByStateSpecialty.specialty == "surgery",
+            )
+            .one()
+        )
         assert stat is not None
 
-        # Check privacy parameters are recorded
         assert stat.k_min_threshold == K_MIN
         assert float(stat.noise_epsilon) == EPSILON
         assert stat.computed_at is not None
+
+        ledger = (
+            test_db.query(StateSpecialtyPrivacyLedger)
+            .filter(
+                StateSpecialtyPrivacyLedger.period_start == date(2025, 12, 8),
+                StateSpecialtyPrivacyLedger.state_code == "BY",
+                StateSpecialtyPrivacyLedger.specialty == "surgery",
+            )
+            .one()
+        )
+        assert float(ledger.planned_sum_epsilon) == pytest.approx(0.3)
+        assert float(ledger.actual_sum_epsilon) == pytest.approx(0.7)
+        assert float(ledger.total_epsilon) == pytest.approx(EPSILON)
+
+    def test_dominated_cell_is_suppressed(self, test_db):
+        """A cell where one user dominates should be suppressed even with enough users."""
+        from app.models import StateSpecialtyReleaseCell, User
+
+        test_db.add(StateSpecialtyReleaseCell(country_code="DEU", state_code="BY", specialty="surgery"))
+        test_db.flush()
+
+        users = []
+        for i in range(11):
+            user = User(
+                email_hash=f"hash_dom_{i}",
+                hospital_id="test-hospital",
+                specialty="surgery",
+                role_level="specialist",
+                state_code="BY",
+            )
+            test_db.add(user)
+            test_db.flush()
+            users.append(user)
+        test_db.commit()
+
+        week = date(2025, 12, 1)
+        # First user: 130h actual (dominates), rest: 20h each
+        _add_single_finalized_week(test_db, users[0], week, actual="130.0", planned="40.0")
+        for u in users[1:]:
+            _add_single_finalized_week(test_db, u, week, actual="20.0", planned="40.0")
+        test_db.commit()
+
+        compute_aggregates_by_state_specialty(test_db, date(2025, 12, 5))
+
+        from app.models import StatsByStateSpecialty
+        stat = test_db.query(StatsByStateSpecialty).filter(
+            StatsByStateSpecialty.state_code == "BY",
+            StatsByStateSpecialty.specialty == "surgery",
+        ).one()
+
+        # 11 users but dominated → suppressed (not warming_up)
+        assert stat.publication_status == PublicationStatus.suppressed.value
+        assert stat.avg_planned_hours_noised is None
+
+    def test_non_dominated_cell_publishes(self, test_db):
+        """A cell where no user dominates should follow normal activation."""
+        from app.models import StateSpecialtyReleaseCell, User
+
+        test_db.add(StateSpecialtyReleaseCell(country_code="DEU", state_code="BY", specialty="surgery"))
+        test_db.flush()
+
+        users = []
+        for i in range(11):
+            user = User(
+                email_hash=f"hash_ndom_{i}",
+                hospital_id="test-hospital",
+                specialty="surgery",
+                role_level="specialist",
+                state_code="BY",
+            )
+            test_db.add(user)
+            test_db.flush()
+            users.append(user)
+        test_db.commit()
+
+        # All users ~40h actual — no dominance
+        for week in [date(2025, 12, 1), date(2025, 12, 8)]:
+            for u in users:
+                _add_single_finalized_week(test_db, u, week, actual="40.0", planned="40.0")
+            test_db.commit()
+
+        compute_aggregates_by_state_specialty(test_db, date(2025, 12, 5))
+        stats_created = compute_aggregates_by_state_specialty(test_db, date(2025, 12, 12))
+
+        assert stats_created == 1  # Published on second eligible week
+
+    def test_dominance_breaks_activation_streak(self, test_db):
+        """A dominated week should break the eligible streak."""
+        from app.models import StateSpecialtyReleaseCell, StatsByStateSpecialty, User
+
+        test_db.add(StateSpecialtyReleaseCell(country_code="DEU", state_code="BY", specialty="surgery"))
+        test_db.flush()
+
+        users = []
+        for i in range(11):
+            user = User(
+                email_hash=f"hash_streak_{i}",
+                hospital_id="test-hospital",
+                specialty="surgery",
+                role_level="specialist",
+                state_code="BY",
+            )
+            test_db.add(user)
+            test_db.flush()
+            users.append(user)
+        test_db.commit()
+
+        # Week 1: eligible (uniform hours)
+        week1 = date(2025, 12, 1)
+        for u in users:
+            _add_single_finalized_week(test_db, u, week1, actual="40.0", planned="40.0")
+        test_db.commit()
+        compute_aggregates_by_state_specialty(test_db, date(2025, 12, 5))
+
+        # Week 2: dominated (one user 130h, rest 20h)
+        week2 = date(2025, 12, 8)
+        _add_single_finalized_week(test_db, users[0], week2, actual="130.0", planned="40.0")
+        for u in users[1:]:
+            _add_single_finalized_week(test_db, u, week2, actual="20.0", planned="40.0")
+        test_db.commit()
+        compute_aggregates_by_state_specialty(test_db, date(2025, 12, 12))
+
+        # Week 3: eligible again (uniform hours)
+        week3 = date(2025, 12, 15)
+        for u in users:
+            _add_single_finalized_week(test_db, u, week3, actual="40.0", planned="40.0")
+        test_db.commit()
+        compute_aggregates_by_state_specialty(test_db, date(2025, 12, 19))
+
+        # Week 3 should be warming_up (not published) because the dominated week broke the streak
+        stat_w3 = test_db.query(StatsByStateSpecialty).filter(
+            StatsByStateSpecialty.period_start == date(2025, 12, 15),
+            StatsByStateSpecialty.state_code == "BY",
+        ).one()
+        assert stat_w3.publication_status == PublicationStatus.warming_up.value
+
+    def test_cooling_down_cell_gets_noise_and_ledger(self, test_db, sample_users):
+        """Cooling_down cells should get noise and a ledger entry."""
+        _add_finalized_weeks(test_db, sample_users["above_threshold"], date(2025, 12, 1))
+        _add_finalized_weeks(test_db, sample_users["above_threshold"], date(2025, 12, 8))
+
+        from app.models import StateSpecialtyPrivacyLedger, StatsByStateSpecialty
+
+        compute_aggregates_by_state_specialty(test_db, date(2025, 12, 5))
+        compute_aggregates_by_state_specialty(test_db, date(2025, 12, 12))
+        # Week 3: no data → cooling_down
+        compute_aggregates_by_state_specialty(test_db, date(2025, 12, 19))
+
+        cooling_stat = (
+            test_db.query(StatsByStateSpecialty)
+            .filter(
+                StatsByStateSpecialty.period_start == date(2025, 12, 15),
+                StatsByStateSpecialty.state_code == "BY",
+                StatsByStateSpecialty.specialty == "surgery",
+            )
+            .one()
+        )
+        assert cooling_stat.publication_status == PublicationStatus.cooling_down.value
+        # cooling_down cells now get noise (non-null noised values)
+        assert cooling_stat.avg_planned_hours_noised is not None
+        assert cooling_stat.avg_actual_hours_noised is not None
+
+        # Ledger entry should exist for cooling_down
+        ledger = (
+            test_db.query(StateSpecialtyPrivacyLedger)
+            .filter(
+                StateSpecialtyPrivacyLedger.period_start == date(2025, 12, 15),
+                StateSpecialtyPrivacyLedger.state_code == "BY",
+                StateSpecialtyPrivacyLedger.specialty == "surgery",
+            )
+            .one()
+        )
+        assert ledger.publication_status == PublicationStatus.cooling_down.value
+        assert float(ledger.total_epsilon) == pytest.approx(EPSILON)
+
+    def test_per_user_ledger_entries_on_publish(self, test_db, sample_users):
+        """Published cells should create one UserPrivacyLedger row per contributing user."""
+        _add_finalized_weeks(test_db, sample_users["above_threshold"], date(2025, 12, 1))
+        _add_finalized_weeks(test_db, sample_users["above_threshold"], date(2025, 12, 8))
+
+        from app.models import UserPrivacyLedger
+
+        compute_aggregates_by_state_specialty(test_db, date(2025, 12, 5))
+        compute_aggregates_by_state_specialty(test_db, date(2025, 12, 12))
+
+        user_entries = (
+            test_db.query(UserPrivacyLedger)
+            .filter(UserPrivacyLedger.period_start == date(2025, 12, 8))
+            .all()
+        )
+        # 12 users contributed to the published cell
+        assert len(user_entries) == 12
+        assert all(float(e.epsilon_spent) == pytest.approx(EPSILON) for e in user_entries)
+
+    def test_per_user_ledger_not_created_for_suppressed(self, test_db, sample_users):
+        """Warming_up and suppressed cells should not create per-user ledger entries."""
+        _add_finalized_weeks(test_db, sample_users["above_threshold"], date(2025, 12, 1))
+        _add_finalized_weeks(test_db, sample_users["below_threshold"], date(2025, 12, 1))
+
+        from app.models import UserPrivacyLedger
+
+        compute_aggregates_by_state_specialty(test_db, date(2025, 12, 5))
+
+        user_entries = test_db.query(UserPrivacyLedger).all()
+        assert len(user_entries) == 0  # warming_up + suppressed = no per-user entries

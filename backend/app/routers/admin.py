@@ -15,8 +15,20 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import User, WorkEvent, VerificationRequest, StatsByStateSpecialty, FeedbackReport
+from ..models import (
+    FeedbackReport,
+    StateSpecialtyReleaseCell,
+    StatsByStateSpecialty,
+    User,
+    VerificationRequest,
+    WorkEvent,
+)
 from ..rate_limit import rate_limit
+from ..schemas import (
+    StateSpecialtyReleaseCellBulkUpsertIn,
+    StateSpecialtyReleaseCellBulkUpsertOut,
+    StateSpecialtyReleaseCellOut,
+)
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 security = HTTPBasic()
@@ -821,6 +833,72 @@ def get_feedback_reports(
         "reports": reports_data,
         "timestamp": datetime.now(timezone.utc).isoformat()
     }
+
+
+@router.get("/release-cells/state-specialty", response_model=list[StateSpecialtyReleaseCellOut])
+def list_state_specialty_release_cells(
+    username: str = Depends(verify_admin),
+    db: Session = Depends(get_db),
+    _rl: None = Depends(rate_limit(30, 60)),
+) -> list[StateSpecialtyReleaseCellOut]:
+    """List configured state x specialty release cells used by the v1 DP pipeline."""
+    rows = (
+        db.query(StateSpecialtyReleaseCell)
+        .order_by(
+            StateSpecialtyReleaseCell.country_code.asc(),
+            StateSpecialtyReleaseCell.state_code.asc(),
+            StateSpecialtyReleaseCell.specialty.asc(),
+        )
+        .all()
+    )
+    return [StateSpecialtyReleaseCellOut.from_orm(row) for row in rows]
+
+
+@router.put("/release-cells/state-specialty", response_model=StateSpecialtyReleaseCellBulkUpsertOut)
+def upsert_state_specialty_release_cells(
+    payload: StateSpecialtyReleaseCellBulkUpsertIn,
+    username: str = Depends(verify_admin),
+    db: Session = Depends(get_db),
+    _rl: None = Depends(rate_limit(10, 60)),
+) -> StateSpecialtyReleaseCellBulkUpsertOut:
+    """Create or update configured state x specialty release cells in bulk."""
+    normalized_cells = {
+        (cell.country_code, cell.state_code, cell.specialty): cell
+        for cell in payload.cells
+    }
+
+    persisted_rows: list[StateSpecialtyReleaseCell] = []
+    for cell_key, cell in normalized_cells.items():
+        existing = (
+            db.query(StateSpecialtyReleaseCell)
+            .filter(
+                StateSpecialtyReleaseCell.country_code == cell_key[0],
+                StateSpecialtyReleaseCell.state_code == cell_key[1],
+                StateSpecialtyReleaseCell.specialty == cell_key[2],
+            )
+            .one_or_none()
+        )
+
+        if existing is None:
+            existing = StateSpecialtyReleaseCell(
+                country_code=cell.country_code,
+                state_code=cell.state_code,
+                specialty=cell.specialty,
+            )
+            db.add(existing)
+
+        existing.is_enabled = cell.is_enabled
+        persisted_rows.append(existing)
+
+    db.commit()
+    for row in persisted_rows:
+        db.refresh(row)
+
+    persisted_rows.sort(key=lambda row: (row.country_code, row.state_code, row.specialty))
+    return StateSpecialtyReleaseCellBulkUpsertOut(
+        upserted=len(persisted_rows),
+        cells=[StateSpecialtyReleaseCellOut.from_orm(row) for row in persisted_rows],
+    )
 
 
 @router.get("/logs")
