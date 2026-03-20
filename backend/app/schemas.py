@@ -124,6 +124,33 @@ class WeeklySubmissionListItem(BaseModel):
         from_attributes = True
 
 
+class FinalizedUserWeekIn(BaseModel):
+    week_start: date
+
+    @validator("week_start")
+    def _week_start_must_be_monday(cls, week_start: date) -> date:
+        if week_start.weekday() != 0:
+            raise ValueError("week_start must be a Monday")
+        return week_start
+
+
+class FinalizedUserWeekOut(BaseModel):
+    finalized_week_id: UUID
+    week_start: date
+    week_end: date
+    planned_hours: float
+    actual_hours: float
+    hospital_id: str
+    specialty: str
+    role_level: str
+    state_code: str | None
+    country_code: str
+    finalized_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 # ============================================================================
 # USER AUTHENTICATION (NEW - Privacy Architecture)
 # ============================================================================
@@ -240,36 +267,71 @@ class WorkEventOut(BaseModel):
 
 class StatsByStateSpecialtyOut(BaseModel):
     """
-    Privacy-preserving statistics response.
+    Public state x specialty statistics response.
 
-    All data is k-anonymous (n_users >= K_MIN) and differentially private
-    (Laplace noise added). Cannot be linked back to individuals.
+    Counts and internal privacy-tuning details are intentionally hidden.
+    Suppressed cells are returned with null numeric values and generic status only.
     """
     stat_id: UUID
     country_code: str
     state_code: str
     specialty: str
-    role_level: str
     period_start: date
     period_end: date
-
-    # Anonymity set size
-    n_users: int
-
-    # Noised averages (hours per week)
-    avg_planned_hours_noised: float | None
-    avg_actual_hours_noised: float | None
-    avg_overtime_hours_noised: float | None
-
-    # Privacy parameters used
-    k_min_threshold: int
-    noise_epsilon: float
-
-    # Metadata
+    planned_mean_hours: float | None
+    overtime_mean_hours: float | None
+    status: str
     computed_at: datetime
+
+
+class StateSpecialtyReleaseCellIn(BaseModel):
+    """Admin input for configured state x specialty release cells."""
+    country_code: str = Field(default="DEU", min_length=3, max_length=3)
+    state_code: str = Field(..., min_length=1, max_length=10)
+    specialty: str = Field(..., min_length=1, max_length=100)
+    is_enabled: bool = True
+
+    @validator("country_code")
+    def _normalize_country_code(cls, value: str) -> str:
+        return value.strip().upper()
+
+    @validator("state_code")
+    def _normalize_state_code(cls, value: str) -> str:
+        return value.strip().upper()
+
+    @validator("specialty")
+    def _normalize_specialty(cls, value: str) -> str:
+        return value.strip()
+
+
+class StateSpecialtyReleaseCellOut(BaseModel):
+    """Configured state x specialty release cell."""
+    cell_id: UUID
+    country_code: str
+    state_code: str
+    specialty: str
+    is_enabled: bool
+    created_at: datetime
 
     class Config:
         from_attributes = True
+
+
+class StateSpecialtyReleaseCellBulkUpsertIn(BaseModel):
+    """Bulk upsert payload for configured release cells."""
+    cells: list[StateSpecialtyReleaseCellIn] = Field(default_factory=list)
+
+    @validator("cells")
+    def _validate_non_empty_cells(cls, value: list[StateSpecialtyReleaseCellIn]) -> list[StateSpecialtyReleaseCellIn]:
+        if not value:
+            raise ValueError("cells must not be empty")
+        return value
+
+
+class StateSpecialtyReleaseCellBulkUpsertOut(BaseModel):
+    """Bulk upsert response for configured release cells."""
+    upserted: int
+    cells: list[StateSpecialtyReleaseCellOut]
 
 
 # Feedback / Bug Reports
