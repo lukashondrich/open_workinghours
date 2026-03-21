@@ -10,7 +10,7 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
 from .database import get_db
@@ -201,8 +201,16 @@ def compute_aggregates_by_state_specialty(
             FinalizedUserWeek.state_code,
             FinalizedUserWeek.specialty,
             func.count(FinalizedUserWeek.user_id).label('n_users'),
-            func.sum(FinalizedUserWeek.planned_hours).label('planned_sum'),
-            func.sum(FinalizedUserWeek.actual_hours).label('actual_sum'),
+            func.sum(case(
+                (FinalizedUserWeek.planned_hours < _BOUNDS.planned_weekly_min, _BOUNDS.planned_weekly_min),
+                (FinalizedUserWeek.planned_hours > _BOUNDS.planned_weekly_max, _BOUNDS.planned_weekly_max),
+                else_=FinalizedUserWeek.planned_hours,
+            )).label('clipped_planned_sum'),
+            func.sum(case(
+                (FinalizedUserWeek.actual_hours < _BOUNDS.actual_weekly_min, _BOUNDS.actual_weekly_min),
+                (FinalizedUserWeek.actual_hours > _BOUNDS.actual_weekly_max, _BOUNDS.actual_weekly_max),
+                else_=FinalizedUserWeek.actual_hours,
+            )).label('clipped_actual_sum'),
         )
         .where(FinalizedUserWeek.week_start == period_start)
         .group_by(
@@ -277,8 +285,8 @@ def compute_aggregates_by_state_specialty(
         row: Any | None = observed_by_cell.get(cell)
         previous_row = previous_by_cell.get(cell)
         n_users = int(row.n_users) if row is not None else 0
-        planned_sum = float(row.planned_sum or 0.0) if row is not None else 0.0
-        actual_sum = float(row.actual_sum or 0.0) if row is not None else 0.0
+        planned_sum = float(row.clipped_planned_sum or 0.0) if row is not None else 0.0
+        actual_sum = float(row.clipped_actual_sum or 0.0) if row is not None else 0.0
 
         # Query per-user data (used for dominance check + per-user ledger in Step 4)
         per_user_actual = _get_per_user_actual_hours(db, cell_key=cell, period_start=period_start)
