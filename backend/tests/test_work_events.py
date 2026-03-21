@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import date, timedelta
+from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
@@ -249,7 +250,7 @@ class TestRightToErasure:
 
         # Get user ID from auth
         me_response = client.get("/auth/me", headers=auth_headers)
-        user_id = me_response.json()["user_id"]
+        user_id = UUID(me_response.json()["user_id"])
 
         # Verify work events exist
         work_events_before = test_db.query(WorkEvent).filter(WorkEvent.user_id == user_id).count()

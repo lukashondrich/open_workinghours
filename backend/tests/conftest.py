@@ -4,9 +4,12 @@ from __future__ import annotations
 import os
 from typing import Generator
 
-# Override database URL BEFORE any app imports so database.py creates a
-# SQLite engine instead of trying to connect to PostgreSQL from .env.
+# Override database URL and security settings BEFORE any app imports so
+# database.py creates a SQLite engine and config.py doesn't fail.
 os.environ.setdefault("DATABASE__URL", "sqlite:///:memory:")
+os.environ.setdefault("SECURITY__SECRET_KEY", "test-secret-key-that-is-at-least-32-chars-long")
+os.environ.setdefault("SECURITY__EMAIL_HASH_SECRET", "test-email-hash-secret-32-chars-long")
+os.environ.setdefault("ADMIN_PASSWORD", "test-admin-password")
 
 import pytest
 from fastapi.testclient import TestClient

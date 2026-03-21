@@ -284,6 +284,56 @@ class StatsByStateSpecialtyOut(BaseModel):
     computed_at: datetime
 
 
+class StateSpecialtyReleaseCellIn(BaseModel):
+    """Admin input for configured state x specialty release cells."""
+    country_code: str = Field(default="DEU", min_length=3, max_length=3)
+    state_code: str = Field(..., min_length=1, max_length=10)
+    specialty: str = Field(..., min_length=1, max_length=100)
+    is_enabled: bool = True
+
+    @validator("country_code")
+    def _normalize_country_code(cls, value: str) -> str:
+        return value.strip().upper()
+
+    @validator("state_code")
+    def _normalize_state_code(cls, value: str) -> str:
+        return value.strip().upper()
+
+    @validator("specialty")
+    def _normalize_specialty(cls, value: str) -> str:
+        return value.strip()
+
+
+class StateSpecialtyReleaseCellOut(BaseModel):
+    """Configured state x specialty release cell."""
+    cell_id: UUID
+    country_code: str
+    state_code: str
+    specialty: str
+    is_enabled: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class StateSpecialtyReleaseCellBulkUpsertIn(BaseModel):
+    """Bulk upsert payload for configured release cells."""
+    cells: list[StateSpecialtyReleaseCellIn] = Field(default_factory=list)
+
+    @validator("cells")
+    def _validate_non_empty_cells(cls, value: list[StateSpecialtyReleaseCellIn]) -> list[StateSpecialtyReleaseCellIn]:
+        if not value:
+            raise ValueError("cells must not be empty")
+        return value
+
+
+class StateSpecialtyReleaseCellBulkUpsertOut(BaseModel):
+    """Bulk upsert response for configured release cells."""
+    upserted: int
+    cells: list[StateSpecialtyReleaseCellOut]
+
+
 # Feedback / Bug Reports
 
 class GpsTelemetryEvent(BaseModel):

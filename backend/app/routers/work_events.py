@@ -10,23 +10,36 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from ..database import get_db
-from ..dependencies import get_current_user
-from ..models import User, WorkEvent
+from ..dependencies import get_current_user, get_db_session
+from ..models import FinalizedUserWeek, User, WorkEvent
+from ..periods import get_iso_week_bounds
 from ..schemas import WorkEventIn, WorkEventOut, WorkEventUpdate
 
 router = APIRouter(prefix="/work-events", tags=["work-events"])
 
 
-def _get_db_session():
-    yield from get_db()
+def _ensure_week_not_finalized(*, db: Session, user_id: UUID, target_date: date) -> None:
+    week_start, _ = get_iso_week_bounds(target_date)
+    finalized_week = (
+        db.query(FinalizedUserWeek)
+        .filter(
+            FinalizedUserWeek.user_id == user_id,
+            FinalizedUserWeek.week_start == week_start,
+        )
+        .one_or_none()
+    )
+    if finalized_week is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Cannot modify work events for finalized week starting {week_start}.",
+        )
 
 
 @router.post("", response_model=WorkEventOut, status_code=status.HTTP_201_CREATED)
 def create_work_event(
     payload: WorkEventIn,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(_get_db_session),
+    db: Session = Depends(get_db_session),
 ) -> WorkEventOut:
     """
     Create a new work event for the authenticated user.
@@ -62,6 +75,8 @@ def create_work_event(
             detail=f"Work event for date {payload.date} already exists. Use PATCH to update.",
         )
 
+    _ensure_week_not_finalized(db=db, user_id=current_user.user_id, target_date=payload.date)
+
     # Create new work event
     work_event = WorkEvent(
         user_id=current_user.user_id,
@@ -81,7 +96,7 @@ def create_work_event(
 @router.get("", response_model=list[WorkEventOut])
 def list_work_events(
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(_get_db_session),
+    db: Session = Depends(get_db_session),
     start_date: date | None = Query(default=None, description="Filter by start date (inclusive)"),
     end_date: date | None = Query(default=None, description="Filter by end date (inclusive)"),
     limit: int = Query(default=100, ge=1, le=1000, description="Maximum number of results"),
@@ -120,7 +135,7 @@ def update_work_event(
     event_id: UUID,
     payload: WorkEventUpdate,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(_get_db_session),
+    db: Session = Depends(get_db_session),
 ) -> WorkEventOut:
     """
     Update an existing work event (partial update).
@@ -152,6 +167,8 @@ def update_work_event(
             detail="You do not have permission to update this work event",
         )
 
+    _ensure_week_not_finalized(db=db, user_id=current_user.user_id, target_date=work_event.date)
+
     # Check if at least one field is provided
     update_data = payload.dict(exclude_unset=True)
     if not update_data:
@@ -174,7 +191,7 @@ def update_work_event(
 def delete_work_event(
     event_id: UUID,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(_get_db_session),
+    db: Session = Depends(get_db_session),
 ) -> None:
     """
     Delete a work event.
@@ -205,6 +222,8 @@ def delete_work_event(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have permission to delete this work event",
         )
+
+    _ensure_week_not_finalized(db=db, user_id=current_user.user_id, target_date=work_event.date)
 
     db.delete(work_event)
     db.commit()
