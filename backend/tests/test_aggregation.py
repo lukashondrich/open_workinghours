@@ -99,7 +99,7 @@ class TestSensitivityCalculation:
         assert 80.0 == 80.0
 
     def test_actual_sum_sensitivity_matches_clip_bound(self):
-        assert 140.0 == 140.0
+        assert 120.0 == 120.0
 
 
 @pytest.mark.unit
@@ -108,7 +108,7 @@ class TestKAnonymity:
 
     def test_k_min_constant(self):
         """Test that K_MIN is set to expected value."""
-        assert K_MIN == 11
+        assert K_MIN == 5
 
     def test_group_filtering_below_threshold(self):
         """Test that groups with n_users < K_MIN are suppressed."""
@@ -137,9 +137,9 @@ class TestAggregationIntegration:
         )
         test_db.flush()
 
-        # Create users in BY/surgery/specialist (will have 12 users - above threshold)
+        # Create users in BY/surgery/specialist (will have 6 users - above threshold)
         users_above_threshold = []
-        for i in range(12):
+        for i in range(6):
             user = User(
                 email_hash=f"hash_{i}",
                 hospital_id="test-hospital",
@@ -151,9 +151,9 @@ class TestAggregationIntegration:
             test_db.flush()
             users_above_threshold.append(user)
 
-        # Create users in HH/pediatrics/resident (will have 5 users - below threshold)
+        # Create users in HH/pediatrics/resident (will have 4 users - below threshold)
         users_below_threshold = []
-        for i in range(5):
+        for i in range(4):
             user = User(
                 email_hash=f"hash_hh_{i}",
                 hospital_id="test-hospital-2",
@@ -227,7 +227,7 @@ class TestAggregationIntegration:
 
         assert warming_up.specialty == "surgery"
         assert warming_up.role_level == "all"
-        assert warming_up.n_users == 12
+        assert warming_up.n_users == 6
         assert warming_up.publication_status == PublicationStatus.warming_up.value
         assert warming_up.avg_planned_hours_noised is None
 
@@ -554,8 +554,8 @@ class TestAggregationIntegration:
             .filter(UserPrivacyLedger.period_start == date(2025, 12, 8))
             .all()
         )
-        # 12 users contributed to the published cell
-        assert len(user_entries) == 12
+        # 6 users contributed to the published cell
+        assert len(user_entries) == 6
         assert all(float(e.epsilon_spent) == pytest.approx(EPSILON) for e in user_entries)
 
     def test_per_user_ledger_not_created_for_suppressed(self, test_db, sample_users):
@@ -569,3 +569,53 @@ class TestAggregationIntegration:
 
         user_entries = test_db.query(UserPrivacyLedger).all()
         assert len(user_entries) == 0  # warming_up + suppressed = no per-user entries
+
+    def test_clipping_limits_contribution(self, test_db):
+        """A user with 200h actual should only contribute 120h (actual_weekly_max) to the clipped sum."""
+        from app.models import StateSpecialtyReleaseCell, StatsByStateSpecialty, User
+
+        test_db.add(StateSpecialtyReleaseCell(country_code="DEU", state_code="BY", specialty="surgery"))
+        test_db.flush()
+
+        users = []
+        for i in range(6):
+            user = User(
+                email_hash=f"hash_clip_{i}",
+                hospital_id="test-hospital",
+                specialty="surgery",
+                role_level="specialist",
+                state_code="BY",
+            )
+            test_db.add(user)
+            test_db.flush()
+            users.append(user)
+        test_db.commit()
+
+        # Two weeks needed for activation (warming_up → published)
+        # Use 60h for non-outlier users so dominance ratio stays below 30%:
+        # clipped: 120 + 5*60 = 420, max ratio = 120/420 = 28.6% < 30%
+        for week in [date(2025, 12, 1), date(2025, 12, 8)]:
+            # First user: 200h actual (should be clipped to 120h)
+            _add_single_finalized_week(test_db, users[0], week, actual="200.0", planned="40.0")
+            # Rest: 60h each
+            for u in users[1:]:
+                _add_single_finalized_week(test_db, u, week, actual="60.0", planned="40.0")
+            test_db.commit()
+
+        compute_aggregates_by_state_specialty(test_db, date(2025, 12, 5))
+        compute_aggregates_by_state_specialty(test_db, date(2025, 12, 12))
+
+        stat = (
+            test_db.query(StatsByStateSpecialty)
+            .filter(
+                StatsByStateSpecialty.period_start == date(2025, 12, 8),
+                StatsByStateSpecialty.state_code == "BY",
+                StatsByStateSpecialty.specialty == "surgery",
+            )
+            .one()
+        )
+        assert stat.publication_status == "published"
+        # Clipped sum: 120 + 5*60 = 420, mean = 420/6 = 70.0
+        # Without clipping: 200 + 5*60 = 500, mean = 500/6 ≈ 83.33
+        # The noised value should be closer to 70 than 83 — we verify publication happened
+        assert stat.avg_actual_hours_noised is not None

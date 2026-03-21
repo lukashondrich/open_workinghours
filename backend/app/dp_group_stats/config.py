@@ -8,7 +8,7 @@ class ContributionBounds:
     planned_weekly_min: float = 0.0
     planned_weekly_max: float = 80.0
     actual_weekly_min: float = 0.0
-    actual_weekly_max: float = 140.0
+    actual_weekly_max: float = 120.0
 
     def __post_init__(self) -> None:
         if self.planned_weekly_max <= self.planned_weekly_min:
@@ -39,7 +39,7 @@ class EpsilonSplit:
 
 @dataclass(frozen=True, slots=True)
 class ReleasePolicyConfig:
-    k_min: int = 11
+    k_min: int = 5
     activation_weeks: int = 2
     deactivation_grace_weeks: int = 2
     publish_counts: bool = False

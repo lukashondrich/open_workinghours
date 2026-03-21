@@ -37,7 +37,7 @@ def test_contribution_bounds_clip_values() -> None:
     assert bounds.clip_planned(-5.0) == 0.0
     assert bounds.clip_planned(120.0) == 80.0
     assert bounds.clip_actual(-1.0) == 0.0
-    assert bounds.clip_actual(180.0) == 140.0
+    assert bounds.clip_actual(180.0) == 120.0
 
 
 def test_epsilon_split_total() -> None:
