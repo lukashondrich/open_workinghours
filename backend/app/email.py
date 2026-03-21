@@ -26,7 +26,7 @@ def send_email(recipient: str, subject: str, body: str) -> None:
 
     try:
         with smtplib.SMTP(email_config.smtp_host, email_config.smtp_port, timeout=30) as smtp:
-            smtp.set_debuglevel(1)
+            smtp.set_debuglevel(0)
             smtp.ehlo()
             if email_config.use_tls:
                 smtp.starttls()
