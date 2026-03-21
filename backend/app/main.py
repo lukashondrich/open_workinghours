@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import get_settings
 from .database import init_db
-from .routers import admin, analytics, auth, dashboard, feedback, reports, stats, submissions, verification, work_events
+from .routers import admin, analytics, auth, dashboard, feedback, finalized_weeks, reports, stats, submissions, verification, work_events
 
 settings = get_settings()
 
@@ -30,6 +30,7 @@ app.include_router(admin.router)
 app.include_router(verification.router)
 app.include_router(auth.router)
 app.include_router(work_events.router)
+app.include_router(finalized_weeks.router)
 app.include_router(stats.router)
 app.include_router(dashboard.router)
 app.include_router(reports.router)

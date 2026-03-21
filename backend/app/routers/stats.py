@@ -9,9 +9,11 @@ from __future__ import annotations
 from datetime import date
 
 from fastapi import APIRouter, Depends, Query
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..database import get_db
+from ..dp_group_stats.policy import PublicationStatus
 from ..models import StatsByStateSpecialty
 from ..schemas import StatsByStateSpecialtyOut
 
@@ -22,27 +24,58 @@ def _get_db_session():
     yield from get_db()
 
 
+def _public_status(stat: StatsByStateSpecialty) -> PublicationStatus:
+    if stat.n_users < stat.k_min_threshold:
+        return PublicationStatus.suppressed
+
+    raw_status = getattr(stat, "publication_status", None)
+    try:
+        internal_status = PublicationStatus(raw_status)
+    except (TypeError, ValueError):
+        internal_status = PublicationStatus.published
+
+    if internal_status == PublicationStatus.published:
+        return PublicationStatus.published
+    return PublicationStatus.suppressed
+
+
+def _to_public_stat(stat: StatsByStateSpecialty) -> StatsByStateSpecialtyOut:
+    status = _public_status(stat)
+    return StatsByStateSpecialtyOut(
+        stat_id=stat.stat_id,
+        country_code=stat.country_code,
+        state_code=stat.state_code,
+        specialty=stat.specialty,
+        period_start=stat.period_start,
+        period_end=stat.period_end,
+        planned_mean_hours=None if status != PublicationStatus.published else _safe_float(stat.avg_planned_hours_noised),
+        overtime_mean_hours=None if status != PublicationStatus.published else _safe_float(stat.avg_overtime_hours_noised),
+        status=status.value,
+        computed_at=stat.computed_at,
+    )
+
+
+def _safe_float(value) -> float | None:
+    return None if value is None else float(value)
+
+
 @router.get("/by-state-specialty", response_model=list[StatsByStateSpecialtyOut])
 def get_stats_by_state_specialty(
     db: Session = Depends(_get_db_session),
     country_code: str | None = Query(default=None, description="Filter by country (e.g., 'DEU')"),
     state_code: str | None = Query(default=None, description="Filter by state (e.g., 'BY', 'BE')"),
     specialty: str | None = Query(default=None, description="Filter by specialty"),
-    role_level: str | None = Query(default=None, description="Filter by role level"),
     period_start: date | None = Query(default=None, description="Filter by period start (ISO week Monday)"),
     limit: int = Query(default=100, ge=1, le=1000, description="Maximum results"),
     offset: int = Query(default=0, ge=0, description="Pagination offset"),
 ) -> list[StatsByStateSpecialtyOut]:
     """
-    Get aggregated statistics by state × specialty × role × period.
+    Get aggregated statistics by state × specialty × period.
 
-    Returns privacy-preserving statistics:
-    - K-anonymous: Only groups with n_users >= K_MIN are included
-    - Differentially private: Laplace noise added to averages
-    - GDPR-compliant: Cannot be linked back to individuals
-
-    All returned statistics have already been privacy-processed.
-    The `n_users` count indicates the size of the anonymity set.
+    Public output is intentionally narrow:
+    - `planned_mean_hours`
+    - `overtime_mean_hours`
+    - generic `status` (`published` or `suppressed`)
     """
     query = db.query(StatsByStateSpecialty)
 
@@ -53,8 +86,6 @@ def get_stats_by_state_specialty(
         query = query.filter(StatsByStateSpecialty.state_code == state_code)
     if specialty:
         query = query.filter(StatsByStateSpecialty.specialty == specialty)
-    if role_level:
-        query = query.filter(StatsByStateSpecialty.role_level == role_level)
     if period_start:
         query = query.filter(StatsByStateSpecialty.period_start == period_start)
 
@@ -66,7 +97,7 @@ def get_stats_by_state_specialty(
 
     stats = query.all()
 
-    return [StatsByStateSpecialtyOut.from_orm(stat) for stat in stats]
+    return [_to_public_stat(stat) for stat in stats]
 
 
 @router.get("/by-state-specialty/latest", response_model=list[StatsByStateSpecialtyOut])
@@ -76,7 +107,7 @@ def get_latest_stats_by_state_specialty(
     limit: int = Query(default=50, ge=1, le=100, description="Maximum results"),
 ) -> list[StatsByStateSpecialtyOut]:
     """
-    Get the most recent statistics for each state/specialty/role combination.
+    Get the most recent statistics for each state/specialty combination.
 
     Returns only the latest week's data for quick overview.
     Useful for dashboards and summary views.
@@ -102,13 +133,12 @@ def get_latest_stats_by_state_specialty(
         .order_by(
             StatsByStateSpecialty.state_code,
             StatsByStateSpecialty.specialty,
-            StatsByStateSpecialty.role_level,
         )
         .limit(limit)
         .all()
     )
 
-    return [StatsByStateSpecialtyOut.from_orm(stat) for stat in stats]
+    return [_to_public_stat(stat) for stat in stats]
 
 
 @router.get("/summary")
@@ -119,11 +149,7 @@ def get_stats_summary(
     """
     Get summary statistics about available data.
 
-    Returns metadata about the statistics dataset:
-    - Total number of published groups
-    - Date range of available data
-    - Number of unique states, specialties, roles
-    - Total users in anonymity sets
+    Returns metadata about the public state x specialty statistics dataset.
     """
     query = db.query(StatsByStateSpecialty).filter(
         StatsByStateSpecialty.country_code == country_code
@@ -134,12 +160,12 @@ def get_stats_summary(
     if total_records == 0:
         return {
             "total_records": 0,
+            "published_records": 0,
+            "suppressed_records": 0,
             "earliest_period": None,
             "latest_period": None,
             "states": [],
             "specialties": [],
-            "roles": [],
-            "total_users_in_sets": 0,
         }
 
     # Get date range
@@ -163,28 +189,18 @@ def get_stats_summary(
         .all()
     ]
 
-    roles = [
-        row[0]
-        for row in db.query(StatsByStateSpecialty.role_level)
-        .filter(StatsByStateSpecialty.country_code == country_code)
-        .distinct()
-        .all()
-    ]
-
-    # Sum n_users (note: may count same user multiple times across weeks)
-    from sqlalchemy import func
-    total_user_count = (
-        db.query(func.sum(StatsByStateSpecialty.n_users))
-        .filter(StatsByStateSpecialty.country_code == country_code)
-        .scalar()
-    ) or 0
+    published_records = query.filter(
+        StatsByStateSpecialty.publication_status == PublicationStatus.published.value,
+        StatsByStateSpecialty.n_users >= StatsByStateSpecialty.k_min_threshold,
+    ).count()
+    suppressed_records = total_records - published_records
 
     return {
         "total_records": total_records,
+        "published_records": published_records,
+        "suppressed_records": suppressed_records,
         "earliest_period": earliest.period_start if earliest else None,
         "latest_period": latest.period_start if latest else None,
         "states": sorted(states),
         "specialties": sorted(specialties),
-        "roles": sorted(roles),
-        "total_users_in_sets": int(total_user_count),
     }
