@@ -98,16 +98,24 @@ def confirm_verification(
     _rl: None = Depends(rate_limit(10, 60)),
 ) -> VerificationConfirmOut:
     now = datetime.now(timezone.utc)
-    email = payload.email.strip().lower()
-    email_digest = hash_email(email)
     digest = hash_code(payload.code)
 
-    record = (
-        db.query(VerificationRequest)
-        .filter(VerificationRequest.email_hash == email_digest)
-        .filter(VerificationRequest.code_hash == digest)
-        .one_or_none()
-    )
+    if payload.email is not None:
+        # New app: scoped lookup by email + code (preferred)
+        email_digest = hash_email(payload.email.strip().lower())
+        record = (
+            db.query(VerificationRequest)
+            .filter(VerificationRequest.email_hash == email_digest)
+            .filter(VerificationRequest.code_hash == digest)
+            .one_or_none()
+        )
+    else:
+        # Old app: lookup by code only (backwards compat, remove once all users updated)
+        record = (
+            db.query(VerificationRequest)
+            .filter(VerificationRequest.code_hash == digest)
+            .one_or_none()
+        )
 
     if record is None:
         raise HTTPException(

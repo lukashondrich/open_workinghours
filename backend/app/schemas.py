@@ -19,12 +19,12 @@ class VerificationRequestOut(BaseModel):
 
 
 class VerificationConfirmIn(BaseModel):
-    email: EmailStr
+    email: EmailStr | None = None  # Optional for backwards compat with old app versions
     code: str = Field(..., min_length=6, max_length=128)
 
-    @validator("email")
-    def _lowercase_email(cls, value: str) -> str:
-        return value.lower()
+    @validator("email", pre=True)
+    def _lowercase_email(cls, value: str | None) -> str | None:
+        return value.lower() if value else None
 
 
 class VerificationConfirmOut(BaseModel):
@@ -119,6 +119,33 @@ class WeeklySubmissionListItem(BaseModel):
     actual_hours: float
     client_version: str
     created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class FinalizedUserWeekIn(BaseModel):
+    week_start: date
+
+    @validator("week_start")
+    def _week_start_must_be_monday(cls, week_start: date) -> date:
+        if week_start.weekday() != 0:
+            raise ValueError("week_start must be a Monday")
+        return week_start
+
+
+class FinalizedUserWeekOut(BaseModel):
+    finalized_week_id: UUID
+    week_start: date
+    week_end: date
+    planned_hours: float
+    actual_hours: float
+    hospital_id: str
+    specialty: str
+    role_level: str
+    state_code: str | None
+    country_code: str
+    finalized_at: datetime
 
     class Config:
         from_attributes = True
@@ -240,36 +267,21 @@ class WorkEventOut(BaseModel):
 
 class StatsByStateSpecialtyOut(BaseModel):
     """
-    Privacy-preserving statistics response.
+    Public state x specialty statistics response.
 
-    All data is k-anonymous (n_users >= K_MIN) and differentially private
-    (Laplace noise added). Cannot be linked back to individuals.
+    Counts and internal privacy-tuning details are intentionally hidden.
+    Suppressed cells are returned with null numeric values and generic status only.
     """
     stat_id: UUID
     country_code: str
     state_code: str
     specialty: str
-    role_level: str
     period_start: date
     period_end: date
-
-    # Anonymity set size
-    n_users: int
-
-    # Noised averages (hours per week)
-    avg_planned_hours_noised: float | None
-    avg_actual_hours_noised: float | None
-    avg_overtime_hours_noised: float | None
-
-    # Privacy parameters used
-    k_min_threshold: int
-    noise_epsilon: float
-
-    # Metadata
+    planned_mean_hours: float | None
+    overtime_mean_hours: float | None
+    status: str
     computed_at: datetime
-
-    class Config:
-        from_attributes = True
 
 
 # Feedback / Bug Reports

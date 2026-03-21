@@ -187,10 +187,11 @@ class TestEmailEnumeration:
 class TestVerificationScope:
     """Verify that verification confirm requires correct (email, code) pair."""
 
-    def test_confirm_requires_email(self, client: TestClient, test_db: Session):
-        """POST /verification/confirm now requires email field."""
+    def test_confirm_without_email_falls_back_to_code_only(self, client: TestClient, test_db: Session):
+        """POST /verification/confirm without email uses code-only lookup (backwards compat)."""
         response = client.post("/verification/confirm", json={"code": "123456"})
-        assert response.status_code == 422
+        # No matching code in DB → 400, but not 422 (email is optional)
+        assert response.status_code == 400
 
     @pytest.mark.xfail(reason="SQLite stores naive datetimes; production uses PostgreSQL with tz-aware")
     def test_confirm_correct_pair_succeeds(self, client: TestClient, test_db: Session):
