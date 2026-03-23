@@ -44,6 +44,9 @@ CLAUDE.md (Entry Point)
 ├─► docs/debugging.md (debugging + known gotchas)
 │
 ├─► privacy_architecture.md (technical privacy design)
+│   ├─► docs/dp-group-stats-requirements-v2.md (formal DP spec)
+│   ├─► docs/dp-group-stats-accounting-model.md (composition model)
+│   └─► docs/dp-group-stats-simulation-spec.md (parameter validation)
 │
 ├─► docs/GDPR_COMPLIANCE.md (legal compliance hub)
 │   ├─► docs/DPIA.md
@@ -116,6 +119,9 @@ README.md (User Entry Point)
 | `docs/ROPA.md` | Records of Processing Activities (Art. 30) | docs/ | Lawyers, auditors |
 | `docs/data-retention-policy.md` | Retention periods, deletion procedures | docs/ | Lawyers, ops |
 | `docs/consent-flow-spec.md` | In-app consent UI specification | docs/ | Mobile devs |
+| `docs/dp-group-stats-requirements-v2.md` | DP formal spec: threat model, neighboring relation | docs/ | Technical, lawyers |
+| `docs/dp-group-stats-accounting-model.md` | DP composition model: budget accounting, ledger design | docs/ | Technical |
+| `docs/dp-group-stats-simulation-spec.md` | DP parameter validation: simulation evidence | docs/ | Technical, lawyers |
 | `website/*/app-privacy-policy.astro` | User-facing privacy policy (EN/DE) | website/ | Users, lawyers |
 | `website/*/terms.astro` | User-facing terms of service (EN/DE) | website/ | Users, lawyers |
 

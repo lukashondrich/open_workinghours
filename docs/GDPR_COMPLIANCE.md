@@ -1,6 +1,6 @@
 # GDPR Compliance Status
 
-**Last Updated:** 2026-01-13
+**Last Updated:** 2026-03-23
 **Status:** Draft - Pending Legal Review
 **Audience:** Controller (internal) + Legal Counsel
 
@@ -58,6 +58,14 @@ Website source files: `website/src/pages/`
 | [`consent-flow-spec.md`](consent-flow-spec.md) | Original UI specification | Complete |
 | [`CONSENT_FLOW_IMPLEMENTATION_PLAN.md`](CONSENT_FLOW_IMPLEMENTATION_PLAN.md) | Detailed implementation plan with UX review | Complete |
 | [`CONSENT_WITHDRAWAL_PLAN.md`](CONSENT_WITHDRAWAL_PLAN.md) | Consent withdrawal & account deletion (Art. 7, 17) | Draft |
+
+### Differential Privacy Specifications
+
+| Document | Purpose | Status |
+|----------|---------|--------|
+| [`dp-group-stats-requirements-v2.md`](dp-group-stats-requirements-v2.md) | Formal spec: threat model, neighboring relation, sensitivity bounds | Complete |
+| [`dp-group-stats-accounting-model.md`](dp-group-stats-accounting-model.md) | Composition model: release families, budget accounting, ledger design | Complete |
+| [`dp-group-stats-simulation-spec.md`](dp-group-stats-simulation-spec.md) | Parameter validation: 200+ simulation scenarios | Complete |
 
 ---
 
@@ -169,7 +177,7 @@ No processors outside EU/EEA.
 | Legal basis for stats | Consent (not legitimate interest) | Cleaner, user can withdraw |
 | Single consent checkbox | Terms + Privacy combined | Both required, simpler UX |
 | K-anonymity threshold | k = 5 | Sufficient for group-level statistics with differential privacy |
-| Differential privacy | Laplace mechanism with per-user annual ε budget cap of 150; adaptive schedule reduces noise calibration as budget is consumed | See `project-mgmt/dp-group-stats-accounting-model.md` for composition model |
+| Differential privacy | Laplace mechanism with per-user annual ε budget cap of 150; adaptive schedule reduces noise calibration as budget is consumed | See `docs/dp-group-stats-accounting-model.md` for composition model |
 | Sick days | Local only, never transmitted | Avoids health data classification |
 | Email storage | Hash only, no plaintext | Pseudonymization |
 | Backup retention | 30 days | Balance of recovery needs vs. right to erasure |
@@ -190,7 +198,7 @@ When engaging legal counsel, provide:
 
 ### Questions for Lawyer
 
-1. Are the k-anonymity (k=5) and differential privacy parameters (Laplace mechanism, per-user annual ε cap of 150, substitution neighboring relation) sufficient to claim the analytics layer is "anonymous" under GDPR? See `project-mgmt/dp-group-stats-requirements-v2.md` and `dp-group-stats-accounting-model.md` for full specification.
+1. Are the k-anonymity (k=5) and differential privacy parameters (Laplace mechanism, per-user annual ε cap of 150, substitution neighboring relation) sufficient to claim the analytics layer is "anonymous" under GDPR? See `docs/dp-group-stats-requirements-v2.md` and `docs/dp-group-stats-accounting-model.md` for full specification.
 2. Is the Consent + Contract hybrid legal basis approach appropriate?
 3. Are the draft Privacy Policy and Terms sufficient for German/EU requirements?
 4. Is the DPIA adequate given we're not strictly required to have one?

@@ -91,13 +91,6 @@ Provide **aggregated, privacy-preserving statistics** for unions, hospitals, the
   - `n_users` (count of distinct users)  
   - `avg_overtime_hours_noised`  
 
-- `stats_by_hospital_role` (with more conservative grouping)  
-  - `hospital_id`  
-  - `role_group` (coarser: doctor / nurse / other)  
-  - `period_start`, `period_end`  
-  - `n_users`  
-  - `avg_overtime_hours_noised`  
-
 **Aggregation job (conceptual):**
 
 1. Read from `users` + `work_events`.
@@ -174,7 +167,7 @@ This must be clearly explained in the privacy notice, e.g.:
 
 ### Current Working Values (2026-03-21)
 
-These values are implemented and deployed. Validated by simulation (`project-mgmt/dp-group-stats-simulation-spec.md`).
+These values are implemented and deployed. Validated by simulation (`docs/dp-group-stats-simulation-spec.md`).
 
 | Parameter | Current Value | Rationale |
 |-----------|---------------|-----------|
@@ -207,7 +200,7 @@ This means:
 | Actual sum | 120 (= actual_max − actual_min) | ε_actual = 0.8 |
 | Count | 0 (public under substitution) | 0 |
 
-This relation is documented in `project-mgmt/dp-group-stats-requirements-v2.md` §4.3.
+This relation is documented in `docs/dp-group-stats-requirements-v2.md` §4.3.
 
 ### Privacy Accounting
 
@@ -248,7 +241,34 @@ CI values are null for suppressed cells.
 
 ---
 
-## 7. Related Documentation (Added 2026-01-07)
+## 7. v2 Roadmap (Deferred from v1)
+
+These items are intentionally out of v1 scope. The architecture supports them; they require product decisions or additional implementation.
+
+| Item | Spec reference | Why deferred |
+|------|---------------|--------------|
+| Per-family cadence config knob | Accounting-model §5.3 | Infrastructure ready; cadence selection is a product decision |
+| Multiple release families | Accounting-model §10 | v1 has one family (state × specialty); data model supports more |
+| Per-family ε allocation formulas | Accounting-model §3.3 | Admin-set allocation sufficient for v1 |
+| Tighter composition (zCDP/PLD) | Accounting-model §10 | ~10-15% noise improvement, not blocking |
+| Consistency post-processing | Requirements-v2 §6 | Only needed with multiple families |
+| Public counts or count bands | Accounting-model §10 | Counts are internal in v1 |
+| DP partition selection | Requirements-v2 §12 | Fixed universe sufficient for v1 |
+| Backfills | Requirements-v2 §11.1 | Late-finalized weeks enter future windows only |
+
+---
+
+## 8. Formal Specifications
+
+| Document | Purpose |
+|----------|---------|
+| [`docs/dp-group-stats-requirements-v2.md`](docs/dp-group-stats-requirements-v2.md) | Formal spec: threat model, neighboring relation, sensitivity bounds, non-DP safeguards |
+| [`docs/dp-group-stats-accounting-model.md`](docs/dp-group-stats-accounting-model.md) | Composition model: release families, budget accounting, ledger design |
+| [`docs/dp-group-stats-simulation-spec.md`](docs/dp-group-stats-simulation-spec.md) | Parameter validation: 200+ simulation scenarios, evidence for K_MIN=5, ε=1.0, bounds |
+
+---
+
+## 9. Related Documentation (Added 2026-01-07)
 
 The following GDPR compliance documents have been prepared for legal review:
 
@@ -271,9 +291,9 @@ The platform uses a **Consent + Contract hybrid** approach:
 
 | Action | Owner | Status |
 |--------|-------|--------|
-| Sign Hetzner DPA (AVV) | Controller | Pending |
-| Sign Brevo DPA | Controller | Pending |
+| Sign Hetzner DPA (AVV) | Controller | ✅ Signed 2026-01-13 |
+| Sign Brevo DPA | Controller | ✅ Signed (part of ToS) |
+| Implement consent flow in app | Development | ✅ Deployed 2026-01-12 |
 | Legal review of all documents | External counsel | Pending |
-| Implement consent flow in app | Development | Specification ready |
 
 ---
