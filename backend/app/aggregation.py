@@ -100,13 +100,14 @@ def _count_prior_streak(
         expected_period = period_before(expected_period, period_type)
 
 
-def _build_weekly_query(period_start: date):
+def _build_weekly_query(period_start: date, *, use_department_group: bool = False):
     """Build aggregation query for a single week."""
-    return (
+    specialty_col = FinalizedUserWeek.department_group if use_department_group else FinalizedUserWeek.specialty
+    q = (
         select(
             FinalizedUserWeek.country_code,
             FinalizedUserWeek.state_code,
-            FinalizedUserWeek.specialty,
+            specialty_col.label('specialty'),
             func.count(FinalizedUserWeek.user_id).label('n_users'),
             func.sum(case(
                 (FinalizedUserWeek.planned_hours < _BOUNDS.planned_weekly_min, _BOUNDS.planned_weekly_min),
@@ -120,28 +121,38 @@ def _build_weekly_query(period_start: date):
             )).label('clipped_actual_sum'),
         )
         .where(FinalizedUserWeek.week_start == period_start)
-        .group_by(
-            FinalizedUserWeek.country_code,
-            FinalizedUserWeek.state_code,
-            FinalizedUserWeek.specialty,
-        )
+    )
+    if use_department_group:
+        q = q.where(FinalizedUserWeek.department_group.isnot(None))
+    return q.group_by(
+        FinalizedUserWeek.country_code,
+        FinalizedUserWeek.state_code,
+        specialty_col,
     )
 
 
-def _build_multi_week_query(period_start: date, period_end: date):
+def _build_multi_week_query(period_start: date, period_end: date, *, use_department_group: bool = False):
     """Build aggregation query for multi-week periods (biweekly/monthly).
 
     Uses per-user mean across weeks in the period (clip each week first),
     then aggregates across users. Sensitivity is unchanged since each user's
     mean is in [0, clip_max].
     """
+    specialty_col = FinalizedUserWeek.department_group if use_department_group else FinalizedUserWeek.specialty
     # CTE: per-user averages of clipped weekly values
+    cte_where = [
+        FinalizedUserWeek.week_start >= period_start,
+        FinalizedUserWeek.week_start <= period_end,
+    ]
+    if use_department_group:
+        cte_where.append(FinalizedUserWeek.department_group.isnot(None))
+
     user_avgs = (
         select(
             FinalizedUserWeek.user_id,
             FinalizedUserWeek.country_code,
             FinalizedUserWeek.state_code,
-            FinalizedUserWeek.specialty,
+            specialty_col.label('specialty'),
             func.avg(case(
                 (FinalizedUserWeek.planned_hours < _BOUNDS.planned_weekly_min, _BOUNDS.planned_weekly_min),
                 (FinalizedUserWeek.planned_hours > _BOUNDS.planned_weekly_max, _BOUNDS.planned_weekly_max),
@@ -153,15 +164,12 @@ def _build_multi_week_query(period_start: date, period_end: date):
                 else_=FinalizedUserWeek.actual_hours,
             )).label('avg_actual'),
         )
-        .where(
-            FinalizedUserWeek.week_start >= period_start,
-            FinalizedUserWeek.week_start <= period_end,
-        )
+        .where(*cte_where)
         .group_by(
             FinalizedUserWeek.user_id,
             FinalizedUserWeek.country_code,
             FinalizedUserWeek.state_code,
-            FinalizedUserWeek.specialty,
+            specialty_col,
         )
     ).cte('user_avgs')
 
@@ -328,10 +336,11 @@ def compute_aggregates_by_state_specialty(
     print(f"Aggregating for period {period_start} to {period_end} (type={period_type})")
 
     # Build the appropriate query
+    use_dept_group = _V1_CONFIG.use_department_group
     if period_type == "weekly":
-        query = _build_weekly_query(period_start)
+        query = _build_weekly_query(period_start, use_department_group=use_dept_group)
     else:
-        query = _build_multi_week_query(period_start, period_end)
+        query = _build_multi_week_query(period_start, period_end, use_department_group=use_dept_group)
 
     results = db.execute(query).all()
     observed_by_cell = {
@@ -554,6 +563,8 @@ def compute_aggregates_by_state_specialty(
             existing.actual_ci_half = None if actual_ci_half is None else Decimal(str(round(actual_ci_half, 2)))
             existing.overtime_ci_half = None if overtime_ci_half is None else Decimal(str(round(overtime_ci_half, 2)))
             existing.n_display = n_display
+            if use_dept_group:
+                existing.department_group = cell[2]
             print(f"    Updated existing stat record")
         elif existing is None:
             # Create new record
@@ -562,6 +573,7 @@ def compute_aggregates_by_state_specialty(
                 state_code=cell[1],
                 specialty=cell[2],
                 role_level="all",
+                department_group=cell[2] if use_dept_group else None,
                 period_start=period_start,
                 period_end=period_end,
                 n_users=n_users,

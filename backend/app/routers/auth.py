@@ -17,7 +17,7 @@ from ..dependencies import get_current_user
 from ..dp_group_stats.accounting import user_annual_summary
 from ..models import FeedbackReport, User, VerificationRequest, VerificationStatus, WorkEvent
 from ..rate_limit import rate_limit
-from ..schemas import AuthTokenOut, ConsentUpdateIn, PrivacyBudgetOut, UserDataExportOut, UserLoginIn, UserOut, UserRegisterIn
+from ..schemas import AuthTokenOut, ConsentUpdateIn, PrivacyBudgetOut, UserDataExportOut, UserLoginIn, UserOut, UserProfileUpdateIn, UserRegisterIn
 from ..security import create_user_access_token, hash_code, hash_email
 
 logger = logging.getLogger(__name__)
@@ -86,6 +86,12 @@ def register_user(
         role_level=payload.role_level,
         state_code=payload.state_code,
         country_code="DEU",  # Default to Germany
+        # v2 taxonomy fields (when present)
+        profession=payload.profession,
+        seniority=payload.seniority,
+        department_group=payload.department_group,
+        specialization_code=payload.specialization_code,
+        hospital_ref_id=payload.hospital_ref_id,
         # GDPR consent
         terms_accepted_version=payload.terms_version,
         privacy_accepted_version=payload.privacy_version,
@@ -263,6 +269,11 @@ def export_user_data(
             "role_level": user.role_level,
             "state_code": user.state_code,
             "country_code": user.country_code,
+            "profession": user.profession,
+            "seniority": user.seniority,
+            "department_group": user.department_group,
+            "specialization_code": user.specialization_code,
+            "hospital_ref_id": user.hospital_ref_id,
             "created_at": user.created_at.isoformat() if user.created_at else None,
             "terms_accepted_version": user.terms_accepted_version,
             "privacy_accepted_version": user.privacy_accepted_version,
@@ -309,6 +320,42 @@ def update_consent(
     logger.info(f"User {current_user.user_id} updated consent to terms={payload.terms_version}, privacy={payload.privacy_version}")
 
     return UserOut.from_orm(current_user)
+
+
+@router.patch("/me/profile", response_model=UserOut)
+def update_profile(
+    payload: UserProfileUpdateIn,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(_get_db_session),
+) -> UserOut:
+    """
+    Update profile fields (GDPR Art. 16 — right to rectification).
+
+    Only updates provided (non-None) fields. Already-finalized weeks retain
+    their snapshot values; changes apply to future weeks only.
+    """
+    user = db.query(User).filter(User.user_id == current_user.user_id).one()
+
+    # If seniority provided without profession, validate against existing profession
+    if payload.seniority is not None and payload.profession is None and user.profession is not None:
+        from ..taxonomy import validate_seniority
+        if not validate_seniority(user.profession, payload.seniority):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Seniority '{payload.seniority}' is not valid for profession '{user.profession}'.",
+            )
+
+    update_fields = payload.dict(exclude_unset=True)
+    for field_name, value in update_fields.items():
+        if value is not None:
+            setattr(user, field_name, value)
+
+    db.commit()
+    db.refresh(user)
+
+    logger.info(f"User {user.user_id} updated profile fields: {list(update_fields.keys())}")
+
+    return UserOut.from_orm(user)
 
 
 @router.get("/me/privacy-budget", response_model=PrivacyBudgetOut)

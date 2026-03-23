@@ -4,6 +4,15 @@ from uuid import UUID
 from pydantic import BaseModel, EmailStr, Field, validator
 
 from .models import StaffGroup
+from .taxonomy import (
+    ALL_DEPARTMENT_GROUPS,
+    ALL_SENIORITY_VALUES,
+    ALL_STATE_CODES,
+    ALL_SPECIALIZATION_CODES,
+    SENIORITY_BY_PROFESSION,
+    Profession,
+    validate_seniority,
+)
 
 
 class VerificationRequestIn(BaseModel):
@@ -157,12 +166,25 @@ class FinalizedUserWeekOut(BaseModel):
 
 
 class UserRegisterIn(BaseModel):
-    """User registration request."""
+    """
+    User registration request.
+
+    Accepts both v1 (free-text) and v2 (taxonomy) payloads.
+    v1 fields are still required for backward compatibility with old app versions.
+    When v2 fields are present, they take precedence and are validated.
+    """
     email: EmailStr
+    # v1 fields (required for backward compat)
     hospital_id: str = Field(..., min_length=1, max_length=255)
     specialty: str = Field(..., min_length=1, max_length=100)
     role_level: str = Field(..., min_length=1, max_length=50)
     state_code: str | None = Field(default=None, max_length=10)
+    # v2 taxonomy fields (optional — present when using new app)
+    profession: str | None = Field(default=None, max_length=20)
+    seniority: str | None = Field(default=None, max_length=30)
+    department_group: str | None = Field(default=None, max_length=50)
+    specialization_code: str | None = Field(default=None, max_length=10)
+    hospital_ref_id: int | None = None
     # GDPR consent (optional for backward compatibility, required for new registrations)
     terms_version: str | None = Field(default=None, max_length=20)
     privacy_version: str | None = Field(default=None, max_length=20)
@@ -170,6 +192,44 @@ class UserRegisterIn(BaseModel):
     @validator("email")
     def _lowercase_email(cls, value: str) -> str:
         return value.lower()
+
+    @validator("profession")
+    def _validate_profession(cls, value: str | None) -> str | None:
+        if value is not None and value not in [p.value for p in Profession]:
+            raise ValueError(f"Invalid profession: {value}. Must be one of: {[p.value for p in Profession]}")
+        return value
+
+    @validator("seniority")
+    def _validate_seniority(cls, value: str | None, values: dict) -> str | None:
+        if value is None:
+            return value
+        if value not in ALL_SENIORITY_VALUES:
+            raise ValueError(f"Invalid seniority: {value}")
+        profession = values.get("profession")
+        if profession is not None and not validate_seniority(profession, value):
+            valid = SENIORITY_BY_PROFESSION.get(Profession(profession), [])
+            raise ValueError(f"Seniority '{value}' is not valid for profession '{profession}'. Valid: {valid}")
+        return value
+
+    @validator("department_group")
+    def _validate_department_group(cls, value: str | None) -> str | None:
+        if value is not None and value not in ALL_DEPARTMENT_GROUPS:
+            raise ValueError(f"Invalid department_group: {value}")
+        return value
+
+    @validator("specialization_code")
+    def _validate_specialization_code(cls, value: str | None) -> str | None:
+        if value is not None and value not in ALL_SPECIALIZATION_CODES:
+            raise ValueError(f"Invalid specialization_code: {value}")
+        return value
+
+    @validator("state_code")
+    def _validate_state_code(cls, value: str | None) -> str | None:
+        if value is not None and len(value) == 2:
+            value = value.upper()
+            if value not in ALL_STATE_CODES:
+                raise ValueError(f"Invalid state_code: {value}. Must be a valid German federal state code.")
+        return value
 
 
 class UserLoginIn(BaseModel):
@@ -198,6 +258,12 @@ class UserOut(BaseModel):
     role_level: str
     state_code: str | None
     created_at: datetime
+    # v2 taxonomy fields (optional for backward compat)
+    profession: str | None = None
+    seniority: str | None = None
+    department_group: str | None = None
+    specialization_code: str | None = None
+    hospital_ref_id: int | None = None
     # GDPR consent status
     terms_accepted_version: str | None = None
     privacy_accepted_version: str | None = None
@@ -211,6 +277,62 @@ class ConsentUpdateIn(BaseModel):
     """Update user's consent (for policy updates)."""
     terms_version: str = Field(..., min_length=1, max_length=20)
     privacy_version: str = Field(..., min_length=1, max_length=20)
+
+
+class UserProfileUpdateIn(BaseModel):
+    """
+    Profile update request (GDPR Art. 16 — right to rectification).
+
+    All fields optional — only provided fields are updated.
+    """
+    profession: str | None = None
+    seniority: str | None = None
+    department_group: str | None = None
+    specialization_code: str | None = None
+    hospital_ref_id: int | None = None
+    state_code: str | None = None
+    # Legacy fields (allow update for backward compat)
+    hospital_id: str | None = Field(default=None, max_length=255)
+    specialty: str | None = Field(default=None, max_length=100)
+    role_level: str | None = Field(default=None, max_length=50)
+
+    @validator("profession")
+    def _validate_profession(cls, value: str | None) -> str | None:
+        if value is not None and value not in [p.value for p in Profession]:
+            raise ValueError(f"Invalid profession: {value}")
+        return value
+
+    @validator("seniority")
+    def _validate_seniority(cls, value: str | None, values: dict) -> str | None:
+        if value is None:
+            return value
+        if value not in ALL_SENIORITY_VALUES:
+            raise ValueError(f"Invalid seniority: {value}")
+        profession = values.get("profession")
+        if profession is not None and not validate_seniority(profession, value):
+            valid = SENIORITY_BY_PROFESSION.get(Profession(profession), [])
+            raise ValueError(f"Seniority '{value}' is not valid for profession '{profession}'. Valid: {valid}")
+        return value
+
+    @validator("department_group")
+    def _validate_department_group(cls, value: str | None) -> str | None:
+        if value is not None and value not in ALL_DEPARTMENT_GROUPS:
+            raise ValueError(f"Invalid department_group: {value}")
+        return value
+
+    @validator("specialization_code")
+    def _validate_specialization_code(cls, value: str | None) -> str | None:
+        if value is not None and value not in ALL_SPECIALIZATION_CODES:
+            raise ValueError(f"Invalid specialization_code: {value}")
+        return value
+
+    @validator("state_code")
+    def _validate_state_code(cls, value: str | None) -> str | None:
+        if value is not None and len(value) == 2:
+            value = value.upper()
+            if value not in ALL_STATE_CODES:
+                raise ValueError(f"Invalid state_code: {value}")
+        return value
 
 
 class UserDataExportOut(BaseModel):
