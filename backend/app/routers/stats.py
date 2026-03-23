@@ -13,11 +13,15 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..database import get_db
+from ..dp_group_stats.accounting import budget_monitoring_summary
+from ..dp_group_stats.config import DPGroupStatsV1Config
 from ..dp_group_stats.policy import PublicationStatus
 from ..models import StatsByStateSpecialty
 from ..schemas import StatsByStateSpecialtyOut
 
 router = APIRouter(prefix="/stats", tags=["stats"])
+
+_V1_CONFIG = DPGroupStatsV1Config()
 
 
 def _get_db_session():
@@ -41,6 +45,7 @@ def _public_status(stat: StatsByStateSpecialty) -> PublicationStatus:
 
 def _to_public_stat(stat: StatsByStateSpecialty) -> StatsByStateSpecialtyOut:
     status = _public_status(stat)
+    is_published = status == PublicationStatus.published
     return StatsByStateSpecialtyOut(
         stat_id=stat.stat_id,
         country_code=stat.country_code,
@@ -48,8 +53,12 @@ def _to_public_stat(stat: StatsByStateSpecialty) -> StatsByStateSpecialtyOut:
         specialty=stat.specialty,
         period_start=stat.period_start,
         period_end=stat.period_end,
-        planned_mean_hours=None if status != PublicationStatus.published else _safe_float(stat.avg_planned_hours_noised),
-        overtime_mean_hours=None if status != PublicationStatus.published else _safe_float(stat.avg_overtime_hours_noised),
+        planned_mean_hours=None if not is_published else _safe_float(stat.avg_planned_hours_noised),
+        overtime_mean_hours=None if not is_published else _safe_float(stat.avg_overtime_hours_noised),
+        planned_ci_half=None if not is_published else _safe_float(stat.planned_ci_half),
+        actual_ci_half=None if not is_published else _safe_float(stat.actual_ci_half),
+        overtime_ci_half=None if not is_published else _safe_float(stat.overtime_ci_half),
+        n_display=None if not is_published else stat.n_display,
         status=status.value,
         computed_at=stat.computed_at,
     )
@@ -75,6 +84,8 @@ def get_stats_by_state_specialty(
     Public output is intentionally narrow:
     - `planned_mean_hours`
     - `overtime_mean_hours`
+    - confidence intervals (planned_ci_half, actual_ci_half, overtime_ci_half)
+    - `n_display` (rounded user count)
     - generic `status` (`published` or `suppressed`)
     """
     query = db.query(StatsByStateSpecialty)
@@ -204,3 +215,21 @@ def get_stats_summary(
         "states": sorted(states),
         "specialties": sorted(specialties),
     }
+
+
+@router.get("/admin/privacy-budget-summary")
+def get_admin_privacy_budget_summary(
+    db: Session = Depends(_get_db_session),
+    year: int = Query(default=None, description="Year for budget summary (defaults to current year)"),
+) -> dict:
+    """
+    Admin-level overview of privacy budget consumption.
+
+    Shows worst-case user spend, average spend, and cap utilization.
+    Follows existing pattern of unprotected stats endpoints.
+    """
+    if year is None:
+        year = date.today().year
+
+    annual_cap = _V1_CONFIG.annual_epsilon_cap or 150.0
+    return budget_monitoring_summary(db, year=year, annual_cap=annual_cap)

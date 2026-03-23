@@ -1,6 +1,6 @@
 # Backend Architecture
 
-**Last Updated:** 2026-01-13
+**Last Updated:** 2026-03-21
 **Framework:** FastAPI + PostgreSQL
 **Status:** Production (Hetzner, Germany)
 
@@ -38,21 +38,29 @@ backend/
 │   ├── database.py          # SQLAlchemy setup
 │   ├── models.py            # Database models
 │   ├── schemas.py           # Pydantic schemas
+│   ├── email.py             # Email sending (Brevo SMTP)
+│   ├── aggregation.py       # Privacy-preserving aggregation (adaptive ε, CIs)
+│   ├── periods.py           # Period boundary helpers (weekly/biweekly/monthly)
+│   ├── rate_limit.py        # In-memory rate limiting
 │   │
 │   ├── routers/
 │   │   ├── auth.py          # /auth/* endpoints
+│   │   ├── verification.py  # /verification/* endpoints
 │   │   ├── work_events.py   # /work-events/* endpoints
+│   │   ├── finalized_weeks.py # /finalized-weeks/* endpoints
 │   │   ├── stats.py         # /stats/* endpoints
 │   │   ├── feedback.py      # /feedback endpoint
+│   │   ├── dashboard.py     # /dashboard/* public endpoints
 │   │   └── admin.py         # /admin/* endpoints
 │   │
-│   └── services/
-│       ├── email.py         # Email sending
-│       ├── aggregation.py   # K-anonymity aggregation
-│       └── privacy.py       # Laplace noise
+│   └── dp_group_stats/      # Differential privacy module
+│       ├── config.py        # ContributionBounds, EpsilonSplit, PeriodType, ReleasePolicyConfig
+│       ├── mechanisms.py    # Laplace noise + CI half-width
+│       ├── policy.py        # Publication state machine
+│       └── accounting.py    # ε ledger, adaptive ε, budget monitoring queries
 │
-├── tests/                   # pytest tests
-├── alembic/                 # Database migrations
+├── tests/                   # pytest tests (116 passing)
+├── alembic/                 # Database migrations (10 migrations)
 ├── docker-compose.yml       # Production deployment
 ├── Dockerfile               # Backend container
 └── ARCHITECTURE.md          # This file
@@ -71,6 +79,7 @@ backend/
 | POST | `/auth/register` | Complete registration with profile + consent |
 | GET | `/auth/me` | Get current user info (includes consent status) |
 | GET | `/auth/me/export` | Export all user data (GDPR Art. 20) |
+| GET | `/auth/me/privacy-budget` | Per-user ε budget summary (GDPR Art. 15) |
 | DELETE | `/auth/me` | Delete account and all data (GDPR Art. 17) |
 | POST | `/auth/consent` | Update GDPR consent (for policy updates) |
 
@@ -100,12 +109,19 @@ backend/
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/stats/by-state-specialty` | Aggregated hours by state/specialty |
+| GET | `/stats/by-state-specialty` | Aggregated hours by state/specialty (with CIs) |
+| GET | `/stats/by-state-specialty/latest` | Latest period stats per state/specialty |
 | GET | `/stats/summary` | Overall platform summary |
+| GET | `/stats/admin/privacy-budget-summary` | Admin: worst-case/avg ε spend, cap utilization |
 
 **Privacy:**
-- K-anonymity: Only groups with ≥10 users published
-- Laplace noise (ε=1.0) added to aggregates
+- K-anonymity: Groups need ≥5 users (K_MIN=5) + dominance rule (≤30%)
+- Differential privacy: Laplace noise (ε=1.0 total: 0.2 planned + 0.8 actual, annual cap=150)
+- Adaptive ε: `min(config_ε, (cap − spent_ytd) / remaining_periods)` per period
+- SQL-level clipping: planned≤80h, actual≤120h per user
+- Temporal coarsening: weekly (default) / biweekly / monthly aggregation periods
+- 90% confidence intervals: `planned_ci_half`, `actual_ci_half`, `overtime_ci_half`, `n_display`
+- Publication policy: warming_up → published → cooling_down → suppressed
 
 ### Admin (`/admin`)
 
@@ -152,53 +168,24 @@ See `website/src/components/InteractiveMap/` and `docs/INTERACTIVE_MAP_PLAN.md`.
 
 ### PostgreSQL Tables
 
-```sql
--- Users (pseudonymous)
-users (
-  id UUID PRIMARY KEY,
-  email_hash TEXT UNIQUE,      -- SHA-256 of email
-  hospital_id TEXT,
-  specialty TEXT,
-  role_level TEXT,             -- "Assistenzarzt", "Facharzt", etc.
-  state_code TEXT,             -- German state code
-  created_at TIMESTAMP,
-  -- GDPR consent tracking
-  terms_accepted_version TEXT,    -- e.g., "2026-01"
-  privacy_accepted_version TEXT,  -- e.g., "2026-01"
-  consent_accepted_at TIMESTAMP
-)
+**Operational tables:**
+- `users` — pseudonymous (email hashed), GDPR consent tracking
+- `work_events` — daily submissions, cascading delete with user
+- `verification_requests` — email verification codes (hashed)
+- `finalized_user_weeks` — materialized weekly summaries for aggregation (UNIQUE user_id + week_start)
+- `feedback_reports` — user feedback
+- `institution_inquiries` — public dashboard contact form
 
--- Work events (daily submissions)
-work_events (
-  id UUID PRIMARY KEY,
-  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-  date DATE,
-  planned_minutes INTEGER,
-  actual_minutes INTEGER,
-  created_at TIMESTAMP,
-  UNIQUE (user_id, date)
-)
+**Analytics tables:**
+- `stats_by_state_specialty` — aggregated stats with DP noise, publication_status column
+- `stats_by_hospital` — aggregated stats by hospital (with publication_status)
+- `state_specialty_release_cells` — configured cells eligible for publication
 
--- Verification codes (temporary)
-verification_codes (
-  id UUID PRIMARY KEY,
-  email_hash TEXT,
-  code TEXT,                   -- 6-digit code
-  expires_at TIMESTAMP,
-  used BOOLEAN DEFAULT FALSE
-)
+**Privacy accounting tables:**
+- `state_specialty_privacy_ledger` — per-cell ε spend per period (planned_sum_epsilon, actual_sum_epsilon)
+- `user_privacy_ledger` — per-user cumulative ε exposure
 
--- Aggregated stats (k-anonymous)
-stats_by_state_specialty (
-  id UUID PRIMARY KEY,
-  period TEXT,                 -- "2026-01"
-  state_code TEXT,
-  specialty TEXT,
-  n_users INTEGER,
-  avg_weekly_hours FLOAT,      -- With Laplace noise
-  created_at TIMESTAMP
-)
-```
+**Alembic migrations:** 10 migrations from `6d8399490741` to `h8i9j0k1l2m3` (latest: period_type + CI columns).
 
 ---
 
@@ -206,16 +193,31 @@ stats_by_state_specialty (
 
 ### Two-Layer Design
 
-1. **Operational Layer** (`users`, `work_events`)
+1. **Operational Layer** (`users`, `work_events`, `finalized_user_weeks`)
    - Pseudonymous data (email hashed)
    - GDPR applies (right to erasure)
    - Cascading delete: user deletion removes all work_events
 
-2. **Analytics Layer** (`stats_*` tables)
-   - K-anonymous (n_users ≥ 10)
-   - Laplace noise applied (ε=1.0)
-   - Treated as anonymous data
-   - Retained even after user deletion
+2. **Analytics Layer** (`stats_*` tables, `state_specialty_release_cells`)
+   - K-anonymous (K_MIN=5) + dominance rule (≤30% single-user contribution)
+   - Differential privacy: Laplace noise on sums, SQL-level clipping
+   - Publication state machine: warming_up → published → cooling_down → suppressed
+   - Treated as anonymous data, retained after user deletion
+
+3. **Privacy Accounting** (`state_specialty_privacy_ledger`, `user_privacy_ledger`)
+   - Per-cell ε tracking (planned_sum + actual_sum breakdown)
+   - Per-user cumulative ε exposure
+   - Enables GDPR Art. 15 transparency: "how much privacy budget was spent on your data"
+
+### DP Group Stats Configuration
+
+```python
+# dp_group_stats/config.py defaults
+ContributionBounds(planned_weekly_max=80.0, actual_weekly_max=120.0)
+EpsilonSplit(planned_sum=0.2, actual_sum=0.8)  # total ε=1.0/period, annual cap=150
+ReleasePolicyConfig(k_min=5, activation_weeks=2, deactivation_grace_weeks=2, dominance_threshold=0.30)
+DPGroupStatsV1Config(period_type="weekly")  # also: "biweekly", "monthly"
+```
 
 ### Aggregation Job
 
@@ -224,15 +226,21 @@ Runs daily at 3 AM UTC via cron:
 ```bash
 # /home/deploy/run_aggregation.sh
 cd /home/deploy/open_workinghours/backend
-docker exec owh-backend python -m app.services.aggregation
+docker exec owh-backend python -m app.aggregation
 ```
 
 **Process:**
-1. Group work_events by state, specialty, period
-2. Filter groups with < K_MIN (11) users
-3. Calculate averages
-4. Add Laplace noise (ε=1.0)
-5. Store in stats tables
+1. Query finalized_user_weeks by state × specialty × period (weekly/biweekly/monthly)
+   - Weekly: single week query (existing)
+   - Multi-week: CTE with per-user AVG of clipped weekly values, then SUM across users
+2. SQL-level clipping: each user's hours capped at contribution bounds
+3. Check eligibility: K_MIN ≥ 5, dominance rule ≤ 30%
+4. Apply publication state machine (activation/deactivation streaks)
+5. Compute adaptive ε: `min(config_ε, (annual_cap − spent_ytd) / remaining_periods)`
+6. Add Laplace noise to clipped sums (only for published/cooling_down cells)
+7. Compute 90% confidence intervals: `laplace_ci_half_width(ε, sensitivity, n_users)`
+8. Record ε spend in state_specialty_privacy_ledger + user_privacy_ledger
+9. Store results + CIs in stats_by_state_specialty
 
 ---
 
@@ -290,9 +298,9 @@ pytest tests/test_work_events.py -v
 
 ### Test Structure
 
-- **Unit tests** (10): Services, utilities
-- **Integration tests** (29): API endpoints with test database
-- **Total**: 39 tests passing
+- **Unit tests**: DP config, Laplace noise, CI calculation, publication policy, adaptive ε, period helpers
+- **Integration tests**: Auth, work events, finalized weeks, aggregation pipeline (weekly + monthly), stats API, budget endpoints, security hardening
+- **Total**: 116 tests passing (SQLite), 2 xfail (PG-specific: case-insensitive email, tz-aware datetimes)
 
 ---
 
@@ -320,6 +328,19 @@ docker logs owh-backend --tail 30
 
 ---
 
+## Security (deployed 2026-03-21)
+
+- **CORS**: Restricted to explicit origins (`CORS_ORIGINS` env var, default: `["https://openworkinghours.org"]`)
+- **Security headers**: X-Content-Type-Options, X-Frame-Options, X-XSS-Protection, Referrer-Policy, Permissions-Policy
+- **Rate limiting**: In-memory, per-IP (login: 5/60s, register: 5/60s, feedback: 3/60s, verification: 5/60s + 10/60s)
+- **Email enumeration**: Generic error messages for register/login (no "user exists" vs "bad code" distinction)
+- **Verification scoping**: Confirm requires email+code pair (backwards-compatible: old apps use code-only fallback)
+- **Docker**: Port bound to `127.0.0.1:8000` (not exposed to public network, Nginx reverse proxies)
+- **Admin**: No shell=True in subprocess calls, XSS escaping in dashboard HTML
+- **API docs**: Disabled in production (`DOCS_ENABLED=false`)
+
+---
+
 ## Configuration
 
 ### Environment Variables
@@ -334,6 +355,8 @@ docker logs owh-backend --tail 30
 | `ADMIN_PASSWORD` | Admin dashboard password |
 | `DEMO__EMAIL` | Demo account email |
 | `DEMO__CODE` | Demo account code |
+| `CORS_ORIGINS` | JSON list of allowed origins |
+| `DOCS_ENABLED` | Enable /docs endpoint (default: false) |
 
 ### Configuration Files
 

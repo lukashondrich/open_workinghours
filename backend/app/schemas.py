@@ -280,8 +280,22 @@ class StatsByStateSpecialtyOut(BaseModel):
     period_end: date
     planned_mean_hours: float | None
     overtime_mean_hours: float | None
+    planned_ci_half: float | None = None
+    actual_ci_half: float | None = None
+    overtime_ci_half: float | None = None
+    n_display: int | None = None
     status: str
     computed_at: datetime
+
+
+class PrivacyBudgetOut(BaseModel):
+    """Per-user privacy budget summary (GDPR Art. 15)."""
+    year: int
+    total_spent: float
+    n_entries: int
+    cells: list[str]
+    earliest_period: str | None = None
+    latest_period: str | None = None
 
 
 class StateSpecialtyReleaseCellIn(BaseModel):

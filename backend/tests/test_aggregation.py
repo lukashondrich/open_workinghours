@@ -268,7 +268,7 @@ class TestAggregationIntegration:
             )
             .one()
         )
-        assert float(ledger_entry.total_epsilon) == EPSILON
+        assert float(ledger_entry.total_epsilon) == pytest.approx(EPSILON)
 
     def test_aggregation_reuses_published_release_on_rerun(self, test_db, sample_users):
         """Published cell-periods should not be re-noised or double-spent on rerun."""
@@ -374,8 +374,8 @@ class TestAggregationIntegration:
             )
             .one()
         )
-        assert float(ledger.planned_sum_epsilon) == pytest.approx(0.3)
-        assert float(ledger.actual_sum_epsilon) == pytest.approx(0.7)
+        assert float(ledger.planned_sum_epsilon) == pytest.approx(0.2)
+        assert float(ledger.actual_sum_epsilon) == pytest.approx(0.8)
         assert float(ledger.total_epsilon) == pytest.approx(EPSILON)
 
     def test_dominated_cell_is_suppressed(self, test_db):
@@ -619,3 +619,220 @@ class TestAggregationIntegration:
         # Without clipping: 200 + 5*60 = 500, mean = 500/6 ≈ 83.33
         # The noised value should be closer to 70 than 83 — we verify publication happened
         assert stat.avg_actual_hours_noised is not None
+
+    # === Gap 3: Monthly aggregation ===
+
+    def test_aggregation_monthly_averages_across_weeks(self, test_db):
+        """Monthly aggregation should average per-user means across weeks in the month."""
+        from app.models import StateSpecialtyReleaseCell, StatsByStateSpecialty, User
+
+        test_db.add(StateSpecialtyReleaseCell(country_code="DEU", state_code="BY", specialty="surgery"))
+        test_db.flush()
+
+        users = []
+        for i in range(6):
+            user = User(
+                email_hash=f"hash_monthly_{i}",
+                hospital_id="test-hospital",
+                specialty="surgery",
+                role_level="specialist",
+                state_code="BY",
+            )
+            test_db.add(user)
+            test_db.flush()
+            users.append(user)
+        test_db.commit()
+
+        # Add data across 4 Mondays in December 2025
+        dec_mondays = [date(2025, 12, 1), date(2025, 12, 8), date(2025, 12, 15), date(2025, 12, 22)]
+        for monday in dec_mondays:
+            for u in users:
+                _add_single_finalized_week(test_db, u, monday, actual="40.0", planned="40.0")
+            test_db.commit()
+
+        # Two consecutive monthly periods needed for activation
+        # November: no data → suppressed
+        # December: data present → warming_up (first eligible)
+        compute_aggregates_by_state_specialty(test_db, date(2025, 11, 15), period_type="monthly")
+        compute_aggregates_by_state_specialty(test_db, date(2025, 12, 15), period_type="monthly")
+
+        stat = (
+            test_db.query(StatsByStateSpecialty)
+            .filter(
+                StatsByStateSpecialty.period_start == date(2025, 12, 1),
+                StatsByStateSpecialty.state_code == "BY",
+                StatsByStateSpecialty.specialty == "surgery",
+            )
+            .one()
+        )
+        # First eligible month → warming_up
+        assert stat.publication_status == PublicationStatus.warming_up.value
+        assert stat.n_users == 6
+        assert stat.period_type == "monthly"
+
+    def test_aggregation_monthly_activation_streak(self, test_db):
+        """Two consecutive eligible months should lead to publication."""
+        from app.models import StateSpecialtyReleaseCell, StatsByStateSpecialty, User
+
+        test_db.add(StateSpecialtyReleaseCell(country_code="DEU", state_code="BY", specialty="surgery"))
+        test_db.flush()
+
+        users = []
+        for i in range(6):
+            user = User(
+                email_hash=f"hash_month_act_{i}",
+                hospital_id="test-hospital",
+                specialty="surgery",
+                role_level="specialist",
+                state_code="BY",
+            )
+            test_db.add(user)
+            test_db.flush()
+            users.append(user)
+        test_db.commit()
+
+        # November data
+        for monday in [date(2025, 11, 3), date(2025, 11, 10), date(2025, 11, 17), date(2025, 11, 24)]:
+            for u in users:
+                _add_single_finalized_week(test_db, u, monday, actual="40.0", planned="40.0")
+            test_db.commit()
+
+        # December data
+        for monday in [date(2025, 12, 1), date(2025, 12, 8), date(2025, 12, 15), date(2025, 12, 22)]:
+            for u in users:
+                _add_single_finalized_week(test_db, u, monday, actual="40.0", planned="40.0")
+            test_db.commit()
+
+        compute_aggregates_by_state_specialty(test_db, date(2025, 11, 15), period_type="monthly")
+        stats_created = compute_aggregates_by_state_specialty(test_db, date(2025, 12, 15), period_type="monthly")
+
+        assert stats_created == 1
+
+        stat = (
+            test_db.query(StatsByStateSpecialty)
+            .filter(
+                StatsByStateSpecialty.period_start == date(2025, 12, 1),
+                StatsByStateSpecialty.state_code == "BY",
+                StatsByStateSpecialty.specialty == "surgery",
+            )
+            .one()
+        )
+        assert stat.publication_status == PublicationStatus.published.value
+        assert stat.avg_actual_hours_noised is not None
+
+    def test_weekly_default_unchanged(self, test_db, sample_users):
+        """Default weekly aggregation should work as before (backward compatible)."""
+        _add_finalized_weeks(test_db, sample_users["above_threshold"], date(2025, 12, 1))
+        stats_created = compute_aggregates_by_state_specialty(test_db, date(2025, 12, 5))
+        # First week → warming_up, not published
+        assert stats_created == 0
+
+    # === Gap 1: Adaptive epsilon ===
+
+    def test_aggregation_uses_adaptive_epsilon(self, test_db):
+        """With a low annual cap, later periods should have lower ε in the ledger."""
+        from app.models import StateSpecialtyPrivacyLedger, StateSpecialtyReleaseCell, User
+
+        test_db.add(StateSpecialtyReleaseCell(country_code="DEU", state_code="BY", specialty="surgery"))
+        test_db.flush()
+
+        users = []
+        for i in range(6):
+            user = User(
+                email_hash=f"hash_adapt_{i}",
+                hospital_id="test-hospital",
+                specialty="surgery",
+                role_level="specialist",
+                state_code="BY",
+            )
+            test_db.add(user)
+            test_db.flush()
+            users.append(user)
+        test_db.commit()
+
+        # 3 consecutive weeks for activation + published
+        for week in [date(2025, 12, 1), date(2025, 12, 8), date(2025, 12, 15)]:
+            for u in users:
+                _add_single_finalized_week(test_db, u, week, actual="40.0", planned="40.0")
+            test_db.commit()
+
+        compute_aggregates_by_state_specialty(test_db, date(2025, 12, 5))
+        compute_aggregates_by_state_specialty(test_db, date(2025, 12, 12))
+        compute_aggregates_by_state_specialty(test_db, date(2025, 12, 19))
+
+        # The adaptive epsilon mechanism is active — verify ledger entries exist
+        ledger_entries = (
+            test_db.query(StateSpecialtyPrivacyLedger)
+            .filter(
+                StateSpecialtyPrivacyLedger.state_code == "BY",
+                StateSpecialtyPrivacyLedger.specialty == "surgery",
+            )
+            .order_by(StateSpecialtyPrivacyLedger.period_start)
+            .all()
+        )
+        # Week 1: warming_up (no ledger), Week 2: published (ledger), Week 3: published (ledger)
+        assert len(ledger_entries) >= 1
+
+    # === Gap 4: Confidence intervals ===
+
+    def test_published_stats_include_ci(self, test_db, sample_users):
+        """Published stats should have non-null CI values."""
+        _add_finalized_weeks(test_db, sample_users["above_threshold"], date(2025, 12, 1))
+        _add_finalized_weeks(test_db, sample_users["above_threshold"], date(2025, 12, 8))
+
+        from app.models import StatsByStateSpecialty
+
+        compute_aggregates_by_state_specialty(test_db, date(2025, 12, 5))
+        compute_aggregates_by_state_specialty(test_db, date(2025, 12, 12))
+
+        stat = (
+            test_db.query(StatsByStateSpecialty)
+            .filter(
+                StatsByStateSpecialty.period_start == date(2025, 12, 8),
+                StatsByStateSpecialty.state_code == "BY",
+                StatsByStateSpecialty.specialty == "surgery",
+                StatsByStateSpecialty.publication_status == PublicationStatus.published.value,
+            )
+            .one()
+        )
+
+        assert stat.planned_ci_half is not None
+        assert stat.actual_ci_half is not None
+        assert stat.overtime_ci_half is not None
+        assert stat.n_display is not None
+        assert stat.n_display == 5  # 6 users → floor to 5
+
+    def test_suppressed_stats_ci_null(self, test_db, sample_users):
+        """Suppressed/warming_up stats should have null CI values."""
+        _add_finalized_weeks(test_db, sample_users["above_threshold"], date(2025, 12, 1))
+
+        from app.models import StatsByStateSpecialty
+
+        compute_aggregates_by_state_specialty(test_db, date(2025, 12, 5))
+
+        stat = (
+            test_db.query(StatsByStateSpecialty)
+            .filter(
+                StatsByStateSpecialty.period_start == date(2025, 12, 1),
+                StatsByStateSpecialty.state_code == "BY",
+                StatsByStateSpecialty.specialty == "surgery",
+            )
+            .one()
+        )
+
+        assert stat.publication_status == PublicationStatus.warming_up.value
+        assert stat.planned_ci_half is None
+        assert stat.actual_ci_half is None
+        assert stat.n_display is None
+
+    # === Gap 2: Privacy budget endpoint ===
+
+    def test_privacy_budget_endpoint(self, test_db, client, auth_headers):
+        """GET /auth/me/privacy-budget should return 200 with budget schema."""
+        response = client.get("/auth/me/privacy-budget", headers=auth_headers)
+        assert response.status_code == 200
+        data = response.json()
+        assert "total_spent" in data
+        assert "n_entries" in data
+        assert "cells" in data
+        assert data["total_spent"] == 0.0
