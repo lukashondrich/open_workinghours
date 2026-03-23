@@ -170,6 +170,137 @@ def record_user_ledger_entries(
     return created
 
 
+def compute_adaptive_epsilon(
+    *,
+    config_epsilon: float,
+    annual_cap: float,
+    period_index: int,
+    total_periods: int,
+    spent_so_far: float,
+) -> float:
+    """Compute adaptive per-period ε that never overshoots the annual cap.
+
+    Returns min(config_epsilon, remaining_budget / remaining_periods).
+    """
+    remaining = max(0.0, annual_cap - spent_so_far)
+    remaining_periods = max(1, total_periods - period_index)
+    return min(config_epsilon, remaining / remaining_periods)
+
+
+def user_annual_summary(
+    db: Session,
+    *,
+    user_id,
+    year: int,
+) -> dict:
+    """Return per-user ε summary for a given year (GDPR Art. 15)."""
+    year_start = date(year, 1, 1)
+    year_end = date(year, 12, 31)
+
+    entries = (
+        db.query(UserPrivacyLedger)
+        .filter(
+            UserPrivacyLedger.user_id == user_id,
+            UserPrivacyLedger.period_start >= year_start,
+            UserPrivacyLedger.period_start <= year_end,
+        )
+        .order_by(UserPrivacyLedger.period_start.asc())
+        .all()
+    )
+
+    total_spent = sum(float(e.epsilon_spent) for e in entries)
+    cells = list({e.cell_key for e in entries})
+
+    return {
+        "year": year,
+        "total_spent": total_spent,
+        "n_entries": len(entries),
+        "cells": cells,
+        "earliest_period": entries[0].period_start.isoformat() if entries else None,
+        "latest_period": entries[-1].period_start.isoformat() if entries else None,
+    }
+
+
+def worst_case_user_spend(
+    db: Session,
+    *,
+    year: int,
+) -> dict | None:
+    """Return the user with the highest ε spend for the year."""
+    year_start = date(year, 1, 1)
+    year_end = date(year, 12, 31)
+
+    result = (
+        db.query(
+            UserPrivacyLedger.user_id,
+            func.sum(UserPrivacyLedger.epsilon_spent).label('total_spent'),
+        )
+        .filter(
+            UserPrivacyLedger.period_start >= year_start,
+            UserPrivacyLedger.period_start <= year_end,
+        )
+        .group_by(UserPrivacyLedger.user_id)
+        .order_by(func.sum(UserPrivacyLedger.epsilon_spent).desc())
+        .first()
+    )
+
+    if result is None:
+        return None
+
+    return {
+        "user_id": str(result.user_id),
+        "total_spent": float(result.total_spent),
+    }
+
+
+def budget_monitoring_summary(
+    db: Session,
+    *,
+    year: int,
+    annual_cap: float,
+) -> dict:
+    """Admin-level overview of privacy budget consumption for the year."""
+    year_start = date(year, 1, 1)
+    year_end = date(year, 12, 31)
+
+    per_user = (
+        db.query(
+            UserPrivacyLedger.user_id,
+            func.sum(UserPrivacyLedger.epsilon_spent).label('total_spent'),
+        )
+        .filter(
+            UserPrivacyLedger.period_start >= year_start,
+            UserPrivacyLedger.period_start <= year_end,
+        )
+        .group_by(UserPrivacyLedger.user_id)
+        .all()
+    )
+
+    n_users = len(per_user)
+    if n_users == 0:
+        return {
+            "year": year,
+            "n_users": 0,
+            "worst_case_spent": 0.0,
+            "avg_spent": 0.0,
+            "utilization_pct": 0.0,
+            "annual_cap": annual_cap,
+        }
+
+    spends = [float(r.total_spent) for r in per_user]
+    worst = max(spends)
+    avg = sum(spends) / n_users
+
+    return {
+        "year": year,
+        "n_users": n_users,
+        "worst_case_spent": worst,
+        "avg_spent": avg,
+        "utilization_pct": (worst / annual_cap * 100) if annual_cap > 0 else 0.0,
+        "annual_cap": annual_cap,
+    }
+
+
 def user_cumulative_spent(
     db: Session,
     *,

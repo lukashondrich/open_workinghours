@@ -1,6 +1,19 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Literal
+
+PeriodType = Literal["weekly", "biweekly", "monthly"]
+
+
+def periods_per_year(period_type: PeriodType) -> int:
+    if period_type == "weekly":
+        return 52
+    elif period_type == "biweekly":
+        return 26
+    elif period_type == "monthly":
+        return 12
+    raise ValueError(f"Unknown period_type: {period_type}")
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,8 +38,8 @@ class ContributionBounds:
 
 @dataclass(frozen=True, slots=True)
 class EpsilonSplit:
-    planned_sum: float = 0.3
-    actual_sum: float = 0.7
+    planned_sum: float = 0.2
+    actual_sum: float = 0.8
 
     def __post_init__(self) -> None:
         if self.planned_sum <= 0 or self.actual_sum <= 0:
@@ -61,13 +74,15 @@ class DPGroupStatsV1Config:
     bounds: ContributionBounds = field(default_factory=ContributionBounds)
     epsilon_split: EpsilonSplit = field(default_factory=EpsilonSplit)
     release_policy: ReleasePolicyConfig = field(default_factory=ReleasePolicyConfig)
-    annual_epsilon_cap: float | None = None
+    annual_epsilon_cap: float | None = 150.0
+    period_type: PeriodType = "weekly"
 
     def __post_init__(self) -> None:
         if self.annual_epsilon_cap is not None:
-            annual_spend = self.epsilon_split.total * 52
+            n_periods = periods_per_year(self.period_type)
+            annual_spend = self.epsilon_split.total * n_periods
             if annual_spend > self.annual_epsilon_cap:
                 raise ValueError(
-                    f"Weekly ε ({self.epsilon_split.total}) × 52 = {annual_spend} "
+                    f"Per-period ε ({self.epsilon_split.total}) × {n_periods} = {annual_spend} "
                     f"exceeds annual cap ({self.annual_epsilon_cap})"
                 )

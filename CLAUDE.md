@@ -1,7 +1,7 @@
 # Claude Context: Open Working Hours
 
-**Last Updated:** 2026-02-05
-**Current Build:** #30 (ready for TestFlight upload)
+**Last Updated:** 2026-03-21
+**Current Build:** #31 (TestFlight)
 
 ---
 
@@ -44,7 +44,7 @@
 
 ## Current State
 
-All core features complete. User test feedback (Clusters A-F) fully implemented. Ready for build #30.
+All core features complete. User test feedback (Clusters A-F) fully implemented. Build #31 on TestFlight. 3-4 active users.
 
 **What's working:**
 - Geofencing with automatic clock-in/out
@@ -179,13 +179,88 @@ All new UI **must** be testable by Appium (XCUITest on iOS, UiAutomator2 on Andr
 
 ### Privacy
 
-- **K-anonymity**: Groups need ≥11 users to be published
+- **K-anonymity**: Groups need ≥5 users (K_MIN=5) + dominance rule (≤30% single-user contribution)
+- **Differential privacy**: Laplace noise on sums (ε split: 0.2 planned / 0.8 actual), SQL-level clipping (planned≤80h, actual≤120h)
+- **Adaptive ε**: `min(config_ε, remaining_budget / remaining_periods)` — never overshoots annual cap
+- **Temporal coarsening**: weekly (default) / biweekly / monthly aggregation periods
+- **Confidence intervals**: 90% Laplace CIs published with each stat, `n_display` rounded to nearest 5
+- **Publication policy**: 2-week activation streak, 2-week cooling-down grace, per-user ε ledger
+- **Budget monitoring**: `/auth/me/privacy-budget` (GDPR Art. 15), `/stats/admin/privacy-budget-summary`
 - **Data residency**: EU only (Hetzner, Germany)
 - **Right to erasure**: User deletion cascades to work_events
 
 ---
 
 ## Recent Updates (Last 7 Days)
+
+### 2026-03-21: DP Group Stats v2 — 4 Gaps Closed
+
+**Summary:** Completed the remaining 4 gaps in the DP pipeline: temporal coarsening, adaptive ε schedule, confidence intervals, and per-user budget monitoring. All backward-compatible — default stays `weekly` with ε=1.0.
+
+**Gap 3 — Temporal Coarsening:**
+- `PeriodType = "weekly" | "biweekly" | "monthly"` in config
+- `get_period_bounds()`, `period_before()`, `compute_period_index()` in `periods.py`
+- Multi-week aggregation uses CTE: per-user AVG of clipped weekly values, then SUM across users
+- Sensitivity unchanged (mean of bounded values is bounded)
+- `period_type` column added to `stats_by_state_specialty` + `state_specialty_privacy_ledger`
+
+**Gap 1 — Adaptive ε Schedule:**
+- `compute_adaptive_epsilon()`: `min(config_ε, (cap − spent_ytd) / periods_remaining)`
+- Integrated into aggregation loop — queries YTD spending, scales epsilon split proportionally
+- Never exceeds config default, never overshoots annual cap
+- Anomaly logging when adaptive_eps < 50% of expected per-period
+
+**Gap 4 — Confidence Intervals:**
+- `laplace_ci_half_width()`: 90% CIs from Laplace scale, `n_display = (n // 5) * 5` (floored at 5)
+- 4 new columns: `planned_ci_half`, `actual_ci_half`, `overtime_ci_half`, `n_display`
+- `overtime_ci = planned_ci + actual_ci` (conservative, triangle inequality)
+- CI fields exposed in `/stats/by-state-specialty` only for published cells
+
+**Gap 2 — Per-User Budget Monitoring:**
+- `GET /auth/me/privacy-budget` — authenticated, GDPR Art. 15 transparency
+- `GET /stats/admin/privacy-budget-summary` — admin overview (worst-case user, avg spend, utilization%)
+- Query functions: `user_annual_summary()`, `worst_case_user_spend()`, `budget_monitoring_summary()`
+
+**Migration:** Single Alembic migration `h8i9j0k1l2m3` (period_type + CI columns). `server_default="weekly"` and `nullable=True` — existing rows unaffected.
+
+**Tests:** 64 tests in dp_group_stats + aggregation (all pass). 116 total backend tests pass.
+
+| File | Changes |
+|------|---------|
+| `app/dp_group_stats/config.py` | PeriodType, periods_per_year(), period_type field |
+| `app/periods.py` | get_period_bounds, period_before, compute_period_index |
+| `app/aggregation.py` | Multi-week CTE, adaptive ε, CI computation, anomaly logging |
+| `app/dp_group_stats/accounting.py` | compute_adaptive_epsilon, budget query functions |
+| `app/dp_group_stats/mechanisms.py` | laplace_ci_half_width |
+| `app/models.py` | period_type + CI columns |
+| `app/schemas.py` | CI fields + PrivacyBudgetOut |
+| `app/routers/stats.py` | CI in response, admin budget endpoint |
+| `app/routers/auth.py` | GET /auth/me/privacy-budget |
+
+---
+
+### 2026-03-21: Security Hardening + DP Group Stats v1 — Deployed to Production
+
+**Security hardening (deployed):**
+- CORS restricted to explicit origins, security headers middleware (X-Content-Type-Options, X-Frame-Options, Referrer-Policy)
+- In-memory rate limiting on auth endpoints (5 req/60s login, 5 req/60s register, 3 req/60s feedback)
+- Email enumeration fix: generic errors for register/login
+- Verification confirm scoped by email (backwards-compatible: old apps use code-only fallback)
+- Removed shell=True from admin subprocess, XSS protection in admin dashboard
+- SMTP debug logging disabled (was leaking plaintext verification codes to container logs)
+- Mobile app: sends email with verification confirm, removed "already exists" detection
+- 12 security regression tests (10 pass, 2 xfail on SQLite)
+
+**DP group stats v1 (deployed):**
+- Foundation: config, Laplace mechanism, publication state machine, accounting ledger
+- 5 new DB tables: `finalized_user_weeks`, `state_specialty_release_cells`, `state_specialty_privacy_ledger`, `user_privacy_ledger`, plus `publication_status` column on stats tables
+- SQL-level clipping in aggregation (CASE WHEN, portable SQLite/PG)
+- Config: K_MIN=5, actual_weekly_max=120h, planned_weekly_max=80h, dominance_threshold=0.30
+- Simulation module with 200+ validated scenarios
+- Alembic migrations run on production PostgreSQL
+- 47 backend tests passing
+
+---
 
 ### 2026-02-09: Visual Polish — CalendarHeader + MonthView + Android Tab Bar
 

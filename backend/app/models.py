@@ -199,6 +199,7 @@ class StateSpecialtyPrivacyLedger(Base):
     state_code = Column(String(10), nullable=False, index=True)
     specialty = Column(String(100), nullable=False, index=True)
     period_start = Column(Date, nullable=False, index=True)
+    period_type = Column(String(10), nullable=False, server_default="weekly")
     mechanism = Column(String(50), nullable=False, default="laplace")
     publication_status = Column(String(20), nullable=False, default=PublicationStatus.published.value)
     planned_sum_epsilon = Column(Numeric(precision=6, scale=3), nullable=False)
@@ -257,12 +258,19 @@ class StatsByStateSpecialty(Base):
     role_level = Column(String(50), nullable=False)
     period_start = Column(Date, nullable=False, index=True)
     period_end = Column(Date, nullable=False)
+    period_type = Column(String(10), nullable=False, server_default="weekly")
 
     n_users = Column(Integer, nullable=False)
     avg_planned_hours_noised = Column(Numeric(precision=5, scale=2))
     avg_actual_hours_noised = Column(Numeric(precision=5, scale=2))
     avg_overtime_hours_noised = Column(Numeric(precision=5, scale=2))
     publication_status = Column(String(20), nullable=False, default=PublicationStatus.published.value)
+
+    # Confidence intervals
+    planned_ci_half = Column(Numeric(precision=6, scale=2), nullable=True)
+    actual_ci_half = Column(Numeric(precision=6, scale=2), nullable=True)
+    overtime_ci_half = Column(Numeric(precision=6, scale=2), nullable=True)
+    n_display = Column(Integer, nullable=True)
 
     k_min_threshold = Column(Integer, nullable=False)
     noise_epsilon = Column(Numeric(precision=4, scale=2), nullable=False)

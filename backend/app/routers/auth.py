@@ -14,9 +14,10 @@ from sqlalchemy.orm import Session
 from ..config import get_settings
 from ..database import get_db
 from ..dependencies import get_current_user
+from ..dp_group_stats.accounting import user_annual_summary
 from ..models import FeedbackReport, User, VerificationRequest, VerificationStatus, WorkEvent
 from ..rate_limit import rate_limit
-from ..schemas import AuthTokenOut, ConsentUpdateIn, UserDataExportOut, UserLoginIn, UserOut, UserRegisterIn
+from ..schemas import AuthTokenOut, ConsentUpdateIn, PrivacyBudgetOut, UserDataExportOut, UserLoginIn, UserOut, UserRegisterIn
 from ..security import create_user_access_token, hash_code, hash_email
 
 logger = logging.getLogger(__name__)
@@ -308,6 +309,24 @@ def update_consent(
     logger.info(f"User {current_user.user_id} updated consent to terms={payload.terms_version}, privacy={payload.privacy_version}")
 
     return UserOut.from_orm(current_user)
+
+
+@router.get("/me/privacy-budget", response_model=PrivacyBudgetOut)
+def get_privacy_budget(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(_get_db_session),
+    year: int | None = None,
+) -> PrivacyBudgetOut:
+    """
+    Get current user's privacy budget summary (GDPR Art. 15 transparency).
+
+    Returns total ε spent, cells contributed to, and date range for the year.
+    """
+    if year is None:
+        year = datetime.now(timezone.utc).year
+
+    summary = user_annual_summary(db, user_id=current_user.user_id, year=year)
+    return PrivacyBudgetOut(**summary)
 
 
 @router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
