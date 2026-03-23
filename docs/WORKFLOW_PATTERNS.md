@@ -152,7 +152,7 @@ Subagents don't share the main conversation's context. **You must provide it.**
 
 | Domain | Source of truth | Must-read before editing |
 |--------|----------------|--------------------------|
-| Privacy / DP | `project-mgmt/dp-group-stats-*.md` | Requirements v2 (composition model, neighboring relation), Accounting model (per-user budget, families), Simulation spec (canonical params) |
+| Privacy / DP | `docs/dp-group-stats-*.md` | Requirements v2 (composition model, neighboring relation), Accounting model (per-user budget, families), Simulation spec (canonical params) |
 | GDPR / Legal | `docs/GDPR_COMPLIANCE.md` + `privacy_architecture.md` | Both, plus the DP specs above if DP parameters are involved |
 | Mobile UI | `mobile-app/ARCHITECTURE.md` | Architecture doc + E2E patterns in CLAUDE.md |
 | Backend API | `backend/ARCHITECTURE.md` | Architecture doc |

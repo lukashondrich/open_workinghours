@@ -234,7 +234,7 @@ No other purposes are pursued. Data is not used for marketing, profiling, or sol
 **Description:** Hetzner or Brevo experiences a security incident.
 
 **Existing Controls:**
-- DPAs in place (to be signed)
+- DPAs in place (Hetzner signed 2026-01-13, Brevo via ToS)
 - Reputable EU-based providers
 - Limited data shared with processors
 - Brevo receives only email addresses transiently
@@ -270,7 +270,7 @@ No other purposes are pursued. Data is not used for marketing, profiling, or sol
 | Measure | Addresses Risk | Status |
 |---------|----------------|--------|
 | Privacy policy and transparency | R3 | Implemented |
-| Data Processing Agreements with processors | R6 | Pending |
+| Data Processing Agreements with processors | R6 | Signed (Hetzner 2026-01-13, Brevo via ToS) |
 | Clear "not an employer tool" messaging | R3 | Implemented |
 | User-controlled deletion | R1, R2, R4 | Implemented |
 | Data export functionality | All | Implemented |
@@ -323,7 +323,7 @@ The Open Working Hours platform implements privacy-by-design principles and addr
 
 ### 7.2 Recommendations
 
-1. **Complete DPA signatures** with Hetzner and Brevo before processing user data at scale
+1. ~~**Complete DPA signatures**~~ — Done (Hetzner signed 2026-01-13, Brevo via ToS)
 2. **Obtain legal review** of this DPIA and privacy policy before broad launch
 3. **Monitor k-anonymity thresholds** - consider increasing k if user base grows significantly
 4. **Annual review** of this DPIA to account for changes in processing or risk landscape
@@ -342,19 +342,32 @@ The Open Working Hours platform implements privacy-by-design principles and addr
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0 | January 2026 | L. Hondrich | Initial draft |
+| 1.1 | March 2026 | L. Hondrich | Expanded Appendix A with full DP parameter set (simulation-validated); updated DPA status to signed |
 
 ---
 
 ## Appendix A: Privacy Parameters
 
+All DP parameters validated by simulation (200+ scenarios). See `docs/dp-group-stats-simulation-spec.md` for evidence.
+
 | Parameter | Value | Rationale |
 |-----------|-------|-----------|
-| K-anonymity threshold | k = 5 | Appropriate for labour statistics with differential privacy |
-| Differential privacy | Laplace mechanism, per-user annual ε cap of 150 | See `project-mgmt/dp-group-stats-accounting-model.md` |
+| K-anonymity threshold | k = 5 | Appropriate for labour statistics with differential privacy; validated by simulation |
+| Laplace noise ε (per release family per period) | 1.0 (split: 0.2 planned + 0.8 actual) | 80% budget on actual hours (primary stakeholder metric) |
+| Annual per-user ε cap | 150 | Defensible for non-health employment data with central DP |
+| Contribution bounds (planned) | [0, 80] hours/week | Contractual hours rarely exceed 80h |
+| Contribution bounds (actual) | [0, 120] hours/week | Covers 99.9% of real-world cases; reduces sensitivity vs 140 |
+| Dominance threshold | 30% top-1 (clipped actual) | Suppresses cells where one user dominates; operationally redundant at k≥5 |
+| Adaptive ε schedule | `min(config_ε, (cap − spent_ytd) / remaining)` | Never exceeds config default or annual cap |
+| Confidence intervals | 90% Laplace CI per published cell | Transparency: consumers see precision of noised means |
+| n_display (rounded count) | `max(5, (n // 5) × 5)` | Prevents exact count disclosure below display threshold |
+| Aggregation cadence | Weekly (default); biweekly, monthly supported | Configurable via `period_type` |
+| Publication policy | 2-week warming, 2-week cooling-down grace | Reduces threshold-crossing and disappearance leakage |
+| Neighboring relation | Substitution (counts public, noise on sums only) | See `docs/dp-group-stats-requirements-v2.md` §4.3 |
 | Backup retention | 30 days | Sufficient for disaster recovery |
 | Verification code expiry | 15 minutes | Security best practice |
 
-These values are working parameters subject to adjustment based on legal review.
+These values are working parameters subject to adjustment based on legal review. Full formal specification: `docs/dp-group-stats-requirements-v2.md`, `docs/dp-group-stats-accounting-model.md`.
 
 ---
 
