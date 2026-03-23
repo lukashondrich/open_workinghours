@@ -47,7 +47,7 @@ import Layout from '../layouts/Layout.astro';
           <li>Data minimization: We collect only what is necessary</li>
           <li>Local-first: Most data stays on your device</li>
           <li>Pseudonymization: Your identity is protected by technical measures</li>
-          <li>K-anonymity: Statistics are only published when groups meet minimum size thresholds</li>
+          <li>K-anonymity: Statistics are only published when groups have at least 5 contributors (k=5)</li>
         </ul>
       </section>
 
@@ -128,8 +128,8 @@ import Layout from '../layouts/Layout.astro';
         </p>
         <ul class="mt-2 space-y-1">
           <li>Contain no personal data</li>
-          <li>Are only published when groups meet minimum size requirements (k-anonymity)</li>
-          <li>Include statistical noise to prevent re-identification (differential privacy)</li>
+          <li>Are only published when groups have at least 5 contributors (k-anonymity, k=5)</li>
+          <li>Include calibrated statistical noise (differential privacy, Laplace mechanism) with a per-user annual privacy budget to prevent re-identification</li>
         </ul>
 
         <h3 class="text-lg font-medium text-stone-800 mt-6 mb-3">5.3 No Employer Access</h3>
@@ -171,8 +171,8 @@ import Layout from '../layouts/Layout.astro';
         </p>
         <ul class="mt-2 space-y-1">
           <li>Contain only group-level information (e.g., "surgeons in Bavaria")</li>
-          <li>Are based on groups meeting minimum size requirements</li>
-          <li>Include statistical noise that masks individual contributions</li>
+          <li>Are based on groups of at least 5 contributors (k-anonymity)</li>
+          <li>Include calibrated statistical noise (differential privacy, ε=1.0) that masks individual contributions</li>
         </ul>
         <p class="mt-2">
           Under GDPR, such properly anonymized data is not considered personal data and is therefore
@@ -188,6 +188,10 @@ import Layout from '../layouts/Layout.astro';
           <li><strong>Encryption at rest:</strong> Server data is encrypted</li>
           <li><strong>Pseudonymization:</strong> Email addresses are hashed; users are identified by random IDs</li>
           <li><strong>Access control:</strong> Strict access limitations to production systems</li>
+          <li><strong>Rate limiting:</strong> Authentication endpoints are rate-limited to prevent abuse</li>
+          <li><strong>Security headers:</strong> HSTS, X-Content-Type-Options, X-Frame-Options, and Referrer-Policy headers are enforced</li>
+          <li><strong>CORS restrictions:</strong> Cross-origin requests are restricted to authorized origins</li>
+          <li><strong>Email enumeration prevention:</strong> Authentication responses do not reveal whether an account exists</li>
           <li><strong>EU data residency:</strong> All data is stored in Germany</li>
         </ul>
       </section>

@@ -173,8 +173,8 @@ def insert_test_rows(db_url: str) -> bool:
                 period_start=week_start,
                 mechanism="laplace",
                 publication_status="published",
-                planned_sum_epsilon=Decimal("0.300"),
-                actual_sum_epsilon=Decimal("0.700"),
+                planned_sum_epsilon=Decimal("0.200"),
+                actual_sum_epsilon=Decimal("0.800"),
                 total_epsilon=Decimal("1.000"),
             )
             db.add(ledger)
@@ -248,7 +248,7 @@ def test_accounting_functions(db_url: str) -> bool:
 
             # Record ledger entries for 2 weeks
             for week in [week1, week2]:
-                breakdown = EpsilonBreakdown(planned_sum=0.3, actual_sum=0.7)
+                breakdown = EpsilonBreakdown(planned_sum=0.2, actual_sum=0.8)
                 entry = record_state_specialty_ledger_entry(
                     db,
                     cell_key=cell_key,

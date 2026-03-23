@@ -65,13 +65,11 @@ Website source files: `website/src/pages/`
 
 ### Before Public Launch
 
-- [ ] **Sign Hetzner DPA**
-  - Log into Hetzner → Account → Contracts → Sign AVV (Auftragsverarbeitungsvertrag)
-  - Store signed copy
+- [x] **Sign Hetzner DPA** (Signed 2026-01-13)
+  - AVV (Auftragsverarbeitungsvertrag) signed via Hetzner Console
 
-- [ ] **Sign Brevo DPA**
-  - Log into Brevo → Settings → Legal → Sign DPA
-  - Store signed copy
+- [x] **Sign Brevo DPA** (Part of ToS, exported PDF)
+  - DPA included in Brevo Terms of Service
 
 - [ ] **Legal review of all documents**
   - DPIA
@@ -170,8 +168,8 @@ No processors outside EU/EEA.
 |----------|--------|-----------|
 | Legal basis for stats | Consent (not legitimate interest) | Cleaner, user can withdraw |
 | Single consent checkbox | Terms + Privacy combined | Both required, simpler UX |
-| K-anonymity threshold | k = 11 | EMA/Health Canada standard for healthcare data |
-| Differential privacy epsilon | ε = 1.0 | Balanced privacy/utility, pending legal confirmation |
+| K-anonymity threshold | k = 5 | Sufficient for group-level statistics with differential privacy |
+| Differential privacy | Laplace mechanism with per-user annual ε budget cap of 150; adaptive schedule reduces noise calibration as budget is consumed | See `project-mgmt/dp-group-stats-accounting-model.md` for composition model |
 | Sick days | Local only, never transmitted | Avoids health data classification |
 | Email storage | Hash only, no plaintext | Pseudonymization |
 | Backup retention | 30 days | Balance of recovery needs vs. right to erasure |
@@ -192,7 +190,7 @@ When engaging legal counsel, provide:
 
 ### Questions for Lawyer
 
-1. Are the k-anonymity (k=11) and epsilon (ε=1.0) values sufficient to claim the analytics layer is "anonymous" under GDPR?
+1. Are the k-anonymity (k=5) and differential privacy parameters (Laplace mechanism, per-user annual ε cap of 150, substitution neighboring relation) sufficient to claim the analytics layer is "anonymous" under GDPR? See `project-mgmt/dp-group-stats-requirements-v2.md` and `dp-group-stats-accounting-model.md` for full specification.
 2. Is the Consent + Contract hybrid legal basis approach appropriate?
 3. Are the draft Privacy Policy and Terms sufficient for German/EU requirements?
 4. Is the DPIA adequate given we're not strictly required to have one?
@@ -206,6 +204,7 @@ When engaging legal counsel, provide:
 |------|--------|
 | 2026-01-07 | Initial creation of all GDPR compliance documents |
 | 2026-01-12 | Consent flow deployed and tested; added consent withdrawal plan |
+| 2026-03-21 | Updated DP parameters to simulation-validated values (K_MIN=5, annual cap 150); updated privacy architecture with substitution neighboring relation |
 
 ---
 

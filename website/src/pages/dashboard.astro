@@ -65,12 +65,12 @@ const API_BASE = import.meta.env.PUBLIC_API_URL || 'https://api.openworkinghours
           <div class="bg-white border border-stone-200 rounded-xl p-6">
             <h3 class="text-sm font-medium text-stone-500 uppercase tracking-wide mb-1">States Nearing Threshold</h3>
             <p class="text-3xl font-semibold text-stone-900" id="states-count">--</p>
-            <p class="text-sm text-stone-500">not yet unlocked (1–10)</p>
+            <p class="text-sm text-stone-500">not yet unlocked (1–4)</p>
           </div>
 
           <div class="bg-teal-50 border border-teal-200 rounded-xl p-4">
             <p class="text-sm text-teal-800">
-              <strong>Privacy threshold:</strong> Statistics only shown when 11+ contributors are in a group.
+              <strong>Privacy threshold:</strong> Statistics only shown when 5+ contributors are in a group.
             </p>
           </div>
         </div>
@@ -100,7 +100,7 @@ const API_BASE = import.meta.env.PUBLIC_API_URL || 'https://api.openworkinghours
             <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
               <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
             </svg>
-            Unlocks at 11+ contributors
+            Unlocks at 5+ contributors
           </span>
         </div>
 
@@ -117,7 +117,7 @@ const API_BASE = import.meta.env.PUBLIC_API_URL || 'https://api.openworkinghours
             <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
               <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
             </svg>
-            Unlocks at 11+ contributors
+            Unlocks at 5+ contributors
           </span>
         </div>
 
@@ -134,7 +134,7 @@ const API_BASE = import.meta.env.PUBLIC_API_URL || 'https://api.openworkinghours
             <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
               <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
             </svg>
-            Unlocks at 11+ contributors
+            Unlocks at 5+ contributors
           </span>
         </div>
       </div>
@@ -159,9 +159,9 @@ const API_BASE = import.meta.env.PUBLIC_API_URL || 'https://api.openworkinghours
         <!-- K-Anonymity Visual -->
         <div class="bg-teal-50 rounded-xl p-8">
           <div class="flex items-center justify-center gap-4 mb-6">
-            <!-- 11 person icons -->
+            <!-- 5 person icons -->
             <div class="flex flex-wrap justify-center gap-1 max-w-[140px]">
-              {[...Array(11)].map(() => (
+              {[...Array(5)].map(() => (
                 <svg class="w-6 h-6 text-teal-600" fill="currentColor" viewBox="0 0 20 20">
                   <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
                 </svg>
@@ -182,7 +182,7 @@ const API_BASE = import.meta.env.PUBLIC_API_URL || 'https://api.openworkinghours
 
           <h3 class="text-lg font-semibold text-teal-900 text-center mb-2">K-Anonymity</h3>
           <p class="text-teal-800 text-center">
-            Nothing is published unless at least <strong>11 people</strong> contribute to a statistic.
+            Nothing is published unless at least <strong>5 people</strong> contribute to a statistic.
             Individual contributions cannot be distinguished.
           </p>
         </div>
@@ -285,7 +285,7 @@ const API_BASE = import.meta.env.PUBLIC_API_URL || 'https://api.openworkinghours
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </span>
-              <span>K-anonymity minimum standard (k=11), aligned with EMA/Health Canada public-disclosure guidance</span>
+              <span>K-anonymity minimum standard (k=5), appropriate for labour statistics with differential privacy</span>
             </li>
             <li class="flex gap-3">
               <span class="text-teal-600 mt-1">

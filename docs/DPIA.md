@@ -89,8 +89,8 @@ Out of scope:
 │  ┌─────────────────────────────────────────────────────────────┐   │
 │  │  Analytics Layer (PostgreSQL) - Anonymous                     │   │
 │  │  • stats_by_state_specialty: aggregates only                 │   │
-│  │  • K-anonymity: n_users ≥ 10                                 │   │
-│  │  • Differential privacy: Laplace noise (ε=1.0)               │   │
+│  │  • K-anonymity: n_users ≥ 5                                  │   │
+│  │  • Differential privacy: Laplace noise, annual ε cap          │   │
 │  │  No personal data - Retained after user deletion             │   │
 │  └─────────────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────────────┘
@@ -174,7 +174,7 @@ No other purposes are pursued. Data is not used for marketing, profiling, or sol
 **Description:** An attacker uses background knowledge to identify an individual from published statistics.
 
 **Existing Controls:**
-- K-anonymity (k=11): Statistics only published for groups of 11+ users
+- K-anonymity (k=5): Statistics only published for groups of 5+ users
 - Cell suppression: Groups below threshold completely hidden
 - Laplace noise (ε=1.0): Statistical noise masks individual contributions
 - Limited dimensions: Only predefined groupings allowed
@@ -257,8 +257,8 @@ No other purposes are pursued. Data is not used for marketing, profiling, or sol
 
 | Measure | Addresses Risk | Status |
 |---------|----------------|--------|
-| K-anonymity (k≥11) | R1 | Implemented |
-| Differential privacy (ε=1.0) | R1 | Implemented |
+| K-anonymity (k≥5) | R1 | Implemented |
+| Differential privacy (Laplace, adaptive ε, annual cap 150) | R1 | Implemented |
 | TLS 1.3 encryption in transit | R2 | Implemented |
 | Encryption at rest | R2 | Implemented |
 | Salted email hashing | R4 | Implemented |
@@ -349,8 +349,8 @@ The Open Working Hours platform implements privacy-by-design principles and addr
 
 | Parameter | Value | Rationale |
 |-----------|-------|-----------|
-| K-anonymity threshold | k = 11 | EMA/Health Canada standard for healthcare data |
-| Differential privacy epsilon | ε = 1.0 | Balanced privacy/utility tradeoff |
+| K-anonymity threshold | k = 5 | Appropriate for labour statistics with differential privacy |
+| Differential privacy | Laplace mechanism, per-user annual ε cap of 150 | See `project-mgmt/dp-group-stats-accounting-model.md` |
 | Backup retention | 30 days | Sufficient for disaster recovery |
 | Verification code expiry | 15 minutes | Security best practice |
 

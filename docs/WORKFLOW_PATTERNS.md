@@ -138,6 +138,35 @@ React Native's `testID` maps to `resource-id` on Android.
 
 ---
 
+## Delegating to Subagents
+
+Subagents don't share the main conversation's context. **You must provide it.**
+
+### Before launching a subagent
+
+1. **Identify the relevant specs** — which docs define the domain the agent will work in?
+2. **Include those docs in the prompt** — either inline the key sections, or instruct the agent to read specific files before acting
+3. **Instruct the agent to ask for clarification** rather than guess when it lacks context. Bias toward asking, not toward action.
+
+### Domain-specific rules
+
+| Domain | Source of truth | Must-read before editing |
+|--------|----------------|--------------------------|
+| Privacy / DP | `project-mgmt/dp-group-stats-*.md` | Requirements v2 (composition model, neighboring relation), Accounting model (per-user budget, families), Simulation spec (canonical params) |
+| GDPR / Legal | `docs/GDPR_COMPLIANCE.md` + `privacy_architecture.md` | Both, plus the DP specs above if DP parameters are involved |
+| Mobile UI | `mobile-app/ARCHITECTURE.md` | Architecture doc + E2E patterns in CLAUDE.md |
+| Backend API | `backend/ARCHITECTURE.md` | Architecture doc |
+
+### Common failure mode
+
+Giving a subagent parameter values (e.g., "K_MIN=5, ε=1.0") without the specs that explain what they mean leads to plausible-sounding but wrong statements. The agent will fill in gaps with reasonable-sounding language that misrepresents the actual design.
+
+**Example:** An agent told "ε=1.0, annual cap 150" wrote "ε=1.0 per cell per week" — conflating noise calibration with privacy cost, missing the composition model entirely. This contaminated 6 external-facing documents.
+
+**Fix:** Always include the relevant spec sections so the agent understands the semantics, not just the numbers.
+
+---
+
 ## Tips
 
 - **Parallelize aggressively**: If tasks don't depend on each other, run them simultaneously

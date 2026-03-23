@@ -114,6 +114,8 @@ backend/
 | GET | `/stats/summary` | Overall platform summary |
 | GET | `/stats/admin/privacy-budget-summary` | Admin: worst-case/avg ε spend, cap utilization |
 
+**Note:** All `/stats/*` endpoints are unauthenticated (public data by design). The `/stats/admin/privacy-budget-summary` endpoint exposes only aggregate budget metrics (no user IDs or individual data). This follows the same pattern as `/stats/summary` and `/dashboard/*`. If individual user budget data is ever exposed here, auth should be added.
+
 **Privacy:**
 - K-anonymity: Groups need ≥5 users (K_MIN=5) + dominance rule (≤30%)
 - Differential privacy: Laplace noise (ε=1.0 total: 0.2 planned + 0.8 actual, annual cap=150)

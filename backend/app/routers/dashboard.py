@@ -49,8 +49,8 @@ GERMAN_STATES = {
     "TH": "Thüringen",
 }
 
-# Privacy threshold (k-anonymity)
-K_MIN = 11
+# Privacy threshold (k-anonymity) — must match dp_group_stats config
+K_MIN = 5
 
 
 def _count_to_range(count: int) -> str:

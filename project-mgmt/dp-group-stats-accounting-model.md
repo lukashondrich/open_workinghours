@@ -126,7 +126,7 @@ For each published cell in each release period, the mechanism adds noise to two 
 | Quantity | Sensitivity | ε allocation |
 |----------|------------|-------------|
 | Planned sum | 80 | ε_planned |
-| Actual sum | 140 | ε_actual |
+| Actual sum | 120 | ε_actual |
 | Count | not noised | 0 (public under substitution relation) |
 
 The per-cell per-period cost is:
@@ -248,13 +248,13 @@ Eliminate budget-based suppression entirely. Cells are suppressed only for K_MIN
 
 ### 6.1 Minimum group threshold (K_MIN)
 
-Do not publish cells with fewer than K_MIN users. Current default: K_MIN = 11.
+Do not publish cells with fewer than K_MIN users. Current default: K_MIN = 5 (validated by simulation; working hours are Art. 6 GDPR data, not Art. 9 health data, so k=5 is appropriate for labour statistics when combined with DP noise).
 
 K_MIN is checked against the true (non-noised) count. Cells below K_MIN are suppressed with a generic `suppressed` status and no public reason code.
 
 ### 6.2 Dominance / concentration rule
 
-> **Explainer:** Even with DP noise and K_MIN ≥ 11, a cell can be too revealing if one user dominates the aggregate. Example: 12 users in a cell, but one worked 140h (clipping max) while the other 11 worked 20h each. That user accounts for 39% of the total — the aggregate is essentially their data with noise. An attacker who knows the other 11 users' rough hours can infer the outlier's contribution.
+> **Explainer:** Even with DP noise and K_MIN ≥ 5, a cell can be too revealing if one user dominates the aggregate. Example: 6 users in a cell, but one worked 120h (clipping max) while the other 5 worked 20h each. That user accounts for 55% of the total — the aggregate is essentially their data with noise. An attacker who knows the other 5 users' rough hours can infer the outlier's contribution.
 >
 > The dominance rule catches these cases. It's a publication policy, not a substitute for DP — it layers on top of the formal mechanism.
 
@@ -262,11 +262,11 @@ K_MIN is checked against the true (non-noised) count. Cells below K_MIN are supp
 
 Design choices:
 - **Top-1 only** (not top-k) — sufficient for healthcare working hours where coordinated cliques are unlikely
-- **Actual hours only** — wider range (0–140) makes concentration more dangerous than planned hours (0–80)
+- **Actual hours only** — wider range (0–120) makes concentration more dangerous than planned hours (0–80)
 - **Clipped values** — the dominance check uses the same clipped values that enter the DP mechanism
-- **Threshold: 30%** — with K_MIN = 11, the equal-share baseline is ~9% per user; 30% means one person contributes 3–4× the average share
+- **Threshold: 30%** — with K_MIN = 5, the equal-share baseline is 20% per user; 30% means one person contributes 1.5× the average share
 
-The 30% threshold is a starting point, to be validated by simulation.
+The 30% threshold has been validated by simulation.
 
 ### 6.3 Temporal activation and deactivation
 
@@ -371,10 +371,11 @@ The accounting model introduces these testable properties:
 |-----------|-------|--------|
 | Release families | F1: (State, Week, Specialty) only | Fixed for v1 |
 | Per-family ε | 1.0 (working assumption) | To be validated by simulation |
-| ε split | ε_planned = 0.3, ε_actual = 0.7 | To be validated by simulation |
-| Annual cap | Lenient (working hours are low-sensitivity) | To be validated by simulation |
-| K_MIN | 11 | To be validated by simulation |
-| Dominance threshold | 30% top-1, clipped actual | To be validated by simulation |
+| ε split | ε_planned = 0.2, ε_actual = 0.8 | Validated by simulation (see simulation-spec.md) |
+| Annual cap | 150 per user | Validated by simulation (see simulation-spec.md) |
+| K_MIN | 5 | Validated by simulation (see simulation-spec.md) |
+| Clipping bounds | planned [0, 80], actual [0, 120] | Validated by simulation (see simulation-spec.md) |
+| Dominance threshold | 30% top-1, clipped actual | Validated by simulation (see simulation-spec.md) |
 | Activation weeks | 2 | Fixed for v1 |
 | Deactivation grace | 2 weeks | Fixed for v1 |
 | Composition | Naive sequential | Fixed for v1 |
@@ -401,7 +402,7 @@ These are explicitly out of scope for v1 but the architecture should not prevent
 - **Tighter composition accounting** (zCDP, PLD accountants)
 - **Consistency post-processing** within declared parent-child family pairs
 - **Adaptive per-user budget management** (reclaiming unused budget from users in fewer families)
-- **Public count bands** (e.g., "11-20 users" instead of exact count)
+- **Public count bands** (e.g., "5-10 users" instead of exact count)
 
 ---
 
@@ -420,8 +421,10 @@ These are explicitly out of scope for v1 but the architecture should not prevent
 | Item | Status | Notes |
 |------|--------|-------|
 | Exact ε per family | Deferred to simulation | Working assumption: 1.0 |
-| Exact annual cap | Deferred to simulation | Lenient given data category |
-| Exact dominance threshold | Deferred to simulation | Working assumption: 30% |
-| ε split (planned vs actual) | Deferred to simulation | Working assumption: 0.3 / 0.7 |
+| Exact annual cap | **Resolved: 150** | Validated by simulation |
+| Exact dominance threshold | **Resolved: 30%** | Validated by simulation |
+| ε split (planned vs actual) | **Resolved: 0.2 / 0.8** | Validated by simulation |
+| K_MIN | **Resolved: 5** | Validated by simulation |
+| Clipping bounds (actual) | **Resolved: [0, 120]** | Validated by simulation |
 | Utility thresholds for temporal coarsening | Deferred to simulation | e.g., noise std > 10h on mean |
 | Neighboring relation documentation | To be written | Should go in privacy_architecture.md |

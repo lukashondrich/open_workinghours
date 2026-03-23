@@ -126,7 +126,7 @@ import LayoutDE from '../../layouts/LayoutDE.astro';
       <div class="space-y-3 text-stone-700 ml-4">
         <div class="flex gap-3">
           <span class="text-stone-400">•</span>
-          <span><strong>Mindestgruppengröße:</strong> k-Anonymität (k=11)</span>
+          <span><strong>Mindestgruppengröße:</strong> k-Anonymität (k=5) — Statistiken werden erst ab mindestens 5 Beitragenden veröffentlicht</span>
         </div>
         <div class="flex gap-3">
           <span class="text-stone-400">•</span>
@@ -134,7 +134,11 @@ import LayoutDE from '../../layouts/LayoutDE.astro';
         </div>
         <div class="flex gap-3">
           <span class="text-stone-400">•</span>
-          <span><strong>Differential Privacy:</strong> Kalibriertes Rauschen (Laplace-Mechanismus, ε = 1.0) zum Schutz vor statistischen Rückschlüssen</span>
+          <span><strong>Differential Privacy:</strong> Kalibriertes Rauschen (Laplace-Mechanismus) zum Schutz vor statistischen Rückschlüssen. Einzelbeiträge werden vor der Aggregation begrenzt, um den Einfluss einzelner Personen zu beschränken. Ein nutzerbezogenes Privatsphäre-Budget begrenzt die kumulative Datenexposition über die Zeit.</span>
+        </div>
+        <div class="flex gap-3">
+          <span class="text-stone-400">•</span>
+          <span><strong>Dominanzschutz:</strong> Wenn der Beitrag einer einzelnen Person den Gruppendurchschnitt dominieren würde (mehr als 30 %), wird die Gruppe unterdrückt — auch wenn die Mindestgröße erreicht ist.</span>
         </div>
       </div>
     </section>
