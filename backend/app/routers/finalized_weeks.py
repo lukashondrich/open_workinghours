@@ -88,6 +88,12 @@ def finalize_user_week(
         role_level=current_user.role_level,
         state_code=current_user.state_code,
         country_code=current_user.country_code,
+        # v2 taxonomy snapshot
+        profession=current_user.profession,
+        seniority=current_user.seniority,
+        department_group=current_user.department_group,
+        specialization_code=current_user.specialization_code,
+        hospital_ref_id=current_user.hospital_ref_id,
     )
 
     db.add(finalized_week)

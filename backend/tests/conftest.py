@@ -86,6 +86,7 @@ def client(test_db: Session) -> TestClient:
     from app.routers.submissions import _get_db_session as submissions_get_db
     from app.routers.verification import _get_db_session as verification_get_db
     from app.dependencies import get_db_session as deps_get_db
+    from app.routers.taxonomy import _load_hospitals  # noqa: F401 — ensure import works
     app.dependency_overrides[analytics_get_db] = override_get_db
     app.dependency_overrides[auth_get_db] = override_get_db
     app.dependency_overrides[reports_get_db] = override_get_db

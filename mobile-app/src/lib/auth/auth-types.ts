@@ -18,6 +18,12 @@ export interface User {
   roleLevel: string;
   stateCode?: string;
   createdAt?: string; // ISO 8601 format, optional for backward compatibility
+  // v2 taxonomy fields
+  profession?: string;
+  seniority?: string;
+  departmentGroup?: string;
+  specializationCode?: string;
+  hospitalRefId?: number;
   // GDPR consent fields
   termsAcceptedVersion?: string;
   privacyAcceptedVersion?: string;
@@ -49,9 +55,27 @@ export interface RegisterRequest {
   specialty: string;
   roleLevel: string;
   stateCode?: string;
+  // v2 taxonomy fields
+  profession?: string;
+  seniority?: string;
+  departmentGroup?: string;
+  specializationCode?: string;
+  hospitalRefId?: number;
   // GDPR consent
   termsVersion?: string;
   privacyVersion?: string;
+}
+
+export interface ProfileUpdateRequest {
+  profession?: string;
+  seniority?: string;
+  departmentGroup?: string;
+  specializationCode?: string;
+  hospitalRefId?: number;
+  stateCode?: string;
+  hospitalId?: string;
+  specialty?: string;
+  roleLevel?: string;
 }
 
 export interface RegisterResponse {

@@ -55,6 +55,130 @@ class TestAuthRegistration:
         response2 = client.post("/auth/register", json=payload)
         assert response2.status_code in [400, 409]  # Bad request or conflict
 
+    def test_register_v2_with_taxonomy_fields(self, client: TestClient, test_db: Session):
+        """Test registration with v2 taxonomy fields."""
+        from app.models import VerificationRequest, VerificationStatus
+        from app.security import hash_email, hash_code
+        from datetime import datetime, timedelta, timezone
+
+        email = "v2doctor@hospital.de"
+        verification = VerificationRequest(
+            email_hash=hash_email(email),
+            email_domain="hospital.de",
+            code_hash=hash_code("123456"),
+            status=VerificationStatus.confirmed.value,
+            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+            confirmed_at=datetime.now(timezone.utc),
+        )
+        test_db.add(verification)
+        test_db.commit()
+
+        payload = {
+            "email": email,
+            "hospital_id": "uniklinik-muenchen",
+            "specialty": "surgery",
+            "role_level": "specialist",
+            "state_code": "BY",
+            "profession": "physician",
+            "seniority": "facharzt",
+            "department_group": "chirurgie",
+            "specialization_code": "1500",
+        }
+
+        response = client.post("/auth/register", json=payload)
+
+        assert response.status_code == 201
+        data = response.json()
+        # Verify via GET /auth/me using the token
+        token = data["access_token"]
+        me_resp = client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
+        assert me_resp.status_code == 200
+        me_data = me_resp.json()
+        assert me_data["profession"] == "physician"
+        assert me_data["seniority"] == "facharzt"
+        assert me_data["department_group"] == "chirurgie"
+        assert me_data["specialization_code"] == "1500"
+        assert me_data["hospital_id"] == "uniklinik-muenchen"
+        assert me_data["specialty"] == "surgery"
+
+    def test_register_v1_backward_compat(self, client: TestClient, test_db: Session):
+        """Test registration with v1 fields only (backward compat)."""
+        from app.models import VerificationRequest, VerificationStatus
+        from app.security import hash_email, hash_code
+        from datetime import datetime, timedelta, timezone
+
+        email = "oldapp@hospital.de"
+        verification = VerificationRequest(
+            email_hash=hash_email(email),
+            email_domain="hospital.de",
+            code_hash=hash_code("123456"),
+            status=VerificationStatus.confirmed.value,
+            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+            confirmed_at=datetime.now(timezone.utc),
+        )
+        test_db.add(verification)
+        test_db.commit()
+
+        payload = {
+            "email": email,
+            "hospital_id": "test-hospital",
+            "specialty": "internal medicine",
+            "role_level": "resident",
+        }
+
+        response = client.post("/auth/register", json=payload)
+
+        assert response.status_code == 201
+        data = response.json()
+        # Verify via GET /auth/me using the token
+        token = data["access_token"]
+        me_resp = client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
+        assert me_resp.status_code == 200
+        me_data = me_resp.json()
+        assert me_data["profession"] is None
+        assert me_data["seniority"] is None
+        assert me_data["department_group"] is None
+
+    def test_register_invalid_seniority_profession_combo(self, client: TestClient):
+        """Test that invalid seniority/profession combination is rejected."""
+        payload = {
+            "email": "bad@hospital.de",
+            "hospital_id": "test-hospital",
+            "specialty": "surgery",
+            "role_level": "resident",
+            "profession": "nurse",
+            "seniority": "facharzt",  # physician seniority for nurse profession
+        }
+
+        response = client.post("/auth/register", json=payload)
+        assert response.status_code == 422
+
+    def test_register_invalid_state_code(self, client: TestClient):
+        """Test that invalid state code is rejected."""
+        payload = {
+            "email": "badstate@hospital.de",
+            "hospital_id": "test-hospital",
+            "specialty": "surgery",
+            "role_level": "resident",
+            "state_code": "XX",
+        }
+
+        response = client.post("/auth/register", json=payload)
+        assert response.status_code == 422
+
+    def test_register_invalid_department_group(self, client: TestClient):
+        """Test that invalid department_group is rejected."""
+        payload = {
+            "email": "baddept@hospital.de",
+            "hospital_id": "test-hospital",
+            "specialty": "surgery",
+            "role_level": "resident",
+            "department_group": "nonexistent_department",
+        }
+
+        response = client.post("/auth/register", json=payload)
+        assert response.status_code == 422
+
     def test_register_missing_required_fields(self, client: TestClient):
         """Test registration fails with missing required fields."""
         payload = {
@@ -199,6 +323,72 @@ class TestAuthMe:
         headers = {"Authorization": "Bearer invalid_token_here"}
         response = client.get("/auth/me", headers=headers)
         assert response.status_code == 401  # Unauthorized
+
+
+@pytest.mark.integration
+class TestProfileUpdate:
+    """Test PATCH /auth/me/profile — GDPR Art. 16 right to rectification."""
+
+    def test_update_profile_taxonomy_fields(self, client: TestClient, auth_headers: dict[str, str]):
+        """Test updating profile with taxonomy fields."""
+        payload = {
+            "profession": "physician",
+            "seniority": "facharzt",
+            "department_group": "innere_medizin",
+            "state_code": "BE",
+        }
+
+        response = client.patch("/auth/me/profile", json=payload, headers=auth_headers)
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["profession"] == "physician"
+        assert data["seniority"] == "facharzt"
+        assert data["department_group"] == "innere_medizin"
+        assert data["state_code"] == "BE"
+
+    def test_update_profile_partial(self, client: TestClient, auth_headers: dict[str, str]):
+        """Test that partial updates only change provided fields."""
+        # First set profession
+        client.patch("/auth/me/profile", json={"profession": "nurse"}, headers=auth_headers)
+        # Then update only seniority
+        response = client.patch("/auth/me/profile", json={"seniority": "pflegefachkraft"}, headers=auth_headers)
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["profession"] == "nurse"
+        assert data["seniority"] == "pflegefachkraft"
+
+    def test_update_profile_invalid_seniority(self, client: TestClient, auth_headers: dict[str, str]):
+        """Test that invalid seniority/profession combo is rejected."""
+        # Set profession to nurse first
+        client.patch("/auth/me/profile", json={"profession": "nurse"}, headers=auth_headers)
+        # Try physician seniority with nurse profession
+        response = client.patch(
+            "/auth/me/profile",
+            json={"seniority": "oberarzt_plus"},
+            headers=auth_headers,
+        )
+        assert response.status_code == 422
+
+    def test_update_profile_requires_auth(self, client: TestClient):
+        """Test PATCH /auth/me/profile requires authentication."""
+        response = client.patch("/auth/me/profile", json={"profession": "physician"})
+        assert response.status_code == 401
+
+    def test_update_profile_get_me_reflects_changes(self, client: TestClient, auth_headers: dict[str, str]):
+        """Test that GET /auth/me reflects profile updates."""
+        client.patch(
+            "/auth/me/profile",
+            json={"profession": "physician", "seniority": "assistenzarzt"},
+            headers=auth_headers,
+        )
+
+        response = client.get("/auth/me", headers=auth_headers)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["profession"] == "physician"
+        assert data["seniority"] == "assistenzarzt"
 
 
 @pytest.mark.integration

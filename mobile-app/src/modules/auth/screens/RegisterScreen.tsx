@@ -1,10 +1,10 @@
 /**
  * RegisterScreen - Step 2 of registration flow
- * Collects hospital, specialty, role, state info → creates account
+ * Collects profession, seniority, state (required) + optional department/hospital
  * Shows GDPR consent modal before registration
  */
 
-import React, { useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -13,9 +13,12 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  TouchableOpacity,
 } from 'react-native';
-import { colors, spacing, fontSize, fontWeight } from '@/theme';
-import { Button, Input, InfoBox } from '@/components/ui';
+import { ChevronDown, ChevronUp } from 'lucide-react-native';
+import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/theme';
+import { Button, Picker } from '@/components/ui';
+import type { PickerOption } from '@/components/ui';
 import { useAuth } from '@/lib/auth/auth-context';
 import { AuthService } from '../services/AuthService';
 import { t } from '@/lib/i18n';
@@ -26,6 +29,13 @@ import {
   createConsentRecord,
 } from '@/lib/auth/consent-types';
 import { ConsentStorage } from '@/lib/auth/ConsentStorage';
+import {
+  PROFESSIONS,
+  SENIORITY_BY_PROFESSION,
+  DEPARTMENT_GROUPS,
+  GERMAN_STATES,
+} from '@/lib/taxonomy';
+import type { Profession, Seniority, DepartmentGroup } from '@/lib/taxonomy';
 
 interface RegisterScreenProps {
   email: string;
@@ -34,62 +44,110 @@ interface RegisterScreenProps {
 
 export default function RegisterScreen({ email, onLoginPress }: RegisterScreenProps) {
   const { signIn } = useAuth();
-  const [hospitalId, setHospitalId] = useState('');
-  const [specialty, setSpecialty] = useState('');
-  const [roleLevel, setRoleLevel] = useState('');
-  const [stateCode, setStateCode] = useState('');
+
+  // Required fields
+  const [profession, setProfession] = useState<Profession | null>(null);
+  const [seniority, setSeniority] = useState<Seniority | null>(null);
+  const [stateCode, setStateCode] = useState<string | null>(null);
+
+  // Optional fields (collapsed by default)
+  const [showOptional, setShowOptional] = useState(false);
+  const [departmentGroup, setDepartmentGroup] = useState<DepartmentGroup | null>(null);
+
   const [loading, setLoading] = useState(false);
   const [showConsent, setShowConsent] = useState(false);
 
-  // Validate form before showing consent modal
+  // When profession changes, reset seniority
+  const handleProfessionChange = useCallback((value: string) => {
+    setProfession(value as Profession);
+    setSeniority(null);
+  }, []);
+
+  // Build seniority options based on selected profession
+  const seniorityOptions: PickerOption[] = useMemo(() => {
+    if (!profession) return [];
+    const lang = t('_locale') === 'de' ? 'labelDe' : 'labelEn';
+    return SENIORITY_BY_PROFESSION[profession].map((s) => ({
+      value: s.value,
+      label: s[lang],
+    }));
+  }, [profession]);
+
+  // Build state options
+  const stateOptions: PickerOption[] = useMemo(() => {
+    return GERMAN_STATES.map((s) => ({
+      value: s.code,
+      label: `${s.name} (${s.code})`,
+    }));
+  }, []);
+
+  // Build department group options
+  const departmentOptions: PickerOption[] = useMemo(() => {
+    const lang = t('_locale') === 'de' ? 'labelDe' : 'labelEn';
+    return DEPARTMENT_GROUPS.map((d) => ({
+      value: d.value,
+      label: d[lang],
+    }));
+  }, []);
+
+  // Build profession options
+  const professionOptions: PickerOption[] = useMemo(() => {
+    const lang = t('_locale') === 'de' ? 'labelDe' : 'labelEn';
+    return PROFESSIONS.map((p) => ({
+      value: p.value,
+      label: p[lang],
+    }));
+  }, []);
+
   const validateForm = (): boolean => {
-    if (!hospitalId.trim()) {
-      Alert.alert(t('auth.register.hospitalRequired'), t('auth.register.hospitalRequiredMessage'));
+    if (!profession) {
+      Alert.alert(t('auth.register.professionRequired'), t('auth.register.professionRequiredMessage'));
       return false;
     }
-    if (!specialty.trim()) {
-      Alert.alert(t('auth.register.specialtyRequired'), t('auth.register.specialtyRequiredMessage'));
+    if (!seniority) {
+      Alert.alert(t('auth.register.seniorityRequired'), t('auth.register.seniorityRequiredMessage'));
       return false;
     }
-    if (!roleLevel.trim()) {
-      Alert.alert(t('auth.register.roleRequired'), t('auth.register.roleRequiredMessage'));
+    if (!stateCode) {
+      Alert.alert(t('auth.register.stateRequired'), t('auth.register.stateRequiredMessage'));
       return false;
     }
     return true;
   };
 
-  // Called when user taps "Create Account" - shows consent modal
   const handleCreateAccountPress = () => {
     if (!validateForm()) return;
     setShowConsent(true);
   };
 
-  // Called after user accepts consent - proceeds with registration
   const handleConsentAccepted = async () => {
     try {
       setLoading(true);
 
-      // Create consent record
       const consentRecord = createConsentRecord();
 
-      // Call backend registration endpoint with consent data
+      // Build legacy field values from taxonomy for backward compat
+      const seniorityLabel = seniority || 'not_specified';
+      const departmentLabel = departmentGroup || 'not_specified';
+
       const result = await AuthService.register({
         email,
-        hospitalId: hospitalId.trim(),
-        specialty: specialty.trim(),
-        roleLevel: roleLevel.trim(),
-        stateCode: stateCode.trim() || undefined,
+        // Legacy fields (backward compat with old backend)
+        hospitalId: 'not_specified',
+        specialty: departmentLabel,
+        roleLevel: seniorityLabel,
+        stateCode: stateCode || undefined,
+        // v2 taxonomy fields
+        profession: profession || undefined,
+        seniority: seniority || undefined,
+        departmentGroup: departmentGroup || undefined,
+        // GDPR consent
         termsVersion: CURRENT_TERMS_VERSION,
         privacyVersion: CURRENT_PRIVACY_VERSION,
       });
 
-      // Save consent locally
       await ConsentStorage.save(consentRecord);
-
-      // Close consent modal
       setShowConsent(false);
-
-      // Save auth state - navigation happens automatically
       await signIn(result.user, result.token, result.expiresAt);
     } catch (error) {
       console.error('[RegisterScreen] Registration failed:', error);
@@ -107,54 +165,79 @@ export default function RegisterScreen({ email, onLoginPress }: RegisterScreenPr
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.content}>
           <Text style={styles.title}>{t('auth.register.title')}</Text>
           <Text style={styles.subtitle}>{t('auth.register.subtitle')}</Text>
 
           <Text style={styles.emailLabel}>{t('auth.register.email', { email })}</Text>
 
-          <Input
-            label={t('auth.register.hospitalLabel')}
-            placeholder={t('auth.register.hospitalPlaceholder')}
-            value={hospitalId}
-            onChangeText={setHospitalId}
-            autoCapitalize="none"
-            autoCorrect={false}
-            editable={!loading}
-            testID="hospital-input"
+          {/* Required section */}
+          <Text style={styles.sectionLabel}>{t('auth.register.requiredSection')}</Text>
+
+          <Picker
+            label={t('auth.register.professionLabel')}
+            value={profession}
+            options={professionOptions}
+            onSelect={handleProfessionChange}
+            placeholder={t('auth.register.professionPlaceholder')}
+            testID="profession-picker"
           />
 
-          <Input
-            label={t('auth.register.specialtyLabel')}
-            placeholder={t('auth.register.specialtyPlaceholder')}
-            value={specialty}
-            onChangeText={setSpecialty}
-            autoCapitalize="words"
-            editable={!loading}
-            testID="specialty-input"
-          />
+          {profession && (
+            <Picker
+              label={t('auth.register.seniorityLabel')}
+              value={seniority}
+              options={seniorityOptions}
+              onSelect={(v) => setSeniority(v as Seniority)}
+              placeholder={t('auth.register.seniorityPlaceholder')}
+              testID="seniority-picker"
+            />
+          )}
 
-          <Input
-            label={t('auth.register.roleLabel')}
-            placeholder={t('auth.register.rolePlaceholder')}
-            value={roleLevel}
-            onChangeText={setRoleLevel}
-            autoCapitalize="words"
-            editable={!loading}
-            testID="role-input"
-          />
-
-          <Input
+          <Picker
             label={t('auth.register.stateLabel')}
-            placeholder={t('auth.register.statePlaceholder')}
             value={stateCode}
-            onChangeText={setStateCode}
-            autoCapitalize="characters"
-            maxLength={2}
-            editable={!loading}
-            testID="state-input"
+            options={stateOptions}
+            onSelect={setStateCode}
+            placeholder={t('auth.register.statePlaceholder')}
+            testID="state-picker"
           />
+
+          {/* Optional section */}
+          <TouchableOpacity
+            testID="optional-section-toggle"
+            accessible={true}
+            accessibilityRole="button"
+            onPress={() => setShowOptional(!showOptional)}
+            style={styles.optionalToggle}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.optionalToggleText}>
+              {t('auth.register.optionalSection')}
+            </Text>
+            {showOptional ? (
+              <ChevronUp size={18} color={colors.text.secondary} />
+            ) : (
+              <ChevronDown size={18} color={colors.text.secondary} />
+            )}
+          </TouchableOpacity>
+
+          {showOptional && (
+            <View accessible={false} collapsable={false}>
+              <Picker
+                label={t('auth.register.departmentLabel')}
+                value={departmentGroup}
+                options={departmentOptions}
+                onSelect={(v) => setDepartmentGroup(v as DepartmentGroup)}
+                placeholder={t('auth.register.departmentPlaceholder')}
+                testID="department-picker"
+              />
+            </View>
+          )}
 
           <Button
             onPress={handleCreateAccountPress}
@@ -205,7 +288,6 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    justifyContent: 'center',
     paddingHorizontal: spacing.xxxl,
     paddingVertical: spacing.xxl,
   },
@@ -224,6 +306,27 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     color: colors.text.tertiary,
     marginBottom: spacing.xxl,
+  },
+  sectionLabel: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    color: colors.text.secondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: spacing.md,
+  },
+  optionalToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.md,
+    marginBottom: spacing.md,
+    gap: spacing.xs,
+  },
+  optionalToggleText: {
+    fontSize: fontSize.sm,
+    color: colors.text.secondary,
+    fontWeight: fontWeight.medium,
   },
   registerButton: {
     marginTop: spacing.md,

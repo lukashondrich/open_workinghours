@@ -27,6 +27,7 @@ import EmailVerificationScreen from '@/modules/auth/screens/EmailVerificationScr
 import RegisterScreen from '@/modules/auth/screens/RegisterScreen';
 import LoginScreen from '@/modules/auth/screens/LoginScreen';
 import LockScreen from '@/modules/auth/screens/LockScreen';
+import ProfileScreen from '@/modules/auth/screens/ProfileScreen';
 
 import { getDatabase } from '@/modules/geofencing/services/Database';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -49,6 +50,7 @@ export type RootStackParamList = {
   Notifications: undefined;
   Permissions: undefined;
   DataPrivacy: undefined;
+  Profile: undefined;
 };
 
 export type MainTabParamList = {
@@ -309,6 +311,11 @@ export default function AppNavigator() {
           name="DataPrivacy"
           component={DataPrivacyScreen}
           options={{ title: t('navigation.dataPrivacy'), headerBackTitle: t('navigation.settings') }}
+        />
+        <Stack.Screen
+          name="Profile"
+          component={ProfileScreen}
+          options={{ title: t('navigation.profile'), headerBackTitle: t('navigation.settings') }}
         />
       </Stack.Navigator>
     </NavigationContainer>

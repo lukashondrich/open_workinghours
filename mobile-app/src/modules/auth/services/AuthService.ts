@@ -14,6 +14,7 @@ import type {
   RegisterResponse,
   LoginResponse,
   MeResponse,
+  ProfileUpdateRequest,
   User,
   UserDataExport,
 } from '@/lib/auth/auth-types';
@@ -142,6 +143,12 @@ export class AuthService {
           specialty: request.specialty,
           role_level: request.roleLevel,
           state_code: request.stateCode,
+          // v2 taxonomy fields
+          profession: request.profession,
+          seniority: request.seniority,
+          department_group: request.departmentGroup,
+          specialization_code: request.specializationCode,
+          hospital_ref_id: request.hospitalRefId,
           // GDPR consent
           terms_version: request.termsVersion,
           privacy_version: request.privacyVersion,
@@ -268,6 +275,12 @@ export class AuthService {
         roleLevel: data.role_level,
         stateCode: data.state_code,
         createdAt: data.created_at, // ISO 8601 format from backend
+        // v2 taxonomy fields
+        profession: data.profession,
+        seniority: data.seniority,
+        departmentGroup: data.department_group,
+        specializationCode: data.specialization_code,
+        hospitalRefId: data.hospital_ref_id,
         // GDPR consent fields
         termsAcceptedVersion: data.terms_accepted_version,
         privacyAcceptedVersion: data.privacy_accepted_version,
@@ -275,6 +288,64 @@ export class AuthService {
       };
     } catch (error) {
       console.error('[AuthService] Failed to get current user:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update profile fields (GDPR Art. 16 — right to rectification)
+   * PATCH /auth/me/profile
+   */
+  static async updateProfile(token: string, email: string, request: ProfileUpdateRequest): Promise<User> {
+    try {
+      const body: Record<string, unknown> = {};
+      if (request.profession !== undefined) body.profession = request.profession;
+      if (request.seniority !== undefined) body.seniority = request.seniority;
+      if (request.departmentGroup !== undefined) body.department_group = request.departmentGroup;
+      if (request.specializationCode !== undefined) body.specialization_code = request.specializationCode;
+      if (request.hospitalRefId !== undefined) body.hospital_ref_id = request.hospitalRefId;
+      if (request.stateCode !== undefined) body.state_code = request.stateCode;
+      if (request.hospitalId !== undefined) body.hospital_id = request.hospitalId;
+      if (request.specialty !== undefined) body.specialty = request.specialty;
+      if (request.roleLevel !== undefined) body.role_level = request.roleLevel;
+
+      const response = await fetch(`${BASE_URL}/auth/me/profile`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Authentication expired. Please login again.');
+        }
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to update profile');
+      }
+
+      const data = await response.json();
+      return {
+        userId: data.user_id,
+        email,
+        hospitalId: data.hospital_id,
+        specialty: data.specialty,
+        roleLevel: data.role_level,
+        stateCode: data.state_code,
+        createdAt: data.created_at,
+        profession: data.profession,
+        seniority: data.seniority,
+        departmentGroup: data.department_group,
+        specializationCode: data.specialization_code,
+        hospitalRefId: data.hospital_ref_id,
+        termsAcceptedVersion: data.terms_accepted_version,
+        privacyAcceptedVersion: data.privacy_accepted_version,
+        consentAcceptedAt: data.consent_accepted_at,
+      };
+    } catch (error) {
+      console.error('[AuthService] Failed to update profile:', error);
       throw error;
     }
   }

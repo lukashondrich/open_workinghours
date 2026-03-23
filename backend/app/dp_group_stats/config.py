@@ -76,6 +76,7 @@ class DPGroupStatsV1Config:
     release_policy: ReleasePolicyConfig = field(default_factory=ReleasePolicyConfig)
     annual_epsilon_cap: float | None = 150.0
     period_type: PeriodType = "weekly"
+    use_department_group: bool = False
 
     def __post_init__(self) -> None:
         if self.annual_epsilon_cap is not None:

@@ -75,6 +75,10 @@ export const mockResponses = {
     specialty: 'Internal Medicine',
     roleLevel: 'Resident',
     stateCode: 'BY',
+    // v2 taxonomy fields
+    profession: 'physician',
+    seniority: 'assistenzarzt',
+    departmentGroup: 'innere_medizin',
     createdAt: new Date().toISOString(),
     termsAcceptedVersion: '1.0.0',
     privacyAcceptedVersion: '1.0.0',

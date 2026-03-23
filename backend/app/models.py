@@ -91,6 +91,13 @@ class User(Base):
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     last_submission_at = Column(DateTime(timezone=True))
 
+    # Taxonomy v2 fields (nullable — NULL means legacy/not yet updated)
+    profession = Column(String(20), nullable=True, index=True)
+    seniority = Column(String(30), nullable=True, index=True)
+    department_group = Column(String(50), nullable=True, index=True)
+    specialization_code = Column(String(10), nullable=True, index=True)
+    hospital_ref_id = Column(Integer, nullable=True, index=True)
+
     # GDPR Consent tracking
     terms_accepted_version = Column(String(20), nullable=True)
     privacy_accepted_version = Column(String(20), nullable=True)
@@ -154,6 +161,14 @@ class FinalizedUserWeek(Base):
     role_level = Column(String(50), nullable=False)
     state_code = Column(String(10), nullable=True, index=True)
     country_code = Column(String(3), nullable=False, default='DEU')
+
+    # Taxonomy v2 snapshot (nullable — NULL means finalized before taxonomy update)
+    profession = Column(String(20), nullable=True)
+    seniority = Column(String(30), nullable=True)
+    department_group = Column(String(50), nullable=True)
+    specialization_code = Column(String(10), nullable=True)
+    hospital_ref_id = Column(Integer, nullable=True)
+
     finalized_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False, index=True)
 
     user = relationship("User", back_populates="finalized_weeks")
@@ -256,6 +271,7 @@ class StatsByStateSpecialty(Base):
     state_code = Column(String(10), nullable=False, index=True)
     specialty = Column(String(100), nullable=False, index=True)
     role_level = Column(String(50), nullable=False)
+    department_group = Column(String(50), nullable=True, index=True)
     period_start = Column(Date, nullable=False, index=True)
     period_end = Column(Date, nullable=False)
     period_type = Column(String(10), nullable=False, server_default="weekly")

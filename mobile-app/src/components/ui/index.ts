@@ -16,3 +16,4 @@ export { Input } from './Input';
 export { ListItem } from './ListItem';
 export { InfoBox } from './InfoBox';
 export { Badge } from './Badge';
+export { Picker, type PickerOption } from './Picker';
