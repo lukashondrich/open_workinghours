@@ -126,7 +126,7 @@ import Layout from '../layouts/Layout.astro';
       <div class="space-y-3 text-stone-700 ml-4">
         <div class="flex gap-3">
           <span class="text-stone-400">•</span>
-          <span><strong>Minimum group size:</strong> Statistics require a minimum number of contributors (k-anonymity)</span>
+          <span><strong>Minimum group size:</strong> Statistics require at least 5 contributors (k-anonymity, k=5). Groups below this threshold are suppressed entirely.</span>
         </div>
         <div class="flex gap-3">
           <span class="text-stone-400">•</span>
@@ -134,7 +134,11 @@ import Layout from '../layouts/Layout.astro';
         </div>
         <div class="flex gap-3">
           <span class="text-stone-400">•</span>
-          <span><strong>Statistical noise:</strong> Aggregates include calibrated noise (Laplace mechanism, ε=1.0) to prevent inference attacks</span>
+          <span><strong>Differential privacy:</strong> Aggregates include calibrated statistical noise (Laplace mechanism) to prevent inference attacks. Individual contributions are bounded before aggregation to limit any single person's influence. A per-user privacy budget caps cumulative exposure over time.</span>
+        </div>
+        <div class="flex gap-3">
+          <span class="text-stone-400">•</span>
+          <span><strong>Dominance protection:</strong> If a single contributor's data would dominate the group average (more than 30%), the group is suppressed — even if it meets the minimum size.</span>
         </div>
       </div>
     </section>

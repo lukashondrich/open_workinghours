@@ -48,7 +48,7 @@ import LayoutDE from '../../layouts/LayoutDE.astro';
           <li>Datenminimierung: Wir erheben nur das Notwendige</li>
           <li>Lokale Speicherung: Die meisten Daten bleiben auf Ihrem Gerät</li>
           <li>Pseudonymisierung: Ihre Identität wird durch technische Maßnahmen geschützt</li>
-          <li>K-Anonymität: Statistiken werden nur für Gruppen ab 10 Nutzern veröffentlicht</li>
+          <li>K-Anonymität: Statistiken werden nur für Gruppen ab 5 Beitragenden veröffentlicht (k=5)</li>
         </ul>
       </section>
 
@@ -131,8 +131,8 @@ import LayoutDE from '../../layouts/LayoutDE.astro';
         </p>
         <ul class="mt-2 space-y-1">
           <li>Enthalten keine personenbezogenen Daten</li>
-          <li>Werden nur veröffentlicht, wenn sie auf mindestens 10 Personen basieren (K-Anonymität)</li>
-          <li>Enthalten statistisches Rauschen zur Verhinderung von Re-Identifikation (Differential Privacy)</li>
+          <li>Werden nur veröffentlicht, wenn sie auf mindestens 5 Beitragenden basieren (k-Anonymität, k=5)</li>
+          <li>Enthalten kalibriertes statistisches Rauschen (Differential Privacy, Laplace-Mechanismus) mit einem nutzerbezogenen jährlichen Privatsphäre-Budget zur Verhinderung von Re-Identifikation</li>
         </ul>
 
         <h3 class="text-lg font-medium text-stone-800 mt-6 mb-3">5.3 Kein Arbeitgeberzugriff</h3>
@@ -174,8 +174,8 @@ import LayoutDE from '../../layouts/LayoutDE.astro';
         </p>
         <ul class="mt-2 space-y-1">
           <li>Nur Gruppeninformationen enthalten (z.B. „Chirurgen in Bayern")</li>
-          <li>Auf Gruppen von mindestens 10 Personen basieren</li>
-          <li>Statistisches Rauschen enthalten, das einzelne Beiträge verschleiert</li>
+          <li>Auf Gruppen von mindestens 5 Beitragenden basieren (k-Anonymität)</li>
+          <li>Kalibriertes statistisches Rauschen enthalten (Differential Privacy, ε=1,0), das einzelne Beiträge verschleiert</li>
         </ul>
         <p class="mt-2">
           Nach DSGVO gelten solche ordnungsgemäß anonymisierten Daten nicht als personenbezogene Daten
@@ -191,6 +191,10 @@ import LayoutDE from '../../layouts/LayoutDE.astro';
           <li><strong>Verschlüsselung bei Speicherung:</strong> Serverdaten sind verschlüsselt</li>
           <li><strong>Pseudonymisierung:</strong> E-Mail-Adressen werden gehasht; Nutzer werden durch zufällige IDs identifiziert</li>
           <li><strong>Zugriffskontrolle:</strong> Strikte Zugangsbeschränkungen für Produktionssysteme</li>
+          <li><strong>Rate Limiting:</strong> Authentifizierungsendpunkte sind ratenbegrenzt zum Schutz vor Missbrauch</li>
+          <li><strong>Sicherheitsheader:</strong> HSTS, X-Content-Type-Options, X-Frame-Options und Referrer-Policy werden erzwungen</li>
+          <li><strong>CORS-Beschränkungen:</strong> Cross-Origin-Anfragen sind auf autorisierte Ursprünge beschränkt</li>
+          <li><strong>Schutz vor E-Mail-Enumeration:</strong> Authentifizierungsantworten geben nicht preis, ob ein Konto existiert</li>
           <li><strong>EU-Datenresidenz:</strong> Alle Daten werden in Deutschland gespeichert</li>
         </ul>
       </section>

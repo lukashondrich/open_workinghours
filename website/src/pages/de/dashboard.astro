@@ -39,7 +39,7 @@ const API_BASE = import.meta.env.PUBLIC_API_URL || 'https://api.openworkinghours
     <div class="max-w-5xl mx-auto px-4 sm:px-6">
       <h2 class="text-stone-900 mb-2">Abdeckungsstatus</h2>
       <p class="text-stone-600 mb-8">
-        Sehen Sie, welche Regionen die Schutzschwelle (k=11) erreichen.
+        Sehen Sie, welche Regionen die Schutzschwelle (k=5) erreichen.
       </p>
 
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -70,7 +70,7 @@ const API_BASE = import.meta.env.PUBLIC_API_URL || 'https://api.openworkinghours
 
           <div class="bg-teal-50 border border-teal-200 rounded-xl p-4">
             <p class="text-sm text-teal-800">
-              <strong>Schutzschwelle (k=11):</strong> Statistiken zeigen wir nur ab 11 Beitragenden pro Gruppe.
+              <strong>Schutzschwelle (k=5):</strong> Statistiken zeigen wir nur ab 5 Beitragenden pro Gruppe.
             </p>
           </div>
         </div>
@@ -84,7 +84,7 @@ const API_BASE = import.meta.env.PUBLIC_API_URL || 'https://api.openworkinghours
     <div class="max-w-5xl mx-auto px-4 sm:px-6">
       <h2 class="text-stone-900 mb-2">Was wir veröffentlichen werden</h2>
       <p class="text-stone-600 mb-8">
-        Sobald Regionen die Schutzschwelle (k=11) erreichen, veröffentlichen wir aggregierte Auswertungen.
+        Sobald Regionen die Schutzschwelle (k=5) erreichen, veröffentlichen wir aggregierte Auswertungen.
       </p>
 
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -101,7 +101,7 @@ const API_BASE = import.meta.env.PUBLIC_API_URL || 'https://api.openworkinghours
             <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
               <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
             </svg>
-            Freigeschaltet ab 11 Beitragenden
+            Freigeschaltet ab 5 Beitragenden
           </span>
         </div>
 
@@ -118,7 +118,7 @@ const API_BASE = import.meta.env.PUBLIC_API_URL || 'https://api.openworkinghours
             <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
               <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
             </svg>
-            Freigeschaltet ab 11 Beitragenden
+            Freigeschaltet ab 5 Beitragenden
           </span>
         </div>
 
@@ -135,7 +135,7 @@ const API_BASE = import.meta.env.PUBLIC_API_URL || 'https://api.openworkinghours
             <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
               <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
             </svg>
-            Freigeschaltet ab 11 Beitragenden
+            Freigeschaltet ab 5 Beitragenden
           </span>
         </div>
       </div>
@@ -161,7 +161,7 @@ const API_BASE = import.meta.env.PUBLIC_API_URL || 'https://api.openworkinghours
         <div class="bg-teal-50 rounded-xl p-8">
           <div class="flex items-center justify-center gap-4 mb-6">
             <div class="flex flex-wrap justify-center gap-1 max-w-[140px]">
-              {[...Array(11)].map(() => (
+              {[...Array(5)].map(() => (
                 <svg class="w-6 h-6 text-teal-600" fill="currentColor" viewBox="0 0 20 20">
                   <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
                 </svg>
@@ -179,9 +179,9 @@ const API_BASE = import.meta.env.PUBLIC_API_URL || 'https://api.openworkinghours
             </div>
           </div>
 
-          <h3 class="text-lg font-semibold text-teal-900 text-center mb-2">K-Anonymität (k=11)</h3>
+          <h3 class="text-lg font-semibold text-teal-900 text-center mb-2">K-Anonymität (k=5)</h3>
           <p class="text-teal-800 text-center">
-            Veröffentlichung nur, wenn mindestens <strong>11 Personen</strong> zu einer Statistik beitragen. Einzelbeiträge sind nicht unterscheidbar.
+            Veröffentlichung nur, wenn mindestens <strong>5 Personen</strong> zu einer Statistik beitragen. Einzelbeiträge sind nicht unterscheidbar.
           </p>
         </div>
 
@@ -283,7 +283,7 @@ const API_BASE = import.meta.env.PUBLIC_API_URL || 'https://api.openworkinghours
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </span>
-              <span>K-Anonymität als Mindeststandard (k=11), orientiert an EMA/Health Canada Leitlinien zur Veröffentlichung</span>
+              <span>K-Anonymität als Mindeststandard (k=5), geeignet für Arbeitsstatistiken mit Differential Privacy</span>
             </li>
             <li class="flex gap-3">
               <span class="text-teal-600 mt-1">
