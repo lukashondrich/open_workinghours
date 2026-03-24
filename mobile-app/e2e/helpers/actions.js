@@ -313,6 +313,125 @@ async function waitForTestIdWithRetry(driver, testId, options = {}) {
 }
 
 /**
+ * Interact with a Picker component (inline animated dropdown).
+ * Opens the picker by tapping its trigger, waits for animation,
+ * then selects an option by its value.
+ * @param {WebdriverIO.Browser} driver
+ * @param {string} pickerTestId - testID of the picker trigger (e.g., 'state-picker')
+ * @param {string} optionValue - value suffix of the option to select (e.g., 'BE')
+ * @param {number} timeout
+ */
+async function selectPickerOption(driver, pickerTestId, optionValue, timeout = 10000) {
+  // Tap picker trigger to open dropdown
+  await tapTestId(driver, pickerTestId, timeout);
+  await driver.pause(400); // wait for expand animation (200ms) + render
+
+  // Tap the option — testID pattern: {pickerTestId}-option-{value}
+  const optionTestId = `${pickerTestId}-option-${optionValue}`;
+  await tapTestId(driver, optionTestId, timeout);
+  await driver.pause(300); // wait for close animation
+}
+
+/**
+ * Perform TEST_MODE registration flow (new user).
+ * Flow: WelcomeScreen → EmailVerification → RegisterScreen → Consent → Main App.
+ * Assumes we are currently on the WelcomeScreen.
+ * @param {WebdriverIO.Browser} driver
+ */
+async function performTestRegistration(driver) {
+  try {
+    // 1. Tap "Create Account" on Welcome screen
+    const registerBtn = await byTestId(driver, 'register-button');
+    await registerBtn.waitForExist({ timeout: 5000 });
+    await registerBtn.click();
+    await driver.pause(1000);
+
+    // 2. Email verification
+    await typeTestId(driver, 'email-input', 'test@example.com');
+    await dismissKeyboard(driver);
+
+    await tapTestId(driver, 'send-code-button');
+    await driver.pause(1500);
+
+    // Dismiss "Code sent" dialog
+    await dismissNativeDialog(driver, ['OK']);
+    await driver.pause(500);
+
+    // Enter verification code (TEST_MODE accepts 123456)
+    await typeTestId(driver, 'code-input', '123456');
+    await dismissKeyboard(driver);
+
+    await tapTestId(driver, 'verify-code-button');
+    await driver.pause(2000);
+
+    // 3. Registration form — fill required pickers
+    // State (Berlin)
+    await selectPickerOption(driver, 'state-picker', 'BE');
+
+    // Hospital ("Other" — pinned option, visible without typing min chars)
+    await selectPickerOption(driver, 'hospital-picker', 'other');
+
+    // Profession (Physician)
+    await selectPickerOption(driver, 'profession-picker', 'physician');
+
+    // Seniority (Assistenzarzt — appears after profession is selected)
+    await selectPickerOption(driver, 'seniority-picker', 'assistenzarzt');
+
+    // 4. Scroll down to register button if needed, then tap
+    // The register button may be below the fold after all pickers
+    if (driver.isAndroid) {
+      try {
+        const regBtn = await byTestId(driver, 'register-button');
+        const displayed = await regBtn.isDisplayed();
+        if (!displayed) {
+          // Scroll down to reveal button
+          const { width, height } = await driver.getWindowSize();
+          await driver.action('pointer', { parameters: { pointerType: 'touch' } })
+            .move({ x: Math.round(width / 2), y: Math.round(height * 0.7) })
+            .down()
+            .move({ x: Math.round(width / 2), y: Math.round(height * 0.3), duration: 300 })
+            .up()
+            .perform();
+          await driver.pause(500);
+        }
+      } catch { /* scroll attempt, continue to tap */ }
+    }
+
+    await tapTestId(driver, 'register-button');
+    await driver.pause(1500);
+
+    // 5. Accept GDPR consent (ConsentBottomSheet)
+    // Uses RBSheet — on Android, UiAutomator2 can see Modal content.
+    // On iOS, XCUITest may not — fallback to text-based tapping.
+    try {
+      await tapTestId(driver, 'consent-checkbox', 8000);
+      await driver.pause(300);
+      await tapTestId(driver, 'consent-accept-button');
+    } catch (e) {
+      // Fallback: try tapping by text (works when Modal elements are aggregated)
+      console.log('Consent testID tap failed, trying text fallback:', e.message);
+      for (const text of ['I agree', 'Ich stimme zu', 'I Agree & Continue', 'Akzeptieren & Fortfahren']) {
+        try {
+          const checkbox = await byText(driver, text);
+          if (await checkbox.isExisting()) {
+            await checkbox.click();
+            await driver.pause(500);
+            break;
+          }
+        } catch { /* try next */ }
+      }
+    }
+    await driver.pause(3000);
+
+    // 6. Dismiss any permission dialogs after registration
+    await dismissPermissionDialogs(driver);
+  } catch (e) {
+    console.log('performTestRegistration failed:', e.message);
+    throw e;
+  }
+}
+
+/**
  * Tab bar testID and text mapping
  */
 const tabConfig = {
@@ -529,15 +648,58 @@ async function ensureAuthenticated(driver) {
     return;
   }
 
-  console.log('User not authenticated, performing TEST_MODE login...');
-  await performTestLogin(driver);
+  console.log('User not authenticated, attempting TEST_MODE login...');
 
-  // Verify login succeeded
-  const nowAuthenticated = await isAuthenticated(driver);
-  if (!nowAuthenticated) {
-    throw new Error('Failed to authenticate - tab bar not visible after login');
+  // Try login first (works for existing/returning users)
+  try {
+    await performTestLogin(driver);
+    await driver.pause(1000);
+
+    const loginWorked = await isAuthenticated(driver);
+    if (loginWorked) {
+      console.log('TEST_MODE login successful');
+      return;
+    }
+  } catch (e) {
+    console.log('Login attempt failed:', e.message);
   }
-  console.log('TEST_MODE login successful');
+
+  // Login didn't work — dismiss any error dialogs
+  console.log('Login failed, falling back to registration...');
+  await dismissSystemDialogs(driver);
+  await driver.pause(500);
+
+  // Navigate back to Welcome screen so we can start registration
+  for (let i = 0; i < 3; i++) {
+    const hasRegister = await existsTestId(driver, 'register-button');
+    if (hasRegister) break;
+    if (driver.isAndroid) {
+      try { await driver.back(); } catch { break; }
+    } else {
+      // iOS: tap back button area
+      try {
+        await driver.action('pointer', { parameters: { pointerType: 'touch' } })
+          .move({ x: 40, y: 65 }).down().up().perform();
+      } catch { break; }
+    }
+    await driver.pause(500);
+  }
+
+  // Try registration
+  try {
+    await performTestRegistration(driver);
+    await driver.pause(1000);
+
+    const regWorked = await isAuthenticated(driver);
+    if (regWorked) {
+      console.log('TEST_MODE registration successful');
+      return;
+    }
+  } catch (e) {
+    console.log('Registration attempt failed:', e.message);
+  }
+
+  throw new Error('Failed to authenticate - neither login nor registration succeeded');
 }
 
 /**
@@ -723,7 +885,10 @@ module.exports = {
   dismissPermissionDialogs,
   dismissSystemDialogs,
   waitForTestIdWithRetry,
+  selectPickerOption,
   isAuthenticated,
+  performTestLogin,
+  performTestRegistration,
   ensureAuthenticated,
   navigateToTab,
   screenshot,

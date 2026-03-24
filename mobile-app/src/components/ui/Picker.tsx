@@ -222,6 +222,7 @@ export function Picker({
         <ScrollView
           nestedScrollEnabled={true}
           keyboardShouldPersistTaps="handled"
+          accessible={false}
         >
           {searchMinChars > 0 && !meetsMinChars && searchHint ? (
             <View style={styles.emptyContainer}>
