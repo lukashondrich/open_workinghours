@@ -13,9 +13,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  TouchableOpacity,
 } from 'react-native';
-import { ChevronDown, ChevronUp } from 'lucide-react-native';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/theme';
 import { Button, Picker } from '@/components/ui';
 import type { PickerOption } from '@/components/ui';
@@ -34,8 +32,9 @@ import {
   SENIORITY_BY_PROFESSION,
   DEPARTMENT_GROUPS,
   GERMAN_STATES,
+  getHospitalsByState,
 } from '@/lib/taxonomy';
-import type { Profession, Seniority, DepartmentGroup } from '@/lib/taxonomy';
+import type { Profession, Seniority, DepartmentGroup, HospitalEntry } from '@/lib/taxonomy';
 
 interface RegisterScreenProps {
   email: string;
@@ -46,16 +45,22 @@ export default function RegisterScreen({ email, onLoginPress }: RegisterScreenPr
   const { signIn } = useAuth();
 
   // Required fields
+  const [stateCode, setStateCode] = useState<string | null>(null);
+  const [hospitalValue, setHospitalValue] = useState<string | null>(null); // hospital id as string, or 'other'
   const [profession, setProfession] = useState<Profession | null>(null);
   const [seniority, setSeniority] = useState<Seniority | null>(null);
-  const [stateCode, setStateCode] = useState<string | null>(null);
 
-  // Optional fields (collapsed by default)
-  const [showOptional, setShowOptional] = useState(false);
+  // Optional fields
   const [departmentGroup, setDepartmentGroup] = useState<DepartmentGroup | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [showConsent, setShowConsent] = useState(false);
+
+  // When state changes, reset hospital selection
+  const handleStateChange = useCallback((value: string) => {
+    setStateCode(value);
+    setHospitalValue(null);
+  }, []);
 
   // When profession changes, reset seniority
   const handleProfessionChange = useCallback((value: string) => {
@@ -81,6 +86,23 @@ export default function RegisterScreen({ email, onLoginPress }: RegisterScreenPr
     }));
   }, []);
 
+  // Build hospital options (filtered by selected state)
+  const hospitalOptions: PickerOption[] = useMemo(() => {
+    if (!stateCode) return [];
+    const hospitals = getHospitalsByState(stateCode);
+    const options: PickerOption[] = hospitals.map((h) => ({
+      value: String(h.id),
+      label: h.name,
+      subtitle: h.city,
+    }));
+    options.push({
+      value: 'other',
+      label: t('auth.register.hospitalOther'),
+      pinned: true,
+    });
+    return options;
+  }, [stateCode]);
+
   // Build department group options
   const departmentOptions: PickerOption[] = useMemo(() => {
     const lang = t('_locale') === 'de' ? 'labelDe' : 'labelEn';
@@ -100,16 +122,20 @@ export default function RegisterScreen({ email, onLoginPress }: RegisterScreenPr
   }, []);
 
   const validateForm = (): boolean => {
+    if (!stateCode) {
+      Alert.alert(t('auth.register.stateRequired'), t('auth.register.stateRequiredMessage'));
+      return false;
+    }
+    if (!hospitalValue) {
+      Alert.alert(t('auth.register.hospitalRequired'), t('auth.register.hospitalRequiredMessage'));
+      return false;
+    }
     if (!profession) {
       Alert.alert(t('auth.register.professionRequired'), t('auth.register.professionRequiredMessage'));
       return false;
     }
     if (!seniority) {
       Alert.alert(t('auth.register.seniorityRequired'), t('auth.register.seniorityRequiredMessage'));
-      return false;
-    }
-    if (!stateCode) {
-      Alert.alert(t('auth.register.stateRequired'), t('auth.register.stateRequiredMessage'));
       return false;
     }
     return true;
@@ -130,6 +156,11 @@ export default function RegisterScreen({ email, onLoginPress }: RegisterScreenPr
       const seniorityLabel = seniority || 'not_specified';
       const departmentLabel = departmentGroup || 'not_specified';
 
+      // Resolve hospitalRefId: numeric id if a real hospital was picked, undefined for "other"
+      const hospitalRefId = hospitalValue && hospitalValue !== 'other'
+        ? parseInt(hospitalValue, 10)
+        : undefined;
+
       const result = await AuthService.register({
         email,
         // Legacy fields (backward compat with old backend)
@@ -141,6 +172,7 @@ export default function RegisterScreen({ email, onLoginPress }: RegisterScreenPr
         profession: profession || undefined,
         seniority: seniority || undefined,
         departmentGroup: departmentGroup || undefined,
+        hospitalRefId,
         // GDPR consent
         termsVersion: CURRENT_TERMS_VERSION,
         privacyVersion: CURRENT_PRIVACY_VERSION,
@@ -175,8 +207,29 @@ export default function RegisterScreen({ email, onLoginPress }: RegisterScreenPr
 
           <Text style={styles.emailLabel}>{t('auth.register.email', { email })}</Text>
 
-          {/* Required section */}
-          <Text style={styles.sectionLabel}>{t('auth.register.requiredSection')}</Text>
+          <Picker
+            label={t('auth.register.stateLabel')}
+            value={stateCode}
+            options={stateOptions}
+            onSelect={handleStateChange}
+            placeholder={t('auth.register.statePlaceholder')}
+            testID="state-picker"
+          />
+
+          {stateCode && (
+            <Picker
+              label={t('auth.register.hospitalLabel')}
+              value={hospitalValue}
+              options={hospitalOptions}
+              onSelect={setHospitalValue}
+              placeholder={t('auth.register.hospitalPlaceholder')}
+              searchable
+              searchPlaceholder={t('auth.register.hospitalPlaceholder')}
+              searchMinChars={2}
+              searchHint={t('auth.register.hospitalSearchHint')}
+              testID="hospital-picker"
+            />
+          )}
 
           <Picker
             label={t('auth.register.professionLabel')}
@@ -199,45 +252,13 @@ export default function RegisterScreen({ email, onLoginPress }: RegisterScreenPr
           )}
 
           <Picker
-            label={t('auth.register.stateLabel')}
-            value={stateCode}
-            options={stateOptions}
-            onSelect={setStateCode}
-            placeholder={t('auth.register.statePlaceholder')}
-            testID="state-picker"
+            label={t('auth.register.departmentLabel')}
+            value={departmentGroup}
+            options={departmentOptions}
+            onSelect={(v) => setDepartmentGroup(v as DepartmentGroup)}
+            placeholder={t('auth.register.departmentPlaceholder')}
+            testID="department-picker"
           />
-
-          {/* Optional section */}
-          <TouchableOpacity
-            testID="optional-section-toggle"
-            accessible={true}
-            accessibilityRole="button"
-            onPress={() => setShowOptional(!showOptional)}
-            style={styles.optionalToggle}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.optionalToggleText}>
-              {t('auth.register.optionalSection')}
-            </Text>
-            {showOptional ? (
-              <ChevronUp size={18} color={colors.text.secondary} />
-            ) : (
-              <ChevronDown size={18} color={colors.text.secondary} />
-            )}
-          </TouchableOpacity>
-
-          {showOptional && (
-            <View accessible={false} collapsable={false}>
-              <Picker
-                label={t('auth.register.departmentLabel')}
-                value={departmentGroup}
-                options={departmentOptions}
-                onSelect={(v) => setDepartmentGroup(v as DepartmentGroup)}
-                placeholder={t('auth.register.departmentPlaceholder')}
-                testID="department-picker"
-              />
-            </View>
-          )}
 
           <Button
             onPress={handleCreateAccountPress}
@@ -306,27 +327,6 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     color: colors.text.tertiary,
     marginBottom: spacing.xxl,
-  },
-  sectionLabel: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
-    color: colors.text.secondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: spacing.md,
-  },
-  optionalToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.md,
-    marginBottom: spacing.md,
-    gap: spacing.xs,
-  },
-  optionalToggleText: {
-    fontSize: fontSize.sm,
-    color: colors.text.secondary,
-    fontWeight: fontWeight.medium,
   },
   registerButton: {
     marginTop: spacing.md,

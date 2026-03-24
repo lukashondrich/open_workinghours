@@ -22,6 +22,7 @@ import {
   SENIORITY_BY_PROFESSION,
   DEPARTMENT_GROUPS,
   GERMAN_STATES,
+  getHospitalsByState,
 } from '@/lib/taxonomy';
 import type { Profession, Seniority, DepartmentGroup } from '@/lib/taxonomy';
 
@@ -29,11 +30,19 @@ export default function ProfileScreen() {
   const { state, signIn } = useAuth();
   const user = state.user;
 
+  const [stateCode, setStateCode] = useState<string | null>(user?.stateCode || null);
+  const [hospitalValue, setHospitalValue] = useState<string | null>(
+    user?.hospitalRefId ? String(user.hospitalRefId) : null,
+  );
   const [profession, setProfession] = useState<string | null>(user?.profession || null);
   const [seniority, setSeniority] = useState<string | null>(user?.seniority || null);
-  const [stateCode, setStateCode] = useState<string | null>(user?.stateCode || null);
   const [departmentGroup, setDepartmentGroup] = useState<string | null>(user?.departmentGroup || null);
   const [saving, setSaving] = useState(false);
+
+  const handleStateChange = useCallback((value: string) => {
+    setStateCode(value);
+    setHospitalValue(null);
+  }, []);
 
   const handleProfessionChange = useCallback((value: string) => {
     setProfession(value);
@@ -59,6 +68,22 @@ export default function ProfileScreen() {
     }));
   }, []);
 
+  const hospitalOptions: PickerOption[] = useMemo(() => {
+    if (!stateCode) return [];
+    const hospitals = getHospitalsByState(stateCode);
+    const options: PickerOption[] = hospitals.map((h) => ({
+      value: String(h.id),
+      label: h.name,
+      subtitle: h.city,
+    }));
+    options.push({
+      value: 'other',
+      label: t('auth.register.hospitalOther'),
+      pinned: true,
+    });
+    return options;
+  }, [stateCode]);
+
   const departmentOptions: PickerOption[] = useMemo(() => {
     const lang = t('_locale') === 'de' ? 'labelDe' : 'labelEn';
     return DEPARTMENT_GROUPS.map((d) => ({
@@ -77,26 +102,33 @@ export default function ProfileScreen() {
 
   const hasChanges = useMemo(() => {
     if (!user) return false;
+    const currentHospitalValue = user.hospitalRefId ? String(user.hospitalRefId) : null;
     return (
+      stateCode !== (user.stateCode || null) ||
+      hospitalValue !== currentHospitalValue ||
       profession !== (user.profession || null) ||
       seniority !== (user.seniority || null) ||
-      stateCode !== (user.stateCode || null) ||
       departmentGroup !== (user.departmentGroup || null)
     );
-  }, [user, profession, seniority, stateCode, departmentGroup]);
+  }, [user, stateCode, hospitalValue, profession, seniority, departmentGroup]);
 
   const handleSave = async () => {
     if (!state.token || !user) return;
 
     try {
       setSaving(true);
+      const hospitalRefId = hospitalValue && hospitalValue !== 'other'
+        ? parseInt(hospitalValue, 10)
+        : undefined;
+
       const updatedUser = await AuthService.updateProfile(
         state.token,
         user.email,
         {
+          stateCode: stateCode || undefined,
+          hospitalRefId,
           profession: profession || undefined,
           seniority: seniority || undefined,
-          stateCode: stateCode || undefined,
           departmentGroup: departmentGroup || undefined,
         },
       );
@@ -121,6 +153,30 @@ export default function ProfileScreen() {
       <Text style={styles.sectionLabel}>{t('auth.profile.profileSection')}</Text>
 
       <Picker
+        label={t('auth.register.stateLabel')}
+        value={stateCode}
+        options={stateOptions}
+        onSelect={handleStateChange}
+        placeholder={t('auth.register.statePlaceholder')}
+        testID="profile-state-picker"
+      />
+
+      {stateCode && (
+        <Picker
+          label={t('auth.register.hospitalLabel')}
+          value={hospitalValue}
+          options={hospitalOptions}
+          onSelect={setHospitalValue}
+          placeholder={t('auth.register.hospitalPlaceholder')}
+          searchable
+          searchPlaceholder={t('auth.register.hospitalPlaceholder')}
+          searchMinChars={2}
+          searchHint={t('auth.register.hospitalSearchHint')}
+          testID="profile-hospital-picker"
+        />
+      )}
+
+      <Picker
         label={t('auth.register.professionLabel')}
         value={profession}
         options={professionOptions}
@@ -139,15 +195,6 @@ export default function ProfileScreen() {
           testID="profile-seniority-picker"
         />
       )}
-
-      <Picker
-        label={t('auth.register.stateLabel')}
-        value={stateCode}
-        options={stateOptions}
-        onSelect={setStateCode}
-        placeholder={t('auth.register.statePlaceholder')}
-        testID="profile-state-picker"
-      />
 
       <Picker
         label={t('auth.register.departmentLabel')}

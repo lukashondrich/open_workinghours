@@ -239,9 +239,13 @@ export const de = {
       statePlaceholder: 'Bundesland auswählen',
       departmentLabel: 'Abteilung',
       departmentPlaceholder: 'Abteilung auswählen (optional)',
+      hospitalLabel: 'Krankenhaus',
+      hospitalPlaceholder: 'Krankenhaus suchen...',
+      hospitalOther: 'Sonstige',
+      hospitalSearchHint: 'Mindestens 2 Zeichen eingeben',
+      hospitalRequired: 'Krankenhaus erforderlich',
+      hospitalRequiredMessage: "Bitte wählen Sie Ihr Krankenhaus oder 'Sonstige'",
       // Legacy labels
-      hospitalLabel: 'Krankenhaus-ID',
-      hospitalPlaceholder: 'z.B. Charite-Berlin, UKE-Hamburg',
       specialtyLabel: 'Fachgebiet',
       specialtyPlaceholder: 'z.B. Innere Medizin, Chirurgie, Pädiatrie',
       roleLabel: 'Berufsstufe',
@@ -257,8 +261,7 @@ export const de = {
       seniorityRequiredMessage: 'Bitte wählen Sie Ihre Berufsstufe',
       stateRequired: 'Bundesland erforderlich',
       stateRequiredMessage: 'Bitte wählen Sie Ihr Bundesland',
-      hospitalRequired: 'Krankenhaus erforderlich',
-      hospitalRequiredMessage: 'Bitte geben Sie Ihre Krankenhaus-ID ein',
+      // (legacy hospitalRequired/Message moved above)
       specialtyRequired: 'Fachgebiet erforderlich',
       specialtyRequiredMessage: 'Bitte geben Sie Ihr medizinisches Fachgebiet ein',
       roleRequired: 'Berufsstufe erforderlich',
@@ -351,6 +354,7 @@ export const de = {
 
   // Settings screen
   settings: {
+    profile: 'Mein Profil',
     workLocations: 'Arbeitsorte',
     notifications: 'Benachrichtigungen',
     permissions: 'Berechtigungen',

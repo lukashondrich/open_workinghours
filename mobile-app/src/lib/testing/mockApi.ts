@@ -79,6 +79,7 @@ export const mockResponses = {
     profession: 'physician',
     seniority: 'assistenzarzt',
     departmentGroup: 'innere_medizin',
+    hospitalRefId: 6, // Sana Klinik München (BY)
     createdAt: new Date().toISOString(),
     termsAcceptedVersion: '1.0.0',
     privacyAcceptedVersion: '1.0.0',

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -29,6 +29,8 @@ import { getDatabase } from '@/modules/geofencing/services/Database';
 import { getGeofenceService } from '@/modules/geofencing/services/GeofenceService';
 import { searchLocations, GeocodingResult, isGeocodingAvailable, SearchOptions } from '@/modules/geofencing/services/GeocodingService';
 import type { UserLocation } from '@/modules/geofencing/types';
+import { useAuth } from '@/lib/auth/auth-context';
+import { getHospitalById } from '@/lib/taxonomy';
 
 type SetupScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Setup'>;
 type SetupScreenRouteProp = RouteProp<RootStackParamList, 'Setup'>;
@@ -84,26 +86,45 @@ export default function SetupScreen({ navigation, route }: Props) {
   const mapRef = useRef<MapView>(null);
   const searchInputRef = useRef<TextInput>(null);
   const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  const { state: authState } = useAuth();
 
   // Edit mode and view-only mode
   const editLocation = route.params?.editLocation;
   const viewOnly = route.params?.viewOnly ?? false;
   const isEditMode = !!editLocation && !viewOnly;
 
-  // Step state - start at step 2 in edit/view mode (skip search)
-  const [step, setStep] = useState<Step>(editLocation ? 2 : 1);
+  // Hospital pre-population: if new location + user has hospitalRefId, pre-place pin
+  const hospitalPrePopulation = useMemo(() => {
+    if (editLocation) return null; // Don't override edit mode
+    const refId = authState.user?.hospitalRefId;
+    if (!refId) return null;
+    const hospital = getHospitalById(refId);
+    if (!hospital) return null;
+    return hospital;
+  }, [editLocation, authState.user?.hospitalRefId]);
 
-  // Location data - pre-populate in edit mode
+  // Effective initial location: editLocation or hospital pre-population
+  const initialLocation = editLocation || (hospitalPrePopulation ? {
+    latitude: hospitalPrePopulation.lat,
+    longitude: hospitalPrePopulation.lon,
+    name: hospitalPrePopulation.name,
+    radiusMeters: 200,
+  } : null);
+
+  // Step state - start at step 2 in edit/view/pre-populated mode (skip search)
+  const [step, setStep] = useState<Step>(initialLocation ? 2 : 1);
+
+  // Location data - pre-populate in edit mode or from hospital
   const [pinCoordinate, setPinCoordinate] = useState<PinCoordinate | null>(
-    editLocation ? { latitude: editLocation.latitude, longitude: editLocation.longitude } : null
+    initialLocation ? { latitude: initialLocation.latitude, longitude: initialLocation.longitude } : null
   );
-  const [radius, setRadius] = useState(editLocation?.radiusMeters ?? 200);
-  const [name, setName] = useState(editLocation?.name ?? '');
+  const [radius, setRadius] = useState(initialLocation?.radiusMeters ?? 200);
+  const [name, setName] = useState(initialLocation?.name ?? '');
 
   // Map region (separate from pin - allows panning without moving pin)
   const [region, setRegion] = useState<Region>({
-    latitude: editLocation?.latitude ?? 37.78825,
-    longitude: editLocation?.longitude ?? -122.4324,
+    latitude: initialLocation?.latitude ?? 37.78825,
+    longitude: initialLocation?.longitude ?? -122.4324,
     latitudeDelta: 0.005,
     longitudeDelta: 0.005,
   });
@@ -115,7 +136,7 @@ export default function SetupScreen({ navigation, route }: Props) {
   const [showSearchResults, setShowSearchResults] = useState(false);
 
   // UI state
-  const [loading, setLoading] = useState(!editLocation); // Skip loading in edit/view mode
+  const [loading, setLoading] = useState(!initialLocation); // Skip loading in edit/view/pre-populated mode
   const [saving, setSaving] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const miniMapHeight = useRef(new Animated.Value(200)).current;
@@ -152,10 +173,10 @@ export default function SetupScreen({ navigation, route }: Props) {
   }, [miniMapHeight]);
 
   useEffect(() => {
-    if (!editLocation) {
+    if (!initialLocation) {
       requestPermissionsAndGetLocation();
     }
-  }, [editLocation]);
+  }, [initialLocation]);
 
   const requestPermissionsAndGetLocation = async () => {
     try {

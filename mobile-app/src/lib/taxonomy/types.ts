@@ -42,4 +42,6 @@ export interface Hospital {
   city: string;
   state: string;
   postcode: string;
+  lat: number;
+  lon: number;
 }
