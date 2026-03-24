@@ -239,9 +239,13 @@ export const en = {
       statePlaceholder: 'Select your federal state',
       departmentLabel: 'Department',
       departmentPlaceholder: 'Select your department (optional)',
+      hospitalLabel: 'Hospital',
+      hospitalPlaceholder: 'Search your hospital...',
+      hospitalOther: 'Other',
+      hospitalSearchHint: 'Type at least 2 characters to search',
+      hospitalRequired: 'Hospital required',
+      hospitalRequiredMessage: "Please select your hospital or choose 'Other'",
       // Legacy labels (kept for backward compat)
-      hospitalLabel: 'Hospital ID',
-      hospitalPlaceholder: 'e.g., Charite-Berlin, UKE-Hamburg',
       specialtyLabel: 'Specialty',
       specialtyPlaceholder: 'e.g., Internal Medicine, Surgery, Pediatrics',
       roleLabel: 'Role Level',
@@ -257,8 +261,7 @@ export const en = {
       seniorityRequiredMessage: 'Please select your seniority level',
       stateRequired: 'State required',
       stateRequiredMessage: 'Please select your federal state',
-      hospitalRequired: 'Hospital required',
-      hospitalRequiredMessage: 'Please enter your hospital ID',
+      // (legacy hospitalRequired/Message moved above)
       specialtyRequired: 'Specialty required',
       specialtyRequiredMessage: 'Please enter your medical specialty',
       roleRequired: 'Role required',
@@ -351,6 +354,7 @@ export const en = {
 
   // Settings screen
   settings: {
+    profile: 'My Profile',
     workLocations: 'Work Locations',
     notifications: 'Notifications',
     permissions: 'Permissions',

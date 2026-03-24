@@ -124,6 +124,7 @@ export class AuthService {
       mockUser.specialty = request.specialty;
       mockUser.roleLevel = request.roleLevel;
       mockUser.stateCode = request.stateCode;
+      mockUser.hospitalRefId = request.hospitalRefId;
       return {
         user: mockUser,
         token: mockResponses.authRegister.access_token,
@@ -297,6 +298,18 @@ export class AuthService {
    * PATCH /auth/me/profile
    */
   static async updateProfile(token: string, email: string, request: ProfileUpdateRequest): Promise<User> {
+    // Test mode: return mock user with updated fields
+    if (isTestMode()) {
+      console.log('[AuthService] TEST_MODE: Returning mock profile update');
+      const mockUser = mockResponses.authMe(email);
+      if (request.profession !== undefined) mockUser.profession = request.profession;
+      if (request.seniority !== undefined) mockUser.seniority = request.seniority;
+      if (request.stateCode !== undefined) mockUser.stateCode = request.stateCode;
+      if (request.departmentGroup !== undefined) mockUser.departmentGroup = request.departmentGroup;
+      if (request.hospitalRefId !== undefined) mockUser.hospitalRefId = request.hospitalRefId;
+      return mockUser;
+    }
+
     try {
       const body: Record<string, unknown> = {};
       if (request.profession !== undefined) body.profession = request.profession;
