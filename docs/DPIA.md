@@ -1,8 +1,8 @@
 # Data Protection Impact Assessment (DPIA)
 
 **Project:** Open Working Hours
-**Version:** 1.0 (Draft)
-**Date:** January 2026
+**Version:** 1.2 (Draft)
+**Date:** March 2026
 **Author:** Lukas Jonathan Hondrich
 **Status:** Draft - Pending Legal Review
 
@@ -30,7 +30,7 @@ Although the processing may not trigger mandatory DPIA requirements under Art. 3
 ### 1.3 Scope
 
 This DPIA covers:
-- The Open Working Hours mobile application (iOS)
+- The Open Working Hours mobile application (iOS and Android)
 - The backend API and database
 - The aggregation and statistics publication process
 
@@ -46,7 +46,7 @@ Out of scope:
 
 | Aspect | Description |
 |--------|-------------|
-| **What data** | Email hash, working hours (planned/actual), profile data (state, specialty, role level), anonymous user ID |
+| **What data** | Email hash, working hours (planned/actual), profile data (state, profession, seniority, department group, specialization code), hospital affiliation (optional, from named reference dataset), anonymous user ID |
 | **Whose data** | Healthcare workers in Germany who voluntarily use the app |
 | **Why** | To enable personal tracking and to generate aggregated statistics about healthcare working conditions |
 | **How** | Mobile app collects data locally; confirmed days are submitted to backend; aggregation job produces k-anonymous statistics |
@@ -69,7 +69,10 @@ Out of scope:
 │  ┌─────────────────────────────────────────────────────────────┐   │
 │  │  Transmitted to Backend                                       │   │
 │  │  • Date, planned_minutes, actual_minutes                     │   │
-│  │  • Profile: state_code, specialty, role_level                │   │
+│  │  • Profile: state_code, profession, seniority,               │   │
+│  │    department_group, specialization_code                      │   │
+│  │  • Hospital affiliation (optional): reference to named        │   │
+│  │    hospital from official dataset (~1,220 entries)            │   │
 │  └─────────────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────────────┘
                                │
@@ -101,9 +104,10 @@ Out of scope:
 | Category | Data Elements | Storage | Retention |
 |----------|---------------|---------|-----------|
 | **Authentication** | Email (transient), email hash, verification codes | Backend | Hash: until deletion; Codes: 15 min |
-| **Profile** | State code, specialty, role level | Backend | Until account deletion |
+| **Profile** | State code, profession, seniority, department group, specialization code | Backend | Until account deletion |
+| **Hospital affiliation** | Reference to named hospital (~1,220 German hospitals); optional | Backend | Until account deletion |
 | **Work Events** | Date, planned minutes, actual minutes | Backend | Until account deletion |
-| **Local Tracking** | GPS coordinates, shift templates, sick days | Device only | User-controlled |
+| **Local Tracking** | GPS coordinates, shift templates, sick days, vacation | Device only | User-controlled |
 | **Aggregates** | Group statistics with noise | Backend | Indefinite (anonymous) |
 
 ### 2.4 Legal Basis
@@ -131,10 +135,11 @@ No other purposes are pursued. Data is not used for marketing, profiling, or sol
 
 | Principle | Implementation |
 |-----------|----------------|
-| **Collect only necessary data** | No names, no employer names, no precise locations transmitted |
+| **Collect only necessary data** | No names, no precise locations transmitted. Hospital affiliation is optional and collected only to enable facility-level aggregation when privacy thresholds are met. |
 | **Local-first architecture** | GPS coordinates, sick days, schedules stay on device |
 | **Pseudonymization** | Email hashed; users identified by random UUID |
 | **Aggregation** | Individual data contributes to groups, not published individually |
+| **Closed taxonomies** | Profile fields use predefined categories (not free text), ensuring consistent grouping and reducing cell sparsity for k-anonymity |
 
 ### 3.3 Storage Limitation
 
@@ -166,20 +171,23 @@ No other purposes are pursued. Data is not used for marketing, profiling, or sol
 | R4 | Data breach exposing email hashes | Low | Medium | Low |
 | R5 | User submits inaccurate data affecting statistics | Medium | Low | Low |
 | R6 | Service provider (processor) data breach | Low | Medium | Low |
+| R7 | Re-identification from stored profile data in case of breach | Low | High | Medium |
 
 ### 4.2 Risk Analysis
 
 #### R1: Re-identification from Aggregated Statistics
 
-**Description:** An attacker uses background knowledge to identify an individual from published statistics.
+**Description:** An attacker uses background knowledge to identify an individual from published statistics. The platform supports aggregation at multiple granularity levels, including by hospital. Finer-grained aggregation increases the theoretical re-identification risk.
 
 **Existing Controls:**
 - K-anonymity (k=5): Statistics only published for groups of 5+ users
 - Cell suppression: Groups below threshold completely hidden
-- Laplace noise (ε=1.0): Statistical noise masks individual contributions
-- Limited dimensions: Only predefined groupings allowed
+- Dominance rule: Cells where one user contributes >30% are suppressed
+- Laplace noise (ε=1.0, adaptive schedule): Statistical noise masks individual contributions
+- Hospital-level statistics are only published when cell sizes meet all thresholds — not published with reduced detail
+- Publication gating: 2-week warming period, 2-week cooling-down grace
 
-**Residual Risk:** LOW - Multiple overlapping privacy protections make re-identification practically infeasible.
+**Residual Risk:** LOW — Multiple overlapping privacy protections make re-identification from published statistics practically infeasible. Hospital-level aggregation is subject to the same controls as state-level aggregation; cells that do not meet k-anonymity, dominance, or noise thresholds are fully suppressed.
 
 #### R2: Unauthorized Database Access
 
@@ -241,12 +249,28 @@ No other purposes are pursued. Data is not used for marketing, profiling, or sol
 
 **Residual Risk:** LOW - Standard processor risk, mitigated by choosing reputable EU providers.
 
+#### R7: Re-identification from Stored Profile Data
+
+**Description:** In the event of a database breach, the combination of hospital affiliation, profession, seniority, and department group could narrow down to a small number of individuals, particularly at smaller hospitals.
+
+**Existing Controls:**
+- Hospital affiliation is optional (users can decline to provide it)
+- Pseudonymous identifiers (UUID, no name stored)
+- Email hashed with secret salt (no plaintext)
+- Infrastructure-level encryption at rest (Hetzner)
+- No direct database exposure (API-only access)
+- EU data residency (Hetzner Germany)
+
+**Residual Risk:** LOW-MEDIUM — The quasi-identifier is narrower than state-level profile data alone. However, a breach would first need to overcome access controls and encryption, and the data contains no direct identifiers (no name, no plaintext email). The optional nature of hospital affiliation further limits exposure.
+
+**Planned additional control:** Application-level encryption at rest (see `project-mgmt/ticket-postgres-encryption-at-rest.md`).
+
 ### 4.3 Risk Matrix Summary
 
 | Risk Level | Count | Risks |
 |------------|-------|-------|
 | HIGH | 0 | — |
-| MEDIUM | 1 | R3 (Employer discovery) |
+| MEDIUM | 2 | R3 (Employer discovery), R7 (Stored profile re-identification) |
 | LOW | 5 | R1, R2, R4, R5, R6 |
 
 ---
@@ -260,10 +284,12 @@ No other purposes are pursued. Data is not used for marketing, profiling, or sol
 | K-anonymity (k≥5) | R1 | Implemented |
 | Differential privacy (Laplace, adaptive ε, annual cap 150) | R1 | Implemented |
 | TLS 1.3 encryption in transit | R2 | Implemented |
-| Encryption at rest | R2 | Implemented |
+| Infrastructure-level encryption at rest (Hetzner) | R2, R7 | Implemented |
+| Application-level encryption at rest | R2, R7 | Planned |
 | Salted email hashing | R4 | Implemented |
 | EU-only data storage | R2, R6 | Implemented |
 | Local-only storage for sensitive data | R2, R3 | Implemented |
+| Hospital affiliation optional | R7 | Implemented |
 
 ### 5.2 Organizational Measures
 
@@ -343,6 +369,7 @@ The Open Working Hours platform implements privacy-by-design principles and addr
 |---------|------|--------|---------|
 | 1.0 | January 2026 | L. Hondrich | Initial draft |
 | 1.1 | March 2026 | L. Hondrich | Expanded Appendix A with full DP parameter set (simulation-validated); updated DPA status to signed |
+| 1.2 | March 2026 | L. Hondrich | v2 taxonomy fields (profession, seniority, department group, specialization code); hospital affiliation as separate data category; new risk R7 (stored profile re-identification); updated R1 with hospital aggregation dimension; data minimization updated; scope expanded to iOS + Android |
 
 ---
 

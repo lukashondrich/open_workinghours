@@ -86,6 +86,11 @@ Website source files: `website/src/pages/`
   - App Privacy Policy (EN + DE)
   - Terms of Service (EN + DE)
 
+- [ ] **Bump consent version to "2026-03"**
+  - v2 taxonomy materially changes data collected (hospital affiliation, new profile fields)
+  - Update `CURRENT_TERMS_VERSION` and `CURRENT_PRIVACY_VERSION` in `consent-types.ts`
+  - Existing users will see re-consent screen on app update
+
 - [ ] **Remove "Draft" banners from policies**
   - After lawyer approval, remove yellow warning banners from website pages
 
@@ -180,6 +185,7 @@ No processors outside EU/EEA.
 | Differential privacy | Laplace mechanism with per-user annual ε budget cap of 150; adaptive schedule reduces noise calibration as budget is consumed | See `docs/dp-group-stats-accounting-model.md` for composition model |
 | Sick days | Local only, never transmitted | Avoids health data classification |
 | Email storage | Hash only, no plaintext | Pseudonymization |
+| Hospital affiliation | Optional, from named reference dataset (~1,220 German hospitals) | Enables facility-level statistics for public transparency, union advocacy, and research; optional to limit re-identification risk |
 | Backup retention | 30 days | Balance of recovery needs vs. right to erasure |
 
 ---
@@ -203,6 +209,7 @@ When engaging legal counsel, provide:
 3. Are the draft Privacy Policy and Terms sufficient for German/EU requirements?
 4. Is the DPIA adequate given we're not strictly required to have one?
 5. Any issues with retaining aggregated statistics after user deletion?
+6. Does collecting optional hospital affiliation (reference to ~1,220 named German hospitals) change the risk profile sufficiently to require additional safeguards beyond those described in the DPIA (R7)?
 
 ---
 
@@ -213,6 +220,7 @@ When engaging legal counsel, provide:
 | 2026-01-07 | Initial creation of all GDPR compliance documents |
 | 2026-01-12 | Consent flow deployed and tested; added consent withdrawal plan |
 | 2026-03-21 | Updated DP parameters to simulation-validated values (K_MIN=5, annual cap 150); updated privacy architecture with substitution neighboring relation |
+| 2026-03-25 | v2 taxonomy: hospital affiliation added to Key Decisions; lawyer question on hospital risk; consent version bump added to checklist |
 
 ---
 

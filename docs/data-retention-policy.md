@@ -21,7 +21,7 @@ This policy defines how long personal data is retained and the procedures for da
 |-----------|-----------------|---------------|------------------|
 | **User Account** | Until deletion requested | Necessary to provide service | User-initiated account deletion |
 | **Email Hash** | Until account deletion | Account integrity/deduplication | Cascades with account |
-| **Profile Data** | Until account deletion | Necessary for aggregation consent | Cascades with account |
+| **Profile Data** (state, profession, seniority, department group, specialization code, hospital affiliation) | Until account deletion | Necessary for aggregation consent | Cascades with account |
 | **Work Events** | Until account deletion | User's own records | Cascades with account |
 | **Verification Codes** | 15 minutes | Security best practice | Automatic expiry |
 
@@ -150,9 +150,10 @@ K-anonymous aggregated statistics:
 - Are retained indefinitely
 - Are not affected by individual user deletions
 - Cannot be linked back to individuals due to:
-  - Minimum group size (k ≥ 10)
-  - Statistical noise (Laplace mechanism)
+  - Minimum group size (k ≥ 5)
+  - Statistical noise (Laplace mechanism, per-user annual ε cap)
   - No individual identifiers in output
+- Include aggregations at state level and, where cell sizes permit, at facility (hospital) level
 
 ---
 
@@ -176,6 +177,7 @@ No legal holds are currently in effect.
 DELETE FROM users WHERE id = :user_id;
 # This automatically deletes:
 # - All work_events for this user (ON DELETE CASCADE)
+# - All finalized_user_weeks for this user (ON DELETE CASCADE)
 
 # Verification code cleanup (scheduled job)
 DELETE FROM verification_codes
@@ -222,6 +224,7 @@ This policy shall be reviewed:
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0 | January 2026 | L. Hondrich | Initial draft |
+| 1.1 | March 2026 | L. Hondrich | v2 taxonomy fields in profile data; k≥10→k≥5 fix; hospital aggregation dimension; finalized_user_weeks cascade; example text updated |
 
 ---
 
@@ -231,6 +234,6 @@ Standard response for deletion confirmation:
 
 > Your account and all associated personal data have been permanently deleted from our active systems. Any backup copies will be automatically removed within 30 days through our normal backup rotation process.
 >
-> Previously calculated anonymized statistics are retained, as they cannot be linked back to you (they contain only group-level information such as "surgeons in Bavaria" with no individual identifiers).
+> Previously calculated anonymized statistics are retained, as they cannot be linked back to you (they contain only group-level information such as "physicians in Internal Medicine in Bavaria" with no individual identifiers).
 >
 > Thank you for using Open Working Hours.

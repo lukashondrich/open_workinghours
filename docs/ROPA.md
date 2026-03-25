@@ -34,7 +34,7 @@
 | **Purpose** | Create and manage user accounts for the mobile application |
 | **Legal Basis** | Art. 6(1)(b) - Contract |
 | **Categories of Data Subjects** | Healthcare workers using the app |
-| **Categories of Personal Data** | Email hash, user ID, profile data (state, specialty, role level), account creation date |
+| **Categories of Personal Data** | Email hash, user ID, profile data (state, profession, seniority, department group, specialization code), hospital affiliation (optional, reference to named hospital), account creation date |
 | **Recipients** | Hetzner (hosting) |
 | **Third Country Transfers** | None |
 | **Retention Period** | Until user deletes account |
@@ -82,11 +82,11 @@
 | **Purpose** | Generate anonymized statistics about healthcare working conditions |
 | **Legal Basis** | Art. 6(1)(a) - Consent |
 | **Categories of Data Subjects** | App users who have consented via Terms acceptance |
-| **Categories of Personal Data** | Derived from work events: state, specialty, role level, aggregated hours |
+| **Categories of Personal Data** | Derived from work events: state, profession, seniority, department group, hospital affiliation, aggregated hours |
 | **Recipients** | Public (anonymized statistics only) |
 | **Third Country Transfers** | None |
 | **Retention Period** | Indefinite (output is anonymous, not personal data) |
-| **Technical/Organizational Measures** | K-anonymity (k≥10), differential privacy (ε=1.0), no individual data in output |
+| **Technical/Organizational Measures** | K-anonymity (k≥5), differential privacy (ε=1.0), no individual data in output |
 
 ---
 
@@ -133,7 +133,7 @@
 | **Processing Activities** | Server hosting, database storage |
 | **Data Processed** | All backend data (user accounts, work events) |
 | **Location** | Germany |
-| **DPA Status** | Pending signature |
+| **DPA Status** | Signed 2026-01-13 |
 | **DPA Reference** | Hetzner standard AVV |
 
 ### 3.2 Brevo (Sendinblue)
@@ -145,7 +145,7 @@
 | **Processing Activities** | Email delivery for verification codes |
 | **Data Processed** | Email addresses (transient), verification codes |
 | **Location** | EU |
-| **DPA Status** | Pending signature |
+| **DPA Status** | Signed (part of ToS) |
 | **DPA Reference** | Brevo standard DPA |
 
 ---
@@ -157,7 +157,7 @@
 | Measure | Implementation |
 |---------|----------------|
 | Encryption in transit | TLS 1.3 for all API communications |
-| Encryption at rest | Database encryption on Hetzner |
+| Encryption at rest | Infrastructure-level encryption at rest (Hetzner) |
 | Email hashing | SHA-256 with secret salt |
 
 ### 4.2 Access Control
@@ -183,7 +183,7 @@
 |---------|----------------|
 | Local-only data | GPS coordinates, sick days, schedules |
 | Transmitted data | Only confirmed hours and profile |
-| No collection | Names, employers, device IDs, IP addresses |
+| No collection | Names, device IDs, IP addresses. Hospital affiliation is optional. |
 
 ### 4.5 Backup and Recovery
 
@@ -214,6 +214,7 @@
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0 | January 2026 | L. Hondrich | Initial draft |
+| 1.1 | March 2026 | L. Hondrich | v2 taxonomy fields; hospital affiliation; k≥10→k≥5 fix; DPA status updated; encryption wording |
 
 ---
 
