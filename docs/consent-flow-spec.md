@@ -97,7 +97,7 @@ The consent screen must appear:
 │   Key points:                           │
 │   • Your working hours contribute to    │
 │     anonymized statistics (groups of    │
-│     10+ only)                           │
+│     5+ only)                            │
 │   • GPS coordinates stay on your device │
 │   • You can delete your account and     │
 │     all data anytime                    │
@@ -154,7 +154,7 @@ The consent screen must appear:
 │   Wichtige Punkte:                      │
 │   • Deine Arbeitszeiten fließen in      │
 │     anonymisierte Statistiken ein       │
-│     (nur Gruppen ab 10 Personen)        │
+│     (nur Gruppen ab 5 Personen)         │
 │   • GPS-Koordinaten bleiben auf         │
 │     deinem Gerät                        │
 │   • Du kannst dein Konto und alle       │
@@ -245,7 +245,7 @@ function getInitialRoute(authState: AuthState): string {
 }
 
 function needsTermsUpdate(userVersion: string | null): boolean {
-  const CURRENT_TERMS_VERSION = '2026-01';
+  const CURRENT_TERMS_VERSION = '2026-03'; // Bumped from '2026-01' for v2 taxonomy (hospital affiliation, new profile fields)
   return userVersion !== CURRENT_TERMS_VERSION;
 }
 ```
@@ -345,7 +345,7 @@ consent: {
   },
   keyPoints: {
     title: 'Key points:',
-    point1: 'Your working hours contribute to anonymized statistics (groups of 10+ only)',
+    point1: 'Your working hours contribute to anonymized statistics (groups of 5+ only)',
     point2: 'GPS coordinates stay on your device',
     point3: 'You can delete your account and all data anytime',
   },
@@ -370,7 +370,7 @@ consent: {
   },
   keyPoints: {
     title: 'Wichtige Punkte:',
-    point1: 'Deine Arbeitszeiten fließen in anonymisierte Statistiken ein (nur Gruppen ab 10 Personen)',
+    point1: 'Deine Arbeitszeiten fließen in anonymisierte Statistiken ein (nur Gruppen ab 5 Personen)',
     point2: 'GPS-Koordinaten bleiben auf deinem Gerät',
     point3: 'Du kannst dein Konto und alle Daten jederzeit löschen',
   },
@@ -390,6 +390,8 @@ When Terms or Privacy Policy are updated:
 2. On app launch, check if user's consent version matches current
 3. If mismatch, show consent screen again
 4. User must re-accept before continuing
+
+**v2 taxonomy update (March 2026):** The consent version must be bumped from `"2026-01"` to `"2026-03"` before shipping the v2 taxonomy. The data collected has materially changed (hospital affiliation, new profile fields). Users with `termsVersion: "2026-01"` will see the consent screen again on app update. Update both `CURRENT_TERMS_VERSION` and `CURRENT_PRIVACY_VERSION` in `mobile-app/src/lib/auth/consent-types.ts`.
 
 ---
 

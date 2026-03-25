@@ -19,7 +19,7 @@
 ## 2. Key Concepts
 
 **Personal data**  
-Any information relating to an identified or identifiable natural person (e.g. name, email, combination of hospital + rare specialty + small team).
+Any information relating to an identified or identifiable natural person (e.g. name, email, combination of hospital affiliation + department + seniority at a small facility).
 
 **Pseudonymous data**  
 Data where direct identifiers are removed, but a person can still be identified via a key (e.g. internal `user_id`). Pseudonymous data **is still personal data under GDPR**.
@@ -50,19 +50,20 @@ Run the app, store per-user working-time events, and support user rights (incl. 
 
 **Data examples:**
 
-- `users` table  
-  - `user_id` (pseudonymous UUID, internal only)  
-  - `hospital_id`  
-  - `specialty` (e.g. surgery, radiology, anaesthesiology)  
-  - `role_level` (assistant, specialist, senior, nurse, etc.)  
-  - `region` / `state` / `country`  
-  - optional: limited contact info (if needed for accounts/support)
+- `users` table
+  - `user_id` (pseudonymous UUID, internal only)
+  - `email_hash` (SHA-256 with secret salt, no plaintext stored)
+  - `state_code` (required, one of 16 Bundesländer)
+  - `profession` (physician or nurse)
+  - `seniority` (closed enum per profession)
+  - `department_group` (optional, one of 10 broad groups)
+  - `specialization_code` (optional, physician specialization)
+  - `hospital_ref_id` (optional, reference to named hospital from official dataset of ~1,220 German hospitals)
 
-- `work_events` table  
-  - `event_id`  
-  - `user_id`  
-  - `start_time`, `end_time`  
-  - derived metrics: `hours_worked`, `overtime_hours`, etc.
+- `work_events` table
+  - `event_id`
+  - `user_id`
+  - `date`, `planned_minutes`, `actual_minutes`
 
 **Properties:**
 
@@ -82,21 +83,23 @@ Provide **aggregated, privacy-preserving statistics** for unions, hospitals, the
 
 **Data examples (no user IDs):**
 
-- `stats_by_state_specialty`  
-  - `country_code`  
-  - `state_code`  
-  - `specialty`  
-  - `role_level`  
-  - `period_start`, `period_end`  
-  - `n_users` (count of distinct users)  
-  - `avg_overtime_hours_noised`  
+- `stats_by_state_specialty`
+  - `country_code`
+  - `state_code`
+  - `department_group`
+  - `period_start`, `period_end`
+  - `n_users` (count of distinct users)
+  - `avg_planned_hours_noised`, `avg_actual_hours_noised`
+  - `planned_ci_half`, `actual_ci_half`, `overtime_ci_half` (90% confidence intervals)
+  - `n_display` (rounded user count)
 
 **Aggregation job (conceptual):**
 
 1. Read from `users` + `work_events`.
-2. Group by allowed dimensions, e.g.  
-   - `state_code × specialty × role_level × quarter`  
-   - `hospital_id × role_group × quarter` (without specialty)
+2. Group by release family dimensions:
+   - `state_code × department_group × period`
+   - `hospital_ref_id × profession × period`
+   - Cells are published when privacy thresholds are met (k≥5, dominance rule, warming period).
 3. Compute:
    - count of distinct users (`n_users`)
    - averages / totals (e.g. overtime)
@@ -139,7 +142,7 @@ This fulfils erasure for **personal / pseudonymous data**.
 
 This must be clearly explained in the privacy notice, e.g.:
 
-> “If you delete your account, we delete your user-level data. We retain only anonymised, aggregated statistics (e.g. ‘surgeons in Bavaria’), which cannot reasonably be linked back to you and are not subject to erasure.”
+> “If you delete your account, we delete your user-level data. We retain only anonymised, aggregated statistics (e.g. ‘physicians in Internal Medicine in Bavaria’), which cannot reasonably be linked back to you and are not subject to erasure.”
 
 ---
 
@@ -150,7 +153,7 @@ This must be clearly explained in the privacy notice, e.g.:
   - Principle of least privilege for admins and developers.
 - **Encryption**
   - In transit (HTTPS/TLS).
-  - At rest for operational databases and backups.
+  - Infrastructure-level encryption at rest (Hetzner). Application-level encryption at rest planned.
 - **Logging & monitoring**
   - Access logging for sensitive systems.
   - Rate limiting, anomaly detection for APIs.
@@ -179,7 +182,7 @@ These values are implemented and deployed. Validated by simulation (`docs/dp-gro
 | Dominance threshold | 30% top-1 (clipped actual) | Safety net; operationally redundant at K_MIN≥5 |
 | Temporal activation | 2 consecutive eligible periods | Reduces threshold-crossing leakage |
 | Temporal deactivation grace | 2 periods | Prevents abrupt disappearance leaking info |
-| Primary release family (v1) | state × specialty | Single flat family of disjoint cells |
+| Release families | state × department_group, hospital × profession | Cells are published when privacy thresholds are met (k≥5, dominance rule, warming period) |
 | Aggregation cadence | weekly (default), biweekly, monthly | Configurable via `period_type`; multi-week uses per-user mean of clipped weekly values |
 | Adaptive ε | `min(config_ε, (cap − spent_ytd) / remaining)` | Never exceeds config default or annual cap |
 | Confidence intervals | 90% Laplace CI per published cell | `ci_half = (sensitivity / ε) × ln(1/α) / n_display` |
@@ -237,23 +240,23 @@ CI values are null for suppressed cells.
 
 - Formal approval of anonymisation claim for the Analytics Layer
 - Final wording of privacy policy and consent text
-- Confirmation that working values meet GDPR requirements
+- Confirmation that DP parameters meet GDPR requirements
+- Assessment of hospital affiliation risk profile (DPIA R7)
 
 ---
 
-## 7. v2 Roadmap (Deferred from v1)
+## 7. Deferred Items
 
-These items are intentionally out of v1 scope. The architecture supports them; they require product decisions or additional implementation.
+The following items are supported by the architecture but deferred. They require product decisions or additional implementation.
 
 | Item | Spec reference | Why deferred |
 |------|---------------|--------------|
 | Per-family cadence config knob | Accounting-model §5.3 | Infrastructure ready; cadence selection is a product decision |
-| Multiple release families | Accounting-model §10 | v1 has one family (state × specialty); data model supports more |
-| Per-family ε allocation formulas | Accounting-model §3.3 | Admin-set allocation sufficient for v1 |
+| Per-family ε allocation formulas | Accounting-model §3.3 | Admin-set allocation sufficient for now |
 | Tighter composition (zCDP/PLD) | Accounting-model §10 | ~10-15% noise improvement, not blocking |
-| Consistency post-processing | Requirements-v2 §6 | Only needed with multiple families |
-| Public counts or count bands | Accounting-model §10 | Counts are internal in v1 |
-| DP partition selection | Requirements-v2 §12 | Fixed universe sufficient for v1 |
+| Consistency post-processing | Requirements-v2 §6 | Only needed when multiple families produce overlapping cells |
+| Public counts or count bands | Accounting-model §10 | Counts are internal for now |
+| DP partition selection | Requirements-v2 §12 | Fixed universe sufficient for now |
 | Backfills | Requirements-v2 §11.1 | Late-finalized weeks enter future windows only |
 
 ---

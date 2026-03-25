@@ -6,7 +6,7 @@ import LayoutDE from '../../layouts/LayoutDE.astro';
   <div class="max-w-3xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
     <header class="mb-8">
       <h1 class="text-stone-900">Datenschutzerklärung für die Open Working Hours App</h1>
-      <p class="text-stone-500 text-sm mt-2">Stand: Januar 2026</p>
+      <p class="text-stone-500 text-sm mt-2">Stand: März 2026</p>
       <p class="text-stone-500 text-sm mt-1">
         <a href="/app-privacy-policy" class="text-teal-600 hover:text-teal-700">English Version</a>
       </p>
@@ -71,14 +71,14 @@ import LayoutDE from '../../layouts/LayoutDE.astro';
         <ul class="mt-2 space-y-1">
           <li><strong>E-Mail-Hash:</strong> Ein kryptografischer Einweg-Hash Ihrer E-Mail-Adresse (die ursprüngliche E-Mail wird nicht gespeichert)</li>
           <li><strong>Bestätigte Arbeitszeiten:</strong> Datum, geplante Minuten, tatsächlich gearbeitete Minuten</li>
-          <li><strong>Profilinformationen:</strong> Bundesland, Fachrichtung, Tätigkeitsniveau (z.B. Assistenzarzt, Facharzt)</li>
+          <li><strong>Profilinformationen:</strong> Bundesland, Berufsgruppe (Arzt/Ärztin oder Pflegekraft), Erfahrungsstufe, Abteilungsgruppe, Fachrichtung</li>
+          <li><strong>Krankenhauszugehörigkeit (optional):</strong> Sie können Ihr Krankenhaus aus einer Liste deutscher Krankenhäuser auswählen. Dies ermöglicht einrichtungsbezogene Statistiken, wenn genügend Nutzende teilnehmen.</li>
           <li><strong>Anonyme Nutzer-ID:</strong> Ein zufällig generierter Identifikator</li>
         </ul>
 
         <h3 class="text-lg font-medium text-stone-800 mt-6 mb-3">3.3 Daten, die wir NICHT erheben</h3>
         <ul class="mt-2 space-y-1">
           <li>Ihren Namen</li>
-          <li>Ihren Arbeitgeber oder Krankenhausnamen</li>
           <li>Genaue GPS-Koordinaten (diese verlassen Ihr Gerät nicht)</li>
           <li>IP-Adressen (werden nicht protokolliert)</li>
           <li>Geräte-IDs</li>
@@ -127,7 +127,9 @@ import LayoutDE from '../../layouts/LayoutDE.astro';
         <h3 class="text-lg font-medium text-stone-800 mt-6 mb-3">5.2 Öffentliche Statistiken</h3>
         <p>
           Aggregierte, anonymisierte Statistiken können öffentlich zugänglich gemacht oder mit
-          Gewerkschaften, Berufsverbänden und Forschenden geteilt werden. Diese Statistiken:
+          Gewerkschaften, Berufsverbänden und Forschenden geteilt werden. Statistiken können
+          Aggregationen auf Landesebene oder, wenn die Gruppengrößen es erlauben, auf
+          Einrichtungsebene umfassen. Diese Statistiken:
         </p>
         <ul class="mt-2 space-y-1">
           <li>Enthalten keine personenbezogenen Daten</li>
@@ -173,7 +175,7 @@ import LayoutDE from '../../layouts/LayoutDE.astro';
           Diese Statistiken können nicht mit Ihnen in Verbindung gebracht werden, da sie:
         </p>
         <ul class="mt-2 space-y-1">
-          <li>Nur Gruppeninformationen enthalten (z.B. „Chirurgen in Bayern")</li>
+          <li>Nur Gruppeninformationen enthalten (z.B. „Ärzte in der Inneren Medizin in Bayern")</li>
           <li>Auf Gruppen von mindestens 5 Beitragenden basieren (k-Anonymität)</li>
           <li>Kalibriertes statistisches Rauschen enthalten (Differential Privacy, ε=1,0), das einzelne Beiträge verschleiert</li>
         </ul>
@@ -188,7 +190,7 @@ import LayoutDE from '../../layouts/LayoutDE.astro';
         <h2 class="text-xl font-semibold text-stone-900 mb-4">8. Sicherheitsmaßnahmen</h2>
         <ul class="mt-2 space-y-1">
           <li><strong>Verschlüsselung bei Übertragung:</strong> Alle Datenübertragungen verwenden TLS 1.3</li>
-          <li><strong>Verschlüsselung bei Speicherung:</strong> Serverdaten sind verschlüsselt</li>
+          <li><strong>Verschlüsselung bei Speicherung:</strong> Serverdaten sind auf Infrastrukturebene verschlüsselt</li>
           <li><strong>Pseudonymisierung:</strong> E-Mail-Adressen werden gehasht; Nutzer werden durch zufällige IDs identifiziert</li>
           <li><strong>Zugriffskontrolle:</strong> Strikte Zugangsbeschränkungen für Produktionssysteme</li>
           <li><strong>Rate Limiting:</strong> Authentifizierungsendpunkte sind ratenbegrenzt zum Schutz vor Missbrauch</li>
