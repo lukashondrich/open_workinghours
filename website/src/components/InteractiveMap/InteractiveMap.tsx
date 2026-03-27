@@ -22,14 +22,14 @@ const labels = {
   en: {
     hospital: 'Hospital',
     noData: 'No data yet',
-    building: 'Building (1–10)',
-    available: 'Available (11+)',
+    building: 'Building (1–4)',
+    available: 'Available (5+)',
   },
   de: {
     hospital: 'Krankenhäuser',
     noData: 'Keine Daten',
-    building: 'Im Aufbau (1–10)',
-    available: 'Freigeschaltet (11+)',
+    building: 'Im Aufbau (1–4)',
+    available: 'Freigeschaltet (5+)',
   },
 };
 
