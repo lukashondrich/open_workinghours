@@ -8,8 +8,6 @@ import {
   Alert,
   Modal,
   PanResponder,
-  GestureResponderEvent,
-  PanResponderGestureState,
   Vibration,
   Animated,
   NativeScrollEvent,
@@ -294,60 +292,66 @@ function TrackingBadge({
   };
   const isTimesMode = editMode === 'times';
 
-  const startPan = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => isTimesMode,
-        onPanResponderGrant: () => {
-          setDragging(true);
-          Vibration.vibrate(15);
-        },
-        onPanResponderMove: (_evt: GestureResponderEvent, gesture: PanResponderGestureState) => {
-          // Update local preview state during drag
-          setDragStartDelta(gesture.dy);
-        },
-        onPanResponderRelease: (_evt: GestureResponderEvent, gesture: PanResponderGestureState) => {
-          setDragging(false);
-          setDragStartDelta(0); // Reset preview
-          const delta = minutesFromDrag(gesture.dy, hourHeight);
-          if (delta !== 0) {
-            onAdjustStart(record.id, delta);
-          }
-        },
-        onPanResponderTerminate: () => {
-          setDragging(false);
-          setDragStartDelta(0); // Reset preview
-        },
-      }),
-    [record.id, onAdjustStart, isTimesMode, setDragging, setDragStartDelta, hourHeight],
+  // Use refs to avoid stale closures in RNGH gesture callbacks
+  const onAdjustStartRef = useRef(onAdjustStart);
+  onAdjustStartRef.current = onAdjustStart;
+  const onAdjustEndRef = useRef(onAdjustEnd);
+  onAdjustEndRef.current = onAdjustEnd;
+  const recordIdRef = useRef(record.id);
+  recordIdRef.current = record.id;
+  const hourHeightRef = useRef(hourHeight);
+  hourHeightRef.current = hourHeight;
+
+  const startPanGesture = useMemo(() =>
+    Gesture.Pan()
+      .enabled(isTimesMode)
+      .onStart(() => {
+        setDragging(true);
+        Vibration.vibrate(15);
+      })
+      .onUpdate((e) => {
+        setDragStartDelta(e.translationY);
+      })
+      .onEnd((e) => {
+        setDragging(false);
+        setDragStartDelta(0);
+        const delta = minutesFromDrag(e.translationY, hourHeightRef.current);
+        if (delta !== 0) {
+          onAdjustStartRef.current(recordIdRef.current, delta);
+        }
+      })
+      .onFinalize(() => {
+        setDragging(false);
+        setDragStartDelta(0);
+      })
+      .runOnJS(true),
+    [isTimesMode, setDragging],
   );
 
-  const endPan = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => isTimesMode,
-        onPanResponderGrant: () => {
-          setDragging(true);
-          Vibration.vibrate(15);
-        },
-        onPanResponderMove: (_evt: GestureResponderEvent, gesture: PanResponderGestureState) => {
-          // Update local preview state during drag
-          setDragEndDelta(gesture.dy);
-        },
-        onPanResponderRelease: (_evt: GestureResponderEvent, gesture: PanResponderGestureState) => {
-          setDragging(false);
-          setDragEndDelta(0); // Reset preview
-          const delta = minutesFromDrag(gesture.dy, hourHeight);
-          if (delta !== 0) {
-            onAdjustEnd(record.id, delta);
-          }
-        },
-        onPanResponderTerminate: () => {
-          setDragging(false);
-          setDragEndDelta(0); // Reset preview
-        },
-      }),
-    [record.id, onAdjustEnd, isTimesMode, setDragging, setDragEndDelta, hourHeight],
+  const endPanGesture = useMemo(() =>
+    Gesture.Pan()
+      .enabled(isTimesMode)
+      .onStart(() => {
+        setDragging(true);
+        Vibration.vibrate(15);
+      })
+      .onUpdate((e) => {
+        setDragEndDelta(e.translationY);
+      })
+      .onEnd((e) => {
+        setDragging(false);
+        setDragEndDelta(0);
+        const delta = minutesFromDrag(e.translationY, hourHeightRef.current);
+        if (delta !== 0) {
+          onAdjustEndRef.current(recordIdRef.current, delta);
+        }
+      })
+      .onFinalize(() => {
+        setDragging(false);
+        setDragEndDelta(0);
+      })
+      .runOnJS(true),
+    [isTimesMode, setDragging],
   );
 
   return (
@@ -391,14 +395,18 @@ function TrackingBadge({
           )}
         </Animated.View>
         {isTimesMode && showStartGrabber && (
-          <View style={[styles.grabberContainer, topGrabberStyle]} {...startPan.panHandlers}>
-            <View style={styles.grabberBar} />
-          </View>
+          <GestureDetector gesture={startPanGesture}>
+            <View style={[styles.grabberContainer, topGrabberStyle]}>
+              <View style={styles.grabberBar} />
+            </View>
+          </GestureDetector>
         )}
         {isTimesMode && showEndGrabber && (
-          <View style={[styles.grabberContainer, bottomGrabberStyle]} {...endPan.panHandlers}>
-            <View style={styles.grabberBar} />
-          </View>
+          <GestureDetector gesture={endPanGesture}>
+            <View style={[styles.grabberContainer, bottomGrabberStyle]}>
+              <View style={styles.grabberBar} />
+            </View>
+          </GestureDetector>
         )}
         {/* Edge labels: full size (>=56px) or compact end time only (>=12px) */}
         {showEdgeLabels && (
@@ -551,58 +559,66 @@ function AbsenceCard({
   const clampedBottomGrabberPos = Math.min(DAY_HEIGHT - MIN_EDGE_DISTANCE, idealBottomGrabberPos);
   const bottomGrabberStyle = { bottom: -(clampedBottomGrabberPos - (topOffset + height)) };
 
-  const startPan = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => !!active,
-        onPanResponderGrant: () => {
-          setDragging?.(true);
-          Vibration.vibrate(15);
-        },
-        onPanResponderMove: (_evt: GestureResponderEvent, gesture: PanResponderGestureState) => {
-          setDragStartDelta(gesture.dy);
-        },
-        onPanResponderRelease: (_evt: GestureResponderEvent, gesture: PanResponderGestureState) => {
-          setDragging?.(false);
-          setDragStartDelta(0);
-          const delta = minutesFromDrag(gesture.dy, hourHeight);
-          if (delta !== 0) {
-            onAdjustStart?.(absence.id, delta);
-          }
-        },
-        onPanResponderTerminate: () => {
-          setDragging?.(false);
-          setDragStartDelta(0);
-        },
-      }),
-    [absence.id, onAdjustStart, active, setDragging, hourHeight],
+  // Use refs to avoid stale closures in RNGH gesture callbacks
+  const onAdjustStartRef = useRef(onAdjustStart);
+  onAdjustStartRef.current = onAdjustStart;
+  const onAdjustEndRef = useRef(onAdjustEnd);
+  onAdjustEndRef.current = onAdjustEnd;
+  const absenceIdRef = useRef(absence.id);
+  absenceIdRef.current = absence.id;
+  const hourHeightRef = useRef(hourHeight);
+  hourHeightRef.current = hourHeight;
+
+  const startPanGesture = useMemo(() =>
+    Gesture.Pan()
+      .enabled(!!active)
+      .onStart(() => {
+        setDragging?.(true);
+        Vibration.vibrate(15);
+      })
+      .onUpdate((e) => {
+        setDragStartDelta(e.translationY);
+      })
+      .onEnd((e) => {
+        setDragging?.(false);
+        setDragStartDelta(0);
+        const delta = minutesFromDrag(e.translationY, hourHeightRef.current);
+        if (delta !== 0) {
+          onAdjustStartRef.current?.(absenceIdRef.current, delta);
+        }
+      })
+      .onFinalize(() => {
+        setDragging?.(false);
+        setDragStartDelta(0);
+      })
+      .runOnJS(true),
+    [active, setDragging],
   );
 
-  const endPan = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => !!active,
-        onPanResponderGrant: () => {
-          setDragging?.(true);
-          Vibration.vibrate(15);
-        },
-        onPanResponderMove: (_evt: GestureResponderEvent, gesture: PanResponderGestureState) => {
-          setDragEndDelta(gesture.dy);
-        },
-        onPanResponderRelease: (_evt: GestureResponderEvent, gesture: PanResponderGestureState) => {
-          setDragging?.(false);
-          setDragEndDelta(0);
-          const delta = minutesFromDrag(gesture.dy, hourHeight);
-          if (delta !== 0) {
-            onAdjustEnd?.(absence.id, delta);
-          }
-        },
-        onPanResponderTerminate: () => {
-          setDragging?.(false);
-          setDragEndDelta(0);
-        },
-      }),
-    [absence.id, onAdjustEnd, active, setDragging, hourHeight],
+  const endPanGesture = useMemo(() =>
+    Gesture.Pan()
+      .enabled(!!active)
+      .onStart(() => {
+        setDragging?.(true);
+        Vibration.vibrate(15);
+      })
+      .onUpdate((e) => {
+        setDragEndDelta(e.translationY);
+      })
+      .onEnd((e) => {
+        setDragging?.(false);
+        setDragEndDelta(0);
+        const delta = minutesFromDrag(e.translationY, hourHeightRef.current);
+        if (delta !== 0) {
+          onAdjustEndRef.current?.(absenceIdRef.current, delta);
+        }
+      })
+      .onFinalize(() => {
+        setDragging?.(false);
+        setDragEndDelta(0);
+      })
+      .runOnJS(true),
+    [active, setDragging],
   );
 
   return (
@@ -641,14 +657,18 @@ function AbsenceCard({
         </View>
       </Pressable>
       {active && (
-        <View style={[styles.grabberContainer, topGrabberStyle]} {...startPan.panHandlers}>
-          <View style={styles.grabberBar} />
-        </View>
+        <GestureDetector gesture={startPanGesture}>
+          <View style={[styles.grabberContainer, topGrabberStyle]}>
+            <View style={styles.grabberBar} />
+          </View>
+        </GestureDetector>
       )}
       {active && (
-        <View style={[styles.grabberContainer, bottomGrabberStyle]} {...endPan.panHandlers}>
-          <View style={styles.grabberBar} />
-        </View>
+        <GestureDetector gesture={endPanGesture}>
+          <View style={[styles.grabberContainer, bottomGrabberStyle]}>
+            <View style={styles.grabberBar} />
+          </View>
+        </GestureDetector>
       )}
     </View>
   );
