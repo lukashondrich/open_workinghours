@@ -1388,7 +1388,7 @@ export default function WeekView() {
     await executeSubmit(dateKey);
   };
 
-  const handleAdjustTrackingEnd = async (id: string, deltaMinutes: number) => {
+  const handleAdjustTrackingEnd = useCallback(async (id: string, deltaMinutes: number) => {
     const record = state.trackingRecords[id];
     if (!record) return;
     const newDuration = Math.max(5, record.duration + deltaMinutes);
@@ -1411,9 +1411,9 @@ export default function WeekView() {
         console.error('[WeekView] Failed to sync tracking end to session:', error);
       }
     }
-  };
+  }, [state.trackingRecords, dispatch]);
 
-  const handleAdjustTrackingStart = async (id: string, deltaMinutes: number) => {
+  const handleAdjustTrackingStart = useCallback(async (id: string, deltaMinutes: number) => {
     const record = state.trackingRecords[id];
     if (!record) return;
     const startMinutes = Math.max(0, timeToMinutes(record.startTime) + deltaMinutes);
@@ -1437,10 +1437,10 @@ export default function WeekView() {
         console.error('[WeekView] Failed to sync tracking start to session:', error);
       }
     }
-  };
+  }, [state.trackingRecords, dispatch]);
 
   // Absence adjustment handlers
-  const handleAdjustAbsenceStart = async (id: string, deltaMinutes: number) => {
+  const handleAdjustAbsenceStart = useCallback(async (id: string, deltaMinutes: number) => {
     const absence = state.absenceInstances[id];
     if (!absence) return;
 
@@ -1463,9 +1463,9 @@ export default function WeekView() {
     } catch (error) {
       console.error('[WeekView] Failed to update absence start time:', error);
     }
-  };
+  }, [state.absenceInstances, dispatch]);
 
-  const handleAdjustAbsenceEnd = async (id: string, deltaMinutes: number) => {
+  const handleAdjustAbsenceEnd = useCallback(async (id: string, deltaMinutes: number) => {
     const absence = state.absenceInstances[id];
     if (!absence) return;
 
@@ -1488,7 +1488,7 @@ export default function WeekView() {
     } catch (error) {
       console.error('[WeekView] Failed to update absence end time:', error);
     }
-  };
+  }, [state.absenceInstances, dispatch]);
 
   const handleDeleteTracking = async (id: string) => {
     // Extract session ID from tracking record ID (format: "tracking-session-123")
