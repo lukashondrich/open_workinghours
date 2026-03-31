@@ -594,13 +594,9 @@ const API_BASE = import.meta.env.PUBLIC_API_URL || 'https://api.openworkinghours
     const submitBtn = document.getElementById('submit-btn');
     const statusEl = document.getElementById('form-status');
 
-    const formData = {
-      name: form.name.value,
-      organization: form.organization.value,
-      role: form.role.value,
-      email: form.email.value,
-      message: form.message.value,
-    };
+    // FormData statt form.name (kollidiert mit HTMLFormElement.name)
+    const fd = new FormData(form);
+    const formData = Object.fromEntries(fd);
 
     submitBtn.disabled = true;
     submitBtn.textContent = 'Wird gesendet...';
@@ -612,12 +608,13 @@ const API_BASE = import.meta.env.PUBLIC_API_URL || 'https://api.openworkinghours
         body: JSON.stringify(formData),
       });
 
-      const result = await response.json();
-
-      if (result.success) {
+      if (response.ok) {
         statusEl.textContent = 'Vielen Dank! Wir werden uns bald melden.';
         statusEl.className = 'text-sm text-center text-teal-600';
         form.reset();
+      } else if (response.status === 429) {
+        statusEl.textContent = 'Zu viele Anfragen. Bitte versuchen Sie es später erneut.';
+        statusEl.className = 'text-sm text-center text-red-600';
       } else {
         statusEl.textContent = 'Etwas ist schief gelaufen. Bitte versuchen Sie es erneut.';
         statusEl.className = 'text-sm text-center text-red-600';

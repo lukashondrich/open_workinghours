@@ -607,14 +607,9 @@ const API_BASE = import.meta.env.PUBLIC_API_URL || 'https://api.openworkinghours
     const submitBtn = document.getElementById('submit-btn');
     const statusEl = document.getElementById('form-status');
 
-    // Get form data
-    const formData = {
-      name: form.name.value,
-      organization: form.organization.value,
-      role: form.role.value,
-      email: form.email.value,
-      message: form.message.value,
-    };
+    // Get form data (use FormData — form.name collides with HTMLFormElement.name)
+    const fd = new FormData(form);
+    const formData = Object.fromEntries(fd);
 
     // Disable button
     submitBtn.disabled = true;
@@ -627,12 +622,13 @@ const API_BASE = import.meta.env.PUBLIC_API_URL || 'https://api.openworkinghours
         body: JSON.stringify(formData),
       });
 
-      const result = await response.json();
-
-      if (result.success) {
+      if (response.ok) {
         statusEl.textContent = 'Thank you! We will be in touch soon.';
         statusEl.className = 'text-sm text-center text-teal-600';
         form.reset();
+      } else if (response.status === 429) {
+        statusEl.textContent = 'Too many requests. Please try again later.';
+        statusEl.className = 'text-sm text-center text-red-600';
       } else {
         statusEl.textContent = 'Something went wrong. Please try again.';
         statusEl.className = 'text-sm text-center text-red-600';
