@@ -47,3 +47,12 @@ yarn-error.log*
 next-env.d.ts
 backend-clean.tar.gz
 backend.tar.gz
+
+# Local project-management notes
+project-mgmt/drafts-outreach.md
+project-mgmt/nlnet-budget-breakdown.txt
+project-mgmt/prep-verdi-meeting-2026-03-28.md
+project-mgmt/presentation-outline.md
+
+# Local workflow scratch space
+transferable-workflow-patterns/
