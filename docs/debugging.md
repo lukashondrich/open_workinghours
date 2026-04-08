@@ -60,6 +60,134 @@ Filter in Xcode Console: `[GeofenceService]`
 
 ---
 
+## Android Debugging
+
+### Device: Samsung Galaxy A14 (SM-A145F)
+
+**ADB ID:** `R58W910C8QD` · **Android 15** · **API 35**
+
+### Connecting to Samsung for dev builds
+
+```bash
+# 1. Verify device is connected
+adb devices -l
+
+# 2. Set port forwarding (Metro → device)
+adb -s R58W910C8QD reverse tcp:8081 tcp:8081
+
+# 3. Start Metro from mobile-app/
+cd mobile-app && npx expo start --port 8081
+
+# 4. Launch app
+adb -s R58W910C8QD shell am start -n com.openworkinghours.mobileapp/.MainActivity
+
+# 5. In the Expo Dev Client launcher, tap http://localhost:8081
+
+# 6. Verify JS is loading from Metro (must see output):
+adb -s R58W910C8QD logcat -s ReactNativeJS | tail -20
+```
+
+### Debug build vs release build
+
+**This is the #1 cause of "my fix didn't work on the device".**
+
+A **release build** bundles JS at build time and does NOT connect to Metro. Hot reload, Fast Refresh, and code changes have no effect. The app runs the JS that was baked in when the APK was built.
+
+A **debug build** (via `expo run:android` or the debug APK in `android/app/build/outputs/apk/debug/`) connects to Metro and loads the latest JS on each launch.
+
+```bash
+# Check if the installed app is debuggable:
+adb -s R58W910C8QD shell dumpsys package com.openworkinghours.mobileapp | grep flags
+# Must show DEBUGGABLE. If not → release build → won't pick up code changes.
+
+# Check if JS logs appear (confirms Metro connection):
+adb -s R58W910C8QD logcat -s ReactNativeJS
+# No output = app is NOT connected to Metro.
+```
+
+**If the device has a release build:**
+```bash
+# Uninstall it
+adb -s R58W910C8QD uninstall com.openworkinghours.mobileapp
+
+# Install the debug APK
+adb -s R58W910C8QD install android/app/build/outputs/apk/debug/app-debug.apk
+
+# If no debug APK exists, build one:
+JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" \
+npx expo run:android
+```
+
+### Hot reload can silently fail
+
+Changes to these files may not apply via hot reload — they need a full app restart or rebuild:
+
+- `AppNavigator.tsx` (navigation-level component)
+- Components inside `Animated.View` hierarchies
+- Native config changes (`app.json`, `gradle.properties`) → always need rebuild
+
+**How to verify your code is running:**
+1. Add a `console.log('PATCHED: <description>')` to the changed function
+2. Check `adb logcat -s ReactNativeJS | grep PATCHED`
+3. If nothing appears → your code isn't running → force-stop and relaunch
+
+### react-native-maps on Android
+
+**Never use controlled `region` prop with `animateToRegion`:**
+
+```tsx
+// ❌ BAD — causes flicker/jumping on Android
+<MapView
+  region={region}                        // controlled prop
+  onRegionChangeComplete={setRegion}     // feedback loop
+/>
+// animateToRegion fights the controlled prop via:
+// animation starts → onRegionChangeComplete fires → setRegion(intermediate)
+// → re-render snaps map back → animation retries → 5-second flicker loop
+
+// ✅ GOOD — uncontrolled, no feedback loop
+const regionRef = useRef(defaultRegion);
+<MapView
+  initialRegion={regionRef.current}
+  onRegionChangeComplete={(r) => { regionRef.current = r; }}
+/>
+// animateToRegion runs uncontested. Ref updates without re-renders.
+```
+
+iOS handles the controlled pattern fine. Android does not. See `docs/ANDROID_BUGS_2026-03-31.md` for full analysis.
+
+**Circle touch interception:** `react-native-maps` `Circle` intercepts touches on Android (not iOS). Always add `tappable={false}` if the circle should be touch-transparent.
+
+### Emulator vs real device
+
+**Do not trust the emulator for visual or map bugs.** The Pixel 7a emulator (API 36):
+- Crashes on SetupScreen Step 1→2 map transitions (Google Maps SDK zoom issue)
+- Does not reproduce Samsung One UI rendering artifacts (tab bar gradient, border rendering)
+- Shows different behavior for elevation/shadow styling
+
+Always verify Android fixes on the Samsung real device.
+
+### Useful commands
+
+```bash
+# Screen timeout (10 min — prevents screen lock during testing)
+adb -s R58W910C8QD shell settings put system screen_off_timeout 600000
+
+# Force stop app
+adb -s R58W910C8QD shell am force-stop com.openworkinghours.mobileapp
+
+# Clear logcat
+adb -s R58W910C8QD logcat -c
+
+# Watch JS logs in real-time
+adb -s R58W910C8QD logcat -s ReactNativeJS
+
+# Kill emulator (if it steals focus from Samsung)
+adb -s emulator-5554 emu kill
+```
+
+---
+
 ## Backend Debugging
 
 ### Local Development
@@ -266,6 +394,10 @@ Things that have tripped us up - save yourself time:
 | **buildNumber must increment** | TestFlight rejects duplicate build numbers | Always bump in `app.json` before `eas build` |
 | **Maestro needs Java 17** | CLI fails without Java | `export PATH="/opt/homebrew/opt/openjdk@17/bin:$PATH"` |
 | **E2E tests need coordinate taps** | testID matching crashes on Calendar/Status | Use `point: "X%,Y%"` instead of `id:` |
+| **Android: don't use controlled `region` on MapView** | `onRegionChangeComplete` feedback loop causes 5-sec flicker | Use `initialRegion` + `useRef` + `animateToRegion` only |
+| **Android: Circle intercepts touches** | `react-native-maps` Circle blocks taps on Android (not iOS) | Add `tappable={false}` to all Circle components |
+| **Android: release build ignores code changes** | Release APK bundles JS at build time, no Metro | Check for DEBUGGABLE flag, install debug APK if needed |
+| **Android: emulator hides real bugs** | Samsung One UI renders borders/shadows differently | Always verify visual/map fixes on Samsung real device |
 
 ### Backend
 
