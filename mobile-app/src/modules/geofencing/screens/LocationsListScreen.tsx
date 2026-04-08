@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -9,13 +9,14 @@ import {
   ActionSheetIOS,
   Platform,
 } from 'react-native';
-import MapView, { Circle, Marker, Region } from 'react-native-maps';
+import MapView, { Circle, Marker } from 'react-native-maps';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Location from 'expo-location';
 import { MapPin, Plus, ChevronRight } from 'lucide-react-native';
 
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
+import { SettingsDetailLayout } from '@/components/ui';
 import { t } from '@/lib/i18n';
 import { getDatabase } from '@/modules/geofencing/services/Database';
 import { getGeofenceService } from '@/modules/geofencing/services/GeofenceService';
@@ -32,81 +33,97 @@ const MAP_HEIGHT = 200; // Fixed smaller map at top
 const MAP_CIRCLE_STROKE = 'rgba(46, 139, 107, 0.6)';
 const MAP_CIRCLE_FILL = 'rgba(46, 139, 107, 0.2)';
 
+interface MapRegion {
+  latitude: number;
+  longitude: number;
+  latitudeDelta: number;
+  longitudeDelta: number;
+}
+
 export default function LocationsListScreen() {
   const navigation = useNavigation<LocationsListScreenNavigationProp>();
   const mapRef = useRef<MapView>(null);
+  const locationsRef = useRef<UserLocation[]>([]);
+  const selectedLocationIdRef = useRef<string | null>(null);
 
   const [locations, setLocations] = useState<UserLocation[]>([]);
   const [selectedLocation, setSelectedLocation] = useState<UserLocation | null>(null);
-  const [region, setRegion] = useState<Region>({
-    latitude: 37.7749,
-    longitude: -122.4194,
-    latitudeDelta: 0.05,
-    longitudeDelta: 0.05,
-  });
+  const [mapInitialRegion, setMapInitialRegion] = useState<MapRegion | null>(null);
 
-  useFocusEffect(
-    React.useCallback(() => {
-      loadLocations();
-      getCurrentLocation();
-    }, [])
-  );
+  const createMapRegion = useCallback((latitude: number, longitude: number): MapRegion => ({
+    latitude,
+    longitude,
+    latitudeDelta: 0.01,
+    longitudeDelta: 0.01,
+  }), []);
 
-  const loadLocations = async () => {
+  const centerMap = useCallback((latitude: number, longitude: number, duration: number) => {
+    const region = createMapRegion(latitude, longitude);
+    setMapInitialRegion((current) => current ?? region);
+    mapRef.current?.animateToRegion(region, duration);
+  }, [createMapRegion]);
+
+  const loadLocations = useCallback(async (): Promise<boolean> => {
     try {
       const db = await getDatabase();
       const locs = await db.getActiveLocations();
+      locationsRef.current = locs;
       setLocations(locs);
 
-      // Set first location as selected and center map if none selected
-      if (locs.length > 0 && !selectedLocation) {
-        setSelectedLocation(locs[0]);
-        setRegion({
-          latitude: locs[0].latitude,
-          longitude: locs[0].longitude,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
-        });
+      if (locs.length === 0) {
+        selectedLocationIdRef.current = null;
+        setSelectedLocation(null);
+        setMapInitialRegion(null);
+        return false;
       }
+
+      const nextSelectedLocation = locs.find((location) => location.id === selectedLocationIdRef.current) ?? locs[0];
+      selectedLocationIdRef.current = nextSelectedLocation.id;
+      setSelectedLocation(nextSelectedLocation);
+      setMapInitialRegion((current) => current ?? createMapRegion(nextSelectedLocation.latitude, nextSelectedLocation.longitude));
+      centerMap(nextSelectedLocation.latitude, nextSelectedLocation.longitude, 300);
+      return true;
     } catch (error) {
       console.error('[LocationsListScreen] Failed to load locations:', error);
       Alert.alert(t('common.error'), t('locations.loadFailed'));
+      return false;
     }
-  };
+  }, [centerMap, createMapRegion]);
 
-  const getCurrentLocation = async () => {
+  const getCurrentLocation = useCallback(async () => {
     try {
       const { status } = await Location.getForegroundPermissionsAsync();
       if (status === 'granted') {
         const location = await Location.getCurrentPositionAsync({});
 
         // Only update region if no locations exist yet
-        if (locations.length === 0) {
-          setRegion({
-            latitude: location.coords.latitude,
-            longitude: location.coords.longitude,
-            latitudeDelta: 0.01,
-            longitudeDelta: 0.01,
-          });
+        if (locationsRef.current.length === 0) {
+          setMapInitialRegion(createMapRegion(location.coords.latitude, location.coords.longitude));
+          centerMap(location.coords.latitude, location.coords.longitude, 300);
         }
       }
     } catch (error) {
       console.error('[LocationsListScreen] Failed to get current location:', error);
     }
-  };
+  }, [centerMap, createMapRegion]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void (async () => {
+        const hasLocations = await loadLocations();
+        if (!hasLocations) {
+          await getCurrentLocation();
+        }
+      })();
+    }, [getCurrentLocation, loadLocations])
+  );
 
   const handleLocationSelect = (location: UserLocation) => {
+    selectedLocationIdRef.current = location.id;
     setSelectedLocation(location);
 
-    // Animate map to location
-    const newRegion = {
-      latitude: location.latitude,
-      longitude: location.longitude,
-      latitudeDelta: 0.01,
-      longitudeDelta: 0.01,
-    };
-    setRegion(newRegion);
-    mapRef.current?.animateToRegion(newRegion, 300);
+    // Animate map to location (uncontrolled — no setRegion to avoid Android flicker)
+    centerMap(location.latitude, location.longitude, 300);
   };
 
   const handleLocationNavigate = (location: UserLocation) => {
@@ -207,24 +224,17 @@ export default function LocationsListScreen() {
     );
   };
 
-  const handleMyLocation = async () => {
+  const handleMyLocation = useCallback(async () => {
     try {
       const { status } = await Location.getForegroundPermissionsAsync();
       if (status === 'granted') {
         const location = await Location.getCurrentPositionAsync({});
-        const newRegion = {
-          latitude: location.coords.latitude,
-          longitude: location.coords.longitude,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
-        };
-        setRegion(newRegion);
-        mapRef.current?.animateToRegion(newRegion, 500);
+        centerMap(location.coords.latitude, location.coords.longitude, 500);
       }
     } catch (error) {
       console.error('[LocationsListScreen] Failed to get current location:', error);
     }
-  };
+  }, [centerMap]);
 
   const renderLocationCard = ({ item }: { item: UserLocation }) => {
     const isSelected = selectedLocation?.id === item.id;
@@ -253,86 +263,93 @@ export default function LocationsListScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      {/* Map Preview (smaller, at top) */}
-      <View style={styles.mapContainer}>
-        <MapView
-          ref={mapRef}
-          style={styles.map}
-          region={region}
-          onRegionChangeComplete={setRegion}
-          showsUserLocation
-          showsMyLocationButton={false}
-        >
-          {/* Show all location markers and circles */}
-          {locations.map((location) => (
-            <React.Fragment key={location.id}>
-              <Marker
-                coordinate={{
-                  latitude: location.latitude,
-                  longitude: location.longitude,
-                }}
-                title={location.name}
-              />
-              <Circle
-                center={{
-                  latitude: location.latitude,
-                  longitude: location.longitude,
-                }}
-                radius={location.radiusMeters}
-                strokeColor={MAP_CIRCLE_STROKE}
-                fillColor={MAP_CIRCLE_FILL}
-                strokeWidth={2}
-              />
-            </React.Fragment>
-          ))}
-        </MapView>
+    <SettingsDetailLayout title={t('navigation.workLocations')}>
+      <View style={styles.container}>
+        {/* Map Preview (smaller, at top) */}
+        <View style={styles.mapContainer}>
+          {mapInitialRegion ? (
+            <>
+              <MapView
+                ref={mapRef}
+                style={styles.map}
+                initialRegion={mapInitialRegion}
+                showsUserLocation
+                showsMyLocationButton={false}
+              >
+                {/* Show all location markers and circles */}
+                {locations.map((location) => (
+                  <React.Fragment key={location.id}>
+                    <Marker
+                      coordinate={{
+                        latitude: location.latitude,
+                        longitude: location.longitude,
+                      }}
+                      title={location.name}
+                    />
+                    <Circle
+                      center={{
+                        latitude: location.latitude,
+                        longitude: location.longitude,
+                      }}
+                      radius={location.radiusMeters}
+                      strokeColor={MAP_CIRCLE_STROKE}
+                      fillColor={MAP_CIRCLE_FILL}
+                      strokeWidth={2}
+                      tappable={false}
+                    />
+                  </React.Fragment>
+                ))}
+              </MapView>
 
-        {/* Map Controls */}
-        <MapControls
-          onMyLocation={handleMyLocation}
-          bottomOffset={16}
-        />
-      </View>
-
-      {/* Location List (main content) */}
-      <View style={styles.listContainer}>
-        <View style={styles.listHeader}>
-          <Text style={styles.listTitle}>
-            {t('locations.panelHeader', { count: locations.length, max: MAX_LOCATIONS })}
-          </Text>
+              <MapControls
+                onMyLocation={handleMyLocation}
+                bottomOffset={16}
+              />
+            </>
+          ) : (
+            <View style={styles.mapPlaceholder} />
+          )}
         </View>
 
-        <FlatList
-          data={locations}
-          keyExtractor={(item) => item.id}
-          renderItem={renderLocationCard}
-          contentContainerStyle={styles.locationList}
-          showsVerticalScrollIndicator={false}
-          style={styles.list}
-          ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyText}>{t('locations.emptyTitle')}</Text>
-              <Text style={styles.emptySubtext}>
-                {t('locations.emptySubtitle')}
-              </Text>
-            </View>
-          }
-        />
+        {/* Location List (main content) */}
+        <View style={styles.listContainer}>
+          <View style={styles.listHeader}>
+            <Text style={styles.listTitle}>
+              {t('locations.panelHeader', { count: locations.length, max: MAX_LOCATIONS })}
+            </Text>
+          </View>
 
-        <TouchableOpacity
-          style={[
-            styles.addButton,
-            locations.length >= MAX_LOCATIONS && styles.addButtonDisabled,
-          ]}
-          onPress={handleAddLocation}
-          disabled={locations.length >= MAX_LOCATIONS}
-        >
-          <Plus size={20} color={colors.white} />
-          <Text style={styles.addButtonText}>{t('locations.addNew')}</Text>
-        </TouchableOpacity>
+          <FlatList
+            data={locations}
+            keyExtractor={(item) => item.id}
+            renderItem={renderLocationCard}
+            contentContainerStyle={styles.locationList}
+            showsVerticalScrollIndicator={false}
+            style={styles.list}
+            ListEmptyComponent={
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyText}>{t('locations.emptyTitle')}</Text>
+                <Text style={styles.emptySubtext}>
+                  {t('locations.emptySubtitle')}
+                </Text>
+              </View>
+            }
+          />
+
+          <TouchableOpacity
+            style={[
+              styles.addButton,
+              locations.length >= MAX_LOCATIONS && styles.addButtonDisabled,
+            ]}
+            onPress={handleAddLocation}
+            disabled={locations.length >= MAX_LOCATIONS}
+          >
+            <Plus size={20} color={colors.white} />
+            <Text style={styles.addButtonText}>{t('locations.addNew')}</Text>
+          </TouchableOpacity>
+        </View>
       </View>
-    </View>
+    </SettingsDetailLayout>
   );
 }
 
@@ -347,6 +364,10 @@ const styles = StyleSheet.create({
   },
   map: {
     flex: 1,
+  },
+  mapPlaceholder: {
+    flex: 1,
+    backgroundColor: colors.grey[100],
   },
   listContainer: {
     flex: 1,

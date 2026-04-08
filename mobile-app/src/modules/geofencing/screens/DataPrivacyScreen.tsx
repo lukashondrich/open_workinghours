@@ -12,12 +12,11 @@ import { ChevronRight } from 'lucide-react-native';
 import { format, parseISO } from 'date-fns';
 import { de as deLocale } from 'date-fns/locale/de';
 
-import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
-import { Button, Card, InfoBox } from '@/components/ui';
+import { colors, spacing, fontSize, fontWeight } from '@/theme';
+import { Button, Card, InfoBox, SettingsDetailLayout } from '@/components/ui';
 import { getDatabase } from '@/modules/geofencing/services/Database';
 import { getGeofenceService } from '@/modules/geofencing/services/GeofenceService';
 import type { DailySubmissionRecord } from '@/modules/geofencing/types';
-import { formatDuration } from '@/lib/calendar/calendar-utils';
 import { DailySubmissionService } from '@/modules/auth/services/DailySubmissionService';
 import { AuthService } from '@/modules/auth/services/AuthService';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -286,8 +285,8 @@ export default function DataPrivacyScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+    <SettingsDetailLayout title={t('navigation.dataPrivacy')}>
+      <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
         {/* Consent Status Card */}
         <Card style={styles.summaryCard}>
           <Text style={styles.summaryTitle}>{t('dataPrivacyScreen.consentStatus')}</Text>
@@ -452,7 +451,7 @@ export default function DataPrivacyScreen() {
           {t('dataPrivacyScreen.withdrawWarning')}
         </InfoBox>
       </ScrollView>
-    </View>
+    </SettingsDetailLayout>
   );
 }
 

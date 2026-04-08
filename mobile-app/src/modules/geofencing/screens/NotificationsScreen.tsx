@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
 import {
-  View,
   Text,
   StyleSheet,
   Switch,
   ScrollView,
 } from 'react-native';
 
-import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
-import { Card } from '@/components/ui';
+import { colors, spacing, fontSize, fontWeight } from '@/theme';
+import { Card, SettingsDetailLayout } from '@/components/ui';
 import { t } from '@/lib/i18n';
 
 export default function NotificationsScreen() {
@@ -16,8 +15,8 @@ export default function NotificationsScreen() {
   const [checkOutNotifications, setCheckOutNotifications] = useState(true);
 
   return (
-    <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+    <SettingsDetailLayout title={t('navigation.notifications')}>
+      <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
         <Card style={styles.settingCard}>
           <Text style={styles.settingLabel}>{t('notificationsScreen.checkInNotifications')}</Text>
           <Switch
@@ -42,7 +41,7 @@ export default function NotificationsScreen() {
           {t('notificationsScreen.hint')}
         </Text>
       </ScrollView>
-    </View>
+    </SettingsDetailLayout>
   );
 }
 
