@@ -14,7 +14,7 @@ import { Circle, Bot, Hand } from 'lucide-react-native';
 
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
 import { t } from '@/lib/i18n';
-import { Button, Card, Badge } from '@/components/ui';
+import { Button, Card, Badge, SettingsDetailLayout } from '@/components/ui';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import { getDatabase } from '@/modules/geofencing/services/Database';
 import { TrackingManager } from '@/modules/geofencing/services/TrackingManager';
@@ -135,118 +135,120 @@ export default function TrackingScreen({ navigation, route }: Props) {
   const MAP_CIRCLE_FILL = 'rgba(46, 139, 107, 0.2)';
 
   return (
-    <View style={styles.container}>
-      {/* Map showing saved location */}
-      {location && (
-        <View style={styles.mapContainer}>
-          <MapView
-            style={styles.map}
-            region={{
-              latitude: location.latitude,
-              longitude: location.longitude,
-              latitudeDelta: 0.005,
-              longitudeDelta: 0.005,
-            }}
-            scrollEnabled={true}
-            zoomEnabled={true}
-            pitchEnabled={false}
-            rotateEnabled={false}
-          >
-            <Marker
-              coordinate={{
+    <SettingsDetailLayout title={t('navigation.workTracking')}>
+      <View style={styles.container}>
+        {/* Map showing saved location */}
+        {location && (
+          <View style={styles.mapContainer}>
+            <MapView
+              style={styles.map}
+              region={{
                 latitude: location.latitude,
                 longitude: location.longitude,
+                latitudeDelta: 0.005,
+                longitudeDelta: 0.005,
               }}
-            />
-            <MapCircle
-              center={{
-                latitude: location.latitude,
-                longitude: location.longitude,
-              }}
-              radius={location.radiusMeters}
-              strokeColor={MAP_CIRCLE_STROKE}
-              fillColor={MAP_CIRCLE_FILL}
-              strokeWidth={2}
-            />
-          </MapView>
-          <View style={styles.mapOverlay}>
-            <Text style={styles.locationName}>{location.name}</Text>
-            <Text style={styles.radiusText}>{location.radiusMeters}m radius</Text>
-          </View>
-        </View>
-      )}
-
-      <ScrollView style={styles.content} contentContainerStyle={styles.contentInner}>
-        <View style={styles.statusContainer}>
-          <Badge
-          variant={isTracking ? 'success' : 'default'}
-          size="md"
-          icon={<Circle size={16} color={isTracking ? colors.primary[500] : colors.grey[400]} fill={isTracking ? colors.primary[500] : 'transparent'} />}
-          style={styles.statusBadge}
-        >
-          {isTracking ? t('tracking.currentlyWorking') : t('tracking.notTracking')}
-        </Badge>
-
-        {isTracking && activeSession && (
-          <Card style={styles.sessionCard}>
-            <Text style={styles.sessionLabel}>{t('tracking.clockedIn')}</Text>
-            <Text style={styles.sessionTime}>
-              {new Date(activeSession.clockIn).toLocaleTimeString()}
-            </Text>
-            <Text style={styles.elapsedTime}>{elapsedTime}</Text>
-            <View style={styles.trackingMethodRow}>
-              {activeSession.trackingMethod === 'geofence_auto' ? (
-                <>
-                  <Bot size={16} color={colors.text.secondary} />
-                  <Text style={styles.sessionHint}>{t('tracking.automaticallyTracked')}</Text>
-                </>
-              ) : (
-                <>
-                  <Hand size={16} color={colors.text.secondary} />
-                  <Text style={styles.sessionHint}>{t('tracking.manuallyClocked')}</Text>
-                </>
-              )}
+              scrollEnabled={true}
+              zoomEnabled={true}
+              pitchEnabled={false}
+              rotateEnabled={false}
+            >
+              <Marker
+                coordinate={{
+                  latitude: location.latitude,
+                  longitude: location.longitude,
+                }}
+              />
+              <MapCircle
+                center={{
+                  latitude: location.latitude,
+                  longitude: location.longitude,
+                }}
+                radius={location.radiusMeters}
+                strokeColor={MAP_CIRCLE_STROKE}
+                fillColor={MAP_CIRCLE_FILL}
+                strokeWidth={2}
+              />
+            </MapView>
+            <View style={styles.mapOverlay}>
+              <Text style={styles.locationName}>{location.name}</Text>
+              <Text style={styles.radiusText}>{location.radiusMeters}m radius</Text>
             </View>
-          </Card>
+          </View>
         )}
-        </View>
 
-        <View style={styles.controls}>
-          {isTracking ? (
-            <Button
-              variant="danger"
-              onPress={handleClockOut}
-              loading={actionLoading}
-              disabled={actionLoading}
-              fullWidth
-              size="lg"
+        <ScrollView style={styles.content} contentContainerStyle={styles.contentInner}>
+          <View style={styles.statusContainer}>
+            <Badge
+              variant={isTracking ? 'success' : 'default'}
+              size="md"
+              icon={<Circle size={16} color={isTracking ? colors.primary[500] : colors.grey[400]} fill={isTracking ? colors.primary[500] : 'transparent'} />}
+              style={styles.statusBadge}
             >
-              {t('tracking.clockOut')}
-            </Button>
-          ) : (
-            <Button
-              onPress={handleClockIn}
-              loading={actionLoading}
-              disabled={actionLoading}
-              fullWidth
-              size="lg"
-            >
-              {t('tracking.clockIn')}
-            </Button>
-          )}
+              {isTracking ? t('tracking.currentlyWorking') : t('tracking.notTracking')}
+            </Badge>
 
-          <Text style={styles.hint}>
-            {isTracking
-              ? t('tracking.hintTracking')
-              : t('tracking.hintNotTracking')}
-          </Text>
+            {isTracking && activeSession && (
+              <Card style={styles.sessionCard}>
+                <Text style={styles.sessionLabel}>{t('tracking.clockedIn')}</Text>
+                <Text style={styles.sessionTime}>
+                  {new Date(activeSession.clockIn).toLocaleTimeString()}
+                </Text>
+                <Text style={styles.elapsedTime}>{elapsedTime}</Text>
+                <View style={styles.trackingMethodRow}>
+                  {activeSession.trackingMethod === 'geofence_auto' ? (
+                    <>
+                      <Bot size={16} color={colors.text.secondary} />
+                      <Text style={styles.sessionHint}>{t('tracking.automaticallyTracked')}</Text>
+                    </>
+                  ) : (
+                    <>
+                      <Hand size={16} color={colors.text.secondary} />
+                      <Text style={styles.sessionHint}>{t('tracking.manuallyClocked')}</Text>
+                    </>
+                  )}
+                </View>
+              </Card>
+            )}
+          </View>
 
-          <Button variant="ghost" onPress={handleViewHistory}>
-            {t('tracking.viewHistory')}
-          </Button>
-        </View>
-      </ScrollView>
-    </View>
+          <View style={styles.controls}>
+            {isTracking ? (
+              <Button
+                variant="danger"
+                onPress={handleClockOut}
+                loading={actionLoading}
+                disabled={actionLoading}
+                fullWidth
+                size="lg"
+              >
+                {t('tracking.clockOut')}
+              </Button>
+            ) : (
+              <Button
+                onPress={handleClockIn}
+                loading={actionLoading}
+                disabled={actionLoading}
+                fullWidth
+                size="lg"
+              >
+                {t('tracking.clockIn')}
+              </Button>
+            )}
+
+            <Text style={styles.hint}>
+              {isTracking
+                ? t('tracking.hintTracking')
+                : t('tracking.hintNotTracking')}
+            </Text>
+
+            <Button variant="ghost" onPress={handleViewHistory}>
+              {t('tracking.viewHistory')}
+            </Button>
+          </View>
+        </ScrollView>
+      </View>
+    </SettingsDetailLayout>
   );
 }
 

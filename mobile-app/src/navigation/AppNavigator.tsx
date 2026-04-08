@@ -84,11 +84,19 @@ function MainTabs() {
         tabBarAllowFontScaling: false,
         tabBarStyle: {
           backgroundColor: colors.background.paper,
-          borderTopWidth: 1,
-          borderTopColor: colors.border.default,
+          ...(Platform.OS === 'android'
+            ? {
+                borderTopWidth: StyleSheet.hairlineWidth,
+                borderTopColor: colors.border.default,
+                elevation: 0,
+              }
+            : {
+                borderTopWidth: 1,
+                borderTopColor: colors.border.default,
+              }),
         },
         tabBarItemStyle: {
-          paddingTop: 8, // Balance vertical padding (bottom has safe area ~34pt)
+          paddingTop: Platform.OS === 'android' ? 12 : 8,
         },
         headerShown: false,
       }}
@@ -285,37 +293,51 @@ export default function AppNavigator() {
         <Stack.Screen
           name="Tracking"
           component={TrackingScreen}
-          options={{ title: t('navigation.workTracking'), headerBackTitle: t('navigation.back') }}
+          options={Platform.OS === 'android'
+            ? { headerShown: false }
+            : { title: t('navigation.workTracking'), headerBackTitle: t('navigation.back') }}
         />
         <Stack.Screen
           name="Log"
           component={LogScreen}
-          options={{ title: t('navigation.workHistory') }}
+          options={Platform.OS === 'android'
+            ? { headerShown: false }
+            : { title: t('navigation.workHistory') }}
         />
         <Stack.Screen
           name="LocationsList"
           component={LocationsListScreen}
-          options={{ title: t('navigation.workLocations'), headerBackTitle: t('navigation.settings') }}
+          options={Platform.OS === 'android'
+            ? { headerShown: false }
+            : { title: t('navigation.workLocations'), headerBackTitle: t('navigation.settings') }}
         />
         <Stack.Screen
           name="Notifications"
           component={NotificationsScreen}
-          options={{ title: t('navigation.notifications'), headerBackTitle: t('navigation.settings') }}
+          options={Platform.OS === 'android'
+            ? { headerShown: false }
+            : { title: t('navigation.notifications'), headerBackTitle: t('navigation.settings') }}
         />
         <Stack.Screen
           name="Permissions"
           component={PermissionsScreen}
-          options={{ title: t('navigation.permissions'), headerBackTitle: t('navigation.settings') }}
+          options={Platform.OS === 'android'
+            ? { headerShown: false }
+            : { title: t('navigation.permissions'), headerBackTitle: t('navigation.settings') }}
         />
         <Stack.Screen
           name="DataPrivacy"
           component={DataPrivacyScreen}
-          options={{ title: t('navigation.dataPrivacy'), headerBackTitle: t('navigation.settings') }}
+          options={Platform.OS === 'android'
+            ? { headerShown: false }
+            : { title: t('navigation.dataPrivacy'), headerBackTitle: t('navigation.settings') }}
         />
         <Stack.Screen
           name="Profile"
           component={ProfileScreen}
-          options={{ title: t('navigation.profile'), headerBackTitle: t('navigation.settings') }}
+          options={Platform.OS === 'android'
+            ? { headerShown: false }
+            : { title: t('navigation.profile'), headerBackTitle: t('navigation.settings') }}
         />
       </Stack.Navigator>
     </NavigationContainer>

@@ -16,7 +16,7 @@ import { MapPin, Bot, Hand, Download, ClipboardList, Check, Circle } from 'lucid
 
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
 import { t } from '@/lib/i18n';
-import { Button } from '@/components/ui';
+import { Button, SettingsDetailLayout } from '@/components/ui';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import { getDatabase } from '@/modules/geofencing/services/Database';
 import { getCalendarStorage } from '@/modules/calendar/services/CalendarStorage';
@@ -400,67 +400,69 @@ export default function LogScreen({ navigation, route }: Props) {
   }
 
   return (
-    <View style={styles.container}>
-      {/* Location header */}
-      <View style={styles.locationHeader}>
-        <MapPin size={16} color={colors.primary[500]} />
-        <Text style={styles.locationName}>{location.name}</Text>
+    <SettingsDetailLayout title={t('navigation.workHistory')}>
+      <View style={styles.container}>
+        {/* Location header */}
+        <View style={styles.locationHeader}>
+          <MapPin size={16} color={colors.primary[500]} />
+          <Text style={styles.locationName}>{location.name}</Text>
+        </View>
+
+        {/* Date range tabs */}
+        <PresetTabs selected={preset} onSelect={handlePresetChange} />
+
+        {/* Summary */}
+        {sessions.length > 0 && (
+          <SummaryCard totalMinutes={totalMinutes} sessionCount={sessions.length} />
+        )}
+
+        {/* Session list or empty state */}
+        {sessions.length === 0 ? (
+          <EmptyState />
+        ) : (
+          <SectionList
+            sections={sections}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => <SessionCard session={item} />}
+            renderSectionHeader={({ section }) => (
+              <DateHeader
+                title={section.title}
+                date={section.date}
+                isConfirmed={section.isConfirmed}
+                onPress={() => handleDatePress(section.date)}
+              />
+            )}
+            contentContainerStyle={styles.listContent}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={handleRefresh}
+                tintColor={colors.primary[500]}
+              />
+            }
+            stickySectionHeadersEnabled={false}
+          />
+        )}
+
+        {/* Export button */}
+        <View style={styles.exportContainer}>
+          <Button
+            variant="secondary"
+            onPress={handleExport}
+            loading={exporting}
+            disabled={sessions.length === 0 || exporting}
+            fullWidth
+          >
+            <View style={styles.exportButtonContent}>
+              <Download size={18} color={sessions.length === 0 ? colors.grey[400] : colors.text.primary} />
+              <Text style={[styles.exportButtonText, sessions.length === 0 && styles.exportButtonTextDisabled]}>
+                {t('log.exportCSV')}
+              </Text>
+            </View>
+          </Button>
+        </View>
       </View>
-
-      {/* Date range tabs */}
-      <PresetTabs selected={preset} onSelect={handlePresetChange} />
-
-      {/* Summary */}
-      {sessions.length > 0 && (
-        <SummaryCard totalMinutes={totalMinutes} sessionCount={sessions.length} />
-      )}
-
-      {/* Session list or empty state */}
-      {sessions.length === 0 ? (
-        <EmptyState />
-      ) : (
-        <SectionList
-          sections={sections}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <SessionCard session={item} />}
-          renderSectionHeader={({ section }) => (
-            <DateHeader
-              title={section.title}
-              date={section.date}
-              isConfirmed={section.isConfirmed}
-              onPress={() => handleDatePress(section.date)}
-            />
-          )}
-          contentContainerStyle={styles.listContent}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              tintColor={colors.primary[500]}
-            />
-          }
-          stickySectionHeadersEnabled={false}
-        />
-      )}
-
-      {/* Export button */}
-      <View style={styles.exportContainer}>
-        <Button
-          variant="secondary"
-          onPress={handleExport}
-          loading={exporting}
-          disabled={sessions.length === 0 || exporting}
-          fullWidth
-        >
-          <View style={styles.exportButtonContent}>
-            <Download size={18} color={sessions.length === 0 ? colors.grey[400] : colors.text.primary} />
-            <Text style={[styles.exportButtonText, sessions.length === 0 && styles.exportButtonTextDisabled]}>
-              {t('log.exportCSV')}
-            </Text>
-          </View>
-        </Button>
-      </View>
-    </View>
+    </SettingsDetailLayout>
   );
 }
 

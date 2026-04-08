@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import * as SecureStore from 'expo-secure-store';
 import { AppText as Text } from '@/components/ui/AppText';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -366,9 +367,11 @@ export default function StatusScreen() {
   return (
     <View style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>{t('status.appTitle')}</Text>
-      </View>
+      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>{t('status.appTitle')}</Text>
+        </View>
+      </SafeAreaView>
 
       {/* Permission Warning Banner */}
       <PermissionWarningBanner
@@ -468,11 +471,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: spacing.xl,
-    paddingTop: 60,
-    paddingBottom: spacing.lg,
+    paddingVertical: spacing.lg,
     backgroundColor: colors.background.paper,
     borderBottomWidth: 1,
     borderBottomColor: colors.border.default,
+  },
+  headerSafeArea: {
+    backgroundColor: colors.background.paper,
   },
   headerTitle: {
     fontSize: fontSize.xl,
