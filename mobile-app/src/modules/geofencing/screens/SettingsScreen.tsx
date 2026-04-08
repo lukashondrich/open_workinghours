@@ -22,6 +22,7 @@ import {
   FileText,
   Shield,
   Fingerprint,
+  UserCircle,
 } from 'lucide-react-native';
 
 import { colors, spacing, fontSize, fontWeight } from '@/theme';
@@ -48,6 +49,12 @@ const ICON_SIZE = 24;
 
 function getSettingsItems(): SettingsItem[] {
   return [
+    {
+      id: '0',
+      title: t('settings.profile'),
+      icon: <UserCircle size={ICON_SIZE} color={colors.primary[500]} />,
+      screen: 'Profile',
+    },
     {
       id: '1',
       title: t('settings.workLocations'),
