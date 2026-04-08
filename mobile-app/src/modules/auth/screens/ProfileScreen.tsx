@@ -5,14 +5,13 @@
 
 import React, { useCallback, useMemo, useState } from 'react';
 import {
-  View,
   Text,
   StyleSheet,
   Alert,
   ScrollView,
 } from 'react-native';
 import { colors, spacing, fontSize, fontWeight } from '@/theme';
-import { Button, Picker } from '@/components/ui';
+import { Button, Picker, SettingsDetailLayout } from '@/components/ui';
 import type { PickerOption } from '@/components/ui';
 import { useAuth } from '@/lib/auth/auth-context';
 import { AuthService } from '../services/AuthService';
@@ -24,7 +23,7 @@ import {
   GERMAN_STATES,
   getHospitalsByState,
 } from '@/lib/taxonomy';
-import type { Profession, Seniority, DepartmentGroup } from '@/lib/taxonomy';
+import type { Profession } from '@/lib/taxonomy';
 
 export default function ProfileScreen() {
   const { state, signIn } = useAuth();
@@ -145,79 +144,81 @@ export default function ProfileScreen() {
   if (!user) return null;
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.scrollContent}
-      keyboardShouldPersistTaps="handled"
-    >
-      <Text style={styles.sectionLabel}>{t('auth.profile.profileSection')}</Text>
-
-      <Picker
-        label={t('auth.register.stateLabel')}
-        value={stateCode}
-        options={stateOptions}
-        onSelect={handleStateChange}
-        placeholder={t('auth.register.statePlaceholder')}
-        testID="profile-state-picker"
-      />
-
-      {stateCode && (
-        <Picker
-          label={t('auth.register.hospitalLabel')}
-          value={hospitalValue}
-          options={hospitalOptions}
-          onSelect={setHospitalValue}
-          placeholder={t('auth.register.hospitalPlaceholder')}
-          searchable
-          searchPlaceholder={t('auth.register.hospitalPlaceholder')}
-          searchMinChars={2}
-          searchHint={t('auth.register.hospitalSearchHint')}
-          testID="profile-hospital-picker"
-        />
-      )}
-
-      <Picker
-        label={t('auth.register.professionLabel')}
-        value={profession}
-        options={professionOptions}
-        onSelect={handleProfessionChange}
-        placeholder={t('auth.register.professionPlaceholder')}
-        testID="profile-profession-picker"
-      />
-
-      {profession && (
-        <Picker
-          label={t('auth.register.seniorityLabel')}
-          value={seniority}
-          options={seniorityOptions}
-          onSelect={setSeniority}
-          placeholder={t('auth.register.seniorityPlaceholder')}
-          testID="profile-seniority-picker"
-        />
-      )}
-
-      <Picker
-        label={t('auth.register.departmentLabel')}
-        value={departmentGroup}
-        options={departmentOptions}
-        onSelect={setDepartmentGroup}
-        placeholder={t('auth.register.departmentPlaceholder')}
-        testID="profile-department-picker"
-      />
-
-      <Button
-        onPress={handleSave}
-        loading={saving}
-        disabled={saving || !hasChanges}
-        fullWidth
-        testID="profile-save-button"
-        style={styles.saveButton}
+    <SettingsDetailLayout title={t('navigation.profile')}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
       >
-        {t('auth.profile.save')}
-      </Button>
+        <Text style={styles.sectionLabel}>{t('auth.profile.profileSection')}</Text>
 
-      <Text style={styles.hint}>{t('auth.profile.futureWeeksHint')}</Text>
-    </ScrollView>
+        <Picker
+          label={t('auth.register.stateLabel')}
+          value={stateCode}
+          options={stateOptions}
+          onSelect={handleStateChange}
+          placeholder={t('auth.register.statePlaceholder')}
+          testID="profile-state-picker"
+        />
+
+        {stateCode && (
+          <Picker
+            label={t('auth.register.hospitalLabel')}
+            value={hospitalValue}
+            options={hospitalOptions}
+            onSelect={setHospitalValue}
+            placeholder={t('auth.register.hospitalPlaceholder')}
+            searchable
+            searchPlaceholder={t('auth.register.hospitalPlaceholder')}
+            searchMinChars={2}
+            searchHint={t('auth.register.hospitalSearchHint')}
+            testID="profile-hospital-picker"
+          />
+        )}
+
+        <Picker
+          label={t('auth.register.professionLabel')}
+          value={profession}
+          options={professionOptions}
+          onSelect={handleProfessionChange}
+          placeholder={t('auth.register.professionPlaceholder')}
+          testID="profile-profession-picker"
+        />
+
+        {profession && (
+          <Picker
+            label={t('auth.register.seniorityLabel')}
+            value={seniority}
+            options={seniorityOptions}
+            onSelect={setSeniority}
+            placeholder={t('auth.register.seniorityPlaceholder')}
+            testID="profile-seniority-picker"
+          />
+        )}
+
+        <Picker
+          label={t('auth.register.departmentLabel')}
+          value={departmentGroup}
+          options={departmentOptions}
+          onSelect={setDepartmentGroup}
+          placeholder={t('auth.register.departmentPlaceholder')}
+          testID="profile-department-picker"
+        />
+
+        <Button
+          onPress={handleSave}
+          loading={saving}
+          disabled={saving || !hasChanges}
+          fullWidth
+          testID="profile-save-button"
+          style={styles.saveButton}
+        >
+          {t('auth.profile.save')}
+        </Button>
+
+        <Text style={styles.hint}>{t('auth.profile.futureWeeksHint')}</Text>
+      </ScrollView>
+    </SettingsDetailLayout>
   );
 }
 

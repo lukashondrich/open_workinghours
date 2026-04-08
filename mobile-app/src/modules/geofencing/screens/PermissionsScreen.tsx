@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
-  View,
   Text,
+  View,
   StyleSheet,
   ScrollView,
   Linking,
@@ -10,8 +10,8 @@ import {
 import * as Location from 'expo-location';
 import { CheckCircle2, XCircle, HelpCircle } from 'lucide-react-native';
 
-import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
-import { Button, Card, InfoBox } from '@/components/ui';
+import { colors, spacing, fontSize, fontWeight } from '@/theme';
+import { Button, Card, InfoBox, SettingsDetailLayout } from '@/components/ui';
 import { t } from '@/lib/i18n';
 
 interface PermissionStatus {
@@ -116,8 +116,8 @@ export default function PermissionsScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+    <SettingsDetailLayout title={t('navigation.permissions')}>
+      <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
         {renderPermissionStatus(t('permissionsScreen.foregroundLocation'), permissions.foreground)}
         {renderPermissionStatus(t('permissionsScreen.backgroundLocation'), permissions.background)}
 
@@ -137,7 +137,7 @@ export default function PermissionsScreen() {
           {t('permissionsScreen.infoBox')}
         </InfoBox>
       </ScrollView>
-    </View>
+    </SettingsDetailLayout>
   );
 }
 
