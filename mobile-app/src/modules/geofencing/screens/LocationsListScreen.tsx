@@ -295,7 +295,6 @@ export default function LocationsListScreen() {
                       strokeColor={MAP_CIRCLE_STROKE}
                       fillColor={MAP_CIRCLE_FILL}
                       strokeWidth={2}
-                      tappable={false}
                     />
                   </React.Fragment>
                 ))}
