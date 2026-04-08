@@ -56,3 +56,8 @@ project-mgmt/presentation-outline.md
 
 # Local workflow scratch space
 transferable-workflow-patterns/
+
+# Local tool state and scratch databases
+.claude/
+backend/test.db
+test.db
