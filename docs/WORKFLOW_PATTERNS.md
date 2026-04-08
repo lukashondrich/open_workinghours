@@ -79,14 +79,14 @@ Phase 3: Integration & Verification (Sequential)
 
 ## Testing
 
-**→ See [docs/testing/](./testing/)** for testing workflows.
-
 Testing often involves screenshots or long-running processes. Lean towards using specialized subagents:
 
 | Test Type | Subagent | Documentation |
 |-----------|----------|---------------|
-| E2E Regression | Bash | [testing/e2e-regression.md](./testing/e2e-regression.md) |
-| Visual Inspection | general-purpose | [testing/visual-inspection.md](./testing/visual-inspection.md) |
+| **E2E Regression** | Bash | **[mobile-app/e2e/README.md](../mobile-app/e2e/README.md)** — runbook, Android pitfalls, TEST_MODE |
+| Visual Inspection | general-purpose | Manual workflow (see below) |
+
+**E2E is the primary doc for testing.** It covers the full runbook, platform-specific issues (especially Android), and hard-won debugging lessons.
 
 ---
 
@@ -117,6 +117,22 @@ React Native's `testID` maps to `resource-id` on Android.
 1. Parent View needs `accessible={false}` to prevent child aggregation
 2. Tappable elements need `accessible={true}` to appear in tree
 3. Add `collapsable={false}` to prevent Android view flattening
+
+### Android Real Device Testing
+
+**Always test Android bugs on the real Samsung, not the emulator.** The Pixel 7a emulator (API 36) has Google Maps SDK crashes, and visual fixes that look correct on the emulator may not work on real hardware (e.g., Samsung One UI rendering differences).
+
+**Workflow:**
+1. Connect Samsung via USB (see `docs/ANDROID_BUGS_2026-03-31.md` for setup)
+2. Run local dev build: `JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" GOOGLE_MAPS_API_KEY=<your-google-maps-android-key> npx expo run:android --device R58W910C8QD`
+3. After first build, changes hot-reload — no rebuild needed for JS changes
+4. **Observe the bug on device before writing any fix** — take screenshots via `adb` or mobile-mcp
+5. Test fix live via hot reload
+6. Don't trust emulator results for visual or map-related bugs
+
+**Samsung device:** Galaxy A14 (SM-A145F), Android 15, API 35, ADB ID `R58W910C8QD`
+
+**Key lesson (2026-04-02):** Blind fix → EAS build → test cycle wasted 3 iterations on bugs 2, 4, 5. The observe-first approach on real hardware is essential.
 
 ### Android Hot Reload Can Silently Fail
 

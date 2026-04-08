@@ -67,7 +67,8 @@ All core features complete. User test feedback (Clusters A-F) fully implemented.
    - Backend work → `backend/ARCHITECTURE.md`
    - Deployment → `docs/deployment.md`
    - Debugging issues → `docs/debugging.md`
-   - **Testing (E2E, Visual)** → `docs/WORKFLOW_PATTERNS.md` → Testing section
+   - **E2E Testing** → `mobile-app/e2e/README.md` (runbook, Android pitfalls, TEST_MODE)
+   - **Testing workflows** → `docs/WORKFLOW_PATTERNS.md` → Testing section
    - Known bugs → `docs/KNOWN_ISSUES.md`
    - Privacy (technical) → `privacy_architecture.md`
    - GDPR/Legal compliance → `docs/GDPR_COMPLIANCE.md`
@@ -91,7 +92,7 @@ See `docs/DOCUMENTATION_STRUCTURE.md` for full documentation guidelines.
 | `mobile-app/ARCHITECTURE.md` | Mobile app details, schemas, patterns |
 | `backend/ARCHITECTURE.md` | Backend API, database, aggregation |
 | `docs/deployment.md` | Docker, Hetzner, production deployment |
-| `docs/debugging.md` | Mobile debugging, backend logs, known gotchas |
+| `docs/debugging.md` | Mobile debugging (iOS + **Android**), backend logs, known gotchas |
 | **`docs/WORKFLOW_PATTERNS.md`** | **How to do work: subagents, testing workflows** → `docs/testing/` |
 | `archive/ISSUE_PLANNING_2026-02-05.md` | Archived: UX feedback issues (Groups A/B/C complete, D dropped) |
 
@@ -116,6 +117,7 @@ Start feature → Create *_PLAN.md → Complete → Extract to ARCHITECTURE.md �
 
 ### Don'ts
 
+- **Never use planning mode** — discuss designs interactively with the user instead
 - Don't commit secrets - use environment variables
 - Don't edit web dashboard - it's deprecated
 - Don't submit today or future dates - backend rejects them
@@ -192,6 +194,20 @@ All new UI **must** be testable by Appium (XCUITest on iOS, UiAutomator2 on Andr
 ---
 
 ## Recent Updates (Last 7 Days)
+
+### 2026-04-04: Android Bugfixes — 4 of 5 Fixed on Samsung
+
+**Branch:** `fix/android-bugs-2026-03-31` — **Full write-up:** `docs/ANDROID_BUGS_2026-03-31.md`
+
+| Bug | Fix | File |
+|-----|-----|------|
+| Map tap inside geofence circle ignored | `tappable={false}` on Circle | SetupScreen, LocationsListScreen |
+| Map flickers between locations | Uncontrolled `initialRegion` + `regionRef` (no controlled `region` prop on Android) | LocationsListScreen |
+| Search result doesn't update map | Same pattern | SetupScreen |
+| Tab bar grey gradient on Samsung | `borderTopWidth: 0` + `elevation: 0` (Android only) | AppNavigator |
+| Saving location kills active session | **Open** — deferred | GeofenceService, TrackingManager |
+
+**Key lesson:** Never use controlled `region` prop with `animateToRegion` on Android `react-native-maps` — the `onRegionChangeComplete` feedback loop fights animations. Use `initialRegion` + ref + `animateToRegion` only. See `docs/debugging.md` → Android section.
 
 ### 2026-03-21: DP Group Stats v2 — 4 Gaps Closed
 

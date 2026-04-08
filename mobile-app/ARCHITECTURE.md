@@ -894,6 +894,8 @@ npm test -- --testPathPattern=GeofenceService
 
 ### E2E Testing (Appium)
 
+**→ See [e2e/README.md](./e2e/README.md)** for the full runbook, Android-specific pitfalls, and TEST_MODE details.
+
 Cross-platform E2E testing using [Appium](https://appium.io/) with WebdriverIO.
 
 **Why Appium:**
