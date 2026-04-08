@@ -2,11 +2,75 @@ import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import { UserLocation, GeofenceEventData, AccuracySource } from '../types';
 import { GEOFENCE_TASK_NAME } from '../constants';
+import { getDatabase } from './Database';
 
 export type GeofenceCallback = (event: GeofenceEventData) => void;
 
 export class GeofenceService {
   private registeredGeofences: Map<string, Location.LocationRegion> = new Map();
+
+  private createRegion(location: UserLocation): Location.LocationRegion | null {
+    const { id, latitude, longitude, radiusMeters } = location;
+
+    if (
+      !Number.isFinite(latitude) ||
+      !Number.isFinite(longitude) ||
+      !Number.isFinite(radiusMeters) ||
+      radiusMeters <= 0
+    ) {
+      console.warn('[GeofenceService] Skipping invalid geofence region:', {
+        id,
+        latitude,
+        longitude,
+        radiusMeters,
+      });
+      return null;
+    }
+
+    return {
+      identifier: id,
+      latitude,
+      longitude,
+      radius: radiusMeters,
+      notifyOnEnter: true,
+      notifyOnExit: true,
+    };
+  }
+
+  private async syncRegisteredGeofencesFromDatabase(): Promise<void> {
+    const db = await getDatabase();
+    const locations = await db.getActiveLocations();
+    const regions = new Map<string, Location.LocationRegion>();
+
+    for (const location of locations) {
+      const region = this.createRegion(location);
+      if (region) {
+        regions.set(location.id, region);
+      }
+    }
+
+    this.registeredGeofences = regions;
+  }
+
+  private async restartGeofencing(): Promise<void> {
+    const isActive = await Location.hasStartedGeofencingAsync(GEOFENCE_TASK_NAME);
+    if (isActive) {
+      await Location.stopGeofencingAsync(GEOFENCE_TASK_NAME);
+    }
+
+    const { status } = await Location.getBackgroundPermissionsAsync();
+    if (status !== 'granted') {
+      console.warn('[GeofenceService] Background permission not granted, skipping geofence restart');
+      return;
+    }
+
+    const regions = Array.from(this.registeredGeofences.values());
+    if (regions.length === 0) {
+      return;
+    }
+
+    await Location.startGeofencingAsync(GEOFENCE_TASK_NAME, regions);
+  }
 
   /**
    * Request foreground location permissions
@@ -44,55 +108,22 @@ export class GeofenceService {
    * Register a geofence for a user location
    */
   async registerGeofence(location: UserLocation): Promise<void> {
-    // Check if background permission is granted
-    const { status } = await Location.getBackgroundPermissionsAsync();
-    if (status !== 'granted') {
-      console.warn('[GeofenceService] Background permission not granted, skipping geofence registration');
+    const region = this.createRegion(location);
+    if (!region) {
       return;
     }
 
-    const region: Location.LocationRegion = {
-      identifier: location.id,
-      latitude: location.latitude,
-      longitude: location.longitude,
-      radius: location.radiusMeters,
-      notifyOnEnter: true,
-      notifyOnExit: true,
-    };
-
     this.registeredGeofences.set(location.id, region);
-
-    // If geofencing already started, need to restart with updated list
-    const isActive = await Location.hasStartedGeofencingAsync(GEOFENCE_TASK_NAME);
-    if (isActive) {
-      await Location.stopGeofencingAsync(GEOFENCE_TASK_NAME);
-    }
-
-    // Start with all registered geofences
-    await Location.startGeofencingAsync(
-      GEOFENCE_TASK_NAME,
-      Array.from(this.registeredGeofences.values())
-    );
+    await this.restartGeofencing();
   }
 
   /**
    * Unregister a geofence
    */
   async unregisterGeofence(locationId: string): Promise<void> {
+    await this.syncRegisteredGeofencesFromDatabase();
     this.registeredGeofences.delete(locationId);
-
-    // Restart with remaining geofences
-    const isActive = await Location.hasStartedGeofencingAsync(GEOFENCE_TASK_NAME);
-    if (isActive) {
-      await Location.stopGeofencingAsync(GEOFENCE_TASK_NAME);
-    }
-
-    if (this.registeredGeofences.size > 0) {
-      await Location.startGeofencingAsync(
-        GEOFENCE_TASK_NAME,
-        Array.from(this.registeredGeofences.values())
-      );
-    }
+    await this.restartGeofencing();
   }
 
   /**

@@ -14,7 +14,7 @@ import {
   ScrollView,
   Animated,
 } from 'react-native';
-import MapView, { Circle, Marker, Region, MapPressEvent } from 'react-native-maps';
+import MapView, { Circle, Marker, MapPressEvent } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
@@ -121,8 +121,8 @@ export default function SetupScreen({ navigation, route }: Props) {
   const [radius, setRadius] = useState(initialLocation?.radiusMeters ?? 200);
   const [name, setName] = useState(initialLocation?.name ?? '');
 
-  // Map region (separate from pin - allows panning without moving pin)
-  const [region, setRegion] = useState<Region>({
+  // Map region — kept as ref for search proximity; map is uncontrolled to avoid Android flicker
+  const regionRef = useRef({
     latitude: initialLocation?.latitude ?? 37.78825,
     longitude: initialLocation?.longitude ?? -122.4324,
     latitudeDelta: 0.005,
@@ -210,12 +210,14 @@ export default function SetupScreen({ navigation, route }: Props) {
         const location = await Promise.race([locationPromise, timeoutPromise]) as Location.LocationObject;
         console.log('[SetupScreen] Got location:', location.coords);
 
-        setRegion({
+        const newRegion = {
           latitude: location.coords.latitude,
           longitude: location.coords.longitude,
           latitudeDelta: 0.02,
           longitudeDelta: 0.02,
-        });
+        };
+        regionRef.current = newRegion;
+        mapRef.current?.animateToRegion(newRegion, 300);
       } catch (locationError) {
         console.warn('[SetupScreen] Failed to get location, using default:', locationError);
         Alert.alert(
@@ -253,8 +255,8 @@ export default function SetupScreen({ navigation, route }: Props) {
     searchDebounceRef.current = setTimeout(async () => {
       const results = await searchLocations(text, {
         proximity: {
-          latitude: region.latitude,
-          longitude: region.longitude,
+          latitude: regionRef.current.latitude,
+          longitude: regionRef.current.longitude,
         },
       });
       setSearchResults(results);
@@ -269,16 +271,13 @@ export default function SetupScreen({ navigation, route }: Props) {
       longitude: result.longitude,
     });
 
-    // Center map on result
-    // Note: Only use animateToRegion, not setRegion - on Android calling both causes conflicts.
-    // The onRegionChangeComplete callback will update the region state after animation.
-    const newRegion = {
+    // Center map on result (uncontrolled — animateToRegion only, no controlled region prop)
+    mapRef.current?.animateToRegion({
       latitude: result.latitude,
       longitude: result.longitude,
       latitudeDelta: 0.01,
       longitudeDelta: 0.01,
-    };
-    mapRef.current?.animateToRegion(newRegion, 500);
+    }, 500);
 
     // Clear search
     setSearchQuery('');
@@ -324,7 +323,7 @@ export default function SetupScreen({ navigation, route }: Props) {
         latitudeDelta: 0.005,
         longitudeDelta: 0.005,
       };
-      setRegion(newRegion);
+      regionRef.current = newRegion;
       mapRef.current?.animateToRegion(newRegion, 300);
       setStep(2);
     } else if (step === 2) {
@@ -550,8 +549,8 @@ export default function SetupScreen({ navigation, route }: Props) {
             <MapView
               ref={mapRef}
               style={styles.map}
-              region={region}
-              onRegionChangeComplete={setRegion}
+              initialRegion={regionRef.current}
+              onRegionChangeComplete={(r) => { regionRef.current = r; }}
               onPress={handleMapPress}
               showsUserLocation
               showsMyLocationButton={false}
@@ -601,8 +600,8 @@ export default function SetupScreen({ navigation, route }: Props) {
             <MapView
               ref={mapRef}
               style={styles.map}
-              region={region}
-              onRegionChangeComplete={setRegion}
+              initialRegion={regionRef.current}
+              onRegionChangeComplete={(r) => { regionRef.current = r; }}
               onPress={viewOnly ? undefined : handleMapPress}
               showsUserLocation
               showsMyLocationButton={false}
