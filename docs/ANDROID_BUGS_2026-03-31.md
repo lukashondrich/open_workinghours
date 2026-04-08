@@ -13,7 +13,7 @@
 
 | Bug | Description | Root Cause | Status |
 |-----|-------------|------------|--------|
-| 1 | Map tap inside geofence circle ignored | `Circle` intercepts touches on Android | FIXED (2026-04-02) |
+| 1 | Map tap inside geofence circle ignored | Prior `Circle`-touch diagnosis disproven on retest; current code works without `tappable={false}` | FIXED (2026-04-08) |
 | 2 | Location list map flickers between locations | Controlled `region` prop feedback loop | FIXED (2026-04-04) |
 | 4 | Search result doesn't update map | Same as Bug 2 | FIXED (2026-04-04) |
 | 5 | Tab bar grey gradient artifact | `borderTopWidth` + `elevation` on Samsung | FIXED (2026-04-08) |
@@ -51,15 +51,6 @@ After the original five bugs were closed out, several Android-specific spacing i
 **Cross-device check (2026-04-08):**
 - Samsung Galaxy A14: verified the Android detail-screen headers, Status top spacing, Work Tracking / Work History top spacing, and final tab bar appearance
 - iOS simulator: verified no duplicate custom headers on iOS, native iOS headers still appear normally, and the iOS tab bar keeps its expected divider
-
-### Files Changed (prior session — 2026-04-02)
-
-| File | Bug Fixed | What Changed |
-|------|----------|--------------|
-| `SetupScreen.tsx` | 1 | `tappable={false}` on Circle components (step 2, step 3) |
-| `LocationsListScreen.tsx` | 1 | `tappable={false}` on Circle component |
-
----
 
 ## Root Cause Analysis
 
@@ -105,9 +96,15 @@ SetupScreen has a multi-step wizard where Step 1 and Step 2 each mount their own
 
 **Fix:** Remove Android shadow/elevation from the tab bar. In the final verified version, keep the shadow off but restore only a very subtle hairline divider directly on the Android tab bar, which preserves separation without recreating the Samsung gradient artifact.
 
-### Bug 1: Circle touch interception (fixed prior session)
+### Bug 1: Prior Circle-touch diagnosis disproven on retest
 
-**Root cause:** `react-native-maps` `Circle` component on Android intercepts touch events by default (unlike iOS which passes them through). Adding `tappable={false}` makes the circle transparent to touches.
+The earlier write-up attributed Bug 1 to Android `Circle` touch interception and claimed `tappable={false}` fixed it. That explanation did not survive retest:
+
+- On 2026-04-08, `tappable={false}` was removed from both `SetupScreen.tsx` and `LocationsListScreen.tsx`
+- The Samsung still allowed tapping inside the circle to reposition/edit the workplace as expected
+- This means the previous implementation explanation was incorrect, even though the user-facing behavior is now correct
+
+**Conservative conclusion:** Bug 1 is fixed in current code, but the exact effective mechanism was not isolated cleanly. The current verified code works **without** `tappable={false}`.
 
 ---
 
@@ -152,13 +149,13 @@ This means the "failed attempts" documented for bugs 2, 4, 5 on 2026-04-02 were 
 **Expected:** Pin moves to tap location
 **Actual:** Nothing happens. Tapping *outside* the circle works fine.
 
-**Root cause:** `react-native-maps` `Circle` on Android intercepts touches by default. iOS passes them through.
+**Root cause:** Not conclusively isolated. The earlier diagnosis that Android `Circle` components were intercepting touches was disproven on 2026-04-08 when `tappable={false}` was removed and the Samsung behavior stayed correct.
 
-**Fix:** `tappable={false}` on all Circle components.
+**Fix:** No `Circle`-specific prop change is required in the current code. The verified implementation works without `tappable={false}`.
 
-**Verified:** Samsung real device (2026-04-02).
+**Verified:** Samsung real device (2026-04-08).
 
-**Files:** `SetupScreen.tsx` (3 Circles), `LocationsListScreen.tsx` (1 Circle)
+**Files:** `SetupScreen.tsx`, `LocationsListScreen.tsx`
 
 ---
 
@@ -226,7 +223,7 @@ This means the "failed attempts" documented for bugs 2, 4, 5 on 2026-04-02 were 
 
 | Bug | Status | Real Device Verified | Date |
 |-----|--------|---------------------|------|
-| 1 | FIXED | Samsung Galaxy A14 | 2026-04-02 |
+| 1 | FIXED | Samsung Galaxy A14 | 2026-04-08 |
 | 2 | FIXED | Samsung Galaxy A14 | 2026-04-04 |
 | 3 | COULD NOT REPRODUCE | Android + iOS retest | 2026-04-04 |
 | 4 | FIXED | Samsung Galaxy A14 | 2026-04-04 |
