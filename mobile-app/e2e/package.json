@@ -19,12 +19,18 @@
     "infra:android": "./start-infra.sh android",
     "infra:both": "./start-infra.sh both",
     "appium:start": "appium --allow-cors --relaxed-security",
-    "appium:install-drivers": "appium driver install xcuitest && appium driver install uiautomator2"
+    "appium:install-drivers": "appium driver install xcuitest && appium driver install uiautomator2",
+    "android": "expo run:android",
+    "ios": "expo run:ios"
   },
   "dependencies": {
-    "webdriverio": "^9.0.0"
+    "webdriverio": "^9.0.0",
+    "expo": "~54.0.32",
+    "react": "19.1.0",
+    "react-native": "0.81.5"
   },
   "devDependencies": {
+    "@wdio/cli": "^9.27.0",
     "jest": "^29.0.0"
   },
   "engines": {

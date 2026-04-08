@@ -34,6 +34,7 @@ describe('Manual Session Logging', () => {
     await ensureAuthenticated(driver);
     // Ensure a location is configured (required for manual session form)
     await ensureLocationConfigured(driver, 'calendar');
+    await ensureCleanCalendarState(driver);
   }, 180000);
 
   afterAll(async () => {

@@ -77,16 +77,22 @@ export default function CalendarHeader() {
             )}
           </View>
         </TouchableOpacity>
-        <View style={styles.viewToggle}>
+        <View style={styles.viewToggle} accessible={false}>
           <TouchableOpacity
             style={[styles.segment, state.view === 'week' && styles.segmentActive]}
             onPress={() => setView('week')}
+            testID="toggle-week"
+            accessible={true}
+            accessibilityRole="button"
           >
             <Text style={[styles.segmentText, state.view === 'week' && styles.segmentTextActive]}>{t('calendar.header.week')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.segment, state.view === 'month' && styles.segmentActive]}
             onPress={() => setView('month')}
+            testID="toggle-month"
+            accessible={true}
+            accessibilityRole="button"
           >
             <Text style={[styles.segmentText, state.view === 'month' && styles.segmentTextActive]}>{t('calendar.header.month')}</Text>
           </TouchableOpacity>
