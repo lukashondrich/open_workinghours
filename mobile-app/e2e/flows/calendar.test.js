@@ -19,6 +19,7 @@ const {
   waitForTestId,
   dismissPermissionDialogs,
   ensureAuthenticated,
+  ensureCleanCalendarState,
   waitForTestIdWithRetry,
 } = require('../helpers/actions');
 
@@ -30,6 +31,8 @@ describe('Calendar Navigation', () => {
     await driver.pause(2000);
     // Ensure we're authenticated before calendar tests
     await ensureAuthenticated(driver);
+    // Recover from stale state (e.g., month view left by previous suite)
+    await ensureCleanCalendarState(driver);
   });
 
   afterAll(async () => {
@@ -82,20 +85,20 @@ describe('Calendar Navigation', () => {
 
   test('should switch to Month view', async () => {
     // Find and tap Month toggle (handles both German "Monat" and English "Month")
-    const monthToggle = await byI18nFast(driver, 'month');
+    const monthToggle = await byTestId(driver, 'toggle-month');
     await monthToggle.waitForDisplayed({ timeout: 5000 });
     await monthToggle.click();
     await driver.pause(1000); // Allow view transition to complete
 
     // Verify we're in Month view by checking the Week toggle is now tappable
     // (FAB is hidden in Month view by design)
-    const weekToggle = await byI18nFast(driver, 'week');
+    const weekToggle = await byTestId(driver, 'toggle-week');
     expect(await weekToggle.isDisplayed()).toBe(true);
   });
 
   test('should switch back to Week view', async () => {
     // Find and tap Week toggle (handles both German "Woche" and English "Week")
-    const weekToggle = await byI18nFast(driver, 'week');
+    const weekToggle = await byTestId(driver, 'toggle-week');
     await weekToggle.waitForDisplayed({ timeout: 5000 });
     await weekToggle.click();
     await driver.pause(500);
