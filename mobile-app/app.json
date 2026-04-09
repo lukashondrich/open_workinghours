@@ -24,7 +24,6 @@
         "NSLocationAlwaysAndWhenInUseUsageDescription": "We need your location in the background to automatically clock you in/out when you arrive/leave work.",
         "NSFaceIDUsageDescription": "Use Face ID to quickly unlock Open Working Hours.",
         "UIBackgroundModes": [
-          "location",
           "location"
         ],
         "ITSAppUsesNonExemptEncryption": false
