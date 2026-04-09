@@ -23,7 +23,7 @@ import { Minus, Plus, Search, X, ChevronLeft, MapPin } from 'lucide-react-native
 
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
 import { t } from '@/lib/i18n';
-import { Button, Input } from '@/components/ui';
+import { Button, Input, SettingsDetailLayout } from '@/components/ui';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import { getDatabase } from '@/modules/geofencing/services/Database';
 import { getGeofenceService } from '@/modules/geofencing/services/GeofenceService';
@@ -457,11 +457,13 @@ export default function SetupScreen({ navigation, route }: Props) {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary[500]} />
-        <Text style={styles.loadingText}>{t('setup.gettingLocation')}</Text>
-        <Text style={styles.loadingHint}>{t('setup.gettingLocationHint')}</Text>
-      </View>
+      <SettingsDetailLayout title={t('navigation.addLocation')}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary[500]} />
+          <Text style={styles.loadingText}>{t('setup.gettingLocation')}</Text>
+          <Text style={styles.loadingHint}>{t('setup.gettingLocationHint')}</Text>
+        </View>
+      </SettingsDetailLayout>
     );
   }
 
@@ -481,7 +483,7 @@ export default function SetupScreen({ navigation, route }: Props) {
   );
 
   return (
-    <View style={styles.container}>
+    <SettingsDetailLayout title={t('navigation.addLocation')} contentStyle={styles.container}>
       {/* Step Indicator */}
       <View style={styles.headerBar}>
         {step > 1 ? (
@@ -743,7 +745,7 @@ export default function SetupScreen({ navigation, route }: Props) {
           </KeyboardAvoidingView>
         </>
       )}
-    </View>
+    </SettingsDetailLayout>
   );
 }
 

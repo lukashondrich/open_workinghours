@@ -288,7 +288,9 @@ export default function AppNavigator() {
         <Stack.Screen
           name="Setup"
           component={SetupScreen}
-          options={{ title: t('navigation.addLocation') }}
+          options={Platform.OS === 'android'
+            ? { headerShown: false }
+            : { title: t('navigation.addLocation') }}
         />
         <Stack.Screen
           name="Tracking"
