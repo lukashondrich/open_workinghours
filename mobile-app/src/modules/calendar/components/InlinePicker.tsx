@@ -1194,7 +1194,7 @@ const styles = StyleSheet.create({
     color: colors.primary[500],
   },
   listContainer: {
-    maxHeight: 450,
+    maxHeight: 300,
   },
   emptyText: {
     fontSize: fontSize.sm,
