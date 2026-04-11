@@ -35,6 +35,7 @@ export const en = {
     status: 'Status',
     calendar: 'Calendar',
     settings: 'Settings',
+    reports: 'Reports',
     // Screen titles
     addLocation: 'Add Location',
     workTracking: 'Work Tracking',
@@ -662,5 +663,69 @@ export const en = {
     errorOverlap: 'Overlaps with existing session',
     errorTimes: 'End time must be after start time',
     errorNoLocation: 'Please add a location first',
+  },
+
+  // Reports tab
+  reports: {
+    title: 'Reports',
+    // Collective insights
+    collective: {
+      title: 'Collective Insights',
+      youVsGroup: 'You vs Group',
+      you: 'You',
+      group: 'Group Ø',
+      placeholder: 'Share with colleagues to unlock collective insights for your region.',
+      share: 'Share App',
+      avgPlanned: 'Planned',
+      avgActual: 'Actual',
+      avgOvertime: 'Overtime',
+      contributors: '~{{count}} contributors',
+      hours: 'h',
+      regional: 'Hospitals in Your Region',
+      regionalPlaceholder: 'Compare overtime across hospitals in your area — available when more hospitals contribute.',
+      trend: 'Overtime Trend',
+      trendPlaceholder: 'Track how overtime changes over time — available after 4 weeks of data.',
+    },
+    // Submissions section
+    submissions: {
+      title: 'Your Submissions',
+      autoSend: 'Auto-send',
+      autoSendHint: 'Confirmed weeks sent every Sunday',
+    },
+    // Week card states
+    week: {
+      label: 'KW {{number}}',
+      daysConfirmed: '{{confirmed}}/{{total}} days confirmed',
+      dayToConfirm: 'day to confirm',
+      daysToConfirm: 'days to confirm',
+      allConfirmed: 'All days confirmed',
+      reviewInCalendar: 'Review in Calendar',
+      queueForSunday: 'Queue for Sunday',
+      sendingSunday: 'Sending Sunday',
+      queuedForSunday: 'Queued for Sunday',
+      undo: 'Undo',
+    },
+    // Sent section
+    sent: {
+      title: 'Sent',
+      chip: 'Sent',
+      weeksContributed: '{{count}} weeks contributed',
+      export: 'Export',
+    },
+    // Monday reward
+    reward: {
+      title: 'KW {{week}} sent',
+      subtitle: '{{count}} weeks contributed total',
+      dismiss: 'Dismiss',
+    },
+    // First-time overlay
+    firstTime: {
+      title: 'Your first contribution',
+      body: 'By submitting this week, you\'re contributing your working hours to the collective dataset.',
+      bullet1: 'Weekly totals are anonymized and added to aggregate stats',
+      bullet2: 'No individual shifts are shared',
+      bullet3: 'After Sunday, this can\'t be undone',
+      gotIt: 'Got it',
+    },
   },
 };

@@ -1,0 +1,1082 @@
+import React, { useState, useCallback } from 'react';
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Switch,
+  Platform,
+  LayoutAnimation,
+  UIManager,
+  useWindowDimensions,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
+} from 'react-native';
+
+// Enable LayoutAnimation on Android
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { AppText as Text } from '@/components/ui/AppText';
+import { useNavigation } from '@react-navigation/native';
+import { Check, X, Share2, Send, Download, MapPin, Lock } from 'lucide-react-native';
+import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
+import { t } from '@/lib/i18n';
+
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParamList, MainTabParamList } from '@/navigation/AppNavigator';
+import type { CompositeNavigationProp } from '@react-navigation/native';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+
+type ReportsNavigationProp = CompositeNavigationProp<
+  BottomTabNavigationProp<MainTabParamList, 'Reports'>,
+  NativeStackNavigationProp<RootStackParamList>
+>;
+
+// ─── Types ──────────────────────────────────────────────────────────────────
+
+type WeekState = 'unconfirmed' | 'confirmed' | 'queued' | 'sent';
+
+interface WeekData {
+  weekNumber: number;
+  dateRange: string;
+  confirmedDays: number;
+  totalDays: number;
+  state: WeekState;
+}
+
+// ─── Mock Data ──────────────────────────────────────────────────────────────
+
+const MOCK_ACTIVE_WEEKS: WeekData[] = [
+  {
+    weekNumber: 15,
+    dateRange: 'Apr 7 – 13',
+    confirmedDays: 3,
+    totalDays: 7,
+    state: 'unconfirmed',
+  },
+  {
+    weekNumber: 14,
+    dateRange: 'Mar 31 – Apr 6',
+    confirmedDays: 7,
+    totalDays: 7,
+    state: 'confirmed',
+  },
+  {
+    weekNumber: 13,
+    dateRange: 'Mar 24 – 30',
+    confirmedDays: 7,
+    totalDays: 7,
+    state: 'queued',
+  },
+  {
+    weekNumber: 12,
+    dateRange: 'Mar 17 – 23',
+    confirmedDays: 5,
+    totalDays: 7,
+    state: 'unconfirmed',
+  },
+];
+
+const MOCK_SENT_WEEKS = [11, 10, 9, 8, 7];
+
+// ─── Collective Insights (swipeable cards) ──────────────────────────────────
+
+function PlaceholderBar({ width, opacity = 0.3 }: { width: number; opacity?: number }) {
+  return (
+    <View style={[styles.hBar, { width, opacity }]} />
+  );
+}
+
+/** Semi-transparent lock overlay — covers the card content to signal data isn't real */
+function LockedOverlay({ message }: { message: string }) {
+  return (
+    <View style={styles.lockedOverlay} pointerEvents="none">
+      <View style={styles.lockedBadge}>
+        <Lock size={16} color={colors.text.tertiary} />
+        <Text style={styles.lockedText}>{message}</Text>
+      </View>
+    </View>
+  );
+}
+
+/** View 1: You vs Group — horizontal comparison bars */
+function InsightYouVsGroup({ cardWidth }: { cardWidth: number }) {
+  return (
+    <View style={[styles.insightSlide, { width: cardWidth }]}>
+      <Text style={styles.insightSlideTitle}>{t('reports.collective.youVsGroup')}</Text>
+
+      {/* Chart area with lock overlay */}
+      <View style={styles.lockedChartArea}>
+        <View style={styles.hBarSection} accessible={false}>
+          <View style={styles.hBarRow}>
+            <Text style={styles.hBarLabel}>{t('reports.collective.you')}</Text>
+            <View style={styles.hBarTrack}>
+              <PlaceholderBar width={140} opacity={0.25} />
+            </View>
+            <Text style={styles.hBarValue}>— h</Text>
+          </View>
+          <View style={styles.hBarRow}>
+            <Text style={styles.hBarLabel}>{t('reports.collective.group')}</Text>
+            <View style={styles.hBarTrack}>
+              <PlaceholderBar width={110} opacity={0.2} />
+              <View style={[styles.hBarCi, { left: 100, width: 30 }]} />
+            </View>
+            <Text style={styles.hBarValue}>— h</Text>
+          </View>
+        </View>
+        <LockedOverlay message={t('reports.collective.placeholder')} />
+      </View>
+
+      <TouchableOpacity
+        style={styles.shareButton}
+        accessibilityRole="button"
+        accessibilityLabel={t('reports.collective.share')}
+        testID="share-button"
+      >
+        <Share2 size={16} color={colors.primary[500]} />
+        <Text style={styles.shareButtonText}>{t('reports.collective.share')}</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+/** View 2: Regional hospitals — mini map + overtime bars */
+function InsightRegionalHospitals({ cardWidth }: { cardWidth: number }) {
+  return (
+    <View style={[styles.insightSlide, { width: cardWidth }]}>
+      <Text style={styles.insightSlideTitle}>{t('reports.collective.regional')}</Text>
+
+      <View style={styles.lockedChartArea}>
+        <View style={styles.regionalContent} accessible={false}>
+          <View style={styles.miniMap}>
+            <View style={styles.miniMapBg} />
+            {[
+              { top: '20%', left: '30%' },
+              { top: '45%', left: '60%' },
+              { top: '70%', left: '35%' },
+            ].map((pos, i) => (
+              <View key={i} style={[styles.miniMapPin, { top: pos.top as any, left: pos.left as any }]}>
+                <MapPin size={14} color={colors.primary[300]} />
+              </View>
+            ))}
+          </View>
+
+          <View style={styles.hospitalBars}>
+            {[
+              { label: 'Klinik A', width: 60 },
+              { label: 'Klinik B', width: 45 },
+              { label: 'Klinik C', width: 80 },
+            ].map((h) => (
+              <View key={h.label} style={styles.hospitalBarRow}>
+                <Text style={styles.hospitalBarLabel}>{h.label}</Text>
+                <PlaceholderBar width={h.width} opacity={0.2} />
+                <Text style={styles.hBarValue}>—</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+        <LockedOverlay message={t('reports.collective.regionalPlaceholder')} />
+      </View>
+    </View>
+  );
+}
+
+/** View 3: Trend over time — sparkline of overtime gap */
+function InsightTrend({ cardWidth }: { cardWidth: number }) {
+  // Placeholder sparkline as a series of dots connected by a line
+  const points = [4, 6, 5, 7, 3, 5, 6, 4];
+
+  return (
+    <View style={[styles.insightSlide, { width: cardWidth }]}>
+      <Text style={styles.insightSlideTitle}>{t('reports.collective.trend')}</Text>
+
+      <View style={styles.lockedChartArea}>
+        <View style={styles.sparklineContainer} accessible={false}>
+          <View style={styles.sparklineYAxis}>
+            <Text style={styles.sparklineAxisLabel}>+8h</Text>
+            <Text style={styles.sparklineAxisLabel}>0h</Text>
+          </View>
+
+          <View style={styles.sparklineArea}>
+            <View style={styles.sparklineBaseline} />
+            <View style={styles.sparklinePoints}>
+              {points.map((p, i) => (
+                <View key={i} style={styles.sparklineColumn}>
+                  <View
+                    style={[
+                      styles.sparklineDot,
+                      { bottom: (p / 8) * 40, opacity: 0.25 },
+                    ]}
+                  />
+                  <View
+                    style={[
+                      styles.sparklineBar,
+                      { height: (p / 8) * 40, opacity: 0.15 },
+                    ]}
+                  />
+                </View>
+              ))}
+            </View>
+            <View style={styles.sparklineXAxis}>
+              {points.map((_, i) => (
+                <Text key={i} style={styles.sparklineXLabel}>
+                  {`W${i + 1}`}
+                </Text>
+              ))}
+            </View>
+          </View>
+        </View>
+        <LockedOverlay message={t('reports.collective.trendPlaceholder')} />
+      </View>
+    </View>
+  );
+}
+
+/** Swipeable container with page dots */
+function CollectiveInsights() {
+  const { width: screenWidth } = useWindowDimensions();
+  const cardWidth = screenWidth - spacing.xl * 2;
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  const handleScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const offsetX = e.nativeEvent.contentOffset.x;
+    const index = Math.round(offsetX / cardWidth);
+    setActiveIndex(index);
+  }, [cardWidth]);
+
+  return (
+    <View style={styles.insightsContainer} testID="collective-insights">
+      <ScrollView
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onMomentumScrollEnd={handleScroll}
+        decelerationRate="fast"
+        snapToInterval={cardWidth}
+        snapToAlignment="start"
+        contentContainerStyle={styles.insightsScrollContent}
+        style={styles.insightsScroll}
+      >
+        <InsightYouVsGroup cardWidth={cardWidth} />
+        <InsightRegionalHospitals cardWidth={cardWidth} />
+        <InsightTrend cardWidth={cardWidth} />
+      </ScrollView>
+
+      {/* Page dots */}
+      <View style={styles.pageDots} accessible={false}>
+        {[0, 1, 2].map((i) => (
+          <View
+            key={i}
+            style={[styles.pageDot, i === activeIndex && styles.pageDotActive]}
+          />
+        ))}
+      </View>
+    </View>
+  );
+}
+
+// ─── Monday Reward Card ─────────────────────────────────────────────────────
+
+function MondayRewardCard({ weekNumber, totalWeeks, onDismiss }: {
+  weekNumber: number;
+  totalWeeks: number;
+  onDismiss: () => void;
+}) {
+  return (
+    <View style={styles.rewardCard} testID="monday-reward-card">
+      <View style={styles.rewardContent} accessible={false}>
+        <View style={styles.rewardIconCircle}>
+          <Check size={16} color={colors.white} strokeWidth={3} />
+        </View>
+        <View style={styles.rewardTextContainer}>
+          <Text style={styles.rewardTitle}>
+            {t('reports.reward.title', { week: weekNumber })}
+          </Text>
+          <Text style={styles.rewardSubtitle}>
+            {t('reports.reward.subtitle', { count: totalWeeks })}
+          </Text>
+        </View>
+      </View>
+      <TouchableOpacity
+        onPress={onDismiss}
+        style={styles.rewardDismiss}
+        accessibilityRole="button"
+        accessibilityLabel={t('reports.reward.dismiss')}
+        testID="monday-reward-dismiss"
+      >
+        <X size={16} color={colors.text.tertiary} />
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+// ─── Week Card (unified row) ────────────────────────────────────────────────
+
+function WeekCard({ week, autoSend, onNavigate, onToggleSend }: {
+  week: WeekData;
+  autoSend: boolean;
+  onNavigate: (weekNumber: number) => void;
+  onToggleSend: (weekNumber: number, value: boolean) => void;
+}) {
+  const isFullyConfirmed = week.confirmedDays === week.totalDays;
+  const remaining = week.totalDays - week.confirmedDays;
+
+  // Switch state: ON when queued, or when confirmed + auto-send
+  const isSending = week.state === 'queued' || (week.state === 'confirmed' && autoSend);
+  const switchEnabled = isFullyConfirmed && !autoSend;
+
+  return (
+    <TouchableOpacity
+      style={styles.weekCard}
+      onPress={() => onNavigate(week.weekNumber)}
+      activeOpacity={0.7}
+      accessible={true}
+      accessibilityRole="button"
+      testID={`week-card-${week.weekNumber}`}
+    >
+      <View style={styles.weekCardRow} accessible={false}>
+        <View style={styles.weekCardContent}>
+          <Text style={styles.weekCardTitle}>
+            {t('reports.week.label', { number: week.weekNumber })} · {week.dateRange}
+          </Text>
+          {week.state === 'queued' ? (
+            <Text style={styles.badgeQueued}>{t('reports.week.queuedForSunday')}</Text>
+          ) : week.state === 'confirmed' && autoSend ? (
+            <Text style={styles.badgeQueued}>{t('reports.week.sendingSunday')}</Text>
+          ) : isFullyConfirmed ? (
+            <Text style={styles.badgeConfirmed}>✓ {t('reports.week.allConfirmed')}</Text>
+          ) : (
+            <Text style={styles.badgeUnconfirmed}>
+              <Text style={styles.remainingCount}>{remaining}</Text>
+              {' '}{remaining === 1 ? t('reports.week.dayToConfirm') : t('reports.week.daysToConfirm')}
+            </Text>
+          )}
+        </View>
+        <Switch
+          value={isSending}
+          onValueChange={(value) => onToggleSend(week.weekNumber, value)}
+          disabled={!switchEnabled}
+          trackColor={{ false: colors.grey[200], true: colors.primary[100] }}
+          thumbColor={isSending ? colors.primary[400] : colors.grey[50]}
+          ios_backgroundColor={colors.grey[200]}
+          style={styles.weekCardSwitch}
+          testID={`week-send-toggle-${week.weekNumber}`}
+        />
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+// ─── Sent History ───────────────────────────────────────────────────────────
+
+function SentHistory({ weekNumbers }: { weekNumbers: number[] }) {
+  const [expanded, setExpanded] = useState(false);
+  if (weekNumbers.length === 0) return null;
+
+  const toggleExpanded = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setExpanded((prev) => !prev);
+  };
+
+  const handleExport = useCallback(() => {
+    // TODO: export all sent weeks as PDF/CSV
+  }, []);
+
+  return (
+    <View style={styles.sentSection} testID="sent-history">
+      <View style={styles.sentCard}>
+        <TouchableOpacity
+          style={styles.sentHeader}
+          onPress={toggleExpanded}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          testID="sent-history-toggle"
+          accessible={false}
+        >
+          <Text style={styles.sentHeaderTitle}>{t('reports.sent.title')}</Text>
+          <Text style={styles.sentSummary}>
+            {t('reports.sent.weeksContributed', { count: weekNumbers.length })}
+          </Text>
+          <TouchableOpacity
+            onPress={handleExport}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            accessibilityRole="button"
+            accessibilityLabel={t('reports.sent.export')}
+            testID="export-button"
+          >
+            <Download size={18} color={colors.text.tertiary} />
+          </TouchableOpacity>
+        </TouchableOpacity>
+
+        {expanded && (
+          <View style={styles.sentList}>
+            {weekNumbers.map((wn) => (
+              <View key={wn} style={styles.sentRow}>
+                <Check size={12} color={colors.success.dark} strokeWidth={3} />
+                <Text style={styles.sentRowText}>KW {wn}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+      </View>
+    </View>
+  );
+}
+
+// ─── First-Time Overlay ─────────────────────────────────────────────────────
+
+function FirstTimeOverlay({ onDismiss }: { onDismiss: () => void }) {
+  return (
+    <View style={styles.overlayBackdrop} testID="first-time-overlay">
+      <View style={styles.overlayCard}>
+        <Text style={styles.overlayTitle}>{t('reports.firstTime.title')}</Text>
+        <Text style={styles.overlayBody}>{t('reports.firstTime.body')}</Text>
+
+        <View style={styles.overlayBullets} accessible={false}>
+          <Text style={styles.overlayBullet}>
+            {'\u2022'} {t('reports.firstTime.bullet1')}
+          </Text>
+          <Text style={styles.overlayBullet}>
+            {'\u2022'} {t('reports.firstTime.bullet2')}
+          </Text>
+          <Text style={styles.overlayBullet}>
+            {'\u2022'} {t('reports.firstTime.bullet3')}
+          </Text>
+        </View>
+
+        <TouchableOpacity
+          style={styles.primaryButton}
+          onPress={onDismiss}
+          accessibilityRole="button"
+          testID="first-time-got-it"
+        >
+          <Text style={styles.primaryButtonText}>{t('reports.firstTime.gotIt')}</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
+// ─── Main Screen ────────────────────────────────────────────────────────────
+
+export default function ReportsScreen() {
+  const navigation = useNavigation<ReportsNavigationProp>();
+  const [weeks, setWeeks] = useState<WeekData[]>(MOCK_ACTIVE_WEEKS);
+  const [autoSend, setAutoSend] = useState(false);
+  const [showReward, setShowReward] = useState(true);
+  const [showFirstTime, setShowFirstTime] = useState(false);
+  const [hasShownFirstTime, setHasShownFirstTime] = useState(false);
+
+  const handleToggleSend = useCallback((weekNumber: number, value: boolean) => {
+    if (value && !hasShownFirstTime) {
+      setShowFirstTime(true);
+      setHasShownFirstTime(true);
+    }
+    setWeeks((prev) =>
+      prev.map((w) =>
+        w.weekNumber === weekNumber
+          ? { ...w, state: (value ? 'queued' : 'confirmed') as WeekState }
+          : w
+      )
+    );
+  }, [hasShownFirstTime]);
+
+  const handleNavigateToWeek = useCallback((weekNumber: number) => {
+    // Navigate to Calendar — in a real implementation this would target the specific week
+    navigation.navigate('Calendar', {});
+  }, [navigation]);
+
+  const handleAutoSendToggle = useCallback((value: boolean) => {
+    if (value && !hasShownFirstTime) {
+      setShowFirstTime(true);
+      setHasShownFirstTime(true);
+    }
+    setAutoSend(value);
+  }, [hasShownFirstTime]);
+
+  // Sort: most recent first
+  const sortedWeeks = [...weeks].sort((a, b) => b.weekNumber - a.weekNumber);
+
+  return (
+    <View style={styles.container}>
+      {/* Header */}
+      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>{t('reports.title')}</Text>
+        </View>
+      </SafeAreaView>
+
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+      >
+        {/* Monday reward card */}
+        {showReward && (
+          <MondayRewardCard
+            weekNumber={11}
+            totalWeeks={MOCK_SENT_WEEKS.length}
+            onDismiss={() => setShowReward(false)}
+          />
+        )}
+
+        {/* Collective Insights (swipeable) */}
+        <CollectiveInsights />
+
+        {/* Submissions section header + auto-send toggle (same row) */}
+        <View style={styles.submissionsHeader}>
+          <Text style={styles.sectionTitle}>{t('reports.submissions.title')}</Text>
+          <View style={styles.autoSendToggle}>
+            <View style={[styles.autoSendIndicator, autoSend && styles.autoSendIndicatorActive]}>
+              <Send size={12} color={autoSend ? colors.primary[700] : colors.grey[500]} />
+              <Text style={[styles.autoSendText, autoSend && styles.autoSendTextActive]}>
+                {t('reports.submissions.autoSend')}
+              </Text>
+            </View>
+            <Switch
+              value={autoSend}
+              onValueChange={handleAutoSendToggle}
+              trackColor={{ false: colors.grey[300], true: colors.primary[200] }}
+              thumbColor={autoSend ? colors.primary[500] : colors.grey[100]}
+              ios_backgroundColor={colors.grey[300]}
+              testID="auto-send-toggle"
+            />
+          </View>
+        </View>
+
+        {/* Week cards */}
+        <View style={styles.weekList}>
+          {sortedWeeks.map((week) => (
+            <WeekCard
+              key={week.weekNumber}
+              week={week}
+              autoSend={autoSend}
+              onNavigate={handleNavigateToWeek}
+              onToggleSend={handleToggleSend}
+            />
+          ))}
+        </View>
+
+        {/* Sent history */}
+        <SentHistory weekNumbers={MOCK_SENT_WEEKS} />
+      </ScrollView>
+
+      {/* First-time overlay (inline, not Modal) */}
+      {showFirstTime && (
+        <FirstTimeOverlay onDismiss={() => setShowFirstTime(false)} />
+      )}
+    </View>
+  );
+}
+
+// ─── Styles ─────────────────────────────────────────────────────────────────
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background.default,
+  },
+  headerSafeArea: {
+    backgroundColor: colors.background.paper,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.lg,
+    backgroundColor: colors.background.paper,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border.default,
+  },
+  headerTitle: {
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.bold,
+    color: colors.text.primary,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 100,
+  },
+
+  // ─── Monday reward ────────────────────────
+  rewardCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary[50],
+    marginHorizontal: spacing.xl,
+    marginTop: spacing.lg,
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.primary[200],
+  },
+  rewardContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  rewardIconCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.primary[500],
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  rewardTextContainer: {
+    flex: 1,
+  },
+  rewardTitle: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    color: colors.text.primary,
+  },
+  rewardSubtitle: {
+    fontSize: fontSize.xs,
+    color: colors.text.secondary,
+    marginTop: 1,
+  },
+  rewardDismiss: {
+    padding: spacing.sm,
+  },
+
+  // ─── Collective insights (swipeable) ─────
+  insightsContainer: {
+    marginTop: spacing.lg,
+  },
+  insightsScroll: {
+    overflow: 'visible',
+  },
+  insightsScrollContent: {
+    paddingHorizontal: spacing.xl,
+  },
+  insightSlide: {
+    backgroundColor: colors.background.paper,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    ...shadows.sm,
+  },
+  insightSlideTitle: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    color: colors.text.primary,
+    marginBottom: spacing.md,
+  },
+
+  // Lock overlay watermark
+  lockedChartArea: {
+    position: 'relative',
+    marginBottom: spacing.md,
+  },
+  lockedOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255, 255, 255, 0.6)',
+    borderRadius: borderRadius.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  lockedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.full,
+    ...shadows.sm,
+  },
+  lockedText: {
+    fontSize: fontSize.xs,
+    color: colors.text.tertiary,
+    fontWeight: fontWeight.medium,
+    maxWidth: 200,
+    textAlign: 'center',
+  },
+
+  // Page dots
+  pageDots: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.sm,
+  },
+  pageDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.grey[300],
+  },
+  pageDotActive: {
+    backgroundColor: colors.primary[500],
+    width: 18,
+  },
+
+  // View 1: horizontal bars
+  hBarSection: {
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  hBarRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  hBarLabel: {
+    width: 48,
+    fontSize: fontSize.xs,
+    color: colors.text.secondary,
+    fontWeight: fontWeight.medium,
+  },
+  hBarTrack: {
+    flex: 1,
+    height: 20,
+    backgroundColor: colors.grey[100],
+    borderRadius: 4,
+    overflow: 'hidden',
+    justifyContent: 'center',
+  },
+  hBar: {
+    height: 20,
+    borderRadius: 4,
+    backgroundColor: colors.primary[400],
+  },
+  hBarCi: {
+    position: 'absolute',
+    height: 20,
+    backgroundColor: colors.primary[200],
+    opacity: 0.3,
+    borderRadius: 4,
+  },
+  hBarValue: {
+    width: 36,
+    fontSize: fontSize.xs,
+    color: colors.text.tertiary,
+    textAlign: 'right',
+  },
+  insightsPlaceholderText: {
+    fontSize: fontSize.sm,
+    color: colors.text.tertiary,
+    lineHeight: 20,
+    marginBottom: spacing.md,
+    flex: 1,
+  },
+  shareButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: spacing.xs,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.primary[200],
+    backgroundColor: colors.primary[50],
+  },
+  shareButtonText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+    color: colors.primary[500],
+  },
+
+  // View 2: regional hospitals
+  regionalContent: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginBottom: spacing.md,
+  },
+  miniMap: {
+    width: 80,
+    height: 80,
+    borderRadius: borderRadius.md,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  miniMapBg: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: colors.grey[100],
+    borderRadius: borderRadius.md,
+  },
+  miniMapPin: {
+    position: 'absolute',
+  },
+  hospitalBars: {
+    flex: 1,
+    justifyContent: 'center',
+    gap: spacing.sm,
+  },
+  hospitalBarRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  hospitalBarLabel: {
+    width: 48,
+    fontSize: fontSize.xxs,
+    color: colors.text.tertiary,
+  },
+
+  // View 3: trend sparkline
+  sparklineContainer: {
+    flexDirection: 'row',
+    height: 80,
+    marginBottom: spacing.md,
+    gap: spacing.xs,
+  },
+  sparklineYAxis: {
+    justifyContent: 'space-between',
+    paddingVertical: 4,
+  },
+  sparklineAxisLabel: {
+    fontSize: fontSize.xxs,
+    color: colors.text.tertiary,
+  },
+  sparklineArea: {
+    flex: 1,
+    position: 'relative',
+  },
+  sparklineBaseline: {
+    position: 'absolute',
+    bottom: 16,
+    left: 0,
+    right: 0,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.grey[300],
+  },
+  sparklinePoints: {
+    flexDirection: 'row',
+    flex: 1,
+    alignItems: 'flex-end',
+    paddingBottom: 16,
+  },
+  sparklineColumn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
+  sparklineDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.primary[500],
+    position: 'absolute',
+  },
+  sparklineBar: {
+    width: 12,
+    borderRadius: 2,
+    backgroundColor: colors.primary[300],
+  },
+  sparklineXAxis: {
+    flexDirection: 'row',
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+  },
+  sparklineXLabel: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: fontSize.xxs,
+    color: colors.text.tertiary,
+  },
+
+  // ─── Submissions header ───────────────────
+  submissionsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: spacing.xl,
+    marginTop: spacing.xxl,
+    marginBottom: spacing.md,
+  },
+  sectionTitle: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    color: colors.text.secondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  autoSendToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  autoSendIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: borderRadius.sm,
+    backgroundColor: colors.grey[100],
+  },
+  autoSendIndicatorActive: {
+    backgroundColor: colors.primary[50],
+  },
+  autoSendText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    color: colors.grey[500],
+  },
+  autoSendTextActive: {
+    color: colors.primary[700],
+  },
+
+  // ─── Week cards ───────────────────────────
+  weekList: {
+    gap: spacing.sm,
+    marginHorizontal: spacing.xl,
+  },
+  weekCard: {
+    backgroundColor: colors.background.paper,
+    borderRadius: borderRadius.lg,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    ...shadows.sm,
+  },
+  weekCardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  weekCardContent: {
+    flex: 1,
+  },
+  weekCardSwitch: {
+    transform: [{ scale: 0.8 }],
+    marginLeft: spacing.sm,
+  },
+  weekCardTitle: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    color: colors.text.primary,
+    marginBottom: 2,
+  },
+  badgeUnconfirmed: {
+    fontSize: fontSize.xs,
+    color: colors.text.tertiary,
+  },
+  remainingCount: {
+    color: colors.warning.main,
+    fontWeight: fontWeight.bold,
+  },
+  badgeConfirmed: {
+    fontSize: fontSize.xs,
+    color: colors.primary[700],
+    fontWeight: fontWeight.medium,
+  },
+  badgeQueued: {
+    fontSize: fontSize.xs,
+    color: colors.primary[500],
+    fontWeight: fontWeight.medium,
+  },
+
+  // ─── Primary button (first-time overlay) ──
+  primaryButton: {
+    backgroundColor: colors.primary[500],
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    borderRadius: borderRadius.md,
+  },
+  primaryButtonText: {
+    color: colors.white,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    textAlign: 'center',
+  },
+
+  // ─── Sent section ─────────────────────────
+  sentSection: {
+    marginHorizontal: spacing.xl,
+    marginTop: spacing.xxl,
+  },
+  sentCard: {
+    backgroundColor: colors.background.paper,
+    borderRadius: borderRadius.lg,
+    ...shadows.sm,
+    overflow: 'hidden',
+  },
+  sentHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+  },
+  sentHeaderTitle: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    color: colors.text.secondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  sentSummary: {
+    fontSize: fontSize.xs,
+    color: colors.text.tertiary,
+    flex: 1,
+  },
+  sentList: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border.default,
+  },
+  sentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border.default,
+  },
+  sentRowText: {
+    fontSize: fontSize.sm,
+    color: colors.text.secondary,
+  },
+
+  // ─── First-time overlay ───────────────────
+  overlayBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 100,
+  },
+  overlayCard: {
+    backgroundColor: colors.background.paper,
+    marginHorizontal: spacing.xxl,
+    borderRadius: borderRadius.xl,
+    padding: spacing.xl,
+    ...shadows.md,
+  },
+  overlayTitle: {
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.bold,
+    color: colors.text.primary,
+    textAlign: 'center',
+    marginBottom: spacing.md,
+  },
+  overlayBody: {
+    fontSize: fontSize.sm,
+    color: colors.text.secondary,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: spacing.lg,
+  },
+  overlayBullets: {
+    marginBottom: spacing.lg,
+    gap: spacing.sm,
+  },
+  overlayBullet: {
+    fontSize: fontSize.sm,
+    color: colors.text.secondary,
+    lineHeight: 20,
+    paddingLeft: spacing.sm,
+  },
+});
