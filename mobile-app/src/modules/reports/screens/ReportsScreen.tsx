@@ -19,10 +19,18 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 }
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppText as Text } from '@/components/ui/AppText';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Check, X, Share2, Send, Download, MapPin, Lock } from 'lucide-react-native';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
-import { t } from '@/lib/i18n';
+import { getDateLocale, t } from '@/lib/i18n';
+import { addDays, format, parseISO } from 'date-fns';
+import { de, enUS } from 'date-fns/locale';
+import { WeekStateService, type WeekState, type WeekStateRecord } from '../services/WeekStateService';
+import {
+  CollectiveInsightsService,
+  type CollectiveInsightsData,
+} from '../services/CollectiveInsightsService';
+import { useAuth } from '@/lib/auth/auth-context';
 
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList, MainTabParamList } from '@/navigation/AppNavigator';
@@ -36,9 +44,8 @@ type ReportsNavigationProp = CompositeNavigationProp<
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
-type WeekState = 'unconfirmed' | 'confirmed' | 'queued' | 'sent';
-
 interface WeekData {
+  weekStart: string;
   weekNumber: number;
   dateRange: string;
   confirmedDays: number;
@@ -46,40 +53,51 @@ interface WeekData {
   state: WeekState;
 }
 
-// ─── Mock Data ──────────────────────────────────────────────────────────────
+interface ReportsSnapshot {
+  autoSendEnabled: boolean;
+  firstTimeSeen: boolean;
+  activeWeeks: WeekData[];
+  sentWeeks: WeekData[];
+  insightsData: CollectiveInsightsData | null;
+  showReward: boolean;
+  rewardWeekStart: string | null;
+}
 
-const MOCK_ACTIVE_WEEKS: WeekData[] = [
-  {
-    weekNumber: 15,
-    dateRange: 'Apr 7 – 13',
-    confirmedDays: 3,
-    totalDays: 7,
-    state: 'unconfirmed',
-  },
-  {
-    weekNumber: 14,
-    dateRange: 'Mar 31 – Apr 6',
-    confirmedDays: 7,
-    totalDays: 7,
-    state: 'confirmed',
-  },
-  {
-    weekNumber: 13,
-    dateRange: 'Mar 24 – 30',
-    confirmedDays: 7,
-    totalDays: 7,
-    state: 'queued',
-  },
-  {
-    weekNumber: 12,
-    dateRange: 'Mar 17 – 23',
-    confirmedDays: 5,
-    totalDays: 7,
-    state: 'unconfirmed',
-  },
-];
+function formatWeekDateRange(weekStart: string): string {
+  const start = parseISO(weekStart);
+  const end = addDays(start, 6);
+  const locale = getDateLocale() === 'de' ? de : enUS;
 
-const MOCK_SENT_WEEKS = [11, 10, 9, 8, 7];
+  if (start.getMonth() === end.getMonth()) {
+    return `${format(start, 'MMM d', { locale })} – ${format(end, 'd', { locale })}`;
+  }
+  return `${format(start, 'MMM d', { locale })} – ${format(end, 'MMM d', { locale })}`;
+}
+
+function toWeekData(week: WeekStateRecord): WeekData {
+  return {
+    weekStart: week.weekStart,
+    weekNumber: week.weekNumber,
+    dateRange: formatWeekDateRange(week.weekStart),
+    confirmedDays: week.confirmedDays,
+    totalDays: week.totalDays,
+    state: week.state,
+  };
+}
+
+function formatInsightsPeriodRange(periodStart: string, periodEnd: string): string {
+  const start = parseISO(periodStart);
+  const end = parseISO(periodEnd);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return `${periodStart} - ${periodEnd}`;
+  }
+
+  const locale = getDateLocale() === 'de' ? de : enUS;
+  if (start.getMonth() === end.getMonth()) {
+    return `${format(start, 'MMM d', { locale })} – ${format(end, 'd', { locale })}`;
+  }
+  return `${format(start, 'MMM d', { locale })} – ${format(end, 'MMM d', { locale })}`;
+}
 
 // ─── Collective Insights (swipeable cards) ──────────────────────────────────
 
@@ -101,8 +119,24 @@ function LockedOverlay({ message }: { message: string }) {
   );
 }
 
-/** View 1: You vs Group — horizontal comparison bars */
-function InsightYouVsGroup({ cardWidth }: { cardWidth: number }) {
+/** View 1: You vs Group — unlocks when published state/specialty stats exist */
+function InsightYouVsGroup({
+  cardWidth,
+  insightsData,
+}: {
+  cardWidth: number;
+  insightsData: CollectiveInsightsData | null;
+}) {
+  const maxHours = insightsData
+    ? Math.max(insightsData.plannedMeanHours, insightsData.actualMeanHours, 1)
+    : 1;
+  const plannedWidth = insightsData
+    ? `${Math.max((insightsData.plannedMeanHours / maxHours) * 100, 6)}%`
+    : undefined;
+  const actualWidth = insightsData
+    ? `${Math.max((insightsData.actualMeanHours / maxHours) * 100, 6)}%`
+    : undefined;
+
   return (
     <View style={[styles.insightSlide, { width: cardWidth }]}>
       <Text style={styles.insightSlideTitle}>{t('reports.collective.youVsGroup')}</Text>
@@ -111,23 +145,61 @@ function InsightYouVsGroup({ cardWidth }: { cardWidth: number }) {
       <View style={styles.lockedChartArea}>
         <View style={styles.hBarSection} accessible={false}>
           <View style={styles.hBarRow}>
-            <Text style={styles.hBarLabel}>{t('reports.collective.you')}</Text>
+            <Text style={styles.hBarLabel}>
+              {insightsData ? t('reports.collective.avgPlanned') : t('reports.collective.you')}
+            </Text>
             <View style={styles.hBarTrack}>
-              <PlaceholderBar width={140} opacity={0.25} />
+              {insightsData ? (
+                <View style={[styles.hBar, { width: plannedWidth, opacity: 0.35 }]} />
+              ) : (
+                <PlaceholderBar width={140} opacity={0.25} />
+              )}
             </View>
-            <Text style={styles.hBarValue}>— h</Text>
+            <Text style={styles.hBarValue}>
+              {insightsData
+                ? `${insightsData.plannedMeanHours.toFixed(1)} ${t('reports.collective.hours')}`
+                : `— ${t('reports.collective.hours')}`}
+            </Text>
           </View>
           <View style={styles.hBarRow}>
-            <Text style={styles.hBarLabel}>{t('reports.collective.group')}</Text>
+            <Text style={styles.hBarLabel}>
+              {insightsData ? t('reports.collective.avgActual') : t('reports.collective.group')}
+            </Text>
             <View style={styles.hBarTrack}>
-              <PlaceholderBar width={110} opacity={0.2} />
-              <View style={[styles.hBarCi, { left: 100, width: 30 }]} />
+              {insightsData ? (
+                <View style={[styles.hBar, { width: actualWidth, opacity: 0.5 }]} />
+              ) : (
+                <>
+                  <PlaceholderBar width={110} opacity={0.2} />
+                  <View style={[styles.hBarCi, { left: 100, width: 30 }]} />
+                </>
+              )}
             </View>
-            <Text style={styles.hBarValue}>— h</Text>
+            <Text style={styles.hBarValue}>
+              {insightsData
+                ? `${insightsData.actualMeanHours.toFixed(1)} ${t('reports.collective.hours')}`
+                : `— ${t('reports.collective.hours')}`}
+            </Text>
           </View>
         </View>
-        <LockedOverlay message={t('reports.collective.placeholder')} />
+        {!insightsData && (
+          <LockedOverlay message={t('reports.collective.placeholder')} />
+        )}
       </View>
+
+      {insightsData && (
+        <View style={styles.insightMetaBlock}>
+          <Text style={styles.insightMetaText}>
+            {`${t('reports.collective.avgOvertime')}: ${insightsData.overtimeMeanHours.toFixed(1)} ${t('reports.collective.hours')} ± ${insightsData.overtimeCiHalf.toFixed(1)} ${t('reports.collective.hours')}`}
+          </Text>
+          <Text style={styles.insightMetaText}>
+            {t('reports.collective.contributors', { count: insightsData.nDisplay })}
+          </Text>
+          <Text style={styles.insightMetaText}>
+            {formatInsightsPeriodRange(insightsData.periodStart, insightsData.periodEnd)}
+          </Text>
+        </View>
+      )}
 
       <TouchableOpacity
         style={styles.shareButton}
@@ -235,7 +307,7 @@ function InsightTrend({ cardWidth }: { cardWidth: number }) {
 }
 
 /** Swipeable container with page dots */
-function CollectiveInsights() {
+function CollectiveInsights({ insightsData }: { insightsData: CollectiveInsightsData | null }) {
   const { width: screenWidth } = useWindowDimensions();
   const cardWidth = screenWidth - spacing.xl * 2;
   const [activeIndex, setActiveIndex] = useState(0);
@@ -259,7 +331,7 @@ function CollectiveInsights() {
         contentContainerStyle={styles.insightsScrollContent}
         style={styles.insightsScroll}
       >
-        <InsightYouVsGroup cardWidth={cardWidth} />
+        <InsightYouVsGroup cardWidth={cardWidth} insightsData={insightsData} />
         <InsightRegionalHospitals cardWidth={cardWidth} />
         <InsightTrend cardWidth={cardWidth} />
       </ScrollView>
@@ -317,8 +389,8 @@ function MondayRewardCard({ weekNumber, totalWeeks, onDismiss }: {
 function WeekCard({ week, autoSend, onNavigate, onToggleSend }: {
   week: WeekData;
   autoSend: boolean;
-  onNavigate: (weekNumber: number) => void;
-  onToggleSend: (weekNumber: number, value: boolean) => void;
+  onNavigate: (weekStart: string) => void;
+  onToggleSend: (weekStart: string, value: boolean) => void;
 }) {
   const isFullyConfirmed = week.confirmedDays === week.totalDays;
   const remaining = week.totalDays - week.confirmedDays;
@@ -330,11 +402,11 @@ function WeekCard({ week, autoSend, onNavigate, onToggleSend }: {
   return (
     <TouchableOpacity
       style={styles.weekCard}
-      onPress={() => onNavigate(week.weekNumber)}
+      onPress={() => onNavigate(week.weekStart)}
       activeOpacity={0.7}
       accessible={true}
       accessibilityRole="button"
-      testID={`week-card-${week.weekNumber}`}
+      testID={`week-card-${week.weekStart}`}
     >
       <View style={styles.weekCardRow} accessible={false}>
         <View style={styles.weekCardContent}>
@@ -356,13 +428,13 @@ function WeekCard({ week, autoSend, onNavigate, onToggleSend }: {
         </View>
         <Switch
           value={isSending}
-          onValueChange={(value) => onToggleSend(week.weekNumber, value)}
+          onValueChange={(value) => onToggleSend(week.weekStart, value)}
           disabled={!switchEnabled}
           trackColor={{ false: colors.grey[200], true: colors.primary[100] }}
           thumbColor={isSending ? colors.primary[400] : colors.grey[50]}
           ios_backgroundColor={colors.grey[200]}
           style={styles.weekCardSwitch}
-          testID={`week-send-toggle-${week.weekNumber}`}
+          testID={`week-send-toggle-${week.weekStart}`}
         />
       </View>
     </TouchableOpacity>
@@ -371,18 +443,18 @@ function WeekCard({ week, autoSend, onNavigate, onToggleSend }: {
 
 // ─── Sent History ───────────────────────────────────────────────────────────
 
-function SentHistory({ weekNumbers }: { weekNumbers: number[] }) {
+function SentHistory({ weeks }: { weeks: WeekData[] }) {
   const [expanded, setExpanded] = useState(false);
-  if (weekNumbers.length === 0) return null;
+  const handleExport = useCallback(() => {
+    // TODO: export all sent weeks as PDF/CSV
+  }, []);
+
+  if (weeks.length === 0) return null;
 
   const toggleExpanded = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setExpanded((prev) => !prev);
   };
-
-  const handleExport = useCallback(() => {
-    // TODO: export all sent weeks as PDF/CSV
-  }, []);
 
   return (
     <View style={styles.sentSection} testID="sent-history">
@@ -397,7 +469,7 @@ function SentHistory({ weekNumbers }: { weekNumbers: number[] }) {
         >
           <Text style={styles.sentHeaderTitle}>{t('reports.sent.title')}</Text>
           <Text style={styles.sentSummary}>
-            {t('reports.sent.weeksContributed', { count: weekNumbers.length })}
+            {t('reports.sent.weeksContributed', { count: weeks.length })}
           </Text>
           <TouchableOpacity
             onPress={handleExport}
@@ -412,10 +484,12 @@ function SentHistory({ weekNumbers }: { weekNumbers: number[] }) {
 
         {expanded && (
           <View style={styles.sentList}>
-            {weekNumbers.map((wn) => (
-              <View key={wn} style={styles.sentRow}>
+            {weeks.map((week) => (
+              <View key={week.weekStart} style={styles.sentRow}>
                 <Check size={12} color={colors.success.dark} strokeWidth={3} />
-                <Text style={styles.sentRowText}>KW {wn}</Text>
+                <Text style={styles.sentRowText}>
+                  {t('reports.week.label', { number: week.weekNumber })}
+                </Text>
               </View>
             ))}
           </View>
@@ -463,41 +537,153 @@ function FirstTimeOverlay({ onDismiss }: { onDismiss: () => void }) {
 
 export default function ReportsScreen() {
   const navigation = useNavigation<ReportsNavigationProp>();
-  const [weeks, setWeeks] = useState<WeekData[]>(MOCK_ACTIVE_WEEKS);
+  const { state: authState } = useAuth();
+  const [weeks, setWeeks] = useState<WeekData[]>([]);
+  const [sentWeeks, setSentWeeks] = useState<WeekData[]>([]);
+  const [insightsData, setInsightsData] = useState<CollectiveInsightsData | null>(null);
   const [autoSend, setAutoSend] = useState(false);
-  const [showReward, setShowReward] = useState(true);
+  const [showReward, setShowReward] = useState(false);
+  const [rewardWeekStart, setRewardWeekStart] = useState<string | null>(null);
   const [showFirstTime, setShowFirstTime] = useState(false);
   const [hasShownFirstTime, setHasShownFirstTime] = useState(false);
 
-  const handleToggleSend = useCallback((weekNumber: number, value: boolean) => {
-    if (value && !hasShownFirstTime) {
-      setShowFirstTime(true);
-      setHasShownFirstTime(true);
-    }
-    setWeeks((prev) =>
-      prev.map((w) =>
-        w.weekNumber === weekNumber
-          ? { ...w, state: (value ? 'queued' : 'confirmed') as WeekState }
-          : w
-      )
-    );
-  }, [hasShownFirstTime]);
+  const applySnapshot = useCallback((snapshot: ReportsSnapshot) => {
+    setAutoSend(snapshot.autoSendEnabled);
+    setHasShownFirstTime(snapshot.firstTimeSeen);
+    setWeeks(snapshot.activeWeeks);
+    setSentWeeks(snapshot.sentWeeks);
+    setInsightsData(snapshot.insightsData);
+    setShowReward(snapshot.showReward);
+    setRewardWeekStart(snapshot.rewardWeekStart);
+  }, []);
 
-  const handleNavigateToWeek = useCallback((weekNumber: number) => {
-    // Navigate to Calendar — in a real implementation this would target the specific week
-    navigation.navigate('Calendar', {});
+  const loadSnapshot = useCallback(async (autoSendOverride?: boolean): Promise<ReportsSnapshot> => {
+    const [storedAutoSend, firstTimeSeen, lastRewardWeek] = await Promise.all([
+      WeekStateService.getAutoSend(),
+      WeekStateService.getReportsFirstTimeSeen(),
+      WeekStateService.getLastRewardWeek(),
+    ]);
+    const autoSendEnabled = autoSendOverride ?? storedAutoSend;
+
+    if (autoSendEnabled) {
+      await WeekStateService.reconcileAutoSendQueue();
+    }
+
+    const model = await WeekStateService.loadWeekState();
+    const latestSentWeekStart = model.sentWeeks[0]?.weekStart ?? null;
+    const showRewardCard = Boolean(
+      latestSentWeekStart && (!lastRewardWeek || latestSentWeekStart > lastRewardWeek),
+    );
+    let insightsData: CollectiveInsightsData | null = null;
+
+    if (model.sentWeeks.length > 0 && authState.user?.stateCode && authState.user.specialty) {
+      try {
+        insightsData = await CollectiveInsightsService.getLatestPublishedStateSpecialtyInsights({
+          stateCode: authState.user.stateCode,
+          specialty: authState.user.specialty,
+        });
+      } catch (error) {
+        console.error('[ReportsScreen] Failed to load collective insights:', error);
+      }
+    }
+
+    return {
+      autoSendEnabled,
+      firstTimeSeen,
+      activeWeeks: model.activeWeeks.map(toWeekData),
+      sentWeeks: model.sentWeeks.map(toWeekData),
+      insightsData,
+      showReward: showRewardCard,
+      rewardWeekStart: showRewardCard ? latestSentWeekStart : null,
+    };
+  }, [authState.user?.specialty, authState.user?.stateCode]);
+
+  useFocusEffect(
+    useCallback(() => {
+      let isActive = true;
+
+      const loadWeekData = async () => {
+        try {
+          const snapshot = await loadSnapshot();
+          if (!isActive) return;
+          applySnapshot(snapshot);
+        } catch (error) {
+          console.error('[ReportsScreen] Failed to load week state:', error);
+        }
+      };
+
+      void loadWeekData();
+
+      return () => {
+        isActive = false;
+      };
+    }, [applySnapshot, loadSnapshot]),
+  );
+
+  const handleToggleSend = useCallback((weekStart: string, value: boolean) => {
+    void (async () => {
+      try {
+        if (value && !hasShownFirstTime) {
+          setShowFirstTime(true);
+          setHasShownFirstTime(true);
+          await WeekStateService.setReportsFirstTimeSeen(true);
+        }
+
+        if (value) {
+          await WeekStateService.queueWeek(weekStart);
+        } else {
+          await WeekStateService.unqueueWeek(weekStart);
+        }
+
+        const snapshot = await loadSnapshot(autoSend);
+        applySnapshot(snapshot);
+      } catch (error) {
+        console.error('[ReportsScreen] Failed to update queue toggle:', error);
+      }
+    })();
+  }, [applySnapshot, autoSend, hasShownFirstTime, loadSnapshot]);
+
+  const handleNavigateToWeek = useCallback((weekStart: string) => {
+    navigation.navigate('Calendar', { targetDate: weekStart });
   }, [navigation]);
 
   const handleAutoSendToggle = useCallback((value: boolean) => {
-    if (value && !hasShownFirstTime) {
-      setShowFirstTime(true);
-      setHasShownFirstTime(true);
+    void (async () => {
+      try {
+        if (value && !hasShownFirstTime) {
+          setShowFirstTime(true);
+          setHasShownFirstTime(true);
+          await WeekStateService.setReportsFirstTimeSeen(true);
+        }
+
+        await WeekStateService.setAutoSend(value);
+
+        const snapshot = await loadSnapshot(value);
+        applySnapshot(snapshot);
+      } catch (error) {
+        console.error('[ReportsScreen] Failed to update auto-send preference:', error);
+      }
+    })();
+  }, [applySnapshot, hasShownFirstTime, loadSnapshot]);
+
+  const handleDismissReward = useCallback(() => {
+    setShowReward(false);
+    if (!rewardWeekStart) {
+      return;
     }
-    setAutoSend(value);
-  }, [hasShownFirstTime]);
+
+    void WeekStateService.setLastRewardWeek(rewardWeekStart).catch((error) => {
+      console.error('[ReportsScreen] Failed to persist reward dismissal:', error);
+    });
+  }, [rewardWeekStart]);
 
   // Sort: most recent first
-  const sortedWeeks = [...weeks].sort((a, b) => b.weekNumber - a.weekNumber);
+  const sortedWeeks = [...weeks].sort((a, b) => b.weekStart.localeCompare(a.weekStart));
+  const sortedSentWeeks = [...sentWeeks].sort((a, b) => b.weekStart.localeCompare(a.weekStart));
+  const latestSentWeek = sortedSentWeeks[0];
+  const rewardWeek = rewardWeekStart
+    ? sortedSentWeeks.find((week) => week.weekStart === rewardWeekStart) ?? latestSentWeek
+    : latestSentWeek;
 
   return (
     <View style={styles.container}>
@@ -513,16 +699,16 @@ export default function ReportsScreen() {
         contentContainerStyle={styles.scrollContent}
       >
         {/* Monday reward card */}
-        {showReward && (
+        {showReward && rewardWeek && (
           <MondayRewardCard
-            weekNumber={11}
-            totalWeeks={MOCK_SENT_WEEKS.length}
-            onDismiss={() => setShowReward(false)}
+            weekNumber={rewardWeek.weekNumber}
+            totalWeeks={sortedSentWeeks.length}
+            onDismiss={handleDismissReward}
           />
         )}
 
         {/* Collective Insights (swipeable) */}
-        <CollectiveInsights />
+        <CollectiveInsights insightsData={insightsData} />
 
         {/* Submissions section header + auto-send toggle (same row) */}
         <View style={styles.submissionsHeader}>
@@ -549,7 +735,7 @@ export default function ReportsScreen() {
         <View style={styles.weekList}>
           {sortedWeeks.map((week) => (
             <WeekCard
-              key={week.weekNumber}
+              key={week.weekStart}
               week={week}
               autoSend={autoSend}
               onNavigate={handleNavigateToWeek}
@@ -559,7 +745,7 @@ export default function ReportsScreen() {
         </View>
 
         {/* Sent history */}
-        <SentHistory weekNumbers={MOCK_SENT_WEEKS} />
+        <SentHistory weeks={sortedSentWeeks} />
       </ScrollView>
 
       {/* First-time overlay (inline, not Modal) */}
@@ -757,6 +943,15 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs,
     color: colors.text.tertiary,
     textAlign: 'right',
+  },
+  insightMetaBlock: {
+    gap: 2,
+    marginBottom: spacing.md,
+  },
+  insightMetaText: {
+    fontSize: fontSize.xs,
+    color: colors.text.tertiary,
+    lineHeight: 16,
   },
   insightsPlaceholderText: {
     fontSize: fontSize.sm,
