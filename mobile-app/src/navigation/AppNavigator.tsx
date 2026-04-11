@@ -4,7 +4,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BarChart3, Calendar, Settings } from 'lucide-react-native';
+import { BarChart3, Calendar, FileText } from 'lucide-react-native';
 
 import { colors, fontSize, fontWeight } from '@/theme';
 import { t } from '@/lib/i18n';
@@ -14,6 +14,7 @@ import SetupScreen from '@/modules/geofencing/screens/SetupScreen';
 import StatusScreen from '@/modules/geofencing/screens/StatusScreen';
 import CalendarScreen from '@/modules/calendar/screens/CalendarScreen';
 import SettingsScreen from '@/modules/geofencing/screens/SettingsScreen';
+import ReportsScreen from '@/modules/reports/screens/ReportsScreen';
 import TrackingScreen from '@/modules/geofencing/screens/TrackingScreen';
 import LogScreen from '@/modules/geofencing/screens/LogScreen';
 import LocationsListScreen from '@/modules/geofencing/screens/LocationsListScreen';
@@ -40,6 +41,7 @@ export type RootStackParamList = {
   Login: { email: string };
   // Main app stack
   MainTabs: undefined;
+  Settings: undefined;
   Setup: {
     editLocation?: { id: string; name: string; latitude: number; longitude: number; radiusMeters: number };
     viewOnly?: boolean; // Show location details without editing
@@ -56,7 +58,7 @@ export type RootStackParamList = {
 export type MainTabParamList = {
   Status: undefined;
   Calendar: { targetDate?: string } | undefined;
-  Settings: undefined;
+  Reports: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -126,15 +128,15 @@ function MainTabs() {
         }}
       />
       <Tab.Screen
-        name="Settings"
-        component={SettingsScreen}
+        name="Reports"
+        component={ReportsScreen}
         options={{
-          tabBarLabel: t('navigation.settings'),
-          tabBarAccessibilityLabel: 'Settings',
+          tabBarLabel: t('navigation.reports'),
+          tabBarAccessibilityLabel: 'Reports',
           tabBarIcon: ({ color, size }) => (
-            <Settings size={size || 24} color={color} />
+            <FileText size={size || 24} color={color} />
           ),
-          tabBarButtonTestID: 'tab-settings',
+          tabBarButtonTestID: 'tab-reports',
         }}
       />
     </Tab.Navigator>
@@ -284,6 +286,13 @@ export default function AppNavigator() {
           name="MainTabs"
           component={MainTabs}
           options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="Settings"
+          component={SettingsScreen}
+          options={Platform.OS === 'android'
+            ? { headerShown: false }
+            : { title: t('navigation.settings'), headerBackTitle: t('navigation.back') }}
         />
         <Stack.Screen
           name="Setup"

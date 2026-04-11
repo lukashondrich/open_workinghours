@@ -14,7 +14,7 @@ import { AppText as Text } from '@/components/ui/AppText';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Location from 'expo-location';
-import { MapPin } from 'lucide-react-native';
+import { MapPin, Settings } from 'lucide-react-native';
 
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
 import { t } from '@/lib/i18n';
@@ -370,6 +370,15 @@ export default function StatusScreen() {
       <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>{t('status.appTitle')}</Text>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Settings')}
+            style={styles.settingsButton}
+            accessibilityRole="button"
+            accessibilityLabel={t('navigation.settings')}
+            testID="settings-gear-button"
+          >
+            <Settings size={22} color={colors.text.secondary} />
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
 
@@ -483,6 +492,10 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xl,
     fontWeight: fontWeight.bold,
     color: colors.text.primary,
+  },
+  settingsButton: {
+    padding: spacing.sm,
+    marginRight: -spacing.sm,
   },
   scrollView: {
     flex: 1,

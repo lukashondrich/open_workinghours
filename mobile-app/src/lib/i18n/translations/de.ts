@@ -35,6 +35,7 @@ export const de = {
     status: 'Status',
     calendar: 'Kalender',
     settings: 'Einstellungen',
+    reports: 'Berichte',
     // Screen titles
     addLocation: 'Standort hinzufügen',
     workTracking: 'Zeiterfassung',
@@ -662,5 +663,69 @@ export const de = {
     errorOverlap: 'Überschneidung mit bestehender Sitzung',
     errorTimes: 'Endzeit muss nach Startzeit liegen',
     errorNoLocation: 'Bitte zuerst einen Standort hinzufügen',
+  },
+
+  // Reports tab
+  reports: {
+    title: 'Berichte',
+    // Collective insights
+    collective: {
+      title: 'Kollektive Einblicke',
+      youVsGroup: 'Du vs. Gruppe',
+      you: 'Du',
+      group: 'Gruppe Ø',
+      placeholder: 'Teile mit Kolleg:innen, um kollektive Einblicke für deine Region freizuschalten.',
+      share: 'App teilen',
+      avgPlanned: 'Geplant',
+      avgActual: 'Tatsächlich',
+      avgOvertime: 'Überstunden',
+      contributors: '~{{count}} Beitragende',
+      hours: 'h',
+      regional: 'Kliniken in deiner Region',
+      regionalPlaceholder: 'Vergleiche Überstunden zwischen Kliniken — verfügbar, wenn mehr Kliniken beitragen.',
+      trend: 'Überstunden-Trend',
+      trendPlaceholder: 'Verfolge die Entwicklung der Überstunden — verfügbar nach 4 Wochen Daten.',
+    },
+    // Submissions section
+    submissions: {
+      title: 'Deine Einreichungen',
+      autoSend: 'Auto-Senden',
+      autoSendHint: 'Bestätigte Wochen werden sonntags gesendet',
+    },
+    // Week card states
+    week: {
+      label: 'KW {{number}}',
+      daysConfirmed: '{{confirmed}}/{{total}} Tage bestätigt',
+      dayToConfirm: 'Tag zu bestätigen',
+      daysToConfirm: 'Tage zu bestätigen',
+      allConfirmed: 'Alle Tage bestätigt',
+      reviewInCalendar: 'Im Kalender prüfen',
+      queueForSunday: 'Für Sonntag einreihen',
+      sendingSunday: 'Wird Sonntag gesendet',
+      queuedForSunday: 'Eingereiht für Sonntag',
+      undo: 'Rückgängig',
+    },
+    // Sent section
+    sent: {
+      title: 'Gesendet',
+      chip: 'Gesendet',
+      weeksContributed: '{{count}} Wochen beigetragen',
+      export: 'Exportieren',
+    },
+    // Monday reward
+    reward: {
+      title: 'KW {{week}} gesendet',
+      subtitle: '{{count}} Wochen insgesamt beigetragen',
+      dismiss: 'Schließen',
+    },
+    // First-time overlay
+    firstTime: {
+      title: 'Dein erster Beitrag',
+      body: 'Mit dieser Einreichung trägst du deine Arbeitszeiten zum kollektiven Datensatz bei.',
+      bullet1: 'Wochenwerte werden anonymisiert und zu Gesamtstatistiken hinzugefügt',
+      bullet2: 'Keine einzelnen Schichten werden geteilt',
+      bullet3: 'Nach Sonntag ist dies nicht mehr rückgängig zu machen',
+      gotIt: 'Verstanden',
+    },
   },
 };
