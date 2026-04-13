@@ -8,6 +8,8 @@ import {
   DailySubmissionRecord,
   SubmissionStatus,
   AccuracySource,
+  ReportsWeekQueueRecord,
+  ReportsWeekQueueStatus,
 } from '../types';
 import * as Crypto from 'expo-crypto';
 
@@ -126,6 +128,24 @@ export class Database {
       CREATE INDEX IF NOT EXISTS idx_daily_submission_status
         ON daily_submission_queue(status);
 
+      CREATE TABLE IF NOT EXISTS reports_week_queue (
+        week_start TEXT PRIMARY KEY,
+        status TEXT NOT NULL,
+        queued_at TEXT,
+        sent_at TEXT,
+        last_error TEXT,
+        updated_at TEXT NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_reports_week_queue_status
+        ON reports_week_queue(status);
+
+      CREATE TABLE IF NOT EXISTS app_preferences (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+
       INSERT OR IGNORE INTO schema_version (version, applied_at)
       VALUES (1, datetime('now'));
     `);
@@ -232,6 +252,38 @@ export class Database {
       );
 
       console.log('[Database] Migration to version 5 complete');
+    }
+
+    // Migration to version 6: Reports queue + app preferences
+    if (version < 6) {
+      console.log('[Database] Running migration to version 6 (reports queue + app preferences)');
+
+      await this.db.execAsync(`
+        CREATE TABLE IF NOT EXISTS reports_week_queue (
+          week_start TEXT PRIMARY KEY,
+          status TEXT NOT NULL,
+          queued_at TEXT,
+          sent_at TEXT,
+          last_error TEXT,
+          updated_at TEXT NOT NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_reports_week_queue_status
+          ON reports_week_queue(status);
+
+        CREATE TABLE IF NOT EXISTS app_preferences (
+          key TEXT PRIMARY KEY,
+          value TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+      `);
+
+      await this.db.runAsync(
+        `INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (?, datetime('now'))`,
+        6
+      );
+
+      console.log('[Database] Migration to version 6 complete');
     }
   }
 
@@ -964,6 +1016,17 @@ export class Database {
     };
   }
 
+  private mapReportsWeekQueue(row: any): ReportsWeekQueueRecord {
+    return {
+      weekStart: row.week_start,
+      status: row.status as ReportsWeekQueueStatus,
+      queuedAt: row.queued_at,
+      sentAt: row.sent_at,
+      lastError: row.last_error,
+      updatedAt: row.updated_at,
+    };
+  }
+
   async upsertDailyActual(record: DailyActual): Promise<void> {
     if (!this.db) throw new Error('Database not initialized');
 
@@ -991,6 +1054,30 @@ export class Database {
     if (!this.db) throw new Error('Database not initialized');
     const row = await this.db.getFirstAsync<any>('SELECT * FROM daily_actuals WHERE date = ?', date);
     return row ? this.mapDailyActual(row) : null;
+  }
+
+  async getDailyActualsForRange(startDate: string, endDate: string): Promise<DailyActual[]> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const rows = await this.db.getAllAsync<any>(
+      `SELECT * FROM daily_actuals
+       WHERE date BETWEEN ? AND ?
+       ORDER BY date ASC`,
+      startDate,
+      endDate,
+    );
+    return rows.map((row) => this.mapDailyActual(row));
+  }
+
+  async getFirstDailyActualDate(): Promise<string | null> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const row = await this.db.getFirstAsync<{ date: string }>(
+      `SELECT date FROM daily_actuals
+       ORDER BY date ASC
+       LIMIT 1`,
+    );
+    return row?.date ?? null;
   }
 
   async insertWeeklySubmission(record: WeeklySubmissionRecord, dayIds: string[]): Promise<void> {
@@ -1072,6 +1159,81 @@ export class Database {
     await this.db.runAsync('DELETE FROM weekly_submission_queue WHERE id = ?', id);
   }
 
+  async upsertReportsWeekQueue(record: ReportsWeekQueueRecord): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    await this.db.runAsync(
+      `INSERT INTO reports_week_queue (week_start, status, queued_at, sent_at, last_error, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT(week_start) DO UPDATE SET
+         status = excluded.status,
+         queued_at = excluded.queued_at,
+         sent_at = excluded.sent_at,
+         last_error = excluded.last_error,
+         updated_at = excluded.updated_at`,
+      record.weekStart,
+      record.status,
+      record.queuedAt,
+      record.sentAt,
+      record.lastError,
+      record.updatedAt,
+    );
+  }
+
+  async getReportsWeekQueue(status?: ReportsWeekQueueStatus): Promise<ReportsWeekQueueRecord[]> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const query = status
+      ? `SELECT * FROM reports_week_queue WHERE status = ? ORDER BY week_start DESC`
+      : `SELECT * FROM reports_week_queue ORDER BY week_start DESC`;
+
+    const rows = status
+      ? await this.db.getAllAsync<any>(query, status)
+      : await this.db.getAllAsync<any>(query);
+
+    return rows.map((row) => this.mapReportsWeekQueue(row));
+  }
+
+  async getReportsWeekByStart(weekStart: string): Promise<ReportsWeekQueueRecord | null> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const row = await this.db.getFirstAsync<any>(
+      `SELECT * FROM reports_week_queue WHERE week_start = ? LIMIT 1`,
+      weekStart,
+    );
+    return row ? this.mapReportsWeekQueue(row) : null;
+  }
+
+  async deleteReportsWeekByStart(weekStart: string): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized');
+    await this.db.runAsync('DELETE FROM reports_week_queue WHERE week_start = ?', weekStart);
+  }
+
+  async setPreference(key: string, value: string): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    await this.db.runAsync(
+      `INSERT INTO app_preferences (key, value, updated_at)
+       VALUES (?, ?, ?)
+       ON CONFLICT(key) DO UPDATE SET
+         value = excluded.value,
+         updated_at = excluded.updated_at`,
+      key,
+      value,
+      new Date().toISOString(),
+    );
+  }
+
+  async getPreference(key: string): Promise<string | null> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const row = await this.db.getFirstAsync<{ value: string }>(
+      'SELECT value FROM app_preferences WHERE key = ?',
+      key,
+    );
+    return row?.value ?? null;
+  }
+
   // ============================================================================
   // Daily Submission Queue (v2.0 - authenticated submissions)
   // ============================================================================
@@ -1124,6 +1286,19 @@ export class Database {
     return rows.map((row) => this.mapDailySubmission(row));
   }
 
+  async getDailySubmissionQueueForRange(startDate: string, endDate: string): Promise<DailySubmissionRecord[]> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const rows = await this.db.getAllAsync<any>(
+      `SELECT * FROM daily_submission_queue
+       WHERE date BETWEEN ? AND ?
+       ORDER BY date ASC`,
+      startDate,
+      endDate,
+    );
+    return rows.map((row) => this.mapDailySubmission(row));
+  }
+
   async updateDailySubmissionStatus(
     id: string,
     status: SubmissionStatus,
@@ -1152,6 +1327,8 @@ export class Database {
     if (!this.db) throw new Error('Database not initialized');
     await this.db.execAsync('BEGIN TRANSACTION');
     try {
+      await this.db.runAsync('DELETE FROM reports_week_queue');
+      await this.db.runAsync('DELETE FROM app_preferences');
       await this.db.runAsync('DELETE FROM weekly_submission_items');
       await this.db.runAsync('DELETE FROM weekly_submission_queue');
       await this.db.runAsync('DELETE FROM daily_actuals');
