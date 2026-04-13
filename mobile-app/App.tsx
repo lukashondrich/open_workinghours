@@ -143,12 +143,18 @@ TaskManager.defineTask(LOCATION_KEEPALIVE_TASK_NAME, async ({ data, error }) => 
 
 // Configure notification behavior
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
+  handleNotification: async (notification) => {
+    const data = notification.request.content.data as { type?: string } | undefined;
+    const isExitVerification = data?.type === 'exit-verification';
+
+    return {
+      // Keep verification checks quiet/non-visual while app is foregrounded.
+      shouldPlaySound: !isExitVerification,
+      shouldSetBadge: false,
+      shouldShowBanner: !isExitVerification,
+      shouldShowList: !isExitVerification,
+    };
+  },
 });
 
 export default function App() {
@@ -220,10 +226,11 @@ export default function App() {
 
       // Set up Android notification channels
       if (Platform.OS === 'android') {
-        // Channel for silent tracking notifications (exit verification)
+        // Channel for background verification checks (exit verification).
+        // Keep it low-importance to reduce intrusiveness.
         await Notifications.setNotificationChannelAsync('tracking', {
           name: 'Work Tracking',
-          importance: Notifications.AndroidImportance.HIGH,
+          importance: Notifications.AndroidImportance.LOW,
           sound: null,
           vibrationPattern: null,
           lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
@@ -240,8 +247,8 @@ export default function App() {
         console.log('[App] Android notification channels created');
       }
 
-      // Set up listener for exit verification notifications
-      // These are scheduled silent notifications that trigger GPS checks
+      // Set up listener for exit verification notifications.
+      // These trigger background GPS checks for pending exits.
       Notifications.addNotificationReceivedListener(async (notification) => {
         const data = notification.request.content.data;
 
