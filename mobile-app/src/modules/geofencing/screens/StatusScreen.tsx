@@ -19,6 +19,7 @@ import { MapPin } from 'lucide-react-native';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
 import { t } from '@/lib/i18n';
 import { useAuth } from '@/lib/auth/auth-context';
+import { trackingEvents } from '@/lib/events/trackingEvents';
 import { getDatabase, Database } from '@/modules/geofencing/services/Database';
 import { TrackingManager } from '@/modules/geofencing/services/TrackingManager';
 import {
@@ -275,6 +276,18 @@ export default function StatusScreen() {
     }, 60000);
 
     return () => clearInterval(interval);
+  }, [loadAllData]);
+
+  // Refresh instantly when tracking state changes (clock in/out, exit verification, etc.).
+  useEffect(() => {
+    const handleTrackingChanged = () => {
+      loadAllData();
+    };
+
+    trackingEvents.on('tracking-changed', handleTrackingChanged);
+    return () => {
+      trackingEvents.off('tracking-changed', handleTrackingChanged);
+    };
   }, [loadAllData]);
 
   // Update elapsed times every minute (for checked-in status)

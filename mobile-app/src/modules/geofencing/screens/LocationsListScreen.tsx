@@ -20,6 +20,7 @@ import { SettingsDetailLayout } from '@/components/ui';
 import { t } from '@/lib/i18n';
 import { getDatabase } from '@/modules/geofencing/services/Database';
 import { getGeofenceService } from '@/modules/geofencing/services/GeofenceService';
+import { syncKeepaliveState } from '@/modules/geofencing/services/ForegroundKeepaliveService';
 import MapControls from '@/modules/geofencing/components/MapControls';
 import type { UserLocation } from '@/modules/geofencing/types';
 import type { RootStackParamList } from '@/navigation/AppNavigator';
@@ -209,6 +210,9 @@ export default function LocationsListScreen() {
 
               // Delete from database
               await db.deleteLocation(location.id);
+
+              // Sync keepalive (e.g., stop if this was the last location)
+              await syncKeepaliveState();
 
               // Reload locations
               await loadLocations();

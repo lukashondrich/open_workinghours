@@ -27,6 +27,8 @@ import { Button, Input, SettingsDetailLayout } from '@/components/ui';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import { getDatabase } from '@/modules/geofencing/services/Database';
 import { getGeofenceService } from '@/modules/geofencing/services/GeofenceService';
+import { syncKeepaliveState } from '@/modules/geofencing/services/ForegroundKeepaliveService';
+import { TrackingManager } from '@/modules/geofencing/services/TrackingManager';
 import { searchLocations, GeocodingResult, isGeocodingAvailable, SearchOptions } from '@/modules/geofencing/services/GeocodingService';
 import type { UserLocation } from '@/modules/geofencing/types';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -43,6 +45,26 @@ interface Props {
 // Map circle colors using primary theme color
 const MAP_CIRCLE_STROKE = 'rgba(46, 139, 107, 0.6)';
 const MAP_CIRCLE_FILL = 'rgba(46, 139, 107, 0.2)';
+const EARTH_RADIUS_METERS = 6371000;
+const AUTO_CHECKIN_GPS_TIMEOUT_MS = 8000;
+
+function calculateDistanceMeters(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): number {
+  const toRadians = (value: number) => (value * Math.PI) / 180;
+  const dLat = toRadians(lat2 - lat1);
+  const dLon = toRadians(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRadians(lat1)) *
+      Math.cos(toRadians(lat2)) *
+      Math.sin(dLon / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return EARTH_RADIUS_METERS * c;
+}
 
 type Step = 1 | 2 | 3;
 
@@ -86,6 +108,7 @@ export default function SetupScreen({ navigation, route }: Props) {
   const mapRef = useRef<MapView>(null);
   const searchInputRef = useRef<TextInput>(null);
   const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  const latestDeviceLocationRef = useRef<Location.LocationObject | null>(null);
   const { state: authState } = useAuth();
 
   // Edit mode and view-only mode
@@ -209,6 +232,7 @@ export default function SetupScreen({ navigation, route }: Props) {
       try {
         const location = await Promise.race([locationPromise, timeoutPromise]) as Location.LocationObject;
         console.log('[SetupScreen] Got location:', location.coords);
+        latestDeviceLocationRef.current = location;
 
         const newRegion = {
           latitude: location.coords.latitude,
@@ -234,6 +258,74 @@ export default function SetupScreen({ navigation, route }: Props) {
       setLoading(false);
     }
   };
+
+  const getBestLocationReading = useCallback(async (): Promise<Location.LocationObject | null> => {
+    try {
+      const locationPromise = Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Location timeout')), AUTO_CHECKIN_GPS_TIMEOUT_MS)
+      );
+
+      const current = await Promise.race([locationPromise, timeoutPromise]);
+      latestDeviceLocationRef.current = current;
+      return current;
+    } catch (error) {
+      if (latestDeviceLocationRef.current) {
+        console.log('[SetupScreen] Fresh GPS unavailable, using setup-time location reading for auto check-in');
+        return latestDeviceLocationRef.current;
+      }
+      console.warn('[SetupScreen] No GPS reading available for immediate auto check-in:', error);
+      return null;
+    }
+  }, []);
+
+  const tryImmediateAutoCheckIn = useCallback(
+    async (location: UserLocation, trackingManager: TrackingManager): Promise<void> => {
+      try {
+        const gpsReading = await getBestLocationReading();
+        if (!gpsReading) {
+          return;
+        }
+
+        const accuracyMeters = gpsReading.coords.accuracy ?? 50;
+        const distanceMeters = calculateDistanceMeters(
+          gpsReading.coords.latitude,
+          gpsReading.coords.longitude,
+          location.latitude,
+          location.longitude
+        );
+
+        // Confidence gate: only auto check-in when clearly inside.
+        const confidentlyInside = distanceMeters + accuracyMeters < location.radiusMeters;
+
+        if (!confidentlyInside) {
+          console.log(
+            `[SetupScreen] Auto check-in skipped for ${location.name}: distance=${distanceMeters.toFixed(1)}m accuracy=${accuracyMeters.toFixed(1)}m radius=${location.radiusMeters}m`
+          );
+          return;
+        }
+
+        await trackingManager.handleGeofenceEnter({
+          eventType: 'enter',
+          locationId: location.id,
+          timestamp: new Date().toISOString(),
+          latitude: gpsReading.coords.latitude,
+          longitude: gpsReading.coords.longitude,
+          accuracy: gpsReading.coords.accuracy ?? undefined,
+          accuracySource: 'active_fetch',
+        });
+
+        console.log(
+          `[SetupScreen] Immediate auto check-in triggered for ${location.name} (distance=${distanceMeters.toFixed(1)}m, accuracy=${accuracyMeters.toFixed(1)}m)`
+        );
+      } catch (error) {
+        console.warn('[SetupScreen] Immediate auto check-in failed:', error);
+      }
+    },
+    [getBestLocationReading]
+  );
 
   // Debounced search
   const handleSearchChange = useCallback((text: string) => {
@@ -383,6 +475,7 @@ export default function SetupScreen({ navigation, route }: Props) {
       }
 
       const db = await getDatabase();
+      const trackingManager = new TrackingManager(db);
 
       if (isEditMode && editLocation) {
         // Update existing location
@@ -405,6 +498,17 @@ export default function SetupScreen({ navigation, route }: Props) {
           } catch (error) {
             console.warn('[SetupScreen] Failed to update geofence:', error);
           }
+        }
+
+        try {
+          await syncKeepaliveState();
+        } catch (error) {
+          console.warn('[SetupScreen] Failed to sync keepalive after update:', error);
+        }
+
+        const updatedLocation = await db.getLocation(editLocation.id);
+        if (updatedLocation) {
+          await tryImmediateAutoCheckIn(updatedLocation, trackingManager);
         }
 
         setSaving(false);
@@ -432,6 +536,14 @@ export default function SetupScreen({ navigation, route }: Props) {
             console.warn('[SetupScreen] Failed to register geofence:', error);
           }
         }
+
+        try {
+          await syncKeepaliveState();
+        } catch (error) {
+          console.warn('[SetupScreen] Failed to sync keepalive after save:', error);
+        }
+
+        await tryImmediateAutoCheckIn(location, trackingManager);
 
         setSaving(false);
 

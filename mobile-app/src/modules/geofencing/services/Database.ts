@@ -233,6 +233,61 @@ export class Database {
 
       console.log('[Database] Migration to version 5 complete');
     }
+
+    // Migration to version 6: Guard against duplicate open sessions from concurrent callbacks.
+    if (version < 6) {
+      console.log('[Database] Running migration to version 6 (open-session integrity)');
+
+      // Close open sessions whose location no longer exists.
+      await this.db.runAsync(`
+        UPDATE tracking_sessions
+        SET state = 'completed',
+            clock_out = COALESCE(clock_out, clock_in),
+            duration_minutes = COALESCE(duration_minutes, 0),
+            pending_exit_at = NULL,
+            updated_at = datetime('now')
+        WHERE state IN ('active', 'pending_exit')
+          AND clock_out IS NULL
+          AND location_id NOT IN (SELECT id FROM user_locations)
+      `);
+
+      // Keep only the newest open session per location and close older duplicates.
+      await this.db.runAsync(`
+        WITH ranked_open_sessions AS (
+          SELECT
+            id,
+            ROW_NUMBER() OVER (
+              PARTITION BY location_id
+              ORDER BY datetime(clock_in) DESC, datetime(created_at) DESC, id DESC
+            ) AS row_num
+          FROM tracking_sessions
+          WHERE state IN ('active', 'pending_exit') AND clock_out IS NULL
+        )
+        UPDATE tracking_sessions
+        SET state = 'completed',
+            clock_out = COALESCE(clock_out, clock_in),
+            duration_minutes = COALESCE(duration_minutes, 0),
+            pending_exit_at = NULL,
+            updated_at = datetime('now')
+        WHERE id IN (
+          SELECT id FROM ranked_open_sessions WHERE row_num > 1
+        )
+      `);
+
+      // Enforce one open session per location at the DB layer.
+      await this.db.execAsync(`
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_tracking_sessions_single_open_per_location
+        ON tracking_sessions(location_id)
+        WHERE state IN ('active', 'pending_exit') AND clock_out IS NULL;
+      `);
+
+      await this.db.runAsync(
+        `INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (?, datetime('now'))`,
+        6
+      );
+
+      console.log('[Database] Migration to version 6 complete');
+    }
   }
 
   // Schema introspection
@@ -508,6 +563,19 @@ export class Database {
     );
 
     return result ? this.mapSession(result) : null;
+  }
+
+  async hasOpenSession(): Promise<boolean> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const result = await this.db.getFirstAsync<{ id: string }>(
+      `SELECT id
+       FROM tracking_sessions
+       WHERE state IN ('active', 'pending_exit') AND clock_out IS NULL
+       LIMIT 1`
+    );
+
+    return Boolean(result);
   }
 
   async getSessionHistory(locationId: string, limit: number): Promise<TrackingSession[]> {
@@ -1168,11 +1236,39 @@ export class Database {
 
 // Singleton instance
 let dbInstance: Database | null = null;
+let dbInitializationPromise: Promise<Database> | null = null;
+let isDatabaseInitialized = false;
 
 export async function getDatabase(): Promise<Database> {
-  if (!dbInstance) {
-    dbInstance = new Database();
-    await dbInstance.initialize();
+  if (dbInstance && isDatabaseInitialized) {
+    return dbInstance;
   }
-  return dbInstance;
+
+  if (dbInitializationPromise) {
+    return dbInitializationPromise;
+  }
+
+  dbInitializationPromise = (async () => {
+    if (!dbInstance) {
+      dbInstance = new Database();
+    }
+
+    if (!isDatabaseInitialized) {
+      await dbInstance.initialize();
+      isDatabaseInitialized = true;
+    }
+
+    return dbInstance;
+  })();
+
+  try {
+    return await dbInitializationPromise;
+  } catch (error) {
+    // If init fails, reset singleton state so a future call can retry cleanly.
+    dbInstance = null;
+    isDatabaseInitialized = false;
+    throw error;
+  } finally {
+    dbInitializationPromise = null;
+  }
 }
