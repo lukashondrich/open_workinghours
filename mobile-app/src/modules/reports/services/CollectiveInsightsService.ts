@@ -41,9 +41,9 @@ function parsePublishedRow(row: StatsByStateSpecialtyRow): CollectiveInsightsDat
   if (
     !isFiniteNumber(row.planned_mean_hours) ||
     !isFiniteNumber(row.overtime_mean_hours) ||
-    !isFiniteNumber(row.planned_ci_half) ||
-    !isFiniteNumber(row.actual_ci_half) ||
-    !isFiniteNumber(row.overtime_ci_half) ||
+    !isFiniteNumber(row.planned_ci_half) || row.planned_ci_half < 0 ||
+    !isFiniteNumber(row.actual_ci_half) || row.actual_ci_half < 0 ||
+    !isFiniteNumber(row.overtime_ci_half) || row.overtime_ci_half < 0 ||
     !isFiniteNumber(row.n_display)
   ) {
     return null;

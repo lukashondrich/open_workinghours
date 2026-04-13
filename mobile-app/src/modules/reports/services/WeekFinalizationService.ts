@@ -6,6 +6,7 @@ import { DailySubmissionService } from '@/modules/auth/services/DailySubmissionS
 import { getCalendarStorage } from '@/modules/calendar/services/CalendarStorage';
 import type { ReportsWeekQueueRecord } from '../../geofencing/types';
 import type { ConfirmedDayStatus } from '@/lib/calendar/types';
+import { calendarEvents } from '@/lib/events/calendarEvents';
 
 const BASE_URL = Constants.expoConfig?.extra?.submissionBaseUrl || 'http://localhost:8000';
 const WEEK_DAYS = 7;
@@ -72,6 +73,7 @@ export class WeekFinalizationService {
 
     const weekEndDate = addDays(weekStartDate, WEEK_DAYS - 1);
     const today = startOfDay(new Date());
+    // A week is eligible for finalization when its last day (Sunday) is today or earlier.
     if (isAfter(startOfDay(weekEndDate), today)) {
       return { weekStart: queuedWeek.weekStart, status: 'skipped_not_ended' };
     }
@@ -205,6 +207,10 @@ export class WeekFinalizationService {
     }
 
     await calendarStorage.replaceConfirmedDays(confirmedDays);
+    calendarEvents.emit('confirmed-days-updated', {
+      dates: dateKeys,
+      submissionId,
+    });
   }
 
   private static async parseErrorResponse(response: Response): Promise<string> {

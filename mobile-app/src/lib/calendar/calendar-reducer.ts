@@ -370,6 +370,12 @@ export function calendarReducer(state: CalendarState, action: CalendarAction): C
         confirmedDates: deriveConfirmedSet(nextStatus),
       };
     }
+    case 'HYDRATE_CONFIRMED_DAYS':
+      return {
+        ...state,
+        confirmedDayStatus: action.confirmedDayStatus,
+        confirmedDates: deriveConfirmedSet(action.confirmedDayStatus),
+      };
     case 'DELETE_TRACKING_RECORD': {
       const remaining = { ...state.trackingRecords };
       delete remaining[action.id];

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   StyleSheet,
@@ -11,6 +11,7 @@ import {
   useWindowDimensions,
   NativeSyntheticEvent,
   NativeScrollEvent,
+  Alert,
 } from 'react-native';
 
 // Enable LayoutAnimation on Android
@@ -323,6 +324,7 @@ function CollectiveInsights({ insightsData }: { insightsData: CollectiveInsights
       <ScrollView
         horizontal
         pagingEnabled
+        accessible={false}
         showsHorizontalScrollIndicator={false}
         onMomentumScrollEnd={handleScroll}
         decelerationRate="fast"
@@ -546,6 +548,7 @@ export default function ReportsScreen() {
   const [rewardWeekStart, setRewardWeekStart] = useState<string | null>(null);
   const [showFirstTime, setShowFirstTime] = useState(false);
   const [hasShownFirstTime, setHasShownFirstTime] = useState(false);
+  const isToggleMutationInFlightRef = useRef(false);
 
   const applySnapshot = useCallback((snapshot: ReportsSnapshot) => {
     setAutoSend(snapshot.autoSendEnabled);
@@ -620,7 +623,21 @@ export default function ReportsScreen() {
     }, [applySnapshot, loadSnapshot]),
   );
 
+  const reloadSnapshotAfterFailure = useCallback(async () => {
+    try {
+      const snapshot = await loadSnapshot();
+      applySnapshot(snapshot);
+    } catch (reloadError) {
+      console.error('[ReportsScreen] Failed to reload snapshot after mutation failure:', reloadError);
+    }
+  }, [applySnapshot, loadSnapshot]);
+
   const handleToggleSend = useCallback((weekStart: string, value: boolean) => {
+    if (isToggleMutationInFlightRef.current) {
+      return;
+    }
+    isToggleMutationInFlightRef.current = true;
+
     void (async () => {
       try {
         if (value && !hasShownFirstTime) {
@@ -639,15 +656,24 @@ export default function ReportsScreen() {
         applySnapshot(snapshot);
       } catch (error) {
         console.error('[ReportsScreen] Failed to update queue toggle:', error);
+        Alert.alert(t('common.error'), t('reports.errors.updateFailed'));
+        await reloadSnapshotAfterFailure();
+      } finally {
+        isToggleMutationInFlightRef.current = false;
       }
     })();
-  }, [applySnapshot, autoSend, hasShownFirstTime, loadSnapshot]);
+  }, [applySnapshot, autoSend, hasShownFirstTime, loadSnapshot, reloadSnapshotAfterFailure]);
 
   const handleNavigateToWeek = useCallback((weekStart: string) => {
     navigation.navigate('Calendar', { targetDate: weekStart });
   }, [navigation]);
 
   const handleAutoSendToggle = useCallback((value: boolean) => {
+    if (isToggleMutationInFlightRef.current) {
+      return;
+    }
+    isToggleMutationInFlightRef.current = true;
+
     void (async () => {
       try {
         if (value && !hasShownFirstTime) {
@@ -662,9 +688,13 @@ export default function ReportsScreen() {
         applySnapshot(snapshot);
       } catch (error) {
         console.error('[ReportsScreen] Failed to update auto-send preference:', error);
+        Alert.alert(t('common.error'), t('reports.errors.updateFailed'));
+        await reloadSnapshotAfterFailure();
+      } finally {
+        isToggleMutationInFlightRef.current = false;
       }
     })();
-  }, [applySnapshot, hasShownFirstTime, loadSnapshot]);
+  }, [applySnapshot, hasShownFirstTime, loadSnapshot, reloadSnapshotAfterFailure]);
 
   const handleDismissReward = useCallback(() => {
     setShowReward(false);
@@ -678,8 +708,14 @@ export default function ReportsScreen() {
   }, [rewardWeekStart]);
 
   // Sort: most recent first
-  const sortedWeeks = [...weeks].sort((a, b) => b.weekStart.localeCompare(a.weekStart));
-  const sortedSentWeeks = [...sentWeeks].sort((a, b) => b.weekStart.localeCompare(a.weekStart));
+  const sortedWeeks = useMemo(
+    () => [...weeks].sort((a, b) => b.weekStart.localeCompare(a.weekStart)),
+    [weeks],
+  );
+  const sortedSentWeeks = useMemo(
+    () => [...sentWeeks].sort((a, b) => b.weekStart.localeCompare(a.weekStart)),
+    [sentWeeks],
+  );
   const latestSentWeek = sortedSentWeeks[0];
   const rewardWeek = rewardWeekStart
     ? sortedSentWeeks.find((week) => week.weekStart === rewardWeekStart) ?? latestSentWeek

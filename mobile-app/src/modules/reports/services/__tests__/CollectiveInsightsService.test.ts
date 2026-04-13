@@ -84,6 +84,33 @@ describe('CollectiveInsightsService', () => {
     expect(result).toBeNull();
   });
 
+  it('returns null when CI half-widths are negative', async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => [
+        {
+          planned_mean_hours: 40,
+          overtime_mean_hours: 5,
+          planned_ci_half: -1,
+          actual_ci_half: 1.7,
+          overtime_ci_half: 0.8,
+          n_display: 35,
+          status: 'published',
+          period_start: '2026-03-30',
+          period_end: '2026-04-05',
+        },
+      ],
+    });
+
+    const result = await CollectiveInsightsService.getLatestPublishedStateSpecialtyInsights({
+      stateCode: 'BE',
+      specialty: 'Nursing',
+    });
+
+    expect(result).toBeNull();
+  });
+
   it('throws on non-ok responses', async () => {
     (global.fetch as jest.Mock).mockResolvedValue({
       ok: false,
