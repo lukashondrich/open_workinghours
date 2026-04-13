@@ -158,7 +158,7 @@ export const en = {
       continues: 'Continues...',
       dayConfirmed: '{{day}} submitted',
       cannotConfirmFutureTitle: 'Cannot confirm future days',
-      cannotConfirmFutureMessage: 'You can only confirm days that are in the past. Please wait until tomorrow to confirm today.',
+      cannotConfirmFutureMessage: 'You can only confirm today or past days.',
       confirmationFailed: 'Confirmation failed',
       confirmationFailedMessage: 'Could not finalize this day. Please try again.',
       deleteTrackingTitle: 'Delete tracking?',
