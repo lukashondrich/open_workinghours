@@ -3,6 +3,7 @@ import * as TaskManager from 'expo-task-manager';
 import { UserLocation, GeofenceEventData, AccuracySource } from '../types';
 import { GEOFENCE_TASK_NAME } from '../constants';
 import { getDatabase } from './Database';
+import { syncKeepaliveState } from './ForegroundKeepaliveService';
 
 export type GeofenceCallback = (event: GeofenceEventData) => void;
 
@@ -132,6 +133,7 @@ export class GeofenceService {
   async stopAll(): Promise<void> {
     await Location.stopGeofencingAsync(GEOFENCE_TASK_NAME);
     this.registeredGeofences.clear();
+    await syncKeepaliveState();
   }
 
   /**

@@ -216,8 +216,15 @@ export class TrackingManager {
     }
 
     // Layer 2: Signal degradation detection (relative to check-in)
+    // Only apply to non-active_fetch readings. Active fetch often returns coarse
+    // accuracy indoors (e.g., 100m), and blocking those exits causes false negatives.
+    // We still keep absolute accuracy filtering + hysteresis/verification safeguards.
     const checkinAccuracy = activeSession.checkinAccuracy;
-    if (checkinAccuracy !== null && event.accuracy !== undefined) {
+    if (
+      checkinAccuracy !== null &&
+      event.accuracy !== undefined &&
+      event.accuracySource !== 'active_fetch'
+    ) {
       const degradationRatio = event.accuracy / checkinAccuracy;
       if (degradationRatio > DEGRADATION_FACTOR) {
         console.log(

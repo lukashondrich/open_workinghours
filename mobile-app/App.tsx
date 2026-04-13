@@ -5,14 +5,141 @@ import { View, Text, ActivityIndicator, StyleSheet, Platform, AppState, AppState
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Notifications from 'expo-notifications';
+import * as Location from 'expo-location';
+import * as TaskManager from 'expo-task-manager';
 import AppNavigator from '@/navigation/AppNavigator';
 import { AuthProvider } from '@/lib/auth/auth-context';
 import { getDatabase } from '@/modules/geofencing/services/Database';
 import { getGeofenceService } from '@/modules/geofencing/services/GeofenceService';
 import { TrackingManager } from '@/modules/geofencing/services/TrackingManager';
 import * as ExitVerificationService from '@/modules/geofencing/services/ExitVerificationService';
+import { GEOFENCE_TASK_NAME, LOCATION_KEEPALIVE_TASK_NAME } from '@/modules/geofencing/constants';
+import { syncKeepaliveState } from '@/modules/geofencing/services/ForegroundKeepaliveService';
+import { handleKeepaliveTaskPayload } from '@/modules/geofencing/services/KeepaliveHealthCheckService';
+import { AccuracySource, GeofenceEventData } from '@/modules/geofencing/types';
 import { seedTestDeviceDataIfEnabled } from '@/test-utils/deviceDbSeed';
 console.log('SUBMISSION URL', process.env.EXPO_PUBLIC_SUBMISSION_BASE_URL);
+
+// ============================================================================
+// Background task definitions — MUST be at module scope for headless launches.
+// When the OS restarts the app via PendingIntent (process was killed),
+// React components don't mount, so useEffect never fires. Module-scope
+// defineTask ensures the handler is always registered.
+// ============================================================================
+
+// Keep a reference to the TrackingManager for foreground processing
+let globalTrackingManager: TrackingManager | null = null;
+let geofenceTaskQueue: Promise<void> = Promise.resolve();
+const GEOFENCE_ACTIVE_FETCH_TIMEOUT_MS = 8_000;
+
+async function getCurrentPositionWithTimeout(
+  accuracy: Location.Accuracy,
+  timeoutMs: number
+): Promise<Location.LocationObject> {
+  let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
+
+  try {
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutHandle = setTimeout(
+        () => reject(new Error('current position timeout')),
+        timeoutMs
+      );
+    });
+
+    return await Promise.race([
+      Location.getCurrentPositionAsync({ accuracy }),
+      timeoutPromise,
+    ]) as Location.LocationObject;
+  } finally {
+    if (timeoutHandle) {
+      clearTimeout(timeoutHandle);
+    }
+  }
+}
+
+// Geofence background task — handles enter/exit events from the OS
+TaskManager.defineTask(GEOFENCE_TASK_NAME, async ({ data, error }) => {
+  if (error) {
+    console.error('[GeofenceTask] Task error:', error);
+    return;
+  }
+  if (!data) return;
+
+  geofenceTaskQueue = geofenceTaskQueue
+    .catch(() => undefined)
+    .then(async () => {
+      const { eventType, region } = data as {
+        eventType: Location.GeofencingEventType;
+        region: Location.LocationRegion;
+      };
+
+      // Extract location data with accuracy if available
+      const locationData = (data as any).location as Location.LocationObject | undefined;
+
+      // Active GPS fetch if no location data came with the event
+      let gpsReading = locationData;
+      let accuracySource: AccuracySource = locationData ? 'event' : null;
+
+      if (!gpsReading) {
+        try {
+          gpsReading = await getCurrentPositionWithTimeout(
+            Location.Accuracy.Balanced,
+            GEOFENCE_ACTIVE_FETCH_TIMEOUT_MS
+          );
+          accuracySource = 'active_fetch';
+          console.log(`[GeofenceTask] Active GPS fetch: accuracy=${gpsReading.coords.accuracy}m`);
+        } catch (fetchError) {
+          console.warn('[GeofenceTask] Active GPS fetch failed:', fetchError);
+        }
+      }
+
+      const event: GeofenceEventData = {
+        eventType: eventType === Location.GeofencingEventType.Enter ? 'enter' : 'exit',
+        locationId: region.identifier ?? '',
+        timestamp: new Date().toISOString(),
+        latitude: gpsReading?.coords?.latitude ?? region.latitude,
+        longitude: gpsReading?.coords?.longitude ?? region.longitude,
+        accuracy: gpsReading?.coords?.accuracy ?? undefined,
+        accuracySource,
+      };
+
+      console.log(`[GeofenceTask] Geofence ${event.eventType} event for ${event.locationId}, accuracy: ${event.accuracy ?? 'unknown'}m (${accuracySource ?? 'none'})`);
+
+      // Use existing TrackingManager if app is running, otherwise create one
+      let trackingManager = globalTrackingManager;
+      if (!trackingManager) {
+        console.log('[GeofenceTask] Headless launch — creating TrackingManager');
+        const db = await getDatabase();
+        trackingManager = new TrackingManager(db);
+      }
+
+      try {
+        if (event.eventType === 'enter') {
+          await trackingManager.handleGeofenceEnter(event);
+        } else if (event.eventType === 'exit') {
+          await trackingManager.handleGeofenceExit(event);
+        }
+      } catch (err) {
+        console.error('[GeofenceTask] Error handling geofence event:', err);
+      }
+    });
+
+  await geofenceTaskQueue;
+});
+
+// Location keepalive task — runs lightweight fallback health checks on updates.
+TaskManager.defineTask(LOCATION_KEEPALIVE_TASK_NAME, async ({ data, error }) => {
+  if (error) {
+    console.error('[LocationKeepalive] Task error:', error);
+    return;
+  }
+
+  try {
+    await handleKeepaliveTaskPayload(data);
+  } catch (err) {
+    console.error('[LocationKeepalive] Task handler failed:', err);
+  }
+});
 
 // Configure notification behavior
 Notifications.setNotificationHandler({
@@ -23,9 +150,6 @@ Notifications.setNotificationHandler({
     shouldShowList: true,
   }),
 });
-
-// Keep a reference to the TrackingManager for foreground processing
-let globalTrackingManager: TrackingManager | null = null;
 
 export default function App() {
   const [isReady, setIsReady] = useState(false);
@@ -47,6 +171,12 @@ export default function App() {
           } catch (error) {
             console.warn('[App] Error processing pending exits on foreground:', error);
           }
+        }
+
+        try {
+          await syncKeepaliveState();
+        } catch (error) {
+          console.warn('[App] Failed to sync keepalive on foreground:', error);
         }
       }
       appState.current = nextAppState;
@@ -75,25 +205,10 @@ export default function App() {
       const geofenceService = getGeofenceService();
       const trackingManager = new TrackingManager(db);
 
-      // Store reference for foreground processing
+      // Store reference so the module-scope task handler uses the initialized instance
       globalTrackingManager = trackingManager;
 
-      // Define background task for geofence events
-      geofenceService.defineBackgroundTask(async (event) => {
-        console.log('[App] Geofence event:', event.eventType, event.locationId);
-
-        try {
-          if (event.eventType === 'enter') {
-            await trackingManager.handleGeofenceEnter(event);
-          } else if (event.eventType === 'exit') {
-            await trackingManager.handleGeofenceExit(event);
-          }
-        } catch (error) {
-          console.error('[App] Error handling geofence event:', error);
-        }
-      });
-
-      console.log('[App] Background task defined');
+      console.log('[App] Background task already defined at module scope');
 
       // Request notification permissions
       const { status } = await Notifications.requestPermissionsAsync();
@@ -152,6 +267,12 @@ export default function App() {
           console.warn('[App] Failed to register geofence for', location.name, ':', error);
           // Continue with other locations even if one fails
         }
+      }
+
+      try {
+        await syncKeepaliveState();
+      } catch (error) {
+        console.warn('[App] Failed to sync keepalive state:', error);
       }
 
       // Process any pending exits that may have expired while app was backgrounded
