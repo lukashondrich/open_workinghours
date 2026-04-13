@@ -102,8 +102,8 @@ backend/
 | DELETE | `/work-events/{id}` | Delete work event |
 
 **Validation:**
-- Cannot submit today or future dates
-- Only past days can be confirmed
+- Cannot submit future dates
+- Today and past days can be confirmed
 
 ### Stats (`/stats`)
 

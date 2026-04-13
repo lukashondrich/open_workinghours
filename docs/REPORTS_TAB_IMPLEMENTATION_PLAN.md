@@ -1,402 +1,394 @@
-# Reports Tab — Implementation Plan
+# Reports Tab — Implementation Plan (v2)
 
-**Status:** UI prototype complete (mock data). This plan covers wiring real data.
+**Status:** UI prototype complete (mock data)
 **Branch:** `feature/reports-tab`
 **Date:** 2026-04-11
-**Prerequisite:** `docs/REPORTS_TAB_UX_SPEC.md` (design reference)
+**Prerequisite:** `docs/REPORTS_TAB_UX_SPEC.md`
 
 ---
 
-## Overview
+## Why this v2 exists
 
-The prototype renders all UI with hardcoded mock data. This plan covers the work needed to make everything functional with real data from SQLite (on-device) and the backend API.
+This version replaces the earlier draft with implementation details aligned to current code and backend contracts.
 
-**Guiding principle:** Build in layers. Each phase produces a working increment that can be tested independently.
+As of **2026-04-11**, current backend/mobile constraints are:
 
----
+1. `POST /work-events` accepts today and past dates (future dates are rejected).
+2. `POST /finalized-weeks` allows finalization when `week_end <= today` and all 7 work events exist.
 
-## Phase 1: Week State Computation (on-device only)
-
-**Goal:** Replace `MOCK_ACTIVE_WEEKS` with real week data derived from `daily_actuals`.
-
-### 1.1 Week computation service
-
-**New file:** `modules/reports/services/WeekStateService.ts`
-
-Computes week states from the existing `daily_actuals` SQLite table:
-
-```
-For each week (Monday → Sunday) from the user's first daily_actual to current week:
-  1. Query: SELECT date, confirmed_at FROM daily_actuals WHERE date BETWEEN monday AND sunday
-  2. Count confirmed days (any row with confirmed_at != null counts)
-  3. Days with no row = unconfirmed (rest days need explicit 0h confirmation)
-  4. Determine state:
-     - 7/7 confirmed + already finalized on backend → 'sent'
-     - 7/7 confirmed + queued locally → 'queued'
-     - 7/7 confirmed → 'confirmed'
-     - <7 confirmed → 'unconfirmed' (with remaining count)
-```
-
-**Data source:** `Database.ts` → `daily_actuals` table
-
-**Key fields:**
-- `date` (TEXT, ISO format)
-- `planned_minutes` (INTEGER)
-- `actual_minutes` (INTEGER)
-- `confirmed_at` (TEXT, ISO timestamp)
-
-**New query in Database.ts:**
-
-```ts
-async getDailyActualsForWeek(monday: string, sunday: string): Promise<DailyActual[]>
-```
-
-Returns all `daily_actuals` rows for the date range. The service computes week state from this.
-
-### 1.2 Wire into ReportsScreen
-
-- Replace `MOCK_ACTIVE_WEEKS` with `useEffect` → `WeekStateService.getActiveWeeks()`
-- Replace `MOCK_SENT_WEEKS` with `WeekStateService.getSentWeeks()` (initially empty — populated in Phase 3)
-- Current week always appears as 'unconfirmed' at top (can't finalize until week is over)
-- Show weeks going back to the user's first tracked week
-
-### 1.3 Testing
-
-- Unit test `WeekStateService` with mock SQLite data
-- Verify on device: weeks populate from real daily_actuals
-- Edge case: week with no tracking at all (all 7 days unconfirmed)
-
-**Files touched:**
-| File | Change |
-|------|--------|
-| `modules/reports/services/WeekStateService.ts` | New — week state computation |
-| `services/Database.ts` | Add `getDailyActualsForWeek()` query |
-| `screens/ReportsScreen.tsx` | Replace mock data with service calls |
+**Practical effect:** true same-day Sunday finalization is possible once Sunday is confirmed.
 
 ---
 
-## Phase 2: Queue State + Auto-Send Persistence
+## Resolved Decisions
 
-**Goal:** Per-card send toggles and auto-send preference persist across app restarts.
+1. **Canonical week identifier:** use `weekStart` (`YYYY-MM-DD`, Monday) everywhere. Do not use `weekNumber` as business identity.
+2. **Calendar deep-link param:** reuse existing `Calendar` param `targetDate` (already implemented). Do not introduce `targetWeek`.
+3. **Insights contract:** backend currently exposes `planned_mean_hours` and `overtime_mean_hours` (not `actual_mean_hours`). Derive actual as `planned + overtime` in mobile if needed for charting.
+4. **User profile source:** read `stateCode` and `specialty` from auth state (`useAuth().state.user`) / `AuthStorage`, not from a new DB table.
+5. **Queue model:** add a Reports-specific local queue table and leave legacy weekly-noise queue (`weekly_submission_queue`) untouched but unused by Reports flow.
+6. **Reliability:** Tier C (send on app open/foreground) is the foundation; Tier B push remains deferred.
 
-### 2.1 Schema addition
+---
 
-Add two fields to mobile SQLite:
+## Phase 0: Foundation and Migration
 
-**Option A — New `week_queue` table:**
+### Mobile DB migration (Schema v6)
+
+**File:** `mobile-app/src/modules/geofencing/services/Database.ts`
+
+Add migration to version 6:
+
 ```sql
-CREATE TABLE IF NOT EXISTS week_queue (
-  week_start TEXT PRIMARY KEY,       -- ISO Monday date
-  status TEXT NOT NULL DEFAULT 'confirmed',  -- 'confirmed' | 'queued'
+CREATE TABLE IF NOT EXISTS reports_week_queue (
+  week_start TEXT PRIMARY KEY,             -- Monday date YYYY-MM-DD
+  status TEXT NOT NULL,                    -- 'queued' | 'sent'
   queued_at TEXT,
-  sent_at TEXT
+  sent_at TEXT,
+  last_error TEXT,
+  updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_reports_week_queue_status
+  ON reports_week_queue(status);
+
+CREATE TABLE IF NOT EXISTS app_preferences (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at TEXT NOT NULL
 );
 ```
 
-**Option B — `user_preferences` key-value store (for auto-send):**
-```sql
--- Already exists? Check Database.ts. If not:
-INSERT OR REPLACE INTO user_preferences (key, value) VALUES ('auto_send', '0');
+Notes:
+- Keep existing `weekly_submission_queue` and `daily_submission_queue` as-is.
+- Reports uses `reports_week_queue` + `daily_submission_queue`.
+
+### New DB helpers
+
+Add query helpers needed by Reports:
+
+```ts
+getDailyActualsForRange(startDate: string, endDate: string): Promise<DailyActual[]>
+getFirstDailyActualDate(): Promise<string | null>
+
+upsertReportsWeekQueue(...)
+getReportsWeekQueue(status?: 'queued' | 'sent')
+getReportsWeekByStart(weekStart: string)
+
+setPreference(key: string, value: string): Promise<void>
+getPreference(key: string): Promise<string | null>
+
+getDailySubmissionQueueForRange(startDate: string, endDate: string)
 ```
-
-Check if `user_preferences` table exists in `Database.ts`. If not, create a lightweight one. Auto-send is a single boolean.
-
-### 2.2 Queue logic
-
-**In `WeekStateService`:**
-- `queueWeek(weekStart: string)` → insert/update `week_queue` row to 'queued'
-- `unqueueWeek(weekStart: string)` → update back to 'confirmed'
-- `getQueuedWeeks()` → all rows with status='queued'
-- `setAutoSend(enabled: boolean)` → persist preference
-- `getAutoSend()` → read preference
-
-**Auto-send behavior:**
-When auto-send is ON and a week becomes fully confirmed (7/7 days), it's auto-queued. This check runs:
-- On Reports screen mount
-- When `daily_actuals` changes (if we have a listener/refresh mechanism)
-
-### 2.3 Wire into ReportsScreen
-
-- `handleToggleSend` → calls `queueWeek`/`unqueueWeek`
-- `handleAutoSendToggle` → calls `setAutoSend` + auto-queues eligible weeks
-- On mount: load queue state + auto-send preference
-
-**Files touched:**
-| File | Change |
-|------|--------|
-| `services/Database.ts` | Add `week_queue` table, `user_preferences` if needed |
-| `services/WeekStateService.ts` | Queue/unqueue/auto-send methods |
-| `screens/ReportsScreen.tsx` | Wire toggle handlers to persistence |
 
 ---
 
-## Phase 3: Send-on-Open (Tier C)
+## Phase 1: Week State Read Model (real data)
 
-**Goal:** When the app opens, check for queued weeks past their Sunday deadline and send them.
+**Goal:** replace mock weeks with week states derived from `daily_actuals` + queue status.
 
-### 3.1 Finalization service
+### 1.1 New service
 
-**New file:** `modules/reports/services/WeekFinalizationService.ts`
+**New file:** `mobile-app/src/modules/reports/services/WeekStateService.ts`
+
+Responsibilities:
+- Build week list from first tracked week to current week.
+- Compute confirmed day count per week from `daily_actuals`.
+- Merge queue state from `reports_week_queue`.
+- Return:
+  - active weeks (`unconfirmed`, `confirmed`, `queued`)
+  - sent weeks (`sent`)
+
+Week state rules:
+- Current week: always `unconfirmed` in Reports (cannot finalize this week yet).
+- Past week:
+  - `sent` if queue row has `status='sent'`
+  - `queued` if queue row has `status='queued'` and week still fully confirmed
+  - `confirmed` if 7/7 confirmed and not queued/sent
+  - `unconfirmed` otherwise
+
+### 1.2 ReportsScreen wiring
+
+**File:** `mobile-app/src/modules/reports/screens/ReportsScreen.tsx`
+
+- Replace `MOCK_ACTIVE_WEEKS` and `MOCK_SENT_WEEKS` with service calls.
+- Keep visual behavior; use real `weekStart` in state objects.
+- Keep sort by date (`weekStart` desc), not by week number.
+
+### 1.3 Tests
+
+- Unit test week-state computation:
+  - no data
+  - sparse weeks with gaps
+  - current week handling
+  - queued week that becomes unconfirmed after edits
+
+---
+
+## Phase 2: Queue + Preferences Persistence
+
+**Goal:** persist per-week queue toggles and auto-send preference.
+
+### 2.1 Queue methods in WeekStateService
+
+Add methods:
 
 ```ts
-async function sendQueuedWeeks(): Promise<SendResult[]> {
-  1. Query week_queue WHERE status = 'queued' AND week_end < today
-  2. For each week:
-     a. Verify all 7 work_events exist on backend (they should — daily submission sends them)
-     b. Call POST /finalized-weeks { week_start: monday }
-     c. On success: update week_queue status = 'sent', record sent_at
-     d. On failure: log error, skip (retry next open)
-  3. Return results for UI feedback
-}
+queueWeek(weekStart: string): Promise<void>
+unqueueWeek(weekStart: string): Promise<void>
+getQueuedWeeks(): Promise<string[]>
+
+setAutoSend(enabled: boolean): Promise<void>
+getAutoSend(): Promise<boolean>
+
+setReportsFirstTimeSeen(seen: boolean): Promise<void>
+getReportsFirstTimeSeen(): Promise<boolean>
+
+setLastRewardWeek(weekStart: string): Promise<void>
+getLastRewardWeek(): Promise<string | null>
 ```
 
-**Important:** `POST /finalized-weeks` expects the 7 `work_events` to already exist on the backend. The existing `DailySubmissionService` handles this. The finalization call just tells the backend to "seal" the week.
+### 2.2 Auto-send reconciliation
 
-### 3.2 Trigger on app open
+When auto-send is ON:
+- Queue all eligible past weeks with 7/7 confirmations.
+- Do not queue current week.
 
-**In `App.tsx` or `AppNavigator.tsx`:**
-- On app state change to 'active' (from background), call `sendQueuedWeeks()`
-- Also call on initial mount
-- Gate behind auth check (need valid JWT)
+On each refresh/mount:
+- Reconcile queue rows with confirmation state.
+- If a queued week is no longer 7/7 confirmed, revert it to not queued.
 
-### 3.3 Sent weeks in UI
+### 2.3 ReportsScreen wiring
 
-After successful send:
-- Week moves from active list to sent history
-- If Monday reward card logic: check if a week was just sent since last app open → show reward
-- Reward state: persist "last shown reward week" in `user_preferences`
+- Load auto-send + first-time flags from `app_preferences`.
+- `handleToggleSend` persists queue state.
+- `handleAutoSendToggle` persists preference and queues eligible weeks.
 
-### 3.4 Pre-condition: daily submission completeness
+---
 
-Before finalizing a week, verify the 7 daily submissions succeeded:
-- Check `daily_submission_queue` WHERE date IN week AND status = 'sent'
-- If any day isn't sent yet, skip finalization (daily submission service will catch up)
+## Phase 3: Reliable Finalization (Tier C)
 
-**Files touched:**
-| File | Change |
-|------|--------|
-| `services/WeekFinalizationService.ts` | New — send queued weeks to backend |
-| `services/WeekStateService.ts` | Method to check daily submission completeness |
-| `App.tsx` or `AppNavigator.tsx` | Trigger send-on-open |
-| `screens/ReportsScreen.tsx` | Refresh data after send, show reward card |
-| `services/Database.ts` | Query helpers for submission status |
+**Goal:** send eligible queued weeks on app start/foreground and persist sent state.
+
+### 3.1 New service
+
+**New file:** `mobile-app/src/modules/reports/services/WeekFinalizationService.ts`
+
+Core method:
+
+```ts
+sendEligibleQueuedWeeks(): Promise<SendResult[]>
+```
+
+Algorithm per queued week:
+1. Skip unless week has ended (`weekEnd <= today` in local timezone).
+2. Ensure local 7/7 confirmations still exist.
+3. Ensure all 7 daily submissions are sent:
+   - process pending queue
+   - retry failed entries for this week, then process again
+4. Call `POST /finalized-weeks { week_start }`.
+5. Handle response:
+   - `201`: mark local week as `sent`
+   - `409`: treat as already finalized and mark local week as `sent` (idempotent recovery)
+   - other errors: keep queued, store `last_error`
+6. On sent, lock local confirmed days for that week in calendar storage (`status='locked'`).
+
+### 3.2 Triggering strategy
+
+Trigger `sendEligibleQueuedWeeks()`:
+- on app becoming authenticated
+- on app state change to `active` while authenticated
+
+Preferred integration point:
+- `mobile-app/src/navigation/AppNavigator.tsx` (has auth context already)
+
+### 3.3 Monday reward card
+
+- Reward appears if at least one week transitions to `sent` since last seen reward key.
+- Persist last shown reward `weekStart` in `app_preferences`.
+
+### 3.4 Critical reliability detail
+
+Add a helper in `DailySubmissionService` for recovery paths:
+- process both `pending` and `failed` (with controlled retries), at least for targeted dates.
+
+Without this, queued weeks can stall forever after transient failures.
 
 ---
 
 ## Phase 4: Calendar Deep-Link
 
-**Goal:** Tapping a week card navigates to Calendar WeekView for that specific week.
+**Goal:** tapping a week card opens Calendar on that week.
 
-### 4.1 Navigation params
+### 4.1 Use existing navigation contract
 
-Currently `navigation.navigate('Calendar', {})` — needs a `targetWeek` param.
-
-**In `AppNavigator.tsx`:**
-```ts
-type MainTabParamList = {
-  Calendar: { targetWeek?: string }; // ISO Monday date
-  // ...
-};
-```
-
-**In `CalendarScreen` or `WeekView`:**
-- Read `route.params.targetWeek`
-- If present, set the calendar's current week to that date on mount
-
-### 4.2 Wire from ReportsScreen
+Current contract already supports:
 
 ```ts
-const handleNavigateToWeek = (weekNumber: number) => {
-  const monday = computeMondayFromWeekNumber(weekNumber, year);
-  navigation.navigate('Calendar', { targetWeek: monday });
-};
+Calendar: { targetDate?: string }
 ```
 
-**Files touched:**
-| File | Change |
-|------|--------|
-| `navigation/AppNavigator.tsx` | Add `targetWeek` param to Calendar |
-| `screens/ReportsScreen.tsx` | Pass computed Monday date |
-| Calendar components | Read and apply `targetWeek` param |
-
----
-
-## Phase 5: Collective Insights (Real Data)
-
-**Goal:** When DP stats are published for the user's group, unlock insight cards with real data.
-
-### 5.1 Fetch stats
-
-**New file:** `modules/reports/services/CollectiveInsightsService.ts`
+So Reports should navigate with:
 
 ```ts
-async function fetchInsights(stateCode: string, specialty: string): Promise<InsightData | null> {
-  1. GET /stats/by-state-specialty?state_code={stateCode}&specialty={specialty}&limit=1
-  2. If response has a published cell (status != 'suppressed'):
-     return { plannedMean, actualMean, overtimeMean, plannedCi, actualCi, overtimeCi, nDisplay, periodType }
-  3. Else: return null (card stays locked)
-}
+navigation.navigate('Calendar', { targetDate: weekStart });
 ```
 
-**User's state + specialty:** Read from user profile (stored on-device after auth). Check how `DailySubmissionService` gets the JWT / user info.
+No navigator type change required.
 
-### 5.2 User's own hours
+### 4.2 ReportsScreen change
 
-For the "You" bar in card 1:
-- Sum `daily_actuals.actual_minutes` for the most recent complete week
-- Convert to hours
-- Compare against group average from API
-
-### 5.3 Unlock logic in UI
-
-```tsx
-const insights = useFetchInsights(userStateCode, userSpecialty);
-
-// Card 1: You vs Group
-if (insights && userWeekHours) {
-  // Show real bars + numbers, no lock overlay
-} else {
-  // Show placeholder + lock overlay (current state)
-}
-```
-
-**Card 2 (Regional Hospitals):** Requires a new backend endpoint (per-hospital aggregation). Leave locked with placeholder for now. Implementation deferred until hospital-level data exists.
-
-**Card 3 (Trend):** Query `GET /stats/by-state-specialty` with multiple periods (last 4-8 weeks). If enough published periods exist, render sparkline with real data. Otherwise stays locked.
-
-### 5.4 Chart rendering
-
-For the real bars, no external chart library needed:
-- Horizontal bars: computed `width` proportional to hours values (same `View` approach as placeholder)
-- CI range: wider/lighter bar behind the main bar
-- Values as text labels
-
-If a real chart library is needed later (e.g., for the sparkline), `react-native-svg` is already installed — SVG-based charts can be built manually or with `victory-native`.
-
-**Files touched:**
-| File | Change |
-|------|--------|
-| `services/CollectiveInsightsService.ts` | New — fetch + parse DP stats |
-| `screens/ReportsScreen.tsx` | Conditional rendering: locked vs real data |
-| `services/WeekStateService.ts` | Method for user's own week hours |
+Replace current placeholder navigation with weekStart-based navigation.
 
 ---
 
-## Phase 6: Export
+## Phase 5: Collective Insights (real data)
 
-**Goal:** Export button on sent history generates a sharable document of the user's submitted weeks.
+**Goal:** unlock first insights card when published stats exist for user’s state × specialty.
 
-### 6.1 Data collection
+### 5.1 New service
 
-From on-device `daily_actuals` + `week_queue` (sent weeks):
-```
-For each sent week:
-  - Week number, date range
-  - Daily breakdown: planned_minutes, actual_minutes, source
-  - Weekly totals: planned, actual, overtime
-```
+**New file:** `mobile-app/src/modules/reports/services/CollectiveInsightsService.ts`
 
-### 6.2 Output format
-
-**Option A — Share as image:** Render a summary view, capture as image via `react-native-view-shot`, share via native share sheet.
-
-**Option B — CSV export:** Generate CSV string, write to temp file, share via native share sheet.
-
-**Recommendation:** Start with CSV (simpler, universally useful). Add image export later if users want visual sharing.
-
-### 6.3 Implementation
+Fetch:
 
 ```ts
-async function exportSentWeeks(): Promise<void> {
-  1. Query all sent weeks from week_queue + their daily_actuals
-  2. Format as CSV: Week, Date, Planned (h), Actual (h), Overtime (h), Source
-  3. Write to FileSystem.cacheDirectory
-  4. Open native share sheet via expo-sharing
-}
+GET /stats/by-state-specialty?country_code=DEU&state_code={stateCode}&specialty={specialty}&limit=1
 ```
 
-**Dependencies:** `expo-file-system` (already in Expo), `expo-sharing` (check if installed).
+Parse fields:
+- `planned_mean_hours`
+- `overtime_mean_hours`
+- `planned_ci_half`
+- `actual_ci_half`
+- `overtime_ci_half`
+- `n_display`
+- `status`
+- `period_start`, `period_end`
 
-**Files touched:**
-| File | Change |
-|------|--------|
-| `services/ExportService.ts` | New — CSV generation + share |
-| `screens/ReportsScreen.tsx` | Wire export button `onPress` |
+Derived value (mobile-side):
+- `actual_mean_hours = planned_mean_hours + overtime_mean_hours` (inference)
+
+### 5.2 Unlock logic
+
+Unlock card only if:
+- user has at least one sent week
+- API row exists with `status='published'`
+- required numeric fields are non-null
+
+Otherwise show locked placeholder.
+
+### 5.3 User context source
+
+Use:
+- `useAuth().state.user?.stateCode`
+- `useAuth().state.user?.specialty`
+
+If missing, keep card locked.
+
+### 5.4 Deferred insight cards
+
+- Card 2 (hospital/regional): defer until backend endpoint exists.
+- Card 3 (trend): can be added by querying multiple periods from same endpoint later.
 
 ---
 
-## Phase 7: Push Notifications (Tier B)
+## Phase 6: Export (CSV)
 
-**Goal:** Backend sends push notification Sunday ~18:00 → user taps → app opens → Tier C fires.
+**Goal:** export sent history as shareable CSV.
 
-### 7.1 Backend push infrastructure
+### 6.1 Data source
 
-- Requires push token storage: user registers device push token on login
-- New table: `device_push_tokens` (user_id, token, platform, created_at)
-- New endpoint: `POST /auth/push-token` to register
-- Sunday cron job: for each user with queued/confirmed weeks, send push
+- `reports_week_queue` where `status='sent'`
+- `daily_actuals` for each sent week’s 7 dates
 
-### 7.2 Mobile push setup
+### 6.2 Implementation
 
-- `expo-notifications` for push token registration + handling
-- On notification tap: app opens → `sendQueuedWeeks()` fires (Tier C)
-- Local notifications for reminders (unconfirmed days Sunday ~14:00)
+**New file:** `mobile-app/src/modules/reports/services/ExportService.ts`
 
-### 7.3 Notification messages (from UX spec)
+Flow:
+1. Collect sent weeks + daily records
+2. Build CSV rows:
+   - week_start
+   - date
+   - planned_hours
+   - actual_hours
+   - overtime_hours
+   - source
+3. Write to `FileSystem.cacheDirectory`
+4. Share via `expo-sharing`
 
-| Trigger | When | Message |
-|---------|------|---------|
-| Unconfirmed days remain | Sunday ~14:00 (local) | "You have unconfirmed days this week" |
-| Confirmed but not queued | Sunday ~17:00 (local) | "Tap Queue to include KWxx in tonight's submission" |
-| Ready to send | Sunday ~18:00 (push from backend) | "Your weekly data is ready to send" |
-| Transmission complete | After send | "KWxx sent — N weeks contributed total" (local) |
-
-**This is the most complex phase.** Defer until Phases 1-5 are working.
-
-**Files touched:**
-| File | Change |
-|------|--------|
-| Backend: `routers/auth.py` | Push token registration endpoint |
-| Backend: `models.py` | `device_push_tokens` table |
-| Backend: new cron/task | Sunday push send job |
-| Mobile: `services/NotificationService.ts` | New — push registration + local scheduling |
-| Mobile: `App.tsx` | Register push token on auth |
+Dependencies already present in `mobile-app/package.json`:
+- `expo-file-system`
+- `expo-sharing`
 
 ---
 
-## Implementation Order
+## Phase 7: Push Notifications (Tier B, deferred)
 
-```
-Phase 1 ──→ Phase 2 ──→ Phase 3 ──→ Phase 4
-  (weeks)    (persist)    (send)     (deep-link)
-                                        │
-Phase 5 ◄───────────────────────────────┘
-  (insights)
-      │
-Phase 6 ──→ Phase 7
-  (export)    (push — defer)
-```
+Keep deferred until Phases 1–5 are stable.
 
-**Phases 1-3 are the critical path** — they complete the core loop: confirm days → queue weeks → send on Sunday.
+When implemented:
+- push token registration endpoint
+- backend scheduled push for users with queued eligible weeks
+- notification tap just wakes app; Tier C does actual send
 
-Phase 4 is quick and can be done anytime.
-
-Phase 5 depends on having sent data (so users see themselves in the chart).
-
-Phase 6 is independent — can be done anytime after Phase 2.
-
-Phase 7 is deferred until the core loop is validated with real users.
+Note: Sunday-moment behavior is now compatible with backend/date validation, subject to app-open/push timing.
 
 ---
 
-## Open Questions
+## Recommended Build Order
 
-1. **Day confirmation UX in Calendar:** The Reports tab assumes per-day confirmation toggles exist in WeekView. Do they? If not, that's a prerequisite for Phase 1.
+1. Phase 0 (migration + DB helpers)
+2. Phase 1 (week read model)
+3. Phase 2 (queue + preferences)
+4. Phase 3 (Tier C send + retry + locking)
+5. Phase 4 (deep-link)
+6. Phase 5 (insights card 1)
+7. Phase 6 (CSV export)
+8. Phase 7 (push deferred)
 
-2. **Rest day confirmation:** The spec says rest days (0h) must be explicitly confirmed. Is there UI for this in the Calendar? Users might not think to "confirm" a day they didn't work.
+**Critical path:** 1 → 2 → 3
 
-3. **Backend work_event completeness:** `POST /finalized-weeks` requires all 7 work_events to exist. The daily submission service sends them, but what if a user has days with 0 planned and 0 actual? Does the backend create a work_event for those?
+---
 
-4. **User profile fields:** Card 1 needs `state_code` and `specialty` from the user's profile to query the right stats group. Where is this stored on-device?
+## Testing Plan
 
-5. **Expo-sharing:** Is `expo-sharing` already a dependency? If not, needs to be added for Phase 6.
+### Unit tests
+
+- `WeekStateService`
+  - week computation, gaps, current week behavior
+  - queue reconciliation
+- `WeekFinalizationService`
+  - success path (`201`)
+  - idempotent path (`409`)
+  - skip path when daily submissions incomplete
+  - retry path with failed daily submissions
+- `CollectiveInsightsService`
+  - published vs suppressed mapping
+  - null-safe parsing
+
+### Integration checks on device
+
+1. Confirm 7 days for a past week -> week shows confirmed.
+2. Queue week -> persists after app restart.
+3. Put app background/foreground -> eligible queued week finalizes and moves to sent.
+4. Simulate network failure -> queued remains, retries next foreground.
+5. Sent week days become locked in Calendar.
+6. Reports card tap jumps Calendar to the correct week.
+
+### E2E (Detox)
+
+Add/extend tests for:
+- reports tab rendering with real data
+- auto-send toggle persistence
+- queue toggle behavior
+- sent history expansion
+
+---
+
+## Remaining Product/Backend Questions
+
+1. **Transmission semantics:** Should we enforce an optional Sunday cutoff time (e.g., 18:00 local) or allow finalization any time Sunday?
+2. **Queue UX:** keep per-card queue switches (current prototype) vs switch to single bulk queue action from UX text?
+3. **Insights contract:** should backend expose `actual_mean_hours` directly to remove mobile-side inference?
