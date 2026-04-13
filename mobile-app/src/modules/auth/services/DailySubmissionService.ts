@@ -11,6 +11,11 @@ import type { DailySubmissionRecord } from '@/modules/geofencing/types';
 
 const BASE_URL = Constants.expoConfig?.extra?.submissionBaseUrl || 'http://localhost:8000';
 
+interface ProcessQueueForDatesOptions {
+  pendingRetries?: number;
+  failedRetries?: number;
+}
+
 export class DailySubmissionService {
   /**
    * Enqueue a confirmed day for submission
@@ -119,36 +124,46 @@ export class DailySubmissionService {
 
     // Get all pending submissions
     const pending = await db.getDailySubmissionQueue('pending');
+    await this.processRecords(pending, maxRetries);
+  }
 
-    for (const record of pending) {
-      let retryCount = 0;
-      let success = false;
+  /**
+   * Process pending + failed submissions for a specific list of dates.
+   * Used by week finalization to recover transient failures before finalizing.
+   */
+  static async processQueueForDates(
+    dates: string[],
+    options: ProcessQueueForDatesOptions = {},
+  ): Promise<void> {
+    if (dates.length === 0) return;
 
-      while (retryCount < maxRetries && !success) {
-        try {
-          await this.sendDailySubmission(record);
-          success = true;
-        } catch (error) {
-          retryCount++;
-          console.warn(
-            `[DailySubmissionService] Retry ${retryCount}/${maxRetries} failed for ${record.date}:`,
-            error
-          );
+    const db = await getDatabase();
+    const uniqueDates = Array.from(new Set(dates));
+    const dateSet = new Set(uniqueDates);
+    const sortedDates = [...uniqueDates].sort();
+    const startDate = sortedDates[0];
+    const endDate = sortedDates[sortedDates.length - 1];
+    const pendingRetries = options.pendingRetries ?? 10;
+    const failedRetries = options.failedRetries ?? 3;
 
-          if (retryCount < maxRetries) {
-            // Exponential backoff: 1s, 2s, 4s, 8s, 16s, 32s (max)
-            const delay = Math.min(1000 * Math.pow(2, retryCount - 1), 32000);
-            await new Promise((resolve) => setTimeout(resolve, delay));
-          }
-        }
-      }
+    const initialRange = await db.getDailySubmissionQueueForRange(startDate, endDate);
+    const pending = initialRange.filter(
+      (row) => row.status === 'pending' && dateSet.has(row.date),
+    );
+    await this.processRecords(pending, pendingRetries);
 
-      if (!success) {
-        console.error(
-          `[DailySubmissionService] Failed to send ${record.date} after ${maxRetries} attempts`
-        );
-      }
-    }
+    const postPendingRange = await db.getDailySubmissionQueueForRange(startDate, endDate);
+    const failed = postPendingRange.filter(
+      (row) => row.status === 'failed' && dateSet.has(row.date),
+    );
+    await this.processRecords(failed, failedRetries);
+
+    // A failed retry may reset records back to pending for another attempt.
+    const postRetryRange = await db.getDailySubmissionQueueForRange(startDate, endDate);
+    const pendingAfterRetry = postRetryRange.filter(
+      (row) => row.status === 'pending' && dateSet.has(row.date),
+    );
+    await this.processRecords(pendingAfterRetry, pendingRetries);
   }
 
   /**
@@ -185,5 +200,37 @@ export class DailySubmissionService {
   static async deleteSubmission(id: string): Promise<void> {
     const db = await getDatabase();
     await db.deleteDailySubmission(id);
+  }
+
+  private static async processRecords(records: DailySubmissionRecord[], maxRetries: number): Promise<void> {
+    for (const record of records) {
+      let retryCount = 0;
+      let success = false;
+
+      while (retryCount < maxRetries && !success) {
+        try {
+          await this.sendDailySubmission(record);
+          success = true;
+        } catch (error) {
+          retryCount++;
+          console.warn(
+            `[DailySubmissionService] Retry ${retryCount}/${maxRetries} failed for ${record.date}:`,
+            error
+          );
+
+          if (retryCount < maxRetries) {
+            // Exponential backoff: 1s, 2s, 4s, 8s, 16s, 32s (max)
+            const delay = Math.min(1000 * Math.pow(2, retryCount - 1), 32000);
+            await new Promise((resolve) => setTimeout(resolve, delay));
+          }
+        }
+      }
+
+      if (!success) {
+        console.error(
+          `[DailySubmissionService] Failed to send ${record.date} after ${maxRetries} attempts`
+        );
+      }
+    }
   }
 }

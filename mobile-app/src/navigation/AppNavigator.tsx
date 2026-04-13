@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Platform } from 'react-native';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator, Platform, AppState, type AppStateStatus } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -30,8 +30,8 @@ import LoginScreen from '@/modules/auth/screens/LoginScreen';
 import LockScreen from '@/modules/auth/screens/LockScreen';
 import ProfileScreen from '@/modules/auth/screens/ProfileScreen';
 
-import { getDatabase } from '@/modules/geofencing/services/Database';
 import { useAuth } from '@/lib/auth/auth-context';
+import { WeekFinalizationService } from '@/modules/reports/services/WeekFinalizationService';
 
 export type RootStackParamList = {
   // Auth stack
@@ -228,6 +228,23 @@ function AuthStack() {
 export default function AppNavigator() {
   const { state: authState, unlock, signOut } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+  const finalizationInFlightRef = useRef(false);
+
+  const runQueuedFinalization = useCallback(async () => {
+    if (finalizationInFlightRef.current) {
+      return;
+    }
+
+    finalizationInFlightRef.current = true;
+    try {
+      await WeekFinalizationService.sendEligibleQueuedWeeks();
+    } catch (error) {
+      console.error('[AppNavigator] Failed to finalize queued weeks:', error);
+    } finally {
+      finalizationInFlightRef.current = false;
+    }
+  }, []);
 
   useEffect(() => {
     // Just check if auth is loaded, don't wait for location check
@@ -235,6 +252,28 @@ export default function AppNavigator() {
       setIsLoading(false);
     }
   }, [authState.status]);
+
+  useEffect(() => {
+    if (authState.status !== 'authenticated') {
+      return;
+    }
+    void runQueuedFinalization();
+  }, [authState.status, runQueuedFinalization]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (
+        appStateRef.current.match(/background|inactive/) &&
+        nextState === 'active' &&
+        authState.status === 'authenticated'
+      ) {
+        void runQueuedFinalization();
+      }
+      appStateRef.current = nextState;
+    });
+
+    return () => subscription.remove();
+  }, [authState.status, runQueuedFinalization]);
 
   // Show loading while auth state is being restored
   if (authState.status === 'idle' || authState.status === 'loading' || isLoading) {
