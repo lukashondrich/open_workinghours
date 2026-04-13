@@ -712,6 +712,9 @@ export const en = {
       weeksContributed: '{{count}} weeks contributed',
       export: 'Export',
     },
+    errors: {
+      updateFailed: 'Could not update your reports settings. Please try again.',
+    },
     // Monday reward
     reward: {
       title: 'KW {{week}} sent',

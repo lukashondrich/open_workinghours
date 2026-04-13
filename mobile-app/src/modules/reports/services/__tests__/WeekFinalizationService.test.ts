@@ -4,6 +4,7 @@ import { getDatabase } from '../../../geofencing/services/Database';
 import { AuthStorage } from '../../../../lib/auth/AuthStorage';
 import { DailySubmissionService } from '../../../../modules/auth/services/DailySubmissionService';
 import { getCalendarStorage } from '../../../../modules/calendar/services/CalendarStorage';
+import { calendarEvents } from '../../../../lib/events/calendarEvents';
 import type { ReportsWeekQueueRecord } from '../../../geofencing/types';
 import type { ConfirmedDayStatus } from '../../../../lib/calendar/types';
 
@@ -28,11 +29,18 @@ jest.mock('../../../../modules/calendar/services/CalendarStorage', () => ({
   getCalendarStorage: jest.fn(),
 }));
 
+jest.mock('../../../../lib/events/calendarEvents', () => ({
+  calendarEvents: {
+    emit: jest.fn(),
+  },
+}));
+
 const mockedGetDatabase = getDatabase as jest.MockedFunction<typeof getDatabase>;
 const mockedGetToken = AuthStorage.getToken as jest.MockedFunction<typeof AuthStorage.getToken>;
 const mockedProcessQueueForDates = DailySubmissionService.processQueueForDates as jest.MockedFunction<typeof DailySubmissionService.processQueueForDates>;
 const mockedEnqueueDailySubmission = DailySubmissionService.enqueueDailySubmission as jest.MockedFunction<typeof DailySubmissionService.enqueueDailySubmission>;
 const mockedGetCalendarStorage = getCalendarStorage as jest.MockedFunction<typeof getCalendarStorage>;
+const mockedCalendarEventsEmit = calendarEvents.emit as jest.MockedFunction<typeof calendarEvents.emit>;
 
 type MockDatabase = {
   getReportsWeekQueue: jest.Mock<Promise<ReportsWeekQueueRecord[]>, []>;
@@ -101,6 +109,7 @@ describe('WeekFinalizationService', () => {
     mockedProcessQueueForDates.mockReset();
     mockedEnqueueDailySubmission.mockReset();
     mockedGetCalendarStorage.mockReset();
+    mockedCalendarEventsEmit.mockReset();
     global.fetch = jest.fn();
   });
 
@@ -166,6 +175,10 @@ describe('WeekFinalizationService', () => {
       }),
     );
     expect(calendarStorage.replaceConfirmedDays).toHaveBeenCalledTimes(1);
+    expect(mockedCalendarEventsEmit).toHaveBeenCalledWith('confirmed-days-updated', {
+      dates,
+      submissionId: 'week-finalized-id',
+    });
   });
 
   it('treats 409 as already finalized and marks week sent', async () => {
@@ -201,6 +214,10 @@ describe('WeekFinalizationService', () => {
         status: 'sent',
       }),
     );
+    expect(mockedCalendarEventsEmit).toHaveBeenCalledWith('confirmed-days-updated', {
+      dates,
+      submissionId: `finalized-${weekStart}`,
+    });
   });
 
   it('reverts invalid queued week when confirmations are incomplete', async () => {

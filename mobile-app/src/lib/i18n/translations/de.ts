@@ -712,6 +712,9 @@ export const de = {
       weeksContributed: '{{count}} Wochen beigetragen',
       export: 'Exportieren',
     },
+    errors: {
+      updateFailed: 'Berichts-Einstellungen konnten nicht aktualisiert werden. Bitte versuchen Sie es erneut.',
+    },
     // Monday reward
     reward: {
       title: 'KW {{week}} gesendet',
