@@ -158,7 +158,7 @@ export const de = {
       continues: 'Fortsetzung...',
       dayConfirmed: '{{day}} eingereicht',
       cannotConfirmFutureTitle: 'Zukünftige Tage können nicht bestätigt werden',
-      cannotConfirmFutureMessage: 'Sie können nur vergangene Tage bestätigen. Bitte warten Sie bis morgen, um heute zu bestätigen.',
+      cannotConfirmFutureMessage: 'Sie können nur heute oder vergangene Tage bestätigen.',
       confirmationFailed: 'Bestätigung fehlgeschlagen',
       confirmationFailedMessage: 'Dieser Tag konnte nicht abgeschlossen werden. Bitte versuchen Sie es erneut.',
       deleteTrackingTitle: 'Zeiterfassung löschen?',

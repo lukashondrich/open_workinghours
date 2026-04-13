@@ -19,7 +19,7 @@ import { AppText as Text } from '@/components/ui/AppText';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import * as Haptics from 'expo-haptics';
-import { startOfWeek, subDays, format as formatDate, isBefore, startOfDay, parse } from 'date-fns';
+import { startOfWeek, subDays, format as formatDate, startOfDay, parse } from 'date-fns';
 import { de as deLocale } from 'date-fns/locale/de';
 
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
@@ -1374,11 +1374,11 @@ export default function WeekView() {
   };
 
   const confirmDay = async (dateKey: string) => {
-    // Validation: Only allow confirming past days (not today, not future)
+    // Validation: Only allow confirming today or past days (not future)
     const dayToConfirm = startOfDay(new Date(dateKey));
     const today = startOfDay(new Date());
 
-    if (!isBefore(dayToConfirm, today)) {
+    if (dayToConfirm.getTime() > today.getTime()) {
       Alert.alert(
         t('calendar.week.cannotConfirmFutureTitle'),
         t('calendar.week.cannotConfirmFutureMessage')
@@ -1752,9 +1752,9 @@ export default function WeekView() {
               const isConfirmed = state.confirmedDates.has(dateKey);
               const trackingRecords = getTrackingForDate(dateKey);
               const needsReview = state.reviewMode && !isConfirmed;
-              // Can only confirm past days (not today, not future)
+              // Can confirm today or past days (not future)
               const today = startOfDay(new Date());
-              const canConfirm = isBefore(startOfDay(day), today);
+              const canConfirm = startOfDay(day).getTime() <= today.getTime();
               // Focus ring when inline picker is targeting this day
               const isTargetDay = state.inlinePickerTargetDate === dateKey;
               return (

@@ -65,15 +65,15 @@ class TestWorkEventsCreate:
         response2 = client.post("/work-events", json=sample_work_event, headers=auth_headers)
         assert response2.status_code == 409  # Conflict
 
-    def test_create_work_event_future_date(
+    def test_create_work_event_today_and_future_date(
         self, client: TestClient, auth_headers: dict[str, str]
     ):
-        """Test that future dates and today are rejected."""
+        """Test that today is accepted and future dates are rejected."""
         today = date.today()
         tomorrow = today + timedelta(days=1)
         next_week = today + timedelta(days=7)
 
-        # Test today (should fail)
+        # Test today (should succeed)
         today_payload = {
             "date": today.isoformat(),
             "planned_hours": 8.0,
@@ -81,8 +81,7 @@ class TestWorkEventsCreate:
             "source": "manual",
         }
         response_today = client.post("/work-events", json=today_payload, headers=auth_headers)
-        assert response_today.status_code == 400
-        assert "future" in response_today.json()["detail"].lower() or "past" in response_today.json()["detail"].lower()
+        assert response_today.status_code == 201
 
         # Test tomorrow (should fail)
         tomorrow_payload = {
@@ -93,6 +92,7 @@ class TestWorkEventsCreate:
         }
         response_tomorrow = client.post("/work-events", json=tomorrow_payload, headers=auth_headers)
         assert response_tomorrow.status_code == 400
+        assert "future" in response_tomorrow.json()["detail"].lower()
 
         # Test next week (should fail)
         next_week_payload = {
@@ -103,6 +103,7 @@ class TestWorkEventsCreate:
         }
         response_next_week = client.post("/work-events", json=next_week_payload, headers=auth_headers)
         assert response_next_week.status_code == 400
+        assert "future" in response_next_week.json()["detail"].lower()
 
         # Test yesterday (should succeed)
         yesterday = today - timedelta(days=1)
