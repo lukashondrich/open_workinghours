@@ -99,7 +99,10 @@ export class GeofenceService {
    * Stop all geofencing
    */
   async stopAll(): Promise<void> {
-    await Location.stopGeofencingAsync(GEOFENCE_TASK_NAME);
+    const isActive = await Location.hasStartedGeofencingAsync(GEOFENCE_TASK_NAME);
+    if (isActive) {
+      await Location.stopGeofencingAsync(GEOFENCE_TASK_NAME);
+    }
     this.registeredGeofences.clear();
   }
 

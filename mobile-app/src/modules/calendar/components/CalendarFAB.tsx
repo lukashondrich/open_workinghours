@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -13,10 +13,14 @@ import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/
 import { useCalendar } from '@/lib/calendar/calendar-context';
 import { t } from '@/lib/i18n';
 import ManualSessionForm from './ManualSessionForm';
+import OnboardingTooltip from '@/components/OnboardingTooltip';
+import { OnboardingPreferences } from '@/lib/storage/OnboardingPreferences';
 
 export default function CalendarFAB() {
   const { state, dispatch } = useCalendar();
   const [menuVisible, setMenuVisible] = useState(false);
+  const [showFabTooltip, setShowFabTooltip] = useState(false);
+  const hasSeenFabTooltip = useRef<boolean | null>(null);
   const insets = useSafeAreaInsets();
 
   // Calculate bottom offset to achieve equal margins from right edge and tab bar
@@ -26,8 +30,33 @@ export default function CalendarFAB() {
   // This makes the visual gap from tab bar equal to the right margin from screen edge.
   const fabBottomOffset = spacing.xl - insets.bottom;
 
-  const handleFABPress = () => {
-    setMenuVisible(!menuVisible);
+  useEffect(() => {
+    OnboardingPreferences.hasSeenFabTooltip()
+      .then((seen) => {
+        hasSeenFabTooltip.current = seen;
+      })
+      .catch((error) => {
+        console.error('[CalendarFAB] Failed to load FAB tooltip flag:', error);
+      });
+  }, []);
+
+  const handleFABPress = async () => {
+    const nextMenuVisible = !menuVisible;
+    setMenuVisible(nextMenuVisible);
+
+    if (nextMenuVisible && hasSeenFabTooltip.current !== true) {
+      const seen = hasSeenFabTooltip.current ?? await OnboardingPreferences.hasSeenFabTooltip();
+      hasSeenFabTooltip.current = seen;
+      if (!seen) {
+        setShowFabTooltip(true);
+      }
+    }
+  };
+
+  const handleDismissFabTooltip = async () => {
+    setShowFabTooltip(false);
+    hasSeenFabTooltip.current = true;
+    await OnboardingPreferences.setFabTooltipSeen(true);
   };
 
   const handleOptionPress = (tab: 'shifts' | 'absences') => {
@@ -148,6 +177,13 @@ export default function CalendarFAB() {
           )}
         </TouchableOpacity>
       </View>
+      <OnboardingTooltip
+        visible={showFabTooltip}
+        title={t('onboardingTooltips.fab.title')}
+        body={t('onboardingTooltips.fab.body')}
+        onDismiss={handleDismissFabTooltip}
+        testIDPrefix="calendar-fab-tooltip"
+      />
     </>
   );
 }

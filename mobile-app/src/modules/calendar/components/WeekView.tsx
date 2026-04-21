@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   Pressable,
   Alert,
-  Modal,
   PanResponder,
   Vibration,
   Animated,
@@ -50,8 +49,10 @@ import {
 } from '@/lib/calendar/calendar-utils';
 import type { ShiftInstance, TrackingRecord, AbsenceInstance } from '@/lib/calendar/types';
 import { getCalendarStorage } from '@/modules/calendar/services/CalendarStorage';
-import { TreePalm, Thermometer, Clock, X, Info } from 'lucide-react-native';
+import { TreePalm, Thermometer, Clock, X } from 'lucide-react-native';
 import { OnboardingStorage } from '@/lib/storage/OnboardingStorage';
+import { OnboardingPreferences } from '@/lib/storage/OnboardingPreferences';
+import OnboardingTooltip from '@/components/OnboardingTooltip';
 // ShiftEditModal removed - using native time picker for start time only
 import { persistDailyActualForDate } from '../services/DailyAggregator';
 import { DailySubmissionService } from '@/modules/auth/services/DailySubmissionService';
@@ -740,14 +741,26 @@ export default function WeekView() {
 
   // Submit tooltip state (first-time explanation)
   const [showSubmitTooltip, setShowSubmitTooltip] = useState(false);
+  const [showBatchTooltip, setShowBatchTooltip] = useState(false);
   const [pendingSubmitDate, setPendingSubmitDate] = useState<string | null>(null);
   const hasSeenSubmitTooltip = useRef<boolean | null>(null); // null = not yet loaded
+  const hasSeenBatchTooltip = useRef<boolean | null>(null);
 
   // Load submit tooltip seen flag on mount
   useEffect(() => {
     OnboardingStorage.hasSeenConfirmTooltip().then((seen) => {
       hasSeenSubmitTooltip.current = seen;
     });
+  }, []);
+
+  useEffect(() => {
+    OnboardingPreferences.hasSeenBatchTooltip()
+      .then((seen) => {
+        hasSeenBatchTooltip.current = seen;
+      })
+      .catch((error) => {
+        console.error('[WeekView] Failed to load batch tooltip flag:', error);
+      });
   }, []);
 
   // Hide FAB when overlays are open
@@ -1373,6 +1386,12 @@ export default function WeekView() {
     }
   };
 
+  const handleBatchTooltipDismiss = async () => {
+    setShowBatchTooltip(false);
+    hasSeenBatchTooltip.current = true;
+    await OnboardingPreferences.setBatchTooltipSeen(true);
+  };
+
   const confirmDay = async (dateKey: string) => {
     // Validation: Only allow confirming today or past days (not future)
     const dayToConfirm = startOfDay(new Date(dateKey));
@@ -1725,6 +1744,32 @@ export default function WeekView() {
   const armedAbsenceTemplate = state.armedAbsenceTemplateId
     ? state.absenceTemplates[state.armedAbsenceTemplateId]
     : null;
+
+  useEffect(() => {
+    if (!armedTemplate && !armedAbsenceTemplate) {
+      return;
+    }
+
+    if (hasSeenBatchTooltip.current === true) {
+      return;
+    }
+
+    let isMounted = true;
+
+    const maybeShowBatchTooltip = async () => {
+      const seen = hasSeenBatchTooltip.current ?? await OnboardingPreferences.hasSeenBatchTooltip();
+      hasSeenBatchTooltip.current = seen;
+      if (isMounted && !seen) {
+        setShowBatchTooltip(true);
+      }
+    };
+
+    void maybeShowBatchTooltip();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [armedTemplate, armedAbsenceTemplate]);
 
   // Platform-conditional gesture handling:
   // iOS: Use RNGH GestureDetector (works well with native gesture coordination)
@@ -2097,35 +2142,22 @@ export default function WeekView() {
         </View>
       )}
 
-      {/* First-time submit tooltip modal */}
-      <Modal
+      <OnboardingTooltip
         visible={showSubmitTooltip}
-        transparent
-        animationType="fade"
-        onRequestClose={handleSubmitTooltipDismiss}
-      >
-        <View style={styles.submitTooltipOverlay}>
-          <View style={styles.submitTooltipContainer}>
-            <View style={styles.submitTooltipHeader}>
-              <Info size={20} color={colors.primary[500]} />
-              <Text style={styles.submitTooltipTitle}>
-                {t('calendar.week.submitTooltipTitle')}
-              </Text>
-            </View>
-            <Text style={styles.submitTooltipBody}>
-              {t('calendar.week.submitTooltipBody')}
-            </Text>
-            <TouchableOpacity
-              style={styles.submitTooltipButton}
-              onPress={handleSubmitTooltipDismiss}
-            >
-              <Text style={styles.submitTooltipButtonText}>
-                {t('calendar.week.submitTooltipDismiss')}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+        title={t('calendar.week.submitTooltipTitle')}
+        body={t('calendar.week.submitTooltipBody')}
+        dismissLabel={t('calendar.week.submitTooltipDismiss')}
+        onDismiss={handleSubmitTooltipDismiss}
+        testIDPrefix="submit-tooltip"
+      />
+
+      <OnboardingTooltip
+        visible={showBatchTooltip}
+        title={t('onboardingTooltips.batch.title')}
+        body={t('onboardingTooltips.batch.body')}
+        onDismiss={handleBatchTooltipDismiss}
+        testIDPrefix="calendar-batch-tooltip"
+      />
     </View>
   );
 
@@ -2494,51 +2526,6 @@ const styles = StyleSheet.create({
   },
   toastText: {
     color: colors.white,
-    fontWeight: fontWeight.semibold,
-  },
-  // Submit tooltip modal styles
-  submitTooltipOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: spacing.xl,
-  },
-  submitTooltipContainer: {
-    backgroundColor: colors.background.paper,
-    borderRadius: borderRadius.xl,
-    padding: spacing.xl,
-    maxWidth: 320,
-    width: '100%',
-    ...shadows.lg,
-  },
-  submitTooltipHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  submitTooltipTitle: {
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.semibold,
-    color: colors.text.primary,
-  },
-  submitTooltipBody: {
-    fontSize: fontSize.md,
-    color: colors.text.secondary,
-    lineHeight: 22,
-    marginBottom: spacing.lg,
-  },
-  submitTooltipButton: {
-    backgroundColor: colors.primary[500],
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.xl,
-    borderRadius: borderRadius.lg,
-    alignItems: 'center',
-  },
-  submitTooltipButtonText: {
-    color: colors.white,
-    fontSize: fontSize.md,
     fontWeight: fontWeight.semibold,
   },
   currentTimeLine: {

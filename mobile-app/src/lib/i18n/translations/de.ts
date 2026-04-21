@@ -17,6 +17,7 @@ export const de = {
     clear: 'Löschen',
     adjust: 'Anpassen',
     addAnyway: 'Trotzdem hinzufügen',
+    dismiss: 'Schließen',
     // Day names (abbreviated)
     weekdays: {
       mon: 'Mo',
@@ -26,6 +27,26 @@ export const de = {
       fri: 'Fr',
       sat: 'Sa',
       sun: 'So',
+    },
+  },
+
+  onboardingTooltips: {
+    gotIt: 'Verstanden',
+    calendar: {
+      title: 'Dienste planen und Stunden vergleichen',
+      body: 'Planen Sie hier Ihre Dienste. Die App vergleicht geplante Stunden mit GPS-erfassten Stunden und erstellt daraus Ihr Dashboard.',
+    },
+    fab: {
+      title: 'Kalenderdetails hinzufügen',
+      body: 'Dienste planen Ihren Dienstplan. Abwesenheiten markieren Urlaub oder Krankheit. Zeit erfassen ergänzt Stunden manuell, wenn GPS eine Sitzung verpasst hat.',
+    },
+    batch: {
+      title: 'Dienste schnell platzieren',
+      body: 'Doppeltippen Sie auf einen Tag, um diesen Dienst zu platzieren. Tippen Sie auf X, um das Platzieren zu beenden.',
+    },
+    trackedSession: {
+      title: 'Automatisch erfasste Sitzung',
+      body: 'Diese Sitzung wurde automatisch per GPS erfasst. Bestätigen Sie den Tag im Kalender, um Ihre Stunden zu übermitteln.',
     },
   },
 
@@ -297,10 +318,12 @@ export const de = {
     },
     keyPoints: {
       title: 'Kurz gesagt:',
-      aggregation: 'Deine Stunden fließen in anonyme Statistiken ein (nur bei ausreichend großen Gruppen)',
-      gpsLocal: 'GPS-Koordinaten verlassen dein Gerät nicht',
-      deletion: 'Lösche dein Konto und alle Daten jederzeit',
+      localData: 'GPS-Koordinaten, Arbeitsplatznamen, Dienstvorlagen, Abwesenheiten und unbestätigte Sitzungen bleiben auf deinem Gerät.',
+      submission: 'Dein Profil und bestätigte tägliche Arbeitszeiten werden an Open Working Hours gesendet, damit daraus datenschutzgeschützte Statistiken entstehen.',
+      publicStats: 'Öffentliche Statistiken werden nur für Gruppen ab 5 Personen gezeigt und enthalten statistisches Rauschen gegen Wiedererkennung.',
+      deletion: 'Lösche dein Konto und alle Daten jederzeit.',
     },
+    privacyExplainer: 'Wie deine Daten geschützt werden',
     checkbox: 'Ich stimme den Nutzungsbedingungen und der Datenschutzerklärung zu',
     accept: 'Ich stimme zu & weiter',
     preAnnounce: 'Mit dem Fortfahren prüfst du unsere Nutzungsbedingungen und Datenschutzerklärung',
@@ -319,8 +342,8 @@ export const de = {
     checkIn: 'Einstempeln',
     checkOut: 'Aus',
     end: 'Beenden',
-    noLocations: 'Noch kein Arbeitsplatz eingerichtet',
-    noLocationsHint: 'Fügen Sie Ihren Arbeitsplatz hinzu, um Stunden automatisch zu erfassen',
+    noLocations: 'Richten Sie Ihren Arbeitsplatz ein, um Stunden automatisch zu erfassen',
+    noLocationsHint: 'Ihr Telefon kann Ankunft und Verlassen erkennen, sobald Standortzugriff aktiviert ist.',
     addWorkplace: 'Arbeitsplatz hinzufügen',
     tapToManage: 'Tippen zum Verwalten',
     manualCheckInSuccess: 'Manuell eingestempelt',
@@ -424,26 +447,26 @@ export const de = {
     requestPermission: 'Berechtigung anfordern',
     openSettings: 'Einstellungen öffnen',
     successTitle: 'Erfolg',
-    backgroundGranted: 'Hintergrund-Standortberechtigung erteilt!',
-    backgroundRequiredTitle: 'Hintergrundberechtigung erforderlich',
-    backgroundRequiredMessage: 'Bitte gehen Sie zu Einstellungen → [App] → Standort → Immer erlauben, um automatische Erfassung zu aktivieren.',
-    foregroundRequiredTitle: 'Vordergrundberechtigung erforderlich',
-    foregroundRequiredMessage: 'Die Standortberechtigung ist für diese App erforderlich.',
+    backgroundGranted: 'Automatische Erfassung ist aktiviert.',
+    backgroundRequiredTitle: 'Automatische Erfassung aktivieren',
+    backgroundRequiredMessage: 'Zum automatischen Ein- und Ausstempeln aktivieren Sie Hintergrundstandort unter Einstellungen → [App] → Standort → Immer erlauben.',
+    foregroundRequiredTitle: 'Standortzugriff hilft beim Einrichten Ihres Arbeitsplatzes',
+    foregroundRequiredMessage: 'Um Ihren Arbeitsplatz auf der Karte zu finden und automatische Erfassung einzurichten, braucht die App Standortzugriff.',
     requestFailed: 'Berechtigung konnte nicht angefordert werden',
-    infoBox: 'Die Hintergrund-Standortberechtigung ist für automatische Erfassung erforderlich. Ohne sie können Sie nur manuell ein-/ausstempeln.\n\nZum Aktivieren: Einstellungen → [App] → Standort → Immer erlauben',
+    infoBox: 'Hintergrundstandort erlaubt automatisches Ein- und Ausstempeln, wenn Sie ankommen und gehen. Ohne ihn können Sie weiter manuell erfassen.\n\nZum Aktivieren: Einstellungen → [App] → Standort → Immer erlauben',
   },
 
   // Setup screen (Add Location)
   setup: {
-    permissionRequiredTitle: 'Berechtigung erforderlich',
-    permissionRequiredMessage: 'Die Standortberechtigung ist erforderlich, um Geofencing einzurichten.',
+    permissionRequiredTitle: 'Standortzugriff hilft beim Einrichten Ihres Arbeitsplatzes',
+    permissionRequiredMessage: 'Um Ihren Arbeitsplatz auf der Karte zu finden und automatische Erfassung einzurichten, braucht die App Standortzugriff.',
     locationUnavailableTitle: 'Standort nicht verfügbar',
     locationUnavailableMessage: 'Ihr aktueller Standort konnte nicht ermittelt werden. Sie können die Karte manuell positionieren.',
     initializationFailed: 'Standortdienste konnten nicht initialisiert werden',
     missingInfoTitle: 'Fehlende Angaben',
     missingInfoMessage: 'Bitte geben Sie einen Standortnamen ein',
-    backgroundPermissionTitle: 'Hintergrundberechtigung erforderlich',
-    backgroundPermissionMessage: 'Die Hintergrund-Standortberechtigung ist für automatische Erfassung erforderlich. Sie können trotzdem fortfahren, aber automatisches Ein-/Ausstempeln funktioniert nicht.\n\nZum Aktivieren: Einstellungen → [App] → Standort → Immer erlauben',
+    backgroundPermissionTitle: 'Automatische Erfassung aktivieren',
+    backgroundPermissionMessage: 'Hintergrundstandort ermöglicht automatisches Ein- und Ausstempeln — auch wenn Sie gerade nicht auf die App schauen. Sie können dies überspringen und manuell erfassen.\n\nZum Aktivieren: Einstellungen → [App] → Standort → Immer erlauben',
     continueAnyway: 'Trotzdem fortfahren',
     saveFailed: 'Standort konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.',
     getLocationFailed: 'Ihr Standort konnte nicht ermittelt werden',
@@ -452,7 +475,7 @@ export const de = {
     locationName: 'Standortname',
     locationNamePlaceholder: 'z.B. Charité Mitte',
     geofenceRadius: 'Geofence-Radius: {{radius}}m',
-    mapHint: 'Ziehen Sie die Karte, um die Markierung an Ihrem Arbeitsplatz zu positionieren. Der Kreis zeigt die automatische Erfassungszone.',
+    mapHint: 'Positionieren Sie den Kreis über dem Eingang Ihres Arbeitsplatzes. Die App erkennt, wenn Sie diesen Bereich betreten oder verlassen.',
     saveLocation: 'Standort speichern',
     // 3-step wizard
     stepOf: 'Schritt {{current}} von {{total}}',
@@ -461,7 +484,7 @@ export const de = {
     step3Title: 'Standort benennen',
     searchPlaceholder: 'Adresse suchen...',
     tapToPlace: 'Auf Karte tippen zum Platzieren',
-    dragToAdjust: 'Markierung ziehen zur Feinabstimmung',
+    dragToAdjust: 'Positionieren Sie den Kreis über dem Eingang Ihres Arbeitsplatzes. Die App erkennt, wenn Sie diesen Bereich betreten oder verlassen.',
     continue: 'Weiter',
     save: 'Speichern',
     locationNameLabel: 'Standortname',
@@ -472,6 +495,28 @@ export const de = {
     editStep3Title: 'Name bearbeiten',
     update: 'Aktualisieren',
     edit: 'Bearbeiten',
+    foregroundPrimer: {
+      title: 'Automatisch ein- und ausstempeln',
+      body: 'Wenn Sie an Ihrem Arbeitsplatz ankommen oder ihn verlassen, erkennt die App das und erfasst Ihre Stunden — ohne manuelle Eingabe.',
+      privacy: 'Ihr Standort wird nur auf dem Gerät geprüft. GPS-Koordinaten werden nie an unsere Server gesendet.',
+      enable: 'Standort aktivieren',
+      notNow: 'Nicht jetzt',
+    },
+    backgroundPrimer: {
+      title: 'Automatische Erfassung — auch im Hintergrund',
+      body: 'Damit die App Sie beim Ankommen und Gehen automatisch ein- und ausstempeln kann, braucht sie Hintergrundstandort.',
+      bodyAndroid: "Als Nächstes öffnet Android möglicherweise die Standorteinstellungen. Wählen Sie 'Immer erlauben', damit die App automatisch ein- und ausstempeln kann.",
+      privacy: 'GPS-Koordinaten und Arbeitsplatznamen bleiben auf diesem Gerät. Ihr Profil und bestätigte tägliche Arbeitszeiten werden nur gesendet, wenn Sie einen Tag bestätigen.',
+      enable: 'Automatische Erfassung aktivieren',
+      skip: 'Manuell erfassen',
+    },
+    notificationPrimer: {
+      title: 'Bestätigungen fürs Ein- und Ausstempeln',
+      body: 'Benachrichtigungen zeigen Ihnen, wenn die App Sie ein- oder ausstempelt, und helfen zu prüfen, wann eine Sitzung enden sollte.',
+      privacy: 'Sie können dies später in den Systemeinstellungen ändern.',
+      enable: 'Benachrichtigungen aktivieren',
+      skip: 'Benachrichtigungen überspringen',
+    },
   },
 
   // Tracking screen
@@ -562,9 +607,12 @@ export const de = {
 
   // Permission Warning Banner
   permissionWarning: {
-    title: 'Hintergrundberechtigung fehlt',
-    message: 'Automatische Erfassung ist deaktiviert. Aktivieren Sie sie in den Einstellungen, damit Geofencing funktioniert.',
-    goToSettings: 'Zu Einstellungen',
+    title: 'Automatische Erfassung aktivieren',
+    message: 'Aktivieren Sie Hintergrundstandort, damit die App Sie beim Ankommen und Gehen automatisch ein- und ausstempeln kann.',
+    deniedTitle: 'Automatische Erfassung ist verfügbar',
+    deniedMessage: 'Sie können weiter manuell erfassen. Mit Standortzugriff kann die App Sie auch beim Ankommen und Gehen automatisch ein- und ausstempeln.',
+    goToSettings: 'Berechtigungen prüfen',
+    dontAskAgain: 'Nicht erneut fragen',
   },
 
   // Data & Privacy screen
@@ -606,7 +654,7 @@ export const de = {
     noFailedTitle: 'Keine fehlgeschlagenen Übermittlungen',
     noFailedMessage: 'Alles in Ordnung!',
     warningBox: 'Warnung: Das Löschen lokaler Daten kann nicht rückgängig gemacht werden. Alle Standorte und der gesamte Arbeitsverlauf werden dauerhaft von diesem Gerät entfernt.',
-    privacyInfo: 'Ihr GPS-Standort verlässt niemals Ihr Telefon. Alle Arbeitssitzungen werden lokal mit Verschlüsselung gespeichert.\n\nWenn Sie einen Tag bestätigen, werden nur Ihre Stunden (geplant und tatsächlich) geteilt. Ihre Daten werden mit anderen Nutzern kombiniert und mathematisch geschützt, bevor Statistiken veröffentlicht werden.',
+    privacyInfo: 'Ihre GPS-Koordinaten, Arbeitsplatznamen, Dienstvorlagen, Abwesenheiten und unbestätigten Sitzungen bleiben auf Ihrem Telefon.\n\nWenn Sie einen Tag bestätigen, werden Ihr Profil und die bestätigten Arbeitszeiten an Open Working Hours gesendet, damit daraus datenschutzgeschützte Statistiken entstehen. Öffentliche Statistiken werden nur für Gruppen ab 5 Personen gezeigt und enthalten statistisches Rauschen.',
     // Consent withdrawal section
     withdrawConsent: 'Einwilligung widerrufen & Konto löschen',
     withdrawConfirmTitle: 'Konto löschen?',
