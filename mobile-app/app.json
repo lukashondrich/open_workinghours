@@ -15,7 +15,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.openworkinghours.mobileapp",
-      "buildNumber": "47",
+      "buildNumber": "50",
       "config": {
         "usesNonExemptEncryption": false
       },
