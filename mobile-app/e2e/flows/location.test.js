@@ -25,6 +25,7 @@ const {
   dismissPermissionDialogs,
   ensureAuthenticated,
   dismissKeyboard,
+  advancePastSetupForegroundPrimer,
 } = require('../helpers/actions');
 
 describe('Location Setup', () => {
@@ -91,6 +92,7 @@ describe('Location Setup', () => {
     const addButton = await byI18nFast(driver, 'addLocation');
     await addButton.click();
     await driver.pause(1000);
+    await advancePastSetupForegroundPrimer(driver);
 
     // Step 1: Search input should be visible
     const searchInput = await byTestId(driver, 'setup-search-input');

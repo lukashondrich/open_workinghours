@@ -61,6 +61,7 @@ async function tapTestId(driver, testId, timeout = 10000) {
   // (inline rendering pattern used after Modal→Animated.View refactor)
   await element.waitForExist({ timeout });
   await element.click();
+  await dismissOnboardingTooltips(driver);
 }
 
 /**
@@ -136,6 +137,59 @@ async function existsTestId(driver, testId) {
     return await element.isExisting();
   } catch {
     return false;
+  }
+}
+
+/**
+ * Dismiss first-time education tooltips so legacy E2E flows can continue.
+ * @param {WebdriverIO.Browser} driver
+ */
+async function dismissOnboardingTooltips(driver) {
+  const dismissIds = [
+    'calendar-intro-tooltip-dismiss',
+    'calendar-fab-tooltip-dismiss',
+    'calendar-batch-tooltip-dismiss',
+    'submit-tooltip-dismiss',
+    'tracked-session-tooltip-dismiss',
+  ];
+
+  for (const testId of dismissIds) {
+    if (await existsTestId(driver, testId)) {
+      const element = await byTestId(driver, testId);
+      await element.waitForExist({ timeout: 2000 });
+      await element.click();
+      await driver.pause(500);
+    }
+  }
+}
+
+/**
+ * Advance through the custom setup foreground-location primer when it appears.
+ * E2E flows choose "Not Now" to avoid platform permission dialog variance.
+ * @param {WebdriverIO.Browser} driver
+ */
+async function advancePastSetupForegroundPrimer(driver) {
+  await driver.pause(500);
+  if (await existsTestId(driver, 'setup-foreground-primer-skip')) {
+    await tapTestId(driver, 'setup-foreground-primer-skip');
+    await driver.pause(1000);
+  }
+}
+
+/**
+ * Skip optional post-save permission primers in setup flows.
+ * @param {WebdriverIO.Browser} driver
+ */
+async function skipSetupPostSavePermissionPrimers(driver) {
+  await driver.pause(500);
+  if (await existsTestId(driver, 'setup-background-primer-skip')) {
+    await tapTestId(driver, 'setup-background-primer-skip');
+    await driver.pause(1000);
+  }
+
+  if (await existsTestId(driver, 'setup-notification-primer-skip')) {
+    await tapTestId(driver, 'setup-notification-primer-skip');
+    await driver.pause(1000);
   }
 }
 
@@ -460,6 +514,9 @@ async function navigateToTab(driver, tabKey) {
       await element.waitForDisplayed({ timeout: 5000 });
       await element.click();
       await driver.pause(500);
+      if (tabKey === 'calendar' || tabKey === 'status') {
+        await dismissOnboardingTooltips(driver);
+      }
       return;
     }
   } catch (e) {
@@ -473,6 +530,9 @@ async function navigateToTab(driver, tabKey) {
       await deElement.waitForDisplayed({ timeout: 5000 });
       await deElement.click();
       await driver.pause(500);
+      if (tabKey === 'calendar' || tabKey === 'status') {
+        await dismissOnboardingTooltips(driver);
+      }
       return;
     }
   } catch (e) {
@@ -484,6 +544,9 @@ async function navigateToTab(driver, tabKey) {
   await enElement.waitForDisplayed({ timeout: 5000 });
   await enElement.click();
   await driver.pause(500);
+  if (tabKey === 'calendar' || tabKey === 'status') {
+    await dismissOnboardingTooltips(driver);
+  }
 }
 
 /**
@@ -727,6 +790,8 @@ async function completeLocationWizard(driver) {
   await tapTestId(driver, 'add-workplace-button');
   await driver.pause(2000);
 
+  await advancePastSetupForegroundPrimer(driver);
+
   // Dismiss location permission dialog (Android shows it immediately after map load)
   await dismissPermissionDialogs(driver);
   await driver.pause(driver.isAndroid ? 3000 : 1000); // Wait for map + potential GPS dialog
@@ -779,7 +844,9 @@ async function completeLocationWizard(driver) {
   await dismissKeyboard(driver);
 
   await tapTestId(driver, 'setup-save-button');
-  await driver.pause(2000); // wait for save + navigation back
+  await driver.pause(1000);
+  await skipSetupPostSavePermissionPrimers(driver);
+  await driver.pause(1000); // wait for save + navigation back
 
   // Dismiss any permission dialogs triggered by location setup.
   // On Android, the app shows an in-app "Background Permission Required" dialog
@@ -880,6 +947,9 @@ module.exports = {
   waitForTestId,
   waitForText,
   existsTestId,
+  dismissOnboardingTooltips,
+  advancePastSetupForegroundPrimer,
+  skipSetupPostSavePermissionPrimers,
   dismissAndroidSystemDialog,
   dismissNativeDialog,
   dismissPermissionDialogs,

@@ -13,6 +13,7 @@ import { CheckCircle2, XCircle, HelpCircle } from 'lucide-react-native';
 import { colors, spacing, fontSize, fontWeight } from '@/theme';
 import { Button, Card, InfoBox, SettingsDetailLayout } from '@/components/ui';
 import { t } from '@/lib/i18n';
+import { GeofenceRegistrationService } from '@/modules/geofencing/services/GeofenceRegistrationService';
 
 interface PermissionStatus {
   foreground: 'granted' | 'denied' | 'unknown';
@@ -38,6 +39,10 @@ export default function PermissionsScreen() {
         foreground: foreground.granted ? 'granted' : 'denied',
         background: background.granted ? 'granted' : 'denied',
       });
+
+      if (background.granted) {
+        await GeofenceRegistrationService.ensureRegisteredGeofences();
+      }
     } catch (error) {
       console.error('[PermissionsScreen] Failed to check permissions:', error);
     }
@@ -54,6 +59,7 @@ export default function PermissionsScreen() {
         checkPermissions();
 
         if (background.granted) {
+          await GeofenceRegistrationService.ensureRegisteredGeofences();
           Alert.alert(t('permissionsScreen.successTitle'), t('permissionsScreen.backgroundGranted'));
         } else {
           Alert.alert(

@@ -9,6 +9,7 @@ import AppNavigator from '@/navigation/AppNavigator';
 import { AuthProvider } from '@/lib/auth/auth-context';
 import { getDatabase } from '@/modules/geofencing/services/Database';
 import { getGeofenceService } from '@/modules/geofencing/services/GeofenceService';
+import { GeofenceRegistrationService } from '@/modules/geofencing/services/GeofenceRegistrationService';
 import { TrackingManager } from '@/modules/geofencing/services/TrackingManager';
 import * as ExitVerificationService from '@/modules/geofencing/services/ExitVerificationService';
 import { seedTestDeviceDataIfEnabled } from '@/test-utils/deviceDbSeed';
@@ -47,6 +48,11 @@ export default function App() {
           } catch (error) {
             console.warn('[App] Error processing pending exits on foreground:', error);
           }
+        }
+        try {
+          await GeofenceRegistrationService.ensureRegisteredGeofences();
+        } catch (error) {
+          console.warn('[App] Error ensuring geofences on foreground:', error);
         }
       }
       appState.current = nextAppState;
@@ -95,14 +101,6 @@ export default function App() {
 
       console.log('[App] Background task defined');
 
-      // Request notification permissions
-      const { status } = await Notifications.requestPermissionsAsync();
-      if (status !== 'granted') {
-        console.warn('[App] Notification permission not granted');
-      } else {
-        console.log('[App] Notification permission granted');
-      }
-
       // Set up Android notification channels
       if (Platform.OS === 'android') {
         // Channel for silent tracking notifications (exit verification)
@@ -140,18 +138,16 @@ export default function App() {
         }
       });
 
-      // Re-register any existing geofences (in case app was killed)
-      const locations = await db.getActiveLocations();
-      console.log('[App] Found', locations.length, 'active locations');
-
-      for (const location of locations) {
-        try {
-          await geofenceService.registerGeofence(location);
-          console.log('[App] Re-registered geofence:', location.name);
-        } catch (error) {
-          console.warn('[App] Failed to register geofence for', location.name, ':', error);
-          // Continue with other locations even if one fails
+      // Re-register any existing geofences if background permission is already granted.
+      try {
+        const result = await GeofenceRegistrationService.ensureRegisteredGeofences();
+        if (result.skippedReason) {
+          console.log('[App] Skipped geofence registration:', result.skippedReason);
+        } else {
+          console.log('[App] Re-registered geofences:', result.registeredCount);
         }
+      } catch (error) {
+        console.warn('[App] Failed to re-register geofences:', error);
       }
 
       // Process any pending exits that may have expired while app was backgrounded

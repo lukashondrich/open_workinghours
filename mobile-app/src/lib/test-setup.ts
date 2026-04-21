@@ -4,9 +4,13 @@ jest.mock('expo-location', () => ({
   requestBackgroundPermissionsAsync: jest.fn(),
   getForegroundPermissionsAsync: jest.fn(),
   getBackgroundPermissionsAsync: jest.fn(),
+  getCurrentPositionAsync: jest.fn(),
   startGeofencingAsync: jest.fn(),
   stopGeofencingAsync: jest.fn(),
   hasStartedGeofencingAsync: jest.fn(),
+  Accuracy: {
+    Balanced: 3,
+  },
   GeofencingEventType: {
     Enter: 1,
     Exit: 2,
@@ -24,6 +28,7 @@ jest.mock('expo-sqlite', () => {
 
 jest.mock('expo-notifications', () => ({
   scheduleNotificationAsync: jest.fn(),
+  getPermissionsAsync: jest.fn(),
   requestPermissionsAsync: jest.fn(),
 }));
 

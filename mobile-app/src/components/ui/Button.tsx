@@ -72,6 +72,9 @@ export function Button({
       disabled={isDisabled}
       activeOpacity={0.7}
       testID={testID}
+      accessible={true}
+      accessibilityRole="button"
+      accessibilityState={{ disabled: isDisabled }}
     >
       {loading ? (
         <ActivityIndicator

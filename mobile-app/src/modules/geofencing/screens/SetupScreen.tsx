@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import MapView, { Circle, Marker, Region, MapPressEvent } from 'react-native-maps';
 import * as Location from 'expo-location';
+import * as Notifications from 'expo-notifications';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import * as Crypto from 'expo-crypto';
@@ -27,10 +28,13 @@ import { Button, Input } from '@/components/ui';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import { getDatabase } from '@/modules/geofencing/services/Database';
 import { getGeofenceService } from '@/modules/geofencing/services/GeofenceService';
+import { GeofenceRegistrationService } from '@/modules/geofencing/services/GeofenceRegistrationService';
 import { searchLocations, GeocodingResult, isGeocodingAvailable, SearchOptions } from '@/modules/geofencing/services/GeocodingService';
 import type { UserLocation } from '@/modules/geofencing/types';
 import { useAuth } from '@/lib/auth/auth-context';
 import { getHospitalById } from '@/lib/taxonomy';
+import { OnboardingPreferences } from '@/lib/storage/OnboardingPreferences';
+import PermissionPrimingScreen from '@/modules/geofencing/components/PermissionPrimingScreen';
 
 type SetupScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Setup'>;
 type SetupScreenRouteProp = RouteProp<RootStackParamList, 'Setup'>;
@@ -44,7 +48,9 @@ interface Props {
 const MAP_CIRCLE_STROKE = 'rgba(46, 139, 107, 0.6)';
 const MAP_CIRCLE_FILL = 'rgba(46, 139, 107, 0.2)';
 
-type Step = 1 | 2 | 3;
+type Step = 0 | 1 | 2 | 3;
+type WizardStep = 1 | 2 | 3;
+type PermissionFlowStep = 'background' | 'notifications' | null;
 
 interface PinCoordinate {
   latitude: number;
@@ -52,14 +58,21 @@ interface PinCoordinate {
 }
 
 // Step names for the wizard (reuse existing translations)
-const STEP_NAMES: Record<Step, string> = {
+const STEP_NAMES: Record<WizardStep, string> = {
   1: 'setup.step1Title', // Find Your Workplace
   2: 'setup.step2Title', // Adjust Position
   3: 'setup.step3Title', // Name This Location
 };
 
+const DEFAULT_GERMANY_REGION: Region = {
+  latitude: 51.1657,
+  longitude: 10.4515,
+  latitudeDelta: 6,
+  longitudeDelta: 6,
+};
+
 // Step indicator with label and dots
-function StepIndicator({ currentStep }: { currentStep: Step }) {
+function StepIndicator({ currentStep }: { currentStep: WizardStep }) {
   return (
     <View style={styles.stepIndicatorContainer}>
       <Text style={styles.stepLabel}>
@@ -86,6 +99,7 @@ export default function SetupScreen({ navigation, route }: Props) {
   const mapRef = useRef<MapView>(null);
   const searchInputRef = useRef<TextInput>(null);
   const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  const backgroundGrantedForSaveRef = useRef(false);
   const { state: authState } = useAuth();
 
   // Edit mode and view-only mode
@@ -111,8 +125,9 @@ export default function SetupScreen({ navigation, route }: Props) {
     radiusMeters: 200,
   } : null);
 
-  // Step state - start at step 2 in edit/view/pre-populated mode (skip search)
-  const [step, setStep] = useState<Step>(initialLocation ? 2 : 1);
+  // Step state - start at step 2 in edit/view/pre-populated mode (skip search).
+  // New locations start at step 0, a custom primer before the OS permission dialog.
+  const [step, setStep] = useState<Step>(initialLocation ? 2 : 0);
 
   // Location data - pre-populate in edit mode or from hospital
   const [pinCoordinate, setPinCoordinate] = useState<PinCoordinate | null>(
@@ -123,10 +138,10 @@ export default function SetupScreen({ navigation, route }: Props) {
 
   // Map region (separate from pin - allows panning without moving pin)
   const [region, setRegion] = useState<Region>({
-    latitude: initialLocation?.latitude ?? 37.78825,
-    longitude: initialLocation?.longitude ?? -122.4324,
-    latitudeDelta: 0.005,
-    longitudeDelta: 0.005,
+    latitude: initialLocation?.latitude ?? DEFAULT_GERMANY_REGION.latitude,
+    longitude: initialLocation?.longitude ?? DEFAULT_GERMANY_REGION.longitude,
+    latitudeDelta: initialLocation ? 0.005 : DEFAULT_GERMANY_REGION.latitudeDelta,
+    longitudeDelta: initialLocation ? 0.005 : DEFAULT_GERMANY_REGION.longitudeDelta,
   });
 
   // Search state
@@ -136,8 +151,11 @@ export default function SetupScreen({ navigation, route }: Props) {
   const [showSearchResults, setShowSearchResults] = useState(false);
 
   // UI state
-  const [loading, setLoading] = useState(!initialLocation); // Skip loading in edit/view/pre-populated mode
+  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [permissionFlowStep, setPermissionFlowStep] = useState<PermissionFlowStep>(null);
+  const [permissionActionLoading, setPermissionActionLoading] = useState(false);
+  const [hasForegroundPermission, setHasForegroundPermission] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const miniMapHeight = useRef(new Animated.Value(200)).current;
 
@@ -172,65 +190,106 @@ export default function SetupScreen({ navigation, route }: Props) {
     };
   }, [miniMapHeight]);
 
-  useEffect(() => {
-    if (!initialLocation) {
-      requestPermissionsAndGetLocation();
+  const centerMapOnCurrentLocation = async () => {
+    console.log('[SetupScreen] Getting current location...');
+
+    const locationPromise = Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.Balanced,
+    });
+
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Location timeout')), 10000)
+    );
+
+    try {
+      const location = await Promise.race([locationPromise, timeoutPromise]) as Location.LocationObject;
+      console.log('[SetupScreen] Got location:', location.coords);
+
+      setRegion({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+        latitudeDelta: 0.02,
+        longitudeDelta: 0.02,
+      });
+    } catch (locationError) {
+      console.warn('[SetupScreen] Failed to get location, using default:', locationError);
+      Alert.alert(
+        t('setup.locationUnavailableTitle'),
+        t('setup.locationUnavailableMessage'),
+        [{ text: t('common.ok') }]
+      );
     }
-  }, [initialLocation]);
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+
+    Location.getForegroundPermissionsAsync()
+      .then(({ status }) => {
+        if (isMounted) {
+          const isGranted = status === 'granted';
+          setHasForegroundPermission(isGranted);
+          if (!initialLocation && isGranted) {
+            setLoading(true);
+            setStep(1);
+            void centerMapOnCurrentLocation().finally(() => {
+              if (isMounted) {
+                setLoading(false);
+              }
+            });
+          }
+        }
+      })
+      .catch((error) => {
+        console.warn('[SetupScreen] Failed to check foreground permission:', error);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const requestPermissionsAndGetLocation = async () => {
+    setLoading(true);
     try {
       console.log('[SetupScreen] Starting location permission request...');
       const geofenceService = getGeofenceService();
 
       const foregroundGranted = await geofenceService.requestForegroundPermissions();
+      setHasForegroundPermission(foregroundGranted);
 
       if (!foregroundGranted) {
         console.log('[SetupScreen] Foreground permission denied');
+        await OnboardingPreferences.setUserDeclinedLocationPermission(true);
         Alert.alert(
           t('setup.permissionRequiredTitle'),
           t('setup.permissionRequiredMessage'),
           [{ text: t('common.ok') }]
         );
         setLoading(false);
+        setStep(1);
         return;
       }
 
-      console.log('[SetupScreen] Getting current location...');
+      await OnboardingPreferences.setUserDeclinedLocationPermission(false);
 
-      const locationPromise = Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
-
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Location timeout')), 10000)
-      );
-
-      try {
-        const location = await Promise.race([locationPromise, timeoutPromise]) as Location.LocationObject;
-        console.log('[SetupScreen] Got location:', location.coords);
-
-        setRegion({
-          latitude: location.coords.latitude,
-          longitude: location.coords.longitude,
-          latitudeDelta: 0.02,
-          longitudeDelta: 0.02,
-        });
-      } catch (locationError) {
-        console.warn('[SetupScreen] Failed to get location, using default:', locationError);
-        Alert.alert(
-          t('setup.locationUnavailableTitle'),
-          t('setup.locationUnavailableMessage'),
-          [{ text: t('common.ok') }]
-        );
-      }
+      await centerMapOnCurrentLocation();
 
       setLoading(false);
+      setStep(1);
     } catch (error) {
       console.error('[SetupScreen] Error in permission/location request:', error);
       Alert.alert(t('common.error'), t('setup.initializationFailed'));
       setLoading(false);
+      setStep(1);
     }
+  };
+
+  const handleSkipForegroundPermission = async () => {
+    await OnboardingPreferences.setUserDeclinedLocationPermission(true);
+    setHasForegroundPermission(false);
+    setRegion(DEFAULT_GERMANY_REGION);
+    setStep(1);
   };
 
   // Debounced search
@@ -359,28 +418,109 @@ export default function SetupScreen({ navigation, route }: Props) {
       return;
     }
 
-    setSaving(true);
+    try {
+      const backgroundGranted = await getGeofenceService().hasBackgroundPermissions();
+      if (backgroundGranted) {
+        await maybePromptForNotificationsOrSave(true);
+        return;
+      }
+
+      backgroundGrantedForSaveRef.current = false;
+      setPermissionFlowStep('background');
+    } catch (error) {
+      console.warn('[SetupScreen] Failed to check background permission:', error);
+      backgroundGrantedForSaveRef.current = false;
+      setPermissionFlowStep('background');
+    }
+  };
+
+  const shouldPromptForNotifications = async (): Promise<boolean> => {
+    try {
+      const permissions = await Notifications.getPermissionsAsync();
+      const hasSeenPrompt = await OnboardingPreferences.hasSeenNotificationPermissionPrompt();
+      return permissions.status !== 'granted' && permissions.canAskAgain !== false && !hasSeenPrompt;
+    } catch (error) {
+      console.warn('[SetupScreen] Failed to check notification permission:', error);
+      return false;
+    }
+  };
+
+  const maybePromptForNotificationsOrSave = async (backgroundGranted: boolean) => {
+    backgroundGrantedForSaveRef.current = backgroundGranted;
+
+    if (await shouldPromptForNotifications()) {
+      setPermissionActionLoading(false);
+      setPermissionFlowStep('notifications');
+      return;
+    }
+
+    await saveLocation(backgroundGranted);
+  };
+
+  const handleEnableBackgroundPermission = async () => {
+    setPermissionActionLoading(true);
+    let backgroundGranted = false;
 
     try {
+      await OnboardingPreferences.setBackgroundPermissionPromptSeen(true);
       const geofenceService = getGeofenceService();
-      const backgroundGranted = await geofenceService.requestBackgroundPermissions();
 
-      if (!backgroundGranted) {
-        const shouldContinue = await new Promise<boolean>((resolve) => {
-          Alert.alert(
-            t('setup.backgroundPermissionTitle'),
-            t('setup.backgroundPermissionMessage'),
-            [
-              { text: t('common.cancel'), style: 'cancel', onPress: () => resolve(false) },
-              { text: t('setup.continueAnyway'), onPress: () => resolve(true) },
-            ]
-          );
-        });
-
-        if (!shouldContinue) {
-          setSaving(false);
+      if (!hasForegroundPermission) {
+        const foregroundGranted = await geofenceService.requestForegroundPermissions();
+        setHasForegroundPermission(foregroundGranted);
+        if (!foregroundGranted) {
+          await OnboardingPreferences.setUserDeclinedLocationPermission(true);
+          setPermissionActionLoading(false);
+          await maybePromptForNotificationsOrSave(false);
           return;
         }
+        await OnboardingPreferences.setUserDeclinedLocationPermission(false);
+      }
+
+      await geofenceService.requestBackgroundPermissions();
+      backgroundGranted = await geofenceService.hasBackgroundPermissions();
+    } catch (error) {
+      console.warn('[SetupScreen] Background permission request failed:', error);
+    }
+
+    setPermissionActionLoading(false);
+    await maybePromptForNotificationsOrSave(backgroundGranted);
+  };
+
+  const handleSkipBackgroundPermission = async () => {
+    await OnboardingPreferences.setBackgroundPermissionPromptSeen(true);
+    await maybePromptForNotificationsOrSave(false);
+  };
+
+  const handleEnableNotifications = async () => {
+    setPermissionActionLoading(true);
+
+    try {
+      await OnboardingPreferences.setNotificationPermissionPromptSeen(true);
+      await Notifications.requestPermissionsAsync();
+    } catch (error) {
+      console.warn('[SetupScreen] Notification permission request failed:', error);
+    }
+
+    setPermissionActionLoading(false);
+    await saveLocation(backgroundGrantedForSaveRef.current);
+  };
+
+  const handleSkipNotifications = async () => {
+    await OnboardingPreferences.setNotificationPermissionPromptSeen(true);
+    await saveLocation(backgroundGrantedForSaveRef.current);
+  };
+
+  const saveLocation = async (backgroundGranted: boolean) => {
+    setSaving(true);
+    setPermissionFlowStep(null);
+
+    try {
+      const coordinate = pinCoordinate;
+      if (!coordinate) {
+        Alert.alert(t('common.error'), t('setup.selectLocationPrompt'));
+        setSaving(false);
+        return;
       }
 
       const db = await getDatabase();
@@ -389,19 +529,14 @@ export default function SetupScreen({ navigation, route }: Props) {
         // Update existing location
         await db.updateLocation(editLocation.id, {
           name: name.trim(),
-          latitude: pinCoordinate.latitude,
-          longitude: pinCoordinate.longitude,
+          latitude: coordinate.latitude,
+          longitude: coordinate.longitude,
           radiusMeters: radius,
         });
 
-        // Re-register geofence with new coordinates/radius
         if (backgroundGranted) {
           try {
-            await geofenceService.unregisterGeofence(editLocation.id);
-            const updatedLocation = await db.getLocation(editLocation.id);
-            if (updatedLocation) {
-              await geofenceService.registerGeofence(updatedLocation);
-            }
+            await GeofenceRegistrationService.ensureRegisteredGeofences();
             console.log('[SetupScreen] Geofence updated successfully');
           } catch (error) {
             console.warn('[SetupScreen] Failed to update geofence:', error);
@@ -415,8 +550,8 @@ export default function SetupScreen({ navigation, route }: Props) {
         const location: UserLocation = {
           id: Crypto.randomUUID(),
           name: name.trim(),
-          latitude: pinCoordinate.latitude,
-          longitude: pinCoordinate.longitude,
+          latitude: coordinate.latitude,
+          longitude: coordinate.longitude,
           radiusMeters: radius,
           isActive: true,
           createdAt: new Date().toISOString(),
@@ -427,7 +562,7 @@ export default function SetupScreen({ navigation, route }: Props) {
 
         if (backgroundGranted) {
           try {
-            await geofenceService.registerGeofence(location);
+            await GeofenceRegistrationService.ensureRegisteredGeofences();
             console.log('[SetupScreen] Geofence registered successfully');
           } catch (error) {
             console.warn('[SetupScreen] Failed to register geofence:', error);
@@ -466,6 +601,58 @@ export default function SetupScreen({ navigation, route }: Props) {
     );
   }
 
+  if (step === 0) {
+    return (
+      <PermissionPrimingScreen
+        icon="location"
+        title={t('setup.foregroundPrimer.title')}
+        body={t('setup.foregroundPrimer.body')}
+        privacy={t('setup.foregroundPrimer.privacy')}
+        primaryLabel={t('setup.foregroundPrimer.enable')}
+        secondaryLabel={t('setup.foregroundPrimer.notNow')}
+        onPrimary={requestPermissionsAndGetLocation}
+        onSecondary={handleSkipForegroundPermission}
+        testIDPrefix="setup-foreground-primer"
+      />
+    );
+  }
+
+  if (permissionFlowStep === 'background') {
+    return (
+      <PermissionPrimingScreen
+        icon="background"
+        title={t('setup.backgroundPrimer.title')}
+        body={Platform.OS === 'android'
+          ? t('setup.backgroundPrimer.bodyAndroid')
+          : t('setup.backgroundPrimer.body')}
+        privacy={t('setup.backgroundPrimer.privacy')}
+        primaryLabel={t('setup.backgroundPrimer.enable')}
+        secondaryLabel={t('setup.backgroundPrimer.skip')}
+        onPrimary={handleEnableBackgroundPermission}
+        onSecondary={handleSkipBackgroundPermission}
+        loading={permissionActionLoading}
+        testIDPrefix="setup-background-primer"
+      />
+    );
+  }
+
+  if (permissionFlowStep === 'notifications') {
+    return (
+      <PermissionPrimingScreen
+        icon="notifications"
+        title={t('setup.notificationPrimer.title')}
+        body={t('setup.notificationPrimer.body')}
+        privacy={t('setup.notificationPrimer.privacy')}
+        primaryLabel={t('setup.notificationPrimer.enable')}
+        secondaryLabel={t('setup.notificationPrimer.skip')}
+        onPrimary={handleEnableNotifications}
+        onSecondary={handleSkipNotifications}
+        loading={permissionActionLoading}
+        testIDPrefix="setup-notification-primer"
+      />
+    );
+  }
+
   // Render search results
   const renderSearchResult = ({ item, index }: { item: GeocodingResult; index: number }) => (
     <TouchableOpacity
@@ -492,7 +679,7 @@ export default function SetupScreen({ navigation, route }: Props) {
         ) : (
           <View style={styles.backButtonPlaceholder} />
         )}
-        <StepIndicator currentStep={step} />
+        <StepIndicator currentStep={step as WizardStep} />
         <View style={styles.backButtonPlaceholder} />
       </View>
 
@@ -553,7 +740,7 @@ export default function SetupScreen({ navigation, route }: Props) {
               region={region}
               onRegionChangeComplete={setRegion}
               onPress={handleMapPress}
-              showsUserLocation
+              showsUserLocation={hasForegroundPermission}
               showsMyLocationButton={false}
               scrollEnabled={true}
               zoomEnabled={true}
@@ -604,7 +791,7 @@ export default function SetupScreen({ navigation, route }: Props) {
               region={region}
               onRegionChangeComplete={setRegion}
               onPress={viewOnly ? undefined : handleMapPress}
-              showsUserLocation
+              showsUserLocation={hasForegroundPermission}
               showsMyLocationButton={false}
               scrollEnabled={true}
               zoomEnabled={true}

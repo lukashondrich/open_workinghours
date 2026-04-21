@@ -20,7 +20,7 @@ import { FileText, Shield, Check, ChevronRight } from 'lucide-react-native';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
 import { Button, Checkbox } from '@/components/ui';
 import { t } from '@/lib/i18n';
-import { getTermsUrl, getPrivacyUrl } from '@/lib/utils/legalUrls';
+import { getTermsUrl, getPrivacyUrl, getPrivacyExplainerUrl } from '@/lib/utils/legalUrls';
 
 interface ConsentBottomSheetProps {
   visible: boolean;
@@ -77,7 +77,7 @@ export function ConsentBottomSheet({
         container: styles.sheetContainer,
         draggableIcon: styles.dragHandle,
       }}
-      draggable={false}
+      closeOnDragDown={false}
       closeOnPressMask={false}
     >
       <View style={styles.content}>
@@ -135,14 +135,21 @@ export function ConsentBottomSheet({
               <View style={styles.keyPointIcon}>
                 <Check size={16} color={colors.primary[500]} strokeWidth={3} />
               </View>
-              <Text style={styles.keyPointText}>{t('consent.keyPoints.aggregation')}</Text>
+              <Text style={styles.keyPointText}>{t('consent.keyPoints.localData')}</Text>
             </View>
 
             <View style={styles.keyPoint}>
               <View style={styles.keyPointIcon}>
                 <Check size={16} color={colors.primary[500]} strokeWidth={3} />
               </View>
-              <Text style={styles.keyPointText}>{t('consent.keyPoints.gpsLocal')}</Text>
+              <Text style={styles.keyPointText}>{t('consent.keyPoints.submission')}</Text>
+            </View>
+
+            <View style={styles.keyPoint}>
+              <View style={styles.keyPointIcon}>
+                <Check size={16} color={colors.primary[500]} strokeWidth={3} />
+              </View>
+              <Text style={styles.keyPointText}>{t('consent.keyPoints.publicStats')}</Text>
             </View>
 
             <View style={styles.keyPoint}>
@@ -151,6 +158,21 @@ export function ConsentBottomSheet({
               </View>
               <Text style={styles.keyPointText}>{t('consent.keyPoints.deletion')}</Text>
             </View>
+
+            <TouchableOpacity
+              style={styles.privacyExplainerLink}
+              onPress={() => openUrl(getPrivacyExplainerUrl())}
+              activeOpacity={0.7}
+              testID="consent-privacy-explainer-link"
+              accessible={true}
+              accessibilityRole="button"
+            >
+              <Shield size={18} color={colors.primary[600]} />
+              <Text style={styles.privacyExplainerText}>
+                {t('consent.privacyExplainer')}
+              </Text>
+              <ChevronRight size={18} color={colors.primary[500]} />
+            </TouchableOpacity>
           </View>
         </ScrollView>
 
@@ -293,6 +315,24 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     color: colors.text.primary,
     lineHeight: 20,
+  },
+  privacyExplainerLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    backgroundColor: colors.primary[50],
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.primary[100],
+  },
+  privacyExplainerText: {
+    flex: 1,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    color: colors.primary[700],
   },
 
   // Footer
