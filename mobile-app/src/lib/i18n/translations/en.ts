@@ -331,6 +331,7 @@ export const en = {
     failedToLoadData: 'Failed to load status data',
     failedToCheckIn: 'Failed to check in',
     failedToCheckOut: 'Failed to check out',
+    locationTransitionPending: 'Location transition is being checked...',
   },
 
   // Dashboard widgets
@@ -486,6 +487,7 @@ export const en = {
     manuallyClocked: 'Manually clocked in',
     clockOut: 'Clock Out',
     clockIn: 'Clock In',
+    locationTransitionPending: 'Location transition is being checked...',
     hintTracking: 'Leave the geofence area to automatically clock out',
     hintNotTracking: 'Enter the geofence area to automatically clock in',
     viewHistory: 'View Work History',

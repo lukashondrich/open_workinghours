@@ -18,10 +18,6 @@ const EXIT_HYSTERESIS_MINUTES = 5;
 // If accuracy is worse or N/A, use hysteresis + verification
 const IMMEDIATE_EXIT_ACCURACY_THRESHOLD = 50;
 
-// Ignore exit events with GPS accuracy worse than this (meters)
-// Higher values = more lenient (good for indoor environments)
-const GPS_ACCURACY_THRESHOLD = 100;
-
 // Ignore exit if accuracy is this many times worse than check-in accuracy
 // E.g., 3 = ignore if exit accuracy is 3x worse than check-in
 const DEGRADATION_FACTOR = 3;
@@ -207,18 +203,10 @@ export class TrackingManager {
       return;
     }
 
-    // Layer 1: GPS accuracy filtering (absolute threshold)
-    if (event.accuracy !== undefined && event.accuracy > GPS_ACCURACY_THRESHOLD) {
-      console.log(`[TrackingManager] Ignoring exit - poor GPS accuracy: ${event.accuracy}m > ${GPS_ACCURACY_THRESHOLD}m threshold`);
-      await this.logIgnoredExit(event, 'poor_accuracy');
-      await this.processPendingExits();
-      return;
-    }
-
-    // Layer 2: Signal degradation detection (relative to check-in)
-    // Only apply to non-active_fetch readings. Active fetch often returns coarse
-    // accuracy indoors (e.g., 100m), and blocking those exits causes false negatives.
-    // We still keep absolute accuracy filtering + hysteresis/verification safeguards.
+    // Layer 1: Signal degradation detection (relative to check-in)
+    // For degraded signals we avoid immediate clock-out, but still start hysteresis now.
+    // This prevents long delays before "pending" state appears.
+    let hasSignalDegradation = false;
     const checkinAccuracy = activeSession.checkinAccuracy;
     if (
       checkinAccuracy !== null &&
@@ -227,12 +215,10 @@ export class TrackingManager {
     ) {
       const degradationRatio = event.accuracy / checkinAccuracy;
       if (degradationRatio > DEGRADATION_FACTOR) {
+        hasSignalDegradation = true;
         console.log(
-          `[TrackingManager] Ignoring exit - signal degradation: ${event.accuracy}m is ${degradationRatio.toFixed(1)}x worse than check-in accuracy ${checkinAccuracy}m`
+          `[TrackingManager] Exit has signal degradation (${event.accuracy}m is ${degradationRatio.toFixed(1)}x check-in ${checkinAccuracy}m) - starting hysteresis`
         );
-        await this.logIgnoredExit(event, 'signal_degradation');
-        await this.processPendingExits();
-        return;
       }
     }
 
@@ -261,9 +247,12 @@ export class TrackingManager {
     const locationName = location?.name ?? 'Work Location';
 
     // Decision: Immediate clock-out vs. hysteresis based on GPS quality
-    // Good GPS (< 50m) = high confidence, clock out immediately
-    // Bad GPS (>= 50m) or N/A = use hysteresis + verification
-    const hasGoodGps = event.accuracy !== undefined && event.accuracy < IMMEDIATE_EXIT_ACCURACY_THRESHOLD;
+    // Good GPS (< 50m) + no degradation = high confidence, clock out immediately
+    // Otherwise use hysteresis + verification.
+    const hasGoodGps =
+      event.accuracy !== undefined &&
+      event.accuracy < IMMEDIATE_EXIT_ACCURACY_THRESHOLD &&
+      !hasSignalDegradation;
 
     if (hasGoodGps) {
       // IMMEDIATE CLOCK-OUT: Good GPS means high confidence user really left

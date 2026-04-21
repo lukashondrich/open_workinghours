@@ -195,6 +195,10 @@ All new UI **must** be testable by Appium (XCUITest on iOS, UiAutomator2 on Andr
 
 ## Recent Updates (Last 7 Days)
 
+### 2026-04-15: Consumer Landing Page — Ready on Branch
+
+**Branch:** `feature/consumer-landing-page` — New consumer-focused landing page (DE+EN) with store badges, "So funktioniert's" steps, privacy trust section. Replaces institutional homepage; dossier page kept at `/dossier`. Merge to main when store links are live.
+
 ### 2026-04-04: Android Bugfixes — 4 of 5 Fixed on Samsung
 
 **Branch:** `fix/android-bugs-2026-03-31` — **Full write-up:** `docs/ANDROID_BUGS_2026-03-31.md`

@@ -31,6 +31,27 @@ console.log('SUBMISSION URL', process.env.EXPO_PUBLIC_SUBMISSION_BASE_URL);
 let globalTrackingManager: TrackingManager | null = null;
 let geofenceTaskQueue: Promise<void> = Promise.resolve();
 const GEOFENCE_ACTIVE_FETCH_TIMEOUT_MS = 8_000;
+const DEFAULT_LOCATION_ACCURACY_METERS = 100;
+
+function calculateDistanceMeters(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): number {
+  const earthRadiusMeters = 6371e3;
+  const phi1 = (lat1 * Math.PI) / 180;
+  const phi2 = (lat2 * Math.PI) / 180;
+  const deltaPhi = ((lat2 - lat1) * Math.PI) / 180;
+  const deltaLambda = ((lon2 - lon1) * Math.PI) / 180;
+
+  const a =
+    Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
+    Math.cos(phi1) * Math.cos(phi2) * Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return earthRadiusMeters * c;
+}
 
 async function getCurrentPositionWithTimeout(
   accuracy: Location.Accuracy,
@@ -90,6 +111,33 @@ TaskManager.defineTask(GEOFENCE_TASK_NAME, async ({ data, error }) => {
           console.log(`[GeofenceTask] Active GPS fetch: accuracy=${gpsReading.coords.accuracy}m`);
         } catch (fetchError) {
           console.warn('[GeofenceTask] Active GPS fetch failed:', fetchError);
+        }
+      }
+
+      // Guard against stale/false "enter" callbacks.
+      // If we cannot get a GPS reading, or if the reading is confidently outside
+      // the geofence region, ignore this enter event.
+      if (eventType === Location.GeofencingEventType.Enter) {
+        if (!gpsReading) {
+          console.warn(`[GeofenceTask] Ignoring enter for ${region.identifier} - no GPS reading available`);
+          return;
+        }
+
+        const distanceMeters = calculateDistanceMeters(
+          gpsReading.coords.latitude,
+          gpsReading.coords.longitude,
+          region.latitude,
+          region.longitude
+        );
+        const accuracyMeters = gpsReading.coords.accuracy ?? DEFAULT_LOCATION_ACCURACY_METERS;
+        const radiusMeters = region.radius ?? 100;
+        const confidentlyOutside = distanceMeters - accuracyMeters > radiusMeters;
+
+        if (confidentlyOutside) {
+          console.warn(
+            `[GeofenceTask] Ignoring enter for ${region.identifier} - confidently outside (${distanceMeters.toFixed(0)}m from center, accuracy ${accuracyMeters.toFixed(0)}m, radius ${radiusMeters}m)`
+          );
+          return;
         }
       }
 
