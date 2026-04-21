@@ -49,16 +49,16 @@ def create_work_event(
     - One work event per user per day (enforced by unique constraint)
 
     Validation:
-    - date must be in the past (not today, not future)
+    - date must not be in the future (today is allowed)
     - planned_hours and actual_hours must be >= 0 and <= 24
     - source must be 'geofence', 'manual', or 'mixed'
     """
-    # Validate: Only allow confirming past days (not today, not future)
+    # Validate: Only allow confirming today or past days (not future)
     today = datetime.now().date()
-    if payload.date >= today:
+    if payload.date > today:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot submit work events for today or future dates. Only past days can be confirmed.",
+            detail="Cannot submit work events for future dates. Only today or past days can be confirmed.",
         )
 
     # Check if work event already exists for this user + date

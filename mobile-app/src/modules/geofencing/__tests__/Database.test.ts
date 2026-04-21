@@ -42,6 +42,8 @@ describe('Database', () => {
       expect(tables).toContain('tracking_sessions');
       expect(tables).toContain('geofence_events');
       expect(tables).toContain('schema_version');
+      expect(tables).toContain('reports_week_queue');
+      expect(tables).toContain('app_preferences');
     });
 
     it('should have schema version 1', async () => {
