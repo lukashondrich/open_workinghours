@@ -286,9 +286,33 @@ export class Database {
       console.log('[Database] Migration to version 6 complete');
     }
 
-    // Migration to version 7: Guard against duplicate open sessions from concurrent callbacks.
+    // Migration to version 7: Open-session integrity + ensure reports tables exist.
+    // Note: migration 6 created reports tables on main, but devices that ran the
+    // android-bugs branch first got session integrity as migration 6 instead.
+    // The CREATE IF NOT EXISTS statements make this safe for both paths.
     if (version < 7) {
-      console.log('[Database] Running migration to version 7 (open-session integrity)');
+      console.log('[Database] Running migration to version 7 (open-session integrity + reports tables backfill)');
+
+      // Ensure reports tables exist (idempotent — safe if migration 6 already created them)
+      await this.db.execAsync(`
+        CREATE TABLE IF NOT EXISTS reports_week_queue (
+          week_start TEXT PRIMARY KEY,
+          status TEXT NOT NULL,
+          queued_at TEXT,
+          sent_at TEXT,
+          last_error TEXT,
+          updated_at TEXT NOT NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_reports_week_queue_status
+          ON reports_week_queue(status);
+
+        CREATE TABLE IF NOT EXISTS app_preferences (
+          key TEXT PRIMARY KEY,
+          value TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+      `);
 
       // Close open sessions whose location no longer exists.
       await this.db.runAsync(`
