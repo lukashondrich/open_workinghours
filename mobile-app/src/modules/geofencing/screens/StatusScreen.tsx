@@ -47,6 +47,7 @@ interface LocationStatus {
   isCheckedIn: boolean;
   clockInTime?: string;
   elapsedMinutes?: number;
+  isPendingTransition?: boolean;
 }
 
 function CollapsedStatusLine({
@@ -62,7 +63,7 @@ function CollapsedStatusLine({
   onLocationPress: () => void;
   index: number;
 }) {
-  const { location, isCheckedIn, elapsedMinutes } = status;
+  const { location, isCheckedIn, elapsedMinutes, isPendingTransition } = status;
 
   const formatElapsed = (minutes: number): string => {
     const hours = Math.floor(minutes / 60);
@@ -74,7 +75,7 @@ function CollapsedStatusLine({
   };
 
   const accessibilityLabel = isCheckedIn
-    ? `${location.name}, ${t('status.checkedIn')}${elapsedMinutes !== undefined ? `, ${formatElapsed(elapsedMinutes)}` : ''}`
+    ? `${location.name}, ${isPendingTransition ? t('status.locationTransitionPending') : t('status.checkedIn')}${elapsedMinutes !== undefined ? `, ${formatElapsed(elapsedMinutes)}` : ''}`
     : `${location.name}, ${t('status.notCheckedIn')}`;
 
   if (isCheckedIn) {
@@ -93,9 +94,16 @@ function CollapsedStatusLine({
           accessibilityLabel={`${location.name}, ${t('status.tapToManage')}`}
         >
           <View style={[styles.statusDot, styles.statusDotActive]} />
-          <Text style={styles.locationName} numberOfLines={1}>
-            {location.name}
-          </Text>
+          <View style={styles.locationTextContainer}>
+            <Text style={styles.locationName} numberOfLines={1}>
+              {location.name}
+            </Text>
+            {isPendingTransition && (
+              <Text style={styles.pendingTransitionText}>
+                {t('status.locationTransitionPending')}
+              </Text>
+            )}
+          </View>
         </TouchableOpacity>
         <View style={styles.activeControls}>
           <View style={styles.timeBadge} accessibilityElementsHidden={true}>
@@ -133,9 +141,16 @@ function CollapsedStatusLine({
         accessibilityLabel={`${location.name}, ${t('status.tapToManage')}`}
       >
         <View style={[styles.statusDot, styles.statusDotInactive]} />
-        <Text style={styles.locationName} numberOfLines={1}>
-          {location.name}
-        </Text>
+        <View style={styles.locationTextContainer}>
+          <Text style={styles.locationName} numberOfLines={1}>
+            {location.name}
+          </Text>
+          {isPendingTransition && (
+            <Text style={styles.pendingTransitionText}>
+              {t('status.locationTransitionPending')}
+            </Text>
+          )}
+        </View>
       </TouchableOpacity>
       <TouchableOpacity
         style={styles.checkInButton}
@@ -182,11 +197,13 @@ export default function StatusScreen() {
             isCheckedIn: true,
             clockInTime: activeSession.clockIn,
             elapsedMinutes,
+            isPendingTransition: activeSession.state === 'pending_exit',
           });
         } else {
           statuses.push({
             location,
             isCheckedIn: false,
+            isPendingTransition: false,
           });
         }
       }
@@ -542,7 +559,14 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     fontWeight: fontWeight.semibold,
     color: colors.text.primary,
+  },
+  locationTextContainer: {
     flex: 1,
+  },
+  pendingTransitionText: {
+    marginTop: 2,
+    fontSize: fontSize.xs,
+    color: colors.text.tertiary,
   },
   activeControls: {
     flexDirection: 'row',
