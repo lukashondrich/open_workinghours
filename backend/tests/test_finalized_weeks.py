@@ -1,7 +1,7 @@
 """Integration tests for finalized user-week endpoints."""
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -105,6 +105,33 @@ class TestFinalizedWeeks:
             headers=auth_headers,
         )
         assert response2.status_code == 409
+
+    def test_finalize_week_allows_week_ending_today(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        import app.routers.finalized_weeks as finalized_weeks_router
+        import app.routers.work_events as work_events_router
+
+        class FixedDateTime(datetime):
+            @classmethod
+            def now(cls, tz=None):
+                return cls(2025, 12, 7, 12, 0, 0, tzinfo=tz)
+
+        monkeypatch.setattr(finalized_weeks_router, "datetime", FixedDateTime)
+        monkeypatch.setattr(work_events_router, "datetime", FixedDateTime)
+
+        week_start = date(2025, 12, 1)  # week_end is 2025-12-07 (today in patched clock)
+        _create_full_week(client, auth_headers, week_start)
+
+        response = client.post(
+            "/finalized-weeks",
+            json={"week_start": week_start.isoformat()},
+            headers=auth_headers,
+        )
+        assert response.status_code == 201
 
     def test_cannot_update_or_delete_work_event_in_finalized_week(
         self,

@@ -105,3 +105,14 @@ export interface DailySubmissionRecord {
   submittedAt: string | null;
   errorMessage: string | null;
 }
+
+export type ReportsWeekQueueStatus = 'queued' | 'sent';
+
+export interface ReportsWeekQueueRecord {
+  weekStart: string; // YYYY-MM-DD (Monday)
+  status: ReportsWeekQueueStatus;
+  queuedAt: string | null;
+  sentAt: string | null;
+  lastError: string | null;
+  updatedAt: string;
+}

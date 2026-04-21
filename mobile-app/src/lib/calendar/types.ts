@@ -138,6 +138,7 @@ export type CalendarAction =
   | { type: "DELETE_TRACKING_RECORD"; id: string }
   | { type: "LOCK_CONFIRMED_DAYS"; dates: string[]; submissionId: string }
   | { type: "UNLOCK_CONFIRMED_DAYS"; dates: string[] }
+  | { type: "HYDRATE_CONFIRMED_DAYS"; confirmedDayStatus: Record<string, ConfirmedDayStatus> }
   // Absence actions
   | { type: "SET_TEMPLATE_PANEL_TAB"; tab: 'shifts' | 'absences' }
   | { type: "LOAD_ABSENCE_TEMPLATES"; templates: AbsenceTemplate[] }

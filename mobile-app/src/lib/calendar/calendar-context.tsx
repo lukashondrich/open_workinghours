@@ -23,6 +23,7 @@ import { calendarReducer, initialState } from './calendar-reducer';
 import { getCalendarStorage } from '@/modules/calendar/services/CalendarStorage';
 import { loadRealTrackingRecords } from './calendar-utils';
 import { trackingEvents } from '@/lib/events/trackingEvents';
+import { calendarEvents } from '@/lib/events/calendarEvents';
 
 interface CalendarContextValue {
   state: CalendarState;
@@ -284,6 +285,28 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
       trackingEvents.off('tracking-changed', handleTrackingChanged);
     };
   }, [state.reviewMode, state.currentWeekStart, state.currentMonth, state.view]);
+
+  // Rehydrate confirmed-day lock state when finalized week locking occurs outside Calendar UI.
+  useEffect(() => {
+    const handleConfirmedDaysUpdated = async () => {
+      if (!isHydrated) return;
+      try {
+        const storage = storageRef.current ?? await getCalendarStorage();
+        if (!storageRef.current) {
+          storageRef.current = storage;
+        }
+        const confirmedDays = await storage.loadConfirmedDays();
+        rawDispatch({ type: 'HYDRATE_CONFIRMED_DAYS', confirmedDayStatus: confirmedDays });
+      } catch (error) {
+        console.error('[CalendarProvider] Failed to rehydrate confirmed days after update:', error);
+      }
+    };
+
+    calendarEvents.on('confirmed-days-updated', handleConfirmedDaysUpdated);
+    return () => {
+      calendarEvents.off('confirmed-days-updated', handleConfirmedDaysUpdated);
+    };
+  }, [isHydrated]);
 
   return <CalendarContext.Provider value={{ state, dispatch }}>{children}</CalendarContext.Provider>;
 }

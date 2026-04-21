@@ -37,10 +37,10 @@ def finalize_user_week(
     week_start = payload.week_start
     week_end = get_iso_week_bounds(week_start)[1]
 
-    if week_end >= datetime.now().date():
+    if week_end > datetime.now().date():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only fully completed past weeks can be finalized.",
+            detail="Only weeks ending today or earlier can be finalized.",
         )
 
     existing = (
