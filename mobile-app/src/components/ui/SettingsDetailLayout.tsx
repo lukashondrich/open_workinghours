@@ -8,7 +8,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { ChevronLeft } from 'lucide-react-native';
 
@@ -27,6 +27,14 @@ export function SettingsDetailLayout({
   contentStyle,
 }: SettingsDetailLayoutProps) {
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
+
+  // Android 15+ / Expo SDK 54 forces edge-to-edge: app draws behind system nav bar.
+  // Use safe area insets with 48dp fallback (covers 3-button nav + bug where insets return 0).
+  // iOS stack screens don't need this — no system chrome at bottom.
+  const androidBottomPadding = Platform.OS === 'android'
+    ? Math.max(insets.bottom, 48)
+    : 0;
 
   if (Platform.OS !== 'android') {
     return <View style={[styles.content, contentStyle]}>{children}</View>;
@@ -54,7 +62,7 @@ export function SettingsDetailLayout({
           </Text>
         </View>
       </SafeAreaView>
-      <View style={[styles.content, contentStyle]}>{children}</View>
+      <View style={[styles.content, { paddingBottom: androidBottomPadding }, contentStyle]}>{children}</View>
     </View>
   );
 }

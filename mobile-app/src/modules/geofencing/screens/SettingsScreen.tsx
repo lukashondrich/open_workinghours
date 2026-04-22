@@ -8,7 +8,7 @@ import {
   Text,
   Switch,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SettingsDetailLayout } from '@/components/ui';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
@@ -255,9 +255,8 @@ export default function SettingsScreen() {
   const settingsItems = getSettingsItems();
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        <ScrollView contentContainerStyle={styles.scrollContent}>
+    <SettingsDetailLayout title={t('navigation.settings')}>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
           {settingsItems.map((item) => (
             <ListItem
               key={item.id}
@@ -369,20 +368,11 @@ export default function SettingsScreen() {
             </Button>
           </View>
         </ScrollView>
-      </View>
-    </SafeAreaView>
+    </SettingsDetailLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.background.default,
-  },
-  container: {
-    flex: 1,
-    backgroundColor: colors.background.default,
-  },
   scrollContent: {
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.lg,
