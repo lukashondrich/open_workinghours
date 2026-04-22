@@ -195,6 +195,19 @@ All new UI **must** be testable by Appium (XCUITest on iOS, UiAutomator2 on Andr
 
 ## Recent Updates (Last 7 Days)
 
+### 2026-04-22: Build #52 — Android Bugs + Reports Tab + Geofencing Reliability
+
+**Branch:** `fix/android-bugs-2026-03-31` merged with `main` → TestFlight build #52.
+
+**What shipped:**
+- 5 Samsung Android bug fixes (map flicker, tap inside circle, tab bar gradient, search map update) — all verified on real Samsung Galaxy A14
+- Geofencing reliability phase 1+2: foreground keepalive service, enter validation (reject phantom clock-ins), exit loosening (removed absolute GPS threshold)
+- Reports tab (merged from `feature/reports-tab`): week state machine, auto-finalization, collective insights
+- Pending-transition UI indicator on Status and Tracking screens
+- Migration v7 with idempotent backfill for safe upgrade from any path
+
+**Architecture changes documented in:** `mobile-app/ARCHITECTURE.md` (geofencing reliability, reports module, migration history, react-native-maps pattern)
+
 ### 2026-04-15: Consumer Landing Page — Ready on Branch
 
 **Branch:** `feature/consumer-landing-page` — New consumer-focused landing page (DE+EN) with store badges, "So funktioniert's" steps, privacy trust section. Replaces institutional homepage; dossier page kept at `/dossier`. Merge to main when store links are live.
