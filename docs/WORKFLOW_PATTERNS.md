@@ -134,6 +134,22 @@ React Native's `testID` maps to `resource-id` on Android.
 
 **Key lesson (2026-04-02):** Blind fix → EAS build → test cycle wasted 3 iterations on bugs 2, 4, 5. The observe-first approach on real hardware is essential.
 
+### Database Migration Conflicts Across Branches
+
+**Problem:** Two long-lived branches both add a new migration with the same version number (e.g., both claim migration 6). When merged, devices that ran one branch's migration skip the other's — leaving tables missing.
+
+**Prevention:**
+- Before adding a migration, check what version number `main` is on *and* any active branches
+- If in doubt, use a higher number and leave a gap
+
+**Resolution (if it happens):**
+- Keep the version that landed on main first as-is
+- Renumber the other branch's migration to the next version
+- Add idempotent backfill (`CREATE TABLE IF NOT EXISTS`, `CREATE INDEX IF NOT EXISTS`) in the renumbered migration so devices on either upgrade path converge on the same schema
+- Document the conflict in the migration table (see `mobile-app/ARCHITECTURE.md` → Migration History)
+
+**Real example (2026-04-22):** `fix/android-bugs` used migration 6 for session integrity. `feature/reports-tab` (merged to main) used migration 6 for reports tables. Resolution: reports stayed as v6, session integrity became v7 with an idempotent reports table backfill.
+
 ### Android Hot Reload Can Silently Fail
 
 **Problem:** Changes to React Native code may appear to apply on Android (console.log fires, state is correct) but the **visual output doesn't update**. This can waste hours debugging layout/rendering issues that don't actually exist in the code.
