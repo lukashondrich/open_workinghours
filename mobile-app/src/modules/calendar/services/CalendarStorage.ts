@@ -8,7 +8,7 @@ import type {
   ManagedCalendarEntityType,
 } from './CalendarExportTypes';
 
-class CalendarStorage {
+export class CalendarStorage {
   private db: SQLite.SQLiteDatabase | null = null;
 
   async initialize() {
