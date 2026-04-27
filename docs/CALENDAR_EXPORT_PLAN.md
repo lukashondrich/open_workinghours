@@ -158,6 +158,10 @@ The settings copy should clearly say:
 
 > Shifts and absences will be written to your device calendar. If that calendar syncs with iCloud, Google, or is shared with others, those events may appear there too. GPS-tracked hours are never exported.
 
+Add a lighter secondary note in the enable flow or "learn more" text:
+
+> Exported events can be removed by the app while calendar access remains enabled. If calendar access is revoked later, automatic removal may require re-enabling access or deleting events manually.
+
 This is the right product rule for a privacy-first app: be explicit about the downstream consequences of writing into the user's own calendar system.
 
 ### Deletion behavior
@@ -165,7 +169,7 @@ This is the right product rule for a privacy-first app: be explicit about the do
 | Flow | Recommended behavior |
 |------|----------------------|
 | Disable sync | Ask: keep exported events or delete them |
-| Sign out | Ask once if sync is enabled; default to remove exported events |
+| Sign out | Ask each time if sync is enabled; default to remove exported events |
 | Delete local data | Automatically delete exported events/calendar |
 | Delete account | Automatically delete exported events/calendar |
 
@@ -228,7 +232,14 @@ When toggling off, show:
 - `Keep exported events`
 - `Delete exported events`
 
-If the user chooses delete, remove the managed calendar if possible. If platform deletion is flaky, delete all app-managed events, including past ones, and then remove the calendar metadata locally.
+If the user chooses delete and calendar permission is still available, remove the managed calendar if possible. If platform deletion is flaky, delete all app-managed events, including past ones, and then remove the calendar metadata locally.
+
+If the user chooses delete but calendar permission is currently revoked:
+
+- do not claim cleanup succeeded
+- explain that the app needs calendar access to remove exported events
+- offer to open OS Settings and retry
+- allow the user to turn sync off without deletion if they choose not to restore access
 
 ### 6.5 Revoked permission
 
@@ -238,6 +249,7 @@ If permission is revoked after enablement:
 - keep the setting enabled but mark it as unhealthy
 - show a warning row in Settings
 - re-enable automatically once permission is restored
+- if the user later triggers a delete or erasure flow while permission is still revoked, treat native cleanup as best effort and warn that manual deletion may still be required
 
 ### 6.6 Externally deleted calendar
 
@@ -246,6 +258,16 @@ If the user deletes the managed calendar outside the app:
 - recreate it on the next sync
 - perform full reconciliation
 - update stored calendar metadata
+
+### 6.7 External edits to managed events
+
+Exported events are app-managed. The app is the source of truth for:
+
+- title
+- start/end or all-day dates
+- notes marker
+
+If a user edits those fields directly in Apple Calendar, Google Calendar, or another calendar client, the next reconciliation may overwrite those edits. This should be documented in implementation and covered by tests.
 
 ---
 
@@ -339,6 +361,17 @@ CREATE TABLE IF NOT EXISTS device_calendar_state (
   updated_at TEXT NOT NULL
 );
 ```
+
+### 8.2.1 Managed calendar identity and recovery
+
+Use `calendar_id` as the authoritative identity of the managed calendar.
+
+Rules:
+
+- if the stored `calendar_id` still resolves to a writable calendar, use it
+- never adopt a calendar just because the display name matches `Open Working Hours`
+- if the stored ID is missing and exactly one calendar contains valid `owh:*` managed events, adopt that calendar and repair local state
+- if multiple calendars contain valid `owh:*` managed events, do not guess; mark sync unhealthy and require explicit user action or reconnect flow
 
 ### 8.3 Native event marker
 
@@ -463,8 +496,11 @@ Important rule:
 
 - missing native event ID but mapping exists: recreate
 - missing mapping but marker exists: repair mapping
+- stored `calendar_id` missing but exactly one marker-bearing calendar exists: adopt it and repair state
+- multiple marker-bearing calendars exist: do not guess and do not pick by name; report unhealthy state
 - managed calendar missing: recreate and full sync
 - permission revoked: stop and report unhealthy state
+- external edits to app-managed fields: desired app state wins on next reconciliation and rewrites the native event as needed
 
 ---
 
@@ -574,8 +610,8 @@ Must test on real devices:
 |------|----------|------------|
 | Screen-local implementation misses updates when Calendar tab is unmounted | High | Root-level orchestrator |
 | Android source selection is wrong or misleading | High | Explicit target resolution and honest copy |
-| Duplicate events after reinstall | High | Notes marker + mapping repair + full reconciliation |
-| Exported events survive erasure flows | High | Automatic cleanup for delete-local-data and delete-account |
+| Duplicate events after reinstall or same-name calendar confusion | High | `calendar_id` authority + notes marker recovery + no name-based adoption |
+| Exported events survive erasure flows | High | Automatic cleanup when permission is available + explicit warning when OS permission blocks removal |
 | Permission revoked mid-lifecycle | Medium | Health state + foreground recovery |
 | Rapid local edits cause race conditions | Medium | Single-flight queue and debounced reconcile |
 | Timezone/all-day bugs | Medium | Centralized event construction helpers and real-device testing |
@@ -701,7 +737,32 @@ CalendarProvider's hydration loads data from SQLite, dispatches `HYDRATE_STATE`,
 
 This is harmless: one no-op reconciliation when the Calendar tab first mounts. The orchestrator's debounce absorbs it. No special "suppress during hydration" guard is needed.
 
-### 17.7 Summary
+### 17.7 OPEN: Remaining gaps and implementation uncertainties
+
+The following items are not architectural problems but need explicit decisions or handling during implementation.
+
+**A. Sign-out sequencing**
+
+The orchestrator is mounted "for authenticated users" and unmounts when auth state changes. But cleanup (deleting exported events) must happen *before* the orchestrator unmounts. The sign-out handler must call cleanup directly rather than relying on orchestrator lifecycle. Additionally, even if the user chooses "keep events" on sign-out, `device_calendar_state.enabled` must be set to `0` — otherwise a subsequent login (same or different user) inherits stale sync state.
+
+**B. No default calendar on iOS**
+
+`getDefaultCalendarAsync()` can return null on a device with no calendars configured (fresh device, iCloud disabled, no accounts). `DeviceCalendarService` needs a fallback: either create a local-only source, or show a clear message explaining that a calendar account is needed. This should be handled in the `getOrCreateCalendar` path.
+
+**C. Fingerprint composition must be explicit**
+
+Section 10 mentions fingerprints but doesn't define the fields. Recommended:
+
+- Shift fingerprint: `hash(name, date, startTime, duration)`
+- Absence fingerprint: `hash(name, type, date, startTime, endTime, isFullDay)`
+
+Color is excluded (calendar-level only). If the fingerprint misses a field, updates to that field won't propagate to the native event.
+
+**D. DST transitions**
+
+Germany switches clocks in March and October. A shift at 02:30 on the switch day could be ambiguous. Since we pass `timeZone: 'Europe/Berlin'` and let the OS resolve it, this should work correctly, but it should be an explicit test case in both unit tests (event construction) and manual simulator testing.
+
+### 17.8 Summary
 
 | Item | Type | Action |
 |------|------|--------|
@@ -710,3 +771,6 @@ This is harmless: one no-op reconciliation when the Calendar tab first mounts. T
 | Enabled flag in SQLite | Confirmed | Keep as planned, SQLite is the right choice |
 | Schedule-data emitter | Accepted | Emit at persistence boundary in storage layer |
 | Reconciliation performance | Accepted note | Likely fast enough, verify initial sync on device |
+| External edits policy | Confirmed | App-owned native fields are overwritten by desired app state on reconcile |
+| Revoked-permission cleanup | Confirmed | Best effort only; warn clearly if OS permission blocks native deletion |
+| Calendar identity recovery | Confirmed | `calendar_id` is authoritative; never recover by name alone |
