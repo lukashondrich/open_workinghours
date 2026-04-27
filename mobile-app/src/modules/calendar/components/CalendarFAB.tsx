@@ -58,8 +58,8 @@ export default function CalendarFAB() {
     />
   );
 
-  // Hide FAB when overlays are open or in month view
-  if (state.templatePanelOpen || state.manualSessionFormOpen || state.inlinePickerOpen || state.hideFAB || state.view === 'month') {
+  // Hide FAB when overlays are open
+  if (state.templatePanelOpen || state.manualSessionFormOpen || state.inlinePickerOpen || state.hideFAB) {
     return manualSessionForm;
   }
 
@@ -87,7 +87,7 @@ export default function CalendarFAB() {
 
         {/* Menu — always rendered, hidden via opacity + pointerEvents */}
         <View
-          style={[styles.menu, { bottom: fabBottomOffset + 56 + 8, opacity: menuVisible ? 1 : 0 }]}
+          style={[styles.menu, { bottom: fabBottomOffset + 48 + 8, opacity: menuVisible ? 1 : 0 }]}
           pointerEvents={menuVisible ? 'auto' : 'none'}
           accessibilityElementsHidden={!menuVisible}
           accessible={false}
@@ -142,9 +142,9 @@ export default function CalendarFAB() {
           accessibilityState={{ expanded: menuVisible }}
         >
           {menuVisible ? (
-            <X size={28} color={colors.white} />
+            <X size={22} color={colors.white} />
           ) : (
-            <Plus size={28} color={colors.white} />
+            <Plus size={22} color={colors.white} />
           )}
         </TouchableOpacity>
       </View>
@@ -161,9 +161,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: spacing.xl,
     // bottom is applied dynamically via fabBottomOffset for equal margins
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: colors.primary[500],
     justifyContent: 'center',
     alignItems: 'center',
@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
   },
   menu: {
     position: 'absolute',
-    // bottom is applied dynamically: fabBottomOffset + FAB height (56) + gap (8)
+    // bottom is applied dynamically: fabBottomOffset + FAB height (48) + gap (8)
     right: spacing.xl,
     backgroundColor: colors.background.paper,
     borderRadius: borderRadius.lg,

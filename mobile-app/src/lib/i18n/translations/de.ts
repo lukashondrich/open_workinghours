@@ -147,6 +147,7 @@ export const de = {
     batch: {
       placing: 'Platziere:',
       doubleTapHint: 'Doppeltippen zum Platzieren',
+      tapHint: 'Tippen: platzieren · Halten: entfernen',
       exitHint: 'Tippe ✕ zum Beenden',
     },
     week: {
