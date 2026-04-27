@@ -13,6 +13,7 @@ import { t } from '@/lib/i18n';
 import SetupScreen from '@/modules/geofencing/screens/SetupScreen';
 import StatusScreen from '@/modules/geofencing/screens/StatusScreen';
 import CalendarScreen from '@/modules/calendar/screens/CalendarScreen';
+import { CalendarExportOrchestrator } from '@/modules/calendar/services/CalendarExportOrchestrator';
 import SettingsScreen from '@/modules/geofencing/screens/SettingsScreen';
 import ReportsScreen from '@/modules/reports/screens/ReportsScreen';
 import TrackingScreen from '@/modules/geofencing/screens/TrackingScreen';
@@ -308,86 +309,89 @@ export default function AppNavigator() {
   // Show main app if user is authenticated - ALWAYS show tabs
   return (
     <NavigationContainer>
-      <Stack.Navigator
-        initialRouteName="MainTabs"
-        screenOptions={{
-          headerShown: true,
-          headerStyle: {
-            backgroundColor: colors.background.paper,
-          },
-          headerTintColor: colors.primary[500],
-          headerTitleStyle: {
-            fontWeight: fontWeight.semibold,
-          },
-        }}
-      >
-        <Stack.Screen
-          name="MainTabs"
-          component={MainTabs}
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
-          name="Settings"
-          component={SettingsScreen}
-          options={Platform.OS === 'android'
-            ? { headerShown: false }
-            : { title: t('navigation.settings'), headerBackTitle: t('navigation.back') }}
-        />
-        <Stack.Screen
-          name="Setup"
-          component={SetupScreen}
-          options={{ title: t('navigation.addLocation') }}
-        />
-        <Stack.Screen
-          name="Tracking"
-          component={TrackingScreen}
-          options={Platform.OS === 'android'
-            ? { headerShown: false }
-            : { title: t('navigation.workTracking'), headerBackTitle: t('navigation.back') }}
-        />
-        <Stack.Screen
-          name="Log"
-          component={LogScreen}
-          options={Platform.OS === 'android'
-            ? { headerShown: false }
-            : { title: t('navigation.workHistory') }}
-        />
-        <Stack.Screen
-          name="LocationsList"
-          component={LocationsListScreen}
-          options={Platform.OS === 'android'
-            ? { headerShown: false }
-            : { title: t('navigation.workLocations'), headerBackTitle: t('navigation.settings') }}
-        />
-        <Stack.Screen
-          name="Notifications"
-          component={NotificationsScreen}
-          options={Platform.OS === 'android'
-            ? { headerShown: false }
-            : { title: t('navigation.notifications'), headerBackTitle: t('navigation.settings') }}
-        />
-        <Stack.Screen
-          name="Permissions"
-          component={PermissionsScreen}
-          options={Platform.OS === 'android'
-            ? { headerShown: false }
-            : { title: t('navigation.permissions'), headerBackTitle: t('navigation.settings') }}
-        />
-        <Stack.Screen
-          name="DataPrivacy"
-          component={DataPrivacyScreen}
-          options={Platform.OS === 'android'
-            ? { headerShown: false }
-            : { title: t('navigation.dataPrivacy'), headerBackTitle: t('navigation.settings') }}
-        />
-        <Stack.Screen
-          name="Profile"
-          component={ProfileScreen}
-          options={Platform.OS === 'android'
-            ? { headerShown: false }
-            : { title: t('navigation.profile'), headerBackTitle: t('navigation.settings') }}
-        />
-      </Stack.Navigator>
+      <>
+        <CalendarExportOrchestrator />
+        <Stack.Navigator
+          initialRouteName="MainTabs"
+          screenOptions={{
+            headerShown: true,
+            headerStyle: {
+              backgroundColor: colors.background.paper,
+            },
+            headerTintColor: colors.primary[500],
+            headerTitleStyle: {
+              fontWeight: fontWeight.semibold,
+            },
+          }}
+        >
+          <Stack.Screen
+            name="MainTabs"
+            component={MainTabs}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="Settings"
+            component={SettingsScreen}
+            options={Platform.OS === 'android'
+              ? { headerShown: false }
+              : { title: t('navigation.settings'), headerBackTitle: t('navigation.back') }}
+          />
+          <Stack.Screen
+            name="Setup"
+            component={SetupScreen}
+            options={{ title: t('navigation.addLocation') }}
+          />
+          <Stack.Screen
+            name="Tracking"
+            component={TrackingScreen}
+            options={Platform.OS === 'android'
+              ? { headerShown: false }
+              : { title: t('navigation.workTracking'), headerBackTitle: t('navigation.back') }}
+          />
+          <Stack.Screen
+            name="Log"
+            component={LogScreen}
+            options={Platform.OS === 'android'
+              ? { headerShown: false }
+              : { title: t('navigation.workHistory') }}
+          />
+          <Stack.Screen
+            name="LocationsList"
+            component={LocationsListScreen}
+            options={Platform.OS === 'android'
+              ? { headerShown: false }
+              : { title: t('navigation.workLocations'), headerBackTitle: t('navigation.settings') }}
+          />
+          <Stack.Screen
+            name="Notifications"
+            component={NotificationsScreen}
+            options={Platform.OS === 'android'
+              ? { headerShown: false }
+              : { title: t('navigation.notifications'), headerBackTitle: t('navigation.settings') }}
+          />
+          <Stack.Screen
+            name="Permissions"
+            component={PermissionsScreen}
+            options={Platform.OS === 'android'
+              ? { headerShown: false }
+              : { title: t('navigation.permissions'), headerBackTitle: t('navigation.settings') }}
+          />
+          <Stack.Screen
+            name="DataPrivacy"
+            component={DataPrivacyScreen}
+            options={Platform.OS === 'android'
+              ? { headerShown: false }
+              : { title: t('navigation.dataPrivacy'), headerBackTitle: t('navigation.settings') }}
+          />
+          <Stack.Screen
+            name="Profile"
+            component={ProfileScreen}
+            options={Platform.OS === 'android'
+              ? { headerShown: false }
+              : { title: t('navigation.profile'), headerBackTitle: t('navigation.settings') }}
+          />
+        </Stack.Navigator>
+      </>
     </NavigationContainer>
   );
 }

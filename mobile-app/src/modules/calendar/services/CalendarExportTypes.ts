@@ -71,3 +71,69 @@ export interface ManagedEventFingerprintInput {
   endDate: Date;
   allDay: boolean;
 }
+
+export interface DeviceCalendarPermissionState {
+  status: 'undetermined' | 'denied' | 'granted';
+  granted: boolean;
+  canAskAgain: boolean;
+}
+
+export interface DeviceCalendarSourceRecord {
+  id?: string;
+  name: string;
+  type?: string;
+  isLocalAccount?: boolean;
+}
+
+export interface DeviceCalendarRecord {
+  id: string;
+  title: string;
+  color: string;
+  allowsModifications: boolean;
+  ownerAccount?: string | null;
+  name?: string | null;
+  isPrimary?: boolean;
+  isSynced?: boolean;
+  source?: DeviceCalendarSourceRecord | null;
+  sourceId?: string | null;
+}
+
+export interface DeviceCalendarEventRecord {
+  id: string;
+  calendarId: string;
+  title: string;
+  startDate: Date;
+  endDate: Date;
+  allDay: boolean;
+  notes: string | null;
+}
+
+export interface AndroidCalendarTarget {
+  mode: 'android-account' | 'android-local';
+  source: DeviceCalendarSourceRecord;
+  label: string;
+  synced: boolean;
+}
+
+export interface CreateManagedCalendarInput {
+  title: string;
+  color: string;
+  targetMode: DeviceCalendarTargetMode;
+  source?: DeviceCalendarSourceRecord | null;
+}
+
+export interface UpsertManagedEventInput {
+  title: string;
+  startDate: Date;
+  endDate: Date;
+  allDay: boolean;
+  notes: string;
+}
+
+export interface CalendarExportReconcileResult {
+  created: number;
+  updated: number;
+  deleted: number;
+  unchanged: number;
+  repairedMappings: number;
+}

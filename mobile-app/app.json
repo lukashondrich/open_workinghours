@@ -22,6 +22,8 @@
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "We need your location to automatically track when you're at work.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "We need your location in the background to automatically clock you in/out when you arrive/leave work.",
+        "NSCalendarsUsageDescription": "Allow Open Working Hours to access your calendar so planned shifts and absences can be exported to a device calendar.",
+        "NSRemindersUsageDescription": "Allow Open Working Hours to access your reminders when working with your device calendar.",
         "NSFaceIDUsageDescription": "Use Face ID to quickly unlock Open Working Hours.",
         "UIBackgroundModes": [
           "location",
@@ -42,7 +44,9 @@
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.READ_CALENDAR",
         "android.permission.POST_NOTIFICATIONS",
+        "android.permission.WRITE_CALENDAR",
         "android.permission.VIBRATE"
       ],
       "config": {
@@ -54,6 +58,13 @@
     },
     "plugins": [
       "expo-sqlite",
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "Allow Open Working Hours to access your calendar so planned shifts and absences can be exported to a device calendar.",
+          "remindersPermission": "Allow Open Working Hours to access your reminders when working with your device calendar."
+        }
+      ],
       [
         "expo-location",
         {

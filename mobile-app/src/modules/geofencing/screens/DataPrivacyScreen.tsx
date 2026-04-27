@@ -25,6 +25,7 @@ import { BiometricService } from '@/lib/auth/BiometricService';
 import { ConsentStorage } from '@/lib/auth/ConsentStorage';
 import { t, getDateLocale } from '@/lib/i18n';
 import { openTermsUrl, openPrivacyUrl } from '@/lib/utils/legalUrls';
+import { getCalendarExportManager } from '@/modules/calendar/services/CalendarExportManager';
 
 interface DataSummary {
   locationCount: number;
@@ -82,6 +83,7 @@ export default function DataPrivacyScreen() {
     try {
       const db = await getDatabase();
       const geofenceService = getGeofenceService();
+      const requiresCalendarCleanupWarning = await cleanupExportedCalendarData();
 
       // Unregister all geofences
       const locations = await db.getActiveLocations();
@@ -98,7 +100,10 @@ export default function DataPrivacyScreen() {
 
       Alert.alert(
         t('dataPrivacyScreen.dataDeletedTitle'),
-        t('dataPrivacyScreen.dataDeletedMessage'),
+        buildSuccessMessage(
+          t('dataPrivacyScreen.dataDeletedMessage'),
+          requiresCalendarCleanupWarning,
+        ),
         [{ text: t('common.ok') }]
       );
 
@@ -157,6 +162,32 @@ export default function DataPrivacyScreen() {
       return format(date, 'PPP', { locale });
     } catch {
       return '—';
+    }
+  };
+
+  const buildSuccessMessage = (baseMessage: string, includeCalendarWarning: boolean) => {
+    if (!includeCalendarWarning) {
+      return baseMessage;
+    }
+
+    return `${baseMessage}\n\n${t('dataPrivacyScreen.calendarCleanupManualMessage')}`;
+  };
+
+  const cleanupExportedCalendarData = async (): Promise<boolean> => {
+    const manager = await getCalendarExportManager();
+
+    try {
+      const result = await manager.deleteExportedCalendarData();
+      if (result.status === 'blocked-permission') {
+        await manager.clearLocalExportState();
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      console.error('[DataPrivacyScreen] Calendar export cleanup failed:', error);
+      await manager.clearLocalExportState();
+      return true;
     }
   };
 
@@ -226,6 +257,7 @@ export default function DataPrivacyScreen() {
     }
 
     setIsDeleting(true);
+    let requiresCalendarCleanupWarning = false;
     try {
       // Step 1: Delete backend account
       await AuthService.deleteAccount(authState.token);
@@ -234,6 +266,7 @@ export default function DataPrivacyScreen() {
       try {
         const db = await getDatabase();
         const geofenceService = getGeofenceService();
+        requiresCalendarCleanupWarning = await cleanupExportedCalendarData();
 
         // Unregister all geofences
         const locations = await db.getActiveLocations();
@@ -265,7 +298,10 @@ export default function DataPrivacyScreen() {
       // Step 4: Show success message
       Alert.alert(
         t('dataPrivacyScreen.accountDeleted'),
-        t('dataPrivacyScreen.accountDeletedMessage'),
+        buildSuccessMessage(
+          t('dataPrivacyScreen.accountDeletedMessage'),
+          requiresCalendarCleanupWarning,
+        ),
         [{ text: t('common.ok') }]
       );
     } catch (error) {
