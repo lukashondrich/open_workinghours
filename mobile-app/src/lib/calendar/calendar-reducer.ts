@@ -193,7 +193,14 @@ export function calendarReducer(state: CalendarState, action: CalendarAction): C
     case 'DELETE_INSTANCE': {
       const remaining = { ...state.instances };
       delete remaining[action.id];
-      return { ...state, instances: remaining, mode: 'viewing', editingInstanceId: null };
+      // Only reset mode if we were editing this instance; preserve armed mode
+      const resetMode = state.mode === 'instance-editing' || state.mode === 'template-editing';
+      return {
+        ...state,
+        instances: remaining,
+        mode: resetMode ? 'viewing' : state.mode,
+        editingInstanceId: null,
+      };
     }
     case 'START_EDIT_TEMPLATE':
       return { ...state, mode: 'template-editing', editingTemplateId: action.id };

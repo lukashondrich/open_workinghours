@@ -147,6 +147,7 @@ export const en = {
     batch: {
       placing: 'Placing:',
       doubleTapHint: 'Double-tap to place',
+      tapHint: 'Tap to place · Hold to remove',
       exitHint: 'Tap ✕ to exit batch mode',
     },
     week: {
