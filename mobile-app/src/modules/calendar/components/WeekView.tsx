@@ -1058,10 +1058,6 @@ export default function WeekView() {
   const disclosureLevel = getDisclosureLevel(currentScale);
   const isCompactHeader = disclosureLevel === 'minimal' || disclosureLevel === 'compact';
 
-  // Double-tap tracking for shift/absence placement
-  // (Double-tap zoom removed - pinch is sufficient for zooming)
-  const lastTapRef = useRef<{ dateKey: string; time: number }>({ dateKey: '', time: 0 });
-  const DOUBLE_TAP_DELAY = 300; // ms
 
 
   // Pinch gesture for zooming (non-reanimated, uses refs to avoid stale closures)
@@ -1187,7 +1183,69 @@ export default function WeekView() {
     return Object.values(state.trackingRecords).filter((record) => record.date === dateKey);
   };
 
-  const handleHourPress = async (dateKey: string) => {
+  // Place the armed shift/absence on a given date
+  const placeArmedOnDate = async (dateKey: string) => {
+    if (state.armedTemplateId) {
+      const template = state.templates[state.armedTemplateId];
+      if (template) {
+        const overlap = findOverlappingShift(dateKey, template.startTime, template.duration, state.instances);
+        if (overlap) {
+          // Silent skip — light haptic instead of disruptive alert during batch placement
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          return;
+        }
+      }
+      dispatch({ type: 'PLACE_SHIFT', date: dateKey });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } else if (state.armedAbsenceTemplateId) {
+      const absenceTemplate = state.absenceTemplates[state.armedAbsenceTemplateId];
+      if (absenceTemplate) {
+        const startTime = absenceTemplate.isFullDay ? '00:00' : (absenceTemplate.startTime || '00:00');
+        const endTime = absenceTemplate.isFullDay ? '23:59' : (absenceTemplate.endTime || '23:59');
+
+        const newInstance: Omit<AbsenceInstance, 'id' | 'createdAt' | 'updatedAt'> = {
+          templateId: absenceTemplate.id,
+          type: absenceTemplate.type,
+          date: dateKey,
+          startTime,
+          endTime,
+          isFullDay: absenceTemplate.isFullDay,
+          name: absenceTemplate.name,
+          color: absenceTemplate.color,
+        };
+
+        try {
+          const storage = await getCalendarStorage();
+          const created = await storage.createAbsenceInstance(newInstance);
+          dispatch({ type: 'ADD_ABSENCE_INSTANCE', instance: created });
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        } catch (error) {
+          console.error('[WeekView] Failed to create absence instance:', error);
+        }
+      }
+    }
+  };
+
+  // Remove the armed shift/absence from a given date
+  const removeArmedFromDate = (dateKey: string) => {
+    if (state.armedTemplateId) {
+      const instanceToRemove = Object.values(state.instances)
+        .find(i => i.templateId === state.armedTemplateId && i.date === dateKey);
+      if (instanceToRemove) {
+        dispatch({ type: 'DELETE_INSTANCE', id: instanceToRemove.id });
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      }
+    } else if (state.armedAbsenceTemplateId) {
+      const absenceToRemove = Object.values(state.absenceInstances)
+        .find(a => a.templateId === state.armedAbsenceTemplateId && a.date === dateKey);
+      if (absenceToRemove) {
+        dispatch({ type: 'DELETE_ABSENCE_INSTANCE', id: absenceToRemove.id });
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      }
+    }
+  };
+
+  const handleHourPress = (dateKey: string) => {
     // Clear active tracking selection when clicking elsewhere
     if (activeTracking) {
       setActiveTracking(null);
@@ -1200,93 +1258,13 @@ export default function WeekView() {
       return;
     }
 
-    // Check for double-tap (only used for batch mode placement)
-    const now = Date.now();
-    const lastTap = lastTapRef.current;
-    const isDoubleTap = lastTap.dateKey === dateKey && (now - lastTap.time) < DOUBLE_TAP_DELAY;
-
-    // Update last tap tracking
-    lastTapRef.current = { dateKey, time: now };
-
-    // Double-tap with armed template: place shift/absence (batch mode)
-    if (isDoubleTap && (state.armedTemplateId || state.armedAbsenceTemplateId)) {
-      // Reset tap tracking to prevent triple-tap from placing again
-      lastTapRef.current = { dateKey: '', time: 0 };
-
-      // Handle absence placement if an absence template is armed
-      if (state.armedAbsenceTemplateId) {
-        const absenceTemplate = state.absenceTemplates[state.armedAbsenceTemplateId];
-        if (absenceTemplate) {
-          // Haptic feedback for placement
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-          const startTime = absenceTemplate.isFullDay ? '00:00' : (absenceTemplate.startTime || '00:00');
-          const endTime = absenceTemplate.isFullDay ? '23:59' : (absenceTemplate.endTime || '23:59');
-
-          const newInstance: Omit<AbsenceInstance, 'id' | 'createdAt' | 'updatedAt'> = {
-            templateId: absenceTemplate.id,
-            type: absenceTemplate.type,
-            date: dateKey,
-            startTime,
-            endTime,
-            isFullDay: absenceTemplate.isFullDay,
-            name: absenceTemplate.name,
-            color: absenceTemplate.color,
-          };
-
-          try {
-            const storage = await getCalendarStorage();
-            const created = await storage.createAbsenceInstance(newInstance);
-            dispatch({ type: 'ADD_ABSENCE_INSTANCE', instance: created });
-          } catch (error) {
-            console.error('[WeekView] Failed to create absence instance:', error);
-          }
-        }
-        return;
-      }
-
-      // Handle shift placement if a shift template is armed
-      if (state.armedTemplateId) {
-        // Haptic feedback for placement
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-        // Check for overlap before placing shift
-        const template = state.templates[state.armedTemplateId];
-        if (template) {
-          const overlap = findOverlappingShift(
-            dateKey,
-            template.startTime,
-            template.duration,
-            state.instances
-          );
-
-          if (overlap) {
-            Alert.alert(
-              t('calendar.week.overlapTitle'),
-              t('calendar.week.overlapMessage', { name: overlap.name })
-            );
-            return;
-          }
-        }
-
-        dispatch({ type: 'PLACE_SHIFT', date: dateKey });
-        return;
-      }
-    }
-
-    // Single tap behavior depends on batch mode
-    if (!isDoubleTap) {
-      if (state.armedTemplateId || state.armedAbsenceTemplateId) {
-        // In batch mode: block single tap entirely (only double-tap places, long-press opens picker)
-        return;
-      } else {
-        // Not in batch mode: open picker immediately
-        handleHourLongPress(dateKey);
-      }
+    // Armed: single-tap places instantly
+    if (state.armedTemplateId || state.armedAbsenceTemplateId) {
+      placeArmedOnDate(dateKey);
       return;
     }
 
-    // Double-tap without armed template: open picker
+    // Not armed: open picker
     handleHourLongPress(dateKey);
   };
 
@@ -1699,11 +1677,16 @@ export default function WeekView() {
     setSelectedTime(null);
   };
 
-  // Long-press or single-tap on empty hour cell → open inline picker
+  // Long-press: when armed, remove shift; when not armed, open picker
   const handleHourLongPress = (dateKey: string) => {
     // Check if day is locked - block on locked days
     const dayStatus = state.confirmedDayStatus[dateKey];
     if (dayStatus?.status === 'locked') return;
+
+    if (state.armedTemplateId || state.armedAbsenceTemplateId) {
+      removeArmedFromDate(dateKey);
+      return;
+    }
 
     dispatch({ type: 'OPEN_INLINE_PICKER', targetDate: dateKey });
   };
@@ -2078,7 +2061,7 @@ export default function WeekView() {
               {t('calendar.batch.placing')} {armedTemplate?.name || armedAbsenceTemplate?.name}
             </Text>
             <Text style={styles.batchHint}>
-              {t('calendar.batch.doubleTapHint')}
+              {t('calendar.batch.tapHint')}
             </Text>
           </View>
           <TouchableOpacity
@@ -2601,7 +2584,7 @@ const styles = StyleSheet.create({
   // Batch mode indicator styles
   batchIndicator: {
     position: 'absolute',
-    bottom: 90, // Above FAB
+    bottom: 82, // Above FAB (48dp)
     left: spacing.lg,
     right: spacing.lg,
     flexDirection: 'row',
