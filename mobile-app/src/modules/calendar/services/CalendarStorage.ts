@@ -1,5 +1,12 @@
 import * as SQLite from 'expo-sqlite';
 import type { ShiftInstance, ShiftTemplate, TrackingRecord, ConfirmedDayStatus, AbsenceTemplate, AbsenceInstance, AbsenceType } from '@/lib/calendar/types';
+import { scheduleEvents } from '@/lib/events/scheduleEvents';
+import type {
+  DeviceCalendarMappingRecord,
+  DeviceCalendarStateRecord,
+  DeviceCalendarTargetMode,
+  ManagedCalendarEntityType,
+} from './CalendarExportTypes';
 
 class CalendarStorage {
   private db: SQLite.SQLiteDatabase | null = null;
@@ -175,6 +182,49 @@ class CalendarStorage {
         throw error;
       }
     }
+
+    if (currentVersion < 4) {
+      console.log('[CalendarStorage] Running migration 4: Adding device calendar export tables');
+      try {
+        await db.execAsync(`
+          CREATE TABLE IF NOT EXISTS device_calendar_state (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            enabled INTEGER NOT NULL DEFAULT 0,
+            calendar_id TEXT,
+            target_source_id TEXT,
+            target_mode TEXT,
+            last_full_sync_at TEXT,
+            last_sync_error TEXT,
+            updated_at TEXT NOT NULL
+          );
+        `);
+
+        await db.execAsync(`
+          CREATE TABLE IF NOT EXISTS device_calendar_mappings (
+            app_id TEXT PRIMARY KEY,
+            native_event_id TEXT NOT NULL UNIQUE,
+            entity_type TEXT NOT NULL CHECK (entity_type IN ('shift', 'absence')),
+            fingerprint TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+          );
+        `);
+
+        await db.execAsync(`
+          CREATE INDEX IF NOT EXISTS idx_shift_instances_date ON shift_instances(date);
+        `);
+
+        await db.execAsync(`
+          CREATE INDEX IF NOT EXISTS idx_device_calendar_mappings_entity_type
+          ON device_calendar_mappings(entity_type);
+        `);
+
+        await this.setSchemaVersion(4);
+        console.log('[CalendarStorage] Migration 4 complete');
+      } catch (error) {
+        console.error('[CalendarStorage] Migration 4 failed:', error);
+        throw error;
+      }
+    }
   }
 
   private getDb() {
@@ -296,6 +346,29 @@ class CalendarStorage {
         instance.name,
       );
     }
+    scheduleEvents.emit('schedule-changed', {
+      source: 'shifts',
+      occurredAt: new Date().toISOString(),
+    });
+  }
+
+  async getShiftInstancesForDateRange(startDate: string, endDate: string): Promise<ShiftInstance[]> {
+    const db = this.getDb();
+    const rows = await db.getAllAsync<any>(
+      'SELECT * FROM shift_instances WHERE date >= ? AND date <= ? ORDER BY date, start_time',
+      startDate,
+      endDate
+    );
+    return rows.map((row) => ({
+      id: row.id,
+      templateId: row.template_id,
+      date: row.date,
+      startTime: row.start_time,
+      duration: row.duration,
+      endTime: row.end_time,
+      color: row.color,
+      name: row.name,
+    }));
   }
 
   async replaceTrackingRecords(records: TrackingRecord[]) {
@@ -605,12 +678,19 @@ class CalendarStorage {
       now
     );
 
-    return {
+    const created = {
       id,
       ...instance,
       createdAt: now,
       updatedAt: now,
     };
+
+    scheduleEvents.emit('schedule-changed', {
+      source: 'absences',
+      occurredAt: now,
+    });
+
+    return created;
   }
 
   async updateAbsenceInstance(id: string, updates: Partial<AbsenceInstance>): Promise<void> {
@@ -658,11 +738,19 @@ class CalendarStorage {
       `UPDATE absence_instances SET ${setClauses.join(', ')} WHERE id = ?`,
       ...values
     );
+    scheduleEvents.emit('schedule-changed', {
+      source: 'absences',
+      occurredAt: now,
+    });
   }
 
   async deleteAbsenceInstance(id: string): Promise<void> {
     const db = this.getDb();
     await db.runAsync('DELETE FROM absence_instances WHERE id = ?', id);
+    scheduleEvents.emit('schedule-changed', {
+      source: 'absences',
+      occurredAt: new Date().toISOString(),
+    });
   }
 
   async replaceAbsenceInstances(instances: AbsenceInstance[]) {
@@ -696,6 +784,127 @@ class CalendarStorage {
         instance.updatedAt
       );
     }
+    scheduleEvents.emit('schedule-changed', {
+      source: 'absences',
+      occurredAt: new Date().toISOString(),
+    });
+  }
+
+  async loadDeviceCalendarState(): Promise<DeviceCalendarStateRecord | null> {
+    const db = this.getDb();
+    const row = await db.getFirstAsync<any>('SELECT * FROM device_calendar_state WHERE id = 1');
+
+    if (!row) {
+      return null;
+    }
+
+    return {
+      enabled: row.enabled === 1,
+      calendarId: row.calendar_id ?? null,
+      targetSourceId: row.target_source_id ?? null,
+      targetMode: (row.target_mode as DeviceCalendarTargetMode | null) ?? null,
+      lastFullSyncAt: row.last_full_sync_at ?? null,
+      lastSyncError: row.last_sync_error ?? null,
+      updatedAt: row.updated_at,
+    };
+  }
+
+  async saveDeviceCalendarState(state: {
+    enabled: boolean;
+    calendarId?: string | null;
+    targetSourceId?: string | null;
+    targetMode?: DeviceCalendarTargetMode | null;
+    lastFullSyncAt?: string | null;
+    lastSyncError?: string | null;
+  }): Promise<void> {
+    const db = this.getDb();
+    const now = new Date().toISOString();
+
+    await db.runAsync(
+      `INSERT OR REPLACE INTO device_calendar_state
+       (id, enabled, calendar_id, target_source_id, target_mode, last_full_sync_at, last_sync_error, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      1,
+      state.enabled ? 1 : 0,
+      state.calendarId ?? null,
+      state.targetSourceId ?? null,
+      state.targetMode ?? null,
+      state.lastFullSyncAt ?? null,
+      state.lastSyncError ?? null,
+      now
+    );
+  }
+
+  async clearDeviceCalendarState(): Promise<void> {
+    const db = this.getDb();
+    await db.runAsync('DELETE FROM device_calendar_state WHERE id = ?', 1);
+  }
+
+  async loadDeviceCalendarMapping(appId: string): Promise<DeviceCalendarMappingRecord | null> {
+    const db = this.getDb();
+    const row = await db.getFirstAsync<any>(
+      'SELECT * FROM device_calendar_mappings WHERE app_id = ?',
+      appId
+    );
+
+    if (!row) {
+      return null;
+    }
+
+    return {
+      appId: row.app_id,
+      nativeEventId: row.native_event_id,
+      entityType: row.entity_type as ManagedCalendarEntityType,
+      fingerprint: row.fingerprint,
+      updatedAt: row.updated_at,
+    };
+  }
+
+  async loadDeviceCalendarMappings(): Promise<Record<string, DeviceCalendarMappingRecord>> {
+    const db = this.getDb();
+    const rows = await db.getAllAsync<any>('SELECT * FROM device_calendar_mappings');
+    const mappings: Record<string, DeviceCalendarMappingRecord> = {};
+
+    rows.forEach((row) => {
+      mappings[row.app_id] = {
+        appId: row.app_id,
+        nativeEventId: row.native_event_id,
+        entityType: row.entity_type as ManagedCalendarEntityType,
+        fingerprint: row.fingerprint,
+        updatedAt: row.updated_at,
+      };
+    });
+
+    return mappings;
+  }
+
+  async saveDeviceCalendarMapping(mapping: {
+    appId: string;
+    nativeEventId: string;
+    entityType: ManagedCalendarEntityType;
+    fingerprint: string;
+  }): Promise<void> {
+    const db = this.getDb();
+    await db.runAsync(
+      `INSERT OR REPLACE INTO device_calendar_mappings
+       (app_id, native_event_id, entity_type, fingerprint, updated_at)
+       VALUES (?, ?, ?, ?, ?)`,
+      mapping.appId,
+      mapping.nativeEventId,
+      mapping.entityType,
+      mapping.fingerprint,
+      new Date().toISOString()
+    );
+  }
+
+  async deleteDeviceCalendarMapping(appId: string): Promise<void> {
+    const db = this.getDb();
+    await db.runAsync('DELETE FROM device_calendar_mappings WHERE app_id = ?', appId);
+  }
+
+  async deleteAllDeviceCalendarMappings(): Promise<void> {
+    const db = this.getDb();
+    await db.runAsync('DELETE FROM device_calendar_mappings');
   }
 }
 
