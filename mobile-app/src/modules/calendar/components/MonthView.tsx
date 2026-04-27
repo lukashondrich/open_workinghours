@@ -1,8 +1,8 @@
 import React, { useMemo, useRef, useState, useCallback } from 'react';
-import { View, StyleSheet, TouchableOpacity, PanResponder, Animated, useWindowDimensions, Alert } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, PanResponder, Animated, useWindowDimensions } from 'react-native';
 import { AppText as Text } from '@/components/ui/AppText';
 import { format, startOfMonth, endOfMonth, startOfWeek, addDays, isSameDay, addMonths, subMonths } from 'date-fns';
-import { TreePalm, Thermometer, Check, CircleHelp, X } from 'lucide-react-native';
+import { TreePalm, Thermometer, Check, CircleHelp, X, ChevronDown, ChevronUp } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/theme';
@@ -23,7 +23,6 @@ import { computePlannedMinutesForDate, getInstanceWindow, getDayBounds, computeO
 import { t } from '@/lib/i18n';
 
 const WEEKDAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
-const DOUBLE_TAP_DELAY = 300; // ms
 
 interface DayCellIndicators {
   templateColors: string[];
@@ -43,6 +42,8 @@ function DayCell({
   isToday,
   isCurrentMonth,
   isTargetDay,
+  flashType,
+  flashCounter,
 }: {
   date: Date;
   onPress: (date: Date) => void;
@@ -51,7 +52,29 @@ function DayCell({
   isToday: boolean;
   isCurrentMonth: boolean;
   isTargetDay: boolean;
+  flashType: 'place' | 'remove' | null;
+  flashCounter: number;
 }) {
+  const flashAnim = useRef(new Animated.Value(0)).current;
+  const lastFlashRef = useRef(0);
+
+  // Trigger flash animation when flashCounter changes (handles repeat flashes on same cell)
+  React.useEffect(() => {
+    if (flashType && flashCounter !== lastFlashRef.current) {
+      lastFlashRef.current = flashCounter;
+      flashAnim.setValue(1);
+      Animated.timing(flashAnim, {
+        toValue: 0,
+        duration: 400,
+        useNativeDriver: false,
+      }).start();
+    }
+  }, [flashType, flashCounter]);
+
+  const flashColor = flashType === 'remove'
+    ? flashAnim.interpolate({ inputRange: [0, 1], outputRange: ['transparent', 'rgba(239, 68, 68, 0.25)'] })
+    : flashAnim.interpolate({ inputRange: [0, 1], outputRange: ['transparent', 'rgba(34, 197, 94, 0.25)'] });
+
   const overtimeDisplay = formatOvertimeDisplay(indicators.overtimeMinutes);
 
   // Determine overtime color
@@ -77,6 +100,11 @@ function DayCell({
       onLongPress={() => onLongPress(date)}
       delayLongPress={400}
     >
+      {/* Flash overlay for place/remove feedback */}
+      <Animated.View
+        pointerEvents="none"
+        style={[StyleSheet.absoluteFill, { backgroundColor: flashColor, borderRadius: borderRadius.md }]}
+      />
       <Text
         style={[
           styles.dayLabel,
@@ -135,17 +163,18 @@ function MonthlySummaryFooter({
   confirmedOvertimeMinutes,
   totalOvertimeMinutes,
 }: MonthlySummaryFooterProps) {
+  const [expanded, setExpanded] = useState(false);
+  const expandAnim = useRef(new Animated.Value(0)).current;
+
   const overtimeDisplay = formatOvertimeDisplay(totalOvertimeMinutes);
   const confirmedDisplay = formatOvertimeDisplay(confirmedOvertimeMinutes);
 
-  // Determine overtime color
   const getOvertimeColor = () => {
     if (totalOvertimeMinutes > 0) return colors.success.main;
     if (totalOvertimeMinutes < 0) return colors.error.main;
     return colors.text.primary;
   };
 
-  // Format hours as "Xh Ym" instead of decimal
   const formatHoursMinutes = (hours: number): string => {
     const totalMinutes = Math.round(hours * 60);
     const h = Math.floor(totalMinutes / 60);
@@ -154,48 +183,80 @@ function MonthlySummaryFooter({
     return `${h}h ${m}m`;
   };
 
+  const toggleExpanded = () => {
+    const toValue = expanded ? 0 : 1;
+    setExpanded(!expanded);
+    Animated.timing(expandAnim, {
+      toValue,
+      duration: 200,
+      useNativeDriver: false,
+    }).start();
+  };
+
+  // Interpolate height: collapsed ~28pt, expanded ~90pt
+  const expandedHeight = expandAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 62], // additional height for expanded content
+  });
+
   return (
     <View style={styles.summaryFooter}>
-      <View style={styles.summaryRow}>
-        <View style={styles.summaryItem}>
-          <Text style={styles.summaryValue}>{formatHoursMinutes(trackedHours)}</Text>
-          <Text style={styles.summaryLabel}>{t('calendar.month.tracked')}</Text>
-        </View>
-        <View style={styles.summaryDivider} />
-        <View style={styles.summaryItem}>
-          <Text style={styles.summaryValue}>{formatHoursMinutes(plannedHours)}</Text>
-          <Text style={styles.summaryLabel}>{t('calendar.month.planned')}</Text>
-        </View>
-        <View style={styles.summaryDivider} />
-        <View style={styles.summaryItem}>
-          <Text style={[styles.summaryValue, { color: getOvertimeColor() }]}>
-            {overtimeDisplay}
-          </Text>
-          <Text style={styles.summaryLabel}>{t('calendar.month.overtime')}</Text>
-          {/* Always reserve space for hint to prevent layout shift */}
-          <Text style={[styles.confirmedHint, confirmedOvertimeMinutes === totalOvertimeMinutes && { opacity: 0 }]}>
-            {confirmedOvertimeMinutes !== totalOvertimeMinutes
-              ? `(${confirmedDisplay} ${t('calendar.month.confirmed')})`
-              : ' ' /* invisible placeholder */}
-          </Text>
-        </View>
-      </View>
+      {/* Collapsed bar — always visible */}
+      <TouchableOpacity
+        onPress={toggleExpanded}
+        style={styles.summaryCollapsedRow}
+        activeOpacity={0.7}
+        accessible={true}
+        accessibilityRole="button"
+        testID="summary-toggle"
+      >
+        <Text style={[styles.summaryValue, { color: getOvertimeColor() }]}>
+          {overtimeDisplay}
+        </Text>
+        <Text style={styles.summaryCollapsedLabel}>{t('calendar.month.overtime')}</Text>
+        {expanded ? (
+          <ChevronUp size={16} color={colors.text.tertiary} />
+        ) : (
+          <ChevronDown size={16} color={colors.text.tertiary} />
+        )}
+      </TouchableOpacity>
 
-      {/* Always render row to maintain consistent footer height */}
-      <View style={styles.absenceSummaryRow}>
-        {vacationDays > 0 && (
-          <View style={styles.absenceChip}>
-            <TreePalm size={12} color={colors.primary[500]} />
-            <Text style={styles.absenceChipText}>{vacationDays}</Text>
+      {/* Expanded content — animated height */}
+      <Animated.View style={{ height: expandedHeight, overflow: 'hidden' }}>
+        <View style={styles.summaryRow}>
+          <View style={styles.summaryItem}>
+            <Text style={styles.summaryValue}>{formatHoursMinutes(trackedHours)}</Text>
+            <Text style={styles.summaryLabel}>{t('calendar.month.tracked')}</Text>
           </View>
-        )}
-        {sickDays > 0 && (
-          <View style={styles.absenceChip}>
-            <Thermometer size={12} color={colors.warning.dark} />
-            <Text style={styles.absenceChipText}>{sickDays}</Text>
+          <View style={styles.summaryDivider} />
+          <View style={styles.summaryItem}>
+            <Text style={styles.summaryValue}>{formatHoursMinutes(plannedHours)}</Text>
+            <Text style={styles.summaryLabel}>{t('calendar.month.planned')}</Text>
           </View>
-        )}
-      </View>
+          <View style={styles.summaryDivider} />
+          <View style={styles.summaryItem}>
+            <Text style={[styles.summaryValue, { color: getOvertimeColor() }]}>
+              {confirmedDisplay}
+            </Text>
+            <Text style={styles.summaryLabel}>{t('calendar.month.confirmed')}</Text>
+          </View>
+        </View>
+
+        <View style={styles.absenceSummaryRow}>
+          {vacationDays > 0 && (
+            <View style={styles.absenceChip}>
+              <TreePalm size={12} color={colors.primary[500]} />
+              <Text style={styles.absenceChipText}>{vacationDays}</Text>
+            </View>
+          )}
+          {sickDays > 0 && (
+            <View style={styles.absenceChip}>
+              <Thermometer size={12} color={colors.warning.dark} />
+              <Text style={styles.absenceChipText}>{sickDays}</Text>
+            </View>
+          )}
+        </View>
+      </Animated.View>
     </View>
   );
 }
@@ -207,6 +268,13 @@ export default function MonthView() {
   const { width: screenWidth } = useWindowDimensions();
   const days = getMonthDays(state.currentMonth);
 
+  // Flash feedback for place/remove actions
+  const [flashCell, setFlashCell] = useState<{ dateKey: string; type: 'place' | 'remove'; counter: number } | null>(null);
+
+  const triggerFlash = (dateKey: string, type: 'place' | 'remove') => {
+    setFlashCell(prev => ({ dateKey, type, counter: (prev?.counter ?? 0) + 1 }));
+  };
+
   // Animation state
   const slideAnim = useRef(new Animated.Value(0)).current;
   const [isTransitioning, setIsTransitioning] = useState(false);
@@ -217,11 +285,6 @@ export default function MonthView() {
 
   // Ref to track transitioning state (avoids stale closure)
   const isTransitioningRef = useRef(false);
-
-  // Track last tap for double-tap detection
-  const lastTapRef = useRef<{ dateKey: string; time: number }>({ dateKey: '', time: 0 });
-  // Track pending single-tap timeout (to cancel if double-tap occurs)
-  const pendingTapTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Animated month navigation
   const animateToMonth = useCallback((direction: 'prev' | 'next') => {
@@ -274,99 +337,105 @@ export default function MonthView() {
     })
   ).current;
 
-  // Handle day tap - single tap navigates, double tap places armed shift
-  const handleDayPress = async (date: Date) => {
+  // Place the armed shift/absence on a given date
+  const placeArmedOnDate = async (dateKey: string) => {
+    if (state.armedTemplateId) {
+      const template = state.templates[state.armedTemplateId];
+      if (template) {
+        const overlap = findOverlappingShift(dateKey, template.startTime, template.duration, state.instances);
+        if (overlap) {
+          // Silent skip — light haptic instead of disruptive alert during batch placement
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          return;
+        }
+      }
+      dispatch({ type: 'PLACE_SHIFT', date: dateKey });
+      triggerFlash(dateKey, 'place');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } else if (state.armedAbsenceTemplateId) {
+      const absenceTemplate = state.absenceTemplates[state.armedAbsenceTemplateId];
+      if (absenceTemplate) {
+        const startTime = absenceTemplate.isFullDay ? '00:00' : (absenceTemplate.startTime || '00:00');
+        const endTime = absenceTemplate.isFullDay ? '23:59' : (absenceTemplate.endTime || '23:59');
+
+        const newInstance: Omit<AbsenceInstance, 'id' | 'createdAt' | 'updatedAt'> = {
+          templateId: absenceTemplate.id,
+          type: absenceTemplate.type,
+          date: dateKey,
+          startTime,
+          endTime,
+          isFullDay: absenceTemplate.isFullDay,
+          name: absenceTemplate.name,
+          color: absenceTemplate.color,
+        };
+
+        try {
+          const storage = await getCalendarStorage();
+          const created = await storage.createAbsenceInstance(newInstance);
+          dispatch({ type: 'ADD_ABSENCE_INSTANCE', instance: created });
+          triggerFlash(dateKey, 'place');
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        } catch (error) {
+          console.error('[MonthView] Failed to create absence instance:', error);
+        }
+      }
+    }
+  };
+
+  // Remove the armed shift/absence from a given date
+  const removeArmedFromDate = (dateKey: string) => {
+    if (state.armedTemplateId) {
+      const instanceToRemove = Object.values(state.instances)
+        .find(i => i.templateId === state.armedTemplateId && i.date === dateKey);
+      if (instanceToRemove) {
+        dispatch({ type: 'DELETE_INSTANCE', id: instanceToRemove.id });
+        triggerFlash(dateKey, 'remove');
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      }
+    } else if (state.armedAbsenceTemplateId) {
+      const absenceToRemove = Object.values(state.absenceInstances)
+        .find(a => a.templateId === state.armedAbsenceTemplateId && a.date === dateKey);
+      if (absenceToRemove) {
+        dispatch({ type: 'DELETE_ABSENCE_INSTANCE', id: absenceToRemove.id });
+        triggerFlash(dateKey, 'remove');
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      }
+    }
+  };
+
+  // Handle day tap — unified gesture model:
+  // Armed: single-tap places instantly
+  // Not armed: single-tap navigates to WeekView
+  const handleDayPress = (date: Date) => {
     const dateKey = formatDateKey(date);
 
     // Block tap on locked days
     const dayStatus = state.confirmedDayStatus[dateKey];
     if (dayStatus?.status === 'locked') return;
 
-    const now = Date.now();
-    const lastTap = lastTapRef.current;
-    const isDoubleTap = lastTap.dateKey === dateKey && (now - lastTap.time) < DOUBLE_TAP_DELAY;
-
-    // Update last tap tracking
-    lastTapRef.current = { dateKey, time: now };
-
-    // Double tap when armed: place the shift/absence
-    if (isDoubleTap && (state.armedTemplateId || state.armedAbsenceTemplateId)) {
-      // Cancel any pending single-tap action
-      if (pendingTapTimeoutRef.current) {
-        clearTimeout(pendingTapTimeoutRef.current);
-        pendingTapTimeoutRef.current = null;
-      }
-
-      // Place armed shift
-      if (state.armedTemplateId) {
-        const template = state.templates[state.armedTemplateId];
-        if (template) {
-          const overlap = findOverlappingShift(dateKey, template.startTime, template.duration, state.instances);
-          if (overlap) {
-            Alert.alert(t('calendar.week.overlapTitle'), t('calendar.week.overlapMessage', { name: overlap.name }));
-            return;
-          }
-          dispatch({ type: 'PLACE_SHIFT', date: dateKey });
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        }
-        return;
-      }
-
-      // Place armed absence
-      if (state.armedAbsenceTemplateId) {
-        const absenceTemplate = state.absenceTemplates[state.armedAbsenceTemplateId];
-        if (absenceTemplate) {
-          const startTime = absenceTemplate.isFullDay ? '00:00' : (absenceTemplate.startTime || '00:00');
-          const endTime = absenceTemplate.isFullDay ? '23:59' : (absenceTemplate.endTime || '23:59');
-
-          const newInstance: Omit<AbsenceInstance, 'id' | 'createdAt' | 'updatedAt'> = {
-            templateId: absenceTemplate.id,
-            type: absenceTemplate.type,
-            date: dateKey,
-            startTime,
-            endTime,
-            isFullDay: absenceTemplate.isFullDay,
-            name: absenceTemplate.name,
-            color: absenceTemplate.color,
-          };
-
-          try {
-            const storage = await getCalendarStorage();
-            const created = await storage.createAbsenceInstance(newInstance);
-            dispatch({ type: 'ADD_ABSENCE_INSTANCE', instance: created });
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          } catch (error) {
-            console.error('[MonthView] Failed to create absence instance:', error);
-          }
-        }
-        return;
-      }
-    }
-
-    // Single tap behavior
     if (state.armedTemplateId || state.armedAbsenceTemplateId) {
-      // When armed: delay navigation to allow time for potential double-tap
-      pendingTapTimeoutRef.current = setTimeout(() => {
-        // Navigate to week view after delay (if no second tap came)
-        const weekStart = startOfWeek(date, { weekStartsOn: 1 });
-        dispatch({ type: 'SET_WEEK', date: weekStart });
-        dispatch({ type: 'SET_VIEW', view: 'week' });
-      }, DOUBLE_TAP_DELAY + 50); // Small buffer
-    } else {
-      // Not armed: navigate immediately
-      const weekStart = startOfWeek(date, { weekStartsOn: 1 });
-      dispatch({ type: 'SET_WEEK', date: weekStart });
-      dispatch({ type: 'SET_VIEW', view: 'week' });
+      placeArmedOnDate(dateKey);
+      return;
     }
+
+    // Not armed: navigate to week view
+    const weekStart = startOfWeek(date, { weekStartsOn: 1 });
+    dispatch({ type: 'SET_WEEK', date: weekStart });
+    dispatch({ type: 'SET_VIEW', view: 'week' });
   };
 
-  // Long press: Open inline picker with target date
+  // Long press: when armed, remove shift; when not armed, open InlinePicker
   const handleDayLongPress = (date: Date) => {
     const dateKey = formatDateKey(date);
 
     // Block on locked days
     const dayStatus = state.confirmedDayStatus[dateKey];
     if (dayStatus?.status === 'locked') return;
+
+    if (state.armedTemplateId || state.armedAbsenceTemplateId) {
+      removeArmedFromDate(dateKey);
+      return;
+    }
 
     dispatch({ type: 'OPEN_INLINE_PICKER', targetDate: dateKey });
   };
@@ -435,14 +504,19 @@ export default function MonthView() {
     };
   };
 
-  // Build calendar grid - always 42 cells (6 weeks) for consistent layout
-  const firstWeekStart = startOfWeek(startOfMonth(state.currentMonth), { weekStartsOn: 1 });
+  // Build calendar grid - dynamic row count (5 or 6 weeks)
+  const monthStart = startOfMonth(state.currentMonth);
+  const firstWeekStart = startOfWeek(monthStart, { weekStartsOn: 1 });
+  // Mon=0 ... Sun=6
+  const firstDayIndex = (monthStart.getDay() + 6) % 7;
+  const daysInMonth = endOfMonth(state.currentMonth).getDate();
+  const weeksCount = Math.ceil((firstDayIndex + daysInMonth) / 7);
+  const totalCells = weeksCount * 7;
+
   const calendarDays: Date[] = [];
-  for (let i = 0; i < 42; i++) {
+  for (let i = 0; i < totalCells; i++) {
     calendarDays.push(addDays(firstWeekStart, i));
   }
-
-  const weeksCount = 6;
 
   // Calculate month summary
   const summary = useMemo(
@@ -483,6 +557,8 @@ export default function MonthView() {
                 isToday={isSameDay(date, new Date())}
                 isCurrentMonth={date.getMonth() === state.currentMonth.getMonth()}
                 isTargetDay={state.inlinePickerTargetDate === formatDateKey(date)}
+                flashType={flashCell?.dateKey === formatDateKey(date) ? flashCell.type : null}
+                flashCounter={flashCell?.counter ?? 0}
               />
             </View>
           ))}
@@ -506,7 +582,7 @@ export default function MonthView() {
                   {t('calendar.batch.placing')} {armedTemplate?.name || armedAbsenceTemplate?.name}
                 </Text>
                 <Text style={styles.batchHint}>
-                  {t('calendar.batch.doubleTapHint')}
+                  {t('calendar.batch.tapHint')}
                 </Text>
               </View>
               <TouchableOpacity
@@ -620,13 +696,24 @@ const styles = StyleSheet.create({
   },
   // Summary Footer Styles
   summaryFooter: {
-    paddingTop: spacing.sm,
-    paddingBottom: 0,
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.xs,
     paddingHorizontal: spacing.lg,
     marginHorizontal: -spacing.lg, // Counteract container padding for full-width border
     backgroundColor: colors.background.default,
     borderTopWidth: 1,
     borderTopColor: colors.border.default,
+  },
+  summaryCollapsedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  summaryCollapsedLabel: {
+    fontSize: fontSize.xs,
+    color: colors.text.tertiary,
   },
   summaryRow: {
     flexDirection: 'row',
@@ -651,11 +738,6 @@ const styles = StyleSheet.create({
     width: 1,
     height: 28,
     backgroundColor: colors.border.default,
-  },
-  confirmedHint: {
-    fontSize: 9,
-    color: colors.text.tertiary,
-    marginTop: 2,
   },
   absenceSummaryRow: {
     flexDirection: 'row',
