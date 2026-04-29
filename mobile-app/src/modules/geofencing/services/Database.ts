@@ -5,8 +5,6 @@ import {
   GeofenceEvent,
   DailyActual,
   WeeklySubmissionRecord,
-  DailySubmissionRecord,
-  SubmissionStatus,
   AccuracySource,
   ReportsWeekQueueRecord,
   ReportsWeekQueueStatus,
@@ -113,27 +111,13 @@ export class Database {
         FOREIGN KEY (day_id) REFERENCES daily_actuals(id) ON DELETE CASCADE
       );
 
-      CREATE TABLE IF NOT EXISTS daily_submission_queue (
-        id TEXT PRIMARY KEY,
-        date TEXT NOT NULL,
-        planned_hours REAL NOT NULL,
-        actual_hours REAL NOT NULL,
-        source TEXT NOT NULL,
-        status TEXT NOT NULL DEFAULT 'pending',
-        created_at TEXT NOT NULL,
-        submitted_at TEXT,
-        error_message TEXT
-      );
-
-      CREATE INDEX IF NOT EXISTS idx_daily_submission_status
-        ON daily_submission_queue(status);
-
       CREATE TABLE IF NOT EXISTS reports_week_queue (
         week_start TEXT PRIMARY KEY,
         status TEXT NOT NULL,
         queued_at TEXT,
         sent_at TEXT,
         last_error TEXT,
+        send_after TEXT,
         updated_at TEXT NOT NULL
       );
 
@@ -284,6 +268,32 @@ export class Database {
       );
 
       console.log('[Database] Migration to version 6 complete');
+    }
+
+    // Migration v8: Simplify submission pipeline
+    // - Add send_after column to reports_week_queue for jitter
+    // - Drop daily_submission_queue (daily data stays on device only)
+    // Note: there is no v7 in this branch — v7 was added on a different branch
+    // and may or may not be present. Both paths converge safely here.
+    if (version < 8) {
+      console.log('[Database] Running migration to version 8 (submission pipeline simplification)');
+
+      await this.db.execAsync(`
+        ALTER TABLE reports_week_queue ADD COLUMN send_after TEXT;
+      `).catch(() => {
+        // Column may already exist if table was created fresh with new schema
+      });
+
+      await this.db.execAsync(`
+        DROP TABLE IF EXISTS daily_submission_queue;
+      `);
+
+      await this.db.runAsync(
+        `INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (?, datetime('now'))`,
+        8
+      );
+
+      console.log('[Database] Migration to version 8 complete');
     }
   }
 
@@ -1023,6 +1033,7 @@ export class Database {
       queuedAt: row.queued_at,
       sentAt: row.sent_at,
       lastError: row.last_error,
+      sendAfter: row.send_after ?? null,
       updatedAt: row.updated_at,
     };
   }
@@ -1163,19 +1174,21 @@ export class Database {
     if (!this.db) throw new Error('Database not initialized');
 
     await this.db.runAsync(
-      `INSERT INTO reports_week_queue (week_start, status, queued_at, sent_at, last_error, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?)
+      `INSERT INTO reports_week_queue (week_start, status, queued_at, sent_at, last_error, send_after, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(week_start) DO UPDATE SET
          status = excluded.status,
          queued_at = excluded.queued_at,
          sent_at = excluded.sent_at,
          last_error = excluded.last_error,
+         send_after = excluded.send_after,
          updated_at = excluded.updated_at`,
       record.weekStart,
       record.status,
       record.queuedAt,
       record.sentAt,
       record.lastError,
+      record.sendAfter,
       record.updatedAt,
     );
   }
@@ -1232,95 +1245,6 @@ export class Database {
       key,
     );
     return row?.value ?? null;
-  }
-
-  // ============================================================================
-  // Daily Submission Queue (v2.0 - authenticated submissions)
-  // ============================================================================
-
-  private mapDailySubmission(row: any): DailySubmissionRecord {
-    return {
-      id: row.id,
-      date: row.date,
-      plannedHours: row.planned_hours,
-      actualHours: row.actual_hours,
-      source: row.source as 'geofence' | 'manual' | 'mixed',
-      status: row.status as SubmissionStatus,
-      createdAt: row.created_at,
-      submittedAt: row.submitted_at,
-      errorMessage: row.error_message,
-    };
-  }
-
-  async enqueueDailySubmission(record: DailySubmissionRecord): Promise<void> {
-    if (!this.db) throw new Error('Database not initialized');
-
-    await this.db.runAsync(
-      `INSERT INTO daily_submission_queue (
-        id, date, planned_hours, actual_hours, source,
-        status, created_at, submitted_at, error_message
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      record.id,
-      record.date,
-      record.plannedHours,
-      record.actualHours,
-      record.source,
-      record.status,
-      record.createdAt,
-      record.submittedAt,
-      record.errorMessage
-    );
-  }
-
-  async getDailySubmissionQueue(status?: SubmissionStatus): Promise<DailySubmissionRecord[]> {
-    if (!this.db) throw new Error('Database not initialized');
-
-    const query = status
-      ? 'SELECT * FROM daily_submission_queue WHERE status = ? ORDER BY date DESC'
-      : 'SELECT * FROM daily_submission_queue ORDER BY date DESC';
-
-    const rows = status
-      ? await this.db.getAllAsync<any>(query, status)
-      : await this.db.getAllAsync<any>(query);
-
-    return rows.map((row) => this.mapDailySubmission(row));
-  }
-
-  async getDailySubmissionQueueForRange(startDate: string, endDate: string): Promise<DailySubmissionRecord[]> {
-    if (!this.db) throw new Error('Database not initialized');
-
-    const rows = await this.db.getAllAsync<any>(
-      `SELECT * FROM daily_submission_queue
-       WHERE date BETWEEN ? AND ?
-       ORDER BY date ASC`,
-      startDate,
-      endDate,
-    );
-    return rows.map((row) => this.mapDailySubmission(row));
-  }
-
-  async updateDailySubmissionStatus(
-    id: string,
-    status: SubmissionStatus,
-    submittedAt?: string,
-    errorMessage?: string
-  ): Promise<void> {
-    if (!this.db) throw new Error('Database not initialized');
-
-    await this.db.runAsync(
-      `UPDATE daily_submission_queue
-       SET status = ?, submitted_at = ?, error_message = ?
-       WHERE id = ?`,
-      status,
-      submittedAt || null,
-      errorMessage || null,
-      id
-    );
-  }
-
-  async deleteDailySubmission(id: string): Promise<void> {
-    if (!this.db) throw new Error('Database not initialized');
-    await this.db.runAsync('DELETE FROM daily_submission_queue WHERE id = ?', id);
   }
 
   async deleteAllData(): Promise<void> {

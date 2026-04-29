@@ -32,6 +32,7 @@ import {
   type CollectiveInsightsData,
 } from '../services/CollectiveInsightsService';
 import { useAuth } from '@/lib/auth/auth-context';
+import { SundayNotificationService } from '../services/SundayNotificationService';
 
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList, MainTabParamList } from '@/navigation/AppNavigator';
@@ -399,7 +400,7 @@ function WeekCard({ week, autoSend, onNavigate, onToggleSend }: {
 
   // Switch state: ON when queued, or when confirmed + auto-send
   const isSending = week.state === 'queued' || (week.state === 'confirmed' && autoSend);
-  const switchEnabled = isFullyConfirmed && !autoSend;
+  const switchEnabled = !autoSend && (week.state === 'confirmed' || week.state === 'queued');
 
   return (
     <TouchableOpacity
@@ -419,8 +420,10 @@ function WeekCard({ week, autoSend, onNavigate, onToggleSend }: {
             <Text style={styles.badgeQueued}>{t('reports.week.queuedForSunday')}</Text>
           ) : week.state === 'confirmed' && autoSend ? (
             <Text style={styles.badgeQueued}>{t('reports.week.sendingSunday')}</Text>
-          ) : isFullyConfirmed ? (
+          ) : week.state === 'confirmed' ? (
             <Text style={styles.badgeConfirmed}>✓ {t('reports.week.allConfirmed')}</Text>
+          ) : isFullyConfirmed ? (
+            <Text style={styles.badgeConfirmed}>✓ {t('reports.week.availableSundayEvening')}</Text>
           ) : (
             <Text style={styles.badgeUnconfirmed}>
               <Text style={styles.remainingCount}>{remaining}</Text>
@@ -654,6 +657,7 @@ export default function ReportsScreen() {
 
         const snapshot = await loadSnapshot(autoSend);
         applySnapshot(snapshot);
+        await SundayNotificationService.scheduleWeeklyNotifications();
       } catch (error) {
         console.error('[ReportsScreen] Failed to update queue toggle:', error);
         Alert.alert(t('common.error'), t('reports.errors.updateFailed'));
@@ -686,6 +690,7 @@ export default function ReportsScreen() {
 
         const snapshot = await loadSnapshot(value);
         applySnapshot(snapshot);
+        await SundayNotificationService.scheduleWeeklyNotifications();
       } catch (error) {
         console.error('[ReportsScreen] Failed to update auto-send preference:', error);
         Alert.alert(t('common.error'), t('reports.errors.updateFailed'));
