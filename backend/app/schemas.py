@@ -135,12 +135,21 @@ class WeeklySubmissionListItem(BaseModel):
 
 class FinalizedUserWeekIn(BaseModel):
     week_start: date
+    planned_hours: float | None = Field(None, ge=0, le=168)
+    actual_hours: float | None = Field(None, ge=0, le=168)
 
     @validator("week_start")
     def _week_start_must_be_monday(cls, week_start: date) -> date:
         if week_start.weekday() != 0:
             raise ValueError("week_start must be a Monday")
         return week_start
+
+    @validator("actual_hours", always=True)
+    def _both_hours_or_neither(cls, actual_hours: float | None, values: dict) -> float | None:
+        planned = values.get("planned_hours")
+        if (planned is None) != (actual_hours is None):
+            raise ValueError("planned_hours and actual_hours must both be provided or both omitted")
+        return actual_hours
 
 
 class FinalizedUserWeekOut(BaseModel):

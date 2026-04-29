@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -16,8 +16,7 @@ import { colors, spacing, fontSize, fontWeight } from '@/theme';
 import { Button, Card, InfoBox, SettingsDetailLayout } from '@/components/ui';
 import { getDatabase } from '@/modules/geofencing/services/Database';
 import { getGeofenceService } from '@/modules/geofencing/services/GeofenceService';
-import type { DailySubmissionRecord } from '@/modules/geofencing/types';
-import { DailySubmissionService } from '@/modules/auth/services/DailySubmissionService';
+import type { ReportsWeekQueueRecord } from '@/modules/geofencing/types';
 import { AuthService } from '@/modules/auth/services/AuthService';
 import { useAuth } from '@/lib/auth/auth-context';
 import { AuthStorage } from '@/lib/auth/AuthStorage';
@@ -37,8 +36,7 @@ export default function DataPrivacyScreen() {
     locationCount: 0,
     sessionCount: 0,
   });
-  const [queueEntries, setQueueEntries] = useState<DailySubmissionRecord[]>([]);
-  const [isProcessingQueue, setIsProcessingQueue] = useState(false);
+  const [weekQueue, setWeekQueue] = useState<ReportsWeekQueueRecord[]>([]);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
@@ -51,13 +49,13 @@ export default function DataPrivacyScreen() {
       const db = await getDatabase();
       const locations = await db.getActiveLocations();
       const sessions = await db.getAllSessions();
-      const submissions = await db.getDailySubmissionQueue();
+      const queue = await db.getReportsWeekQueue();
 
       setDataSummary({
         locationCount: locations.length,
         sessionCount: sessions.length,
       });
-      setQueueEntries(submissions);
+      setWeekQueue(queue);
     } catch (error) {
       console.error('[DataPrivacyScreen] Failed to load data summary:', error);
     }
@@ -109,54 +107,16 @@ export default function DataPrivacyScreen() {
     }
   };
 
-  const queueCounts = useMemo(() => {
-    return queueEntries.reduce(
-      (acc, entry) => {
-        acc[entry.status] = (acc[entry.status] ?? 0) + 1;
-        return acc;
-      },
-      {} as Record<string, number>,
-    );
-  }, [queueEntries]);
-  const pendingCount = queueCounts['pending'] ?? 0;
-  const failedCount = queueCounts['failed'] ?? 0;
-
-  const handleRetryFailed = async () => {
-    const failed = queueEntries.filter((entry) => entry.status === 'failed');
-    if (failed.length === 0) {
-      Alert.alert(t('dataPrivacyScreen.noFailedTitle'), t('dataPrivacyScreen.noFailedMessage'));
-      return;
-    }
-    try {
-      setIsProcessingQueue(true);
-      // Retry each failed submission
-      for (const entry of failed) {
-        await DailySubmissionService.retrySubmission(entry.id);
-      }
-      Alert.alert(t('dataPrivacyScreen.retryQueued'), t('dataPrivacyScreen.retryQueuedMessage'));
-      loadDataSummary();
-    } catch (error) {
-      console.error('[DataPrivacyScreen] Failed to retry submissions:', error);
-      Alert.alert(t('dataPrivacyScreen.retryFailedTitle'), t('dataPrivacyScreen.retryFailedMessage'));
-    } finally {
-      setIsProcessingQueue(false);
-    }
-  };
-
-  const formatDateLabel = (entry: DailySubmissionRecord) => {
-    const date = parseISO(entry.date);
-    const locale = getDateLocale() === 'de' ? deLocale : undefined;
-    return format(date, 'MMM d, yyyy', { locale });
-  };
+  const queuedCount = weekQueue.filter((w) => w.status === 'queued').length;
 
   const formatConsentDate = (isoDate: string | undefined) => {
-    if (!isoDate) return '—';
+    if (!isoDate) return '\u2014';
     try {
       const date = parseISO(isoDate);
       const locale = getDateLocale() === 'de' ? deLocale : undefined;
       return format(date, 'PPP', { locale });
     } catch {
-      return '—';
+      return '\u2014';
     }
   };
 
@@ -185,11 +145,10 @@ export default function DataPrivacyScreen() {
   };
 
   const handleWithdrawConsent = () => {
-    // Check for pending submissions first
-    if (pendingCount > 0) {
+    if (queuedCount > 0) {
       Alert.alert(
         t('dataPrivacyScreen.pendingDataTitle'),
-        t('dataPrivacyScreen.pendingDataWarning', { count: pendingCount }),
+        t('dataPrivacyScreen.pendingDataWarning', { count: queuedCount }),
         [
           { text: t('common.cancel'), style: 'cancel' },
           {
@@ -362,58 +321,24 @@ export default function DataPrivacyScreen() {
           </View>
         </Card>
 
+        {/* Weekly Submissions Card */}
         <Card style={styles.summaryCard}>
-          <Text style={styles.summaryTitle}>{t('dataPrivacyScreen.dailySubmissions')}</Text>
+          <Text style={styles.summaryTitle}>{t('dataPrivacyScreen.weeklySubmissions')}</Text>
           <Text style={styles.submissionExplainer}>
-            {t('dataPrivacyScreen.submissionExplainer')}
+            {t('dataPrivacyScreen.weeklySubmissionExplainer')}
           </Text>
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>{t('dataPrivacyScreen.pending')}</Text>
-            <Text style={styles.summaryValue}>{queueCounts['pending'] ?? 0}</Text>
-          </View>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>{t('dataPrivacyScreen.failed')}</Text>
-            <Text style={[styles.summaryValue, styles.summaryValueWarning]}>{queueCounts['failed'] ?? 0}</Text>
+            <Text style={styles.summaryLabel}>{t('dataPrivacyScreen.queued')}</Text>
+            <Text style={styles.summaryValue}>
+              {weekQueue.filter((w) => w.status === 'queued').length}
+            </Text>
           </View>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>{t('dataPrivacyScreen.sent')}</Text>
-            <Text style={styles.summaryValue}>{queueCounts['sent'] ?? 0}</Text>
+            <Text style={styles.summaryValue}>
+              {weekQueue.filter((w) => w.status === 'sent').length}
+            </Text>
           </View>
-          {queueEntries.length === 0 ? (
-            <Text style={styles.queueEmptyText}>{t('dataPrivacyScreen.queueEmpty')}</Text>
-          ) : (
-            <ScrollView style={styles.queueList} nestedScrollEnabled>
-              {queueEntries.map((entry) => (
-                <View key={entry.id} style={styles.queueRow}>
-                  <View>
-                    <Text style={styles.queueWeek}>{formatDateLabel(entry)}</Text>
-                    <Text style={styles.queueStatus}>{t('dataPrivacyScreen.status', { status: entry.status })}</Text>
-                  </View>
-                  <View style={styles.queueHoursContainer}>
-                    <Text style={styles.queueHours}>
-                      {t('dataPrivacyScreen.plannedHours', { hours: entry.plannedHours.toFixed(1) })}
-                    </Text>
-                    <Text style={styles.queueHours}>
-                      {t('dataPrivacyScreen.actualHours', { hours: entry.actualHours.toFixed(1) })}
-                    </Text>
-                  </View>
-                </View>
-              ))}
-            </ScrollView>
-          )}
-          {failedCount > 0 && (
-            <View style={styles.queueActions}>
-              <Button
-                variant="secondary"
-                onPress={handleRetryFailed}
-                loading={isProcessingQueue}
-                disabled={isProcessingQueue}
-                fullWidth
-              >
-                {isProcessingQueue ? t('dataPrivacyScreen.retrying') : t('dataPrivacyScreen.retryFailed')}
-              </Button>
-            </View>
-          )}
         </Card>
 
         <Button
@@ -501,9 +426,6 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.semibold,
     color: colors.text.primary,
   },
-  summaryValueWarning: {
-    color: colors.error.main,
-  },
   summaryValueSuccess: {
     color: colors.success.main,
   },
@@ -528,47 +450,10 @@ const styles = StyleSheet.create({
   infoBox: {
     marginBottom: spacing.xl,
   },
-  queueEmptyText: {
-    marginTop: spacing.md,
-    color: colors.text.secondary,
-    fontSize: fontSize.sm,
-  },
-  queueRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.grey[200],
-  },
-  queueWeek: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.semibold,
-    color: colors.text.primary,
-  },
-  queueStatus: {
-    fontSize: fontSize.sm,
-    color: colors.text.secondary,
-  },
-  queueHoursContainer: {
-    alignItems: 'flex-end',
-  },
-  queueHours: {
-    fontSize: fontSize.sm,
-    color: colors.text.secondary,
-    textAlign: 'right',
-  },
   submissionExplainer: {
     fontSize: fontSize.sm,
     color: colors.text.secondary,
     marginBottom: spacing.md,
     fontStyle: 'italic',
-  },
-  queueActions: {
-    marginTop: spacing.md,
-  },
-  queueList: {
-    maxHeight: 200,
-    marginTop: spacing.sm,
   },
 });

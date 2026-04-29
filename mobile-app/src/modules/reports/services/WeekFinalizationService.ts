@@ -2,7 +2,6 @@ import Constants from 'expo-constants';
 import { addDays, format, isAfter, parseISO, startOfDay } from 'date-fns';
 import { getDatabase } from '../../geofencing/services/Database';
 import { AuthStorage } from '@/lib/auth/AuthStorage';
-import { DailySubmissionService } from '@/modules/auth/services/DailySubmissionService';
 import { getCalendarStorage } from '@/modules/calendar/services/CalendarStorage';
 import type { ReportsWeekQueueRecord } from '../../geofencing/types';
 import type { ConfirmedDayStatus } from '@/lib/calendar/types';
@@ -22,8 +21,8 @@ export type SendResultStatus =
   | 'sent'
   | 'already_finalized'
   | 'skipped_not_ended'
+  | 'skipped_not_ready'
   | 'skipped_not_fully_confirmed'
-  | 'skipped_daily_incomplete'
   | 'failed';
 
 export interface SendResult {
@@ -78,6 +77,12 @@ export class WeekFinalizationService {
       return { weekStart: queuedWeek.weekStart, status: 'skipped_not_ended' };
     }
 
+    // Check jitter: don't send before send_after
+    if (queuedWeek.sendAfter && new Date() < new Date(queuedWeek.sendAfter)) {
+      return { weekStart: queuedWeek.weekStart, status: 'skipped_not_ready' };
+    }
+
+    // Fetch all 7 daily actuals from local DB
     const dateKeys = buildWeekDateKeys(weekStartDate);
     const dailyActuals = await db.getDailyActualsByDates(dateKeys);
     if (dailyActuals.length < WEEK_DAYS) {
@@ -85,27 +90,26 @@ export class WeekFinalizationService {
       return { weekStart: queuedWeek.weekStart, status: 'skipped_not_fully_confirmed' };
     }
 
+    // Compute weekly totals locally
+    const plannedHours = dailyActuals.reduce((sum, da) => sum + da.plannedMinutes, 0) / 60;
+    const actualHours = dailyActuals.reduce((sum, da) => sum + da.actualMinutes, 0) / 60;
+
+    // Round to 2 decimal places
+    const roundedPlanned = Math.round(plannedHours * 100) / 100;
+    const roundedActual = Math.round(actualHours * 100) / 100;
+
     try {
-      await this.ensureDailyQueueEntries(dateKeys);
-      await DailySubmissionService.processQueueForDates(dateKeys, {
-        pendingRetries: 5,
-        failedRetries: 3,
-      });
-
-      const hasAllSent = await this.hasAllDailySubmissionsSent(dateKeys);
-      if (!hasAllSent) {
-        const errorMessage = 'Not all daily submissions are sent yet.';
-        await this.markQueuedError(queuedWeek, errorMessage);
-        return { weekStart: queuedWeek.weekStart, status: 'skipped_daily_incomplete', errorMessage };
-      }
-
       const response = await fetch(`${BASE_URL}/finalized-weeks`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({ week_start: queuedWeek.weekStart }),
+        body: JSON.stringify({
+          week_start: queuedWeek.weekStart,
+          planned_hours: roundedPlanned,
+          actual_hours: roundedActual,
+        }),
       });
 
       if (response.status === 201) {
@@ -116,6 +120,7 @@ export class WeekFinalizationService {
       }
 
       if (response.status === 409) {
+        // Conflict is treated as idempotent success. Synthesize a stable local id.
         const finalizedWeekId = `finalized-${queuedWeek.weekStart}`;
         await this.markWeekSent(queuedWeek, finalizedWeekId);
         return { weekStart: queuedWeek.weekStart, status: 'already_finalized', finalizedWeekId };
@@ -131,35 +136,6 @@ export class WeekFinalizationService {
     }
   }
 
-  private static async ensureDailyQueueEntries(dateKeys: string[]): Promise<void> {
-    const db = await getDatabase();
-    const sortedDates = [...dateKeys].sort();
-    const queuedRows = await db.getDailySubmissionQueueForRange(sortedDates[0], sortedDates[sortedDates.length - 1]);
-    const queuedDateSet = new Set(queuedRows.map((row) => row.date));
-
-    for (const date of dateKeys) {
-      if (queuedDateSet.has(date)) {
-        continue;
-      }
-
-      // eslint-disable-next-line no-await-in-loop
-      await DailySubmissionService.enqueueDailySubmission(date);
-    }
-  }
-
-  private static async hasAllDailySubmissionsSent(dateKeys: string[]): Promise<boolean> {
-    const db = await getDatabase();
-    const sortedDates = [...dateKeys].sort();
-    const queuedRows = await db.getDailySubmissionQueueForRange(sortedDates[0], sortedDates[sortedDates.length - 1]);
-    const sentDateSet = new Set(
-      queuedRows
-        .filter((row) => row.status === 'sent')
-        .map((row) => row.date),
-    );
-
-    return dateKeys.every((date) => sentDateSet.has(date));
-  }
-
   private static async markWeekSent(queuedWeek: ReportsWeekQueueRecord, finalizedWeekId: string): Promise<void> {
     const db = await getDatabase();
     const now = new Date().toISOString();
@@ -170,6 +146,7 @@ export class WeekFinalizationService {
       queuedAt: queuedWeek.queuedAt ?? now,
       sentAt: now,
       lastError: null,
+      sendAfter: queuedWeek.sendAfter,
       updatedAt: now,
     });
 
@@ -186,6 +163,7 @@ export class WeekFinalizationService {
       queuedAt: queuedWeek.queuedAt ?? now,
       sentAt: null,
       lastError: errorMessage,
+      sendAfter: queuedWeek.sendAfter,
       updatedAt: now,
     });
   }

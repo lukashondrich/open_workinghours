@@ -57,25 +57,31 @@ def finalize_user_week(
             detail=f"Week starting {week_start} has already been finalized.",
         )
 
-    events = (
-        db.query(WorkEvent)
-        .filter(
-            WorkEvent.user_id == current_user.user_id,
-            WorkEvent.date >= week_start,
-            WorkEvent.date <= week_end,
+    if payload.planned_hours is not None and payload.actual_hours is not None:
+        # New mode: client-provided weekly totals (no work_events needed)
+        planned_hours = Decimal(str(payload.planned_hours))
+        actual_hours = Decimal(str(payload.actual_hours))
+    else:
+        # Legacy mode: sum from work_events (backward compat for old app versions)
+        events = (
+            db.query(WorkEvent)
+            .filter(
+                WorkEvent.user_id == current_user.user_id,
+                WorkEvent.date >= week_start,
+                WorkEvent.date <= week_end,
+            )
+            .order_by(WorkEvent.date.asc())
+            .all()
         )
-        .order_by(WorkEvent.date.asc())
-        .all()
-    )
 
-    if len(events) != 7:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="All 7 days in the week must be confirmed before finalization.",
-        )
+        if len(events) != 7:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="All 7 days in the week must be confirmed before finalization.",
+            )
 
-    planned_hours = sum((event.planned_hours for event in events), Decimal("0"))
-    actual_hours = sum((event.actual_hours for event in events), Decimal("0"))
+        planned_hours = sum((event.planned_hours for event in events), Decimal("0"))
+        actual_hours = sum((event.actual_hours for event in events), Decimal("0"))
 
     finalized_week = FinalizedUserWeek(
         user_id=current_user.user_id,

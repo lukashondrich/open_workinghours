@@ -52,9 +52,9 @@ import type { ShiftInstance, TrackingRecord, AbsenceInstance } from '@/lib/calen
 import { getCalendarStorage } from '@/modules/calendar/services/CalendarStorage';
 import { TreePalm, Thermometer, Clock, X, Info } from 'lucide-react-native';
 import { OnboardingStorage } from '@/lib/storage/OnboardingStorage';
+import { SundayNotificationService } from '@/modules/reports/services/SundayNotificationService';
 // ShiftEditModal removed - using native time picker for start time only
 import { persistDailyActualForDate } from '../services/DailyAggregator';
-import { DailySubmissionService } from '@/modules/auth/services/DailySubmissionService';
 
 // Base dimensions (now imported from zoom-context, kept here for reference)
 const DEFAULT_HOUR_HEIGHT = BASE_HOUR_HEIGHT; // 48
@@ -1313,16 +1313,7 @@ export default function WeekView() {
       const trackingRecords = getTrackingForDate(dateKey);
       const record = await persistDailyActualForDate(dateKey, state.instances, trackingRecords);
       dispatch({ type: 'CONFIRM_DAY', date: dateKey, confirmedAt: record.confirmedAt });
-
-      // Enqueue daily submission (v2.0 - authenticated, no noise)
-      try {
-        await DailySubmissionService.enqueueDailySubmission(dateKey);
-        await DailySubmissionService.processQueue();
-        console.log('[WeekView] Daily submission enqueued and sent for', dateKey);
-      } catch (submissionError) {
-        console.warn('[WeekView] Daily submission failed (queued for retry):', submissionError);
-        // Don't block confirmation on submission failure - it's queued for retry
-      }
+      await SundayNotificationService.scheduleWeeklyNotifications();
 
       const locale = getDateLocale() === 'de' ? deLocale : undefined;
       const formatted = formatDate(new Date(dateKey), 'EEEE', { locale });

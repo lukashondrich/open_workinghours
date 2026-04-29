@@ -73,10 +73,61 @@ function normalizeWeekStartKey(weekStart: string): string {
   return formatDateKey(parseWeekStartOrThrow(weekStart));
 }
 
+/**
+ * Sunday 18:00 local time cutoff for current-week eligibility.
+ */
+export function isSundayEveningCutoff(referenceDate: Date): boolean {
+  return referenceDate.getDay() === 0 && referenceDate.getHours() >= 18;
+}
+
+/**
+ * Check whether a week can be queued for finalization.
+ *
+ * Hard invariant: only weeks with 7/7 confirmed days are eligible.
+ * Timing rule: past weeks are always eligible; the current week becomes
+ * eligible on Sunday after 18:00 local time.
+ */
+export function canQueueWeek({
+  weekStart,
+  currentWeekStart,
+  confirmedDays,
+  referenceDate,
+}: {
+  weekStart: string;
+  currentWeekStart: string;
+  confirmedDays: number;
+  referenceDate: Date;
+}): boolean {
+  if (confirmedDays < WEEK_DAYS) return false;
+
+  if (weekStart < currentWeekStart) {
+    return true; // past week
+  }
+
+  if (weekStart === currentWeekStart && isSundayEveningCutoff(referenceDate)) {
+    return true; // current week on Sunday evening
+  }
+
+  return false;
+}
+
+/**
+ * Compute a `sendAfter` timestamp with jitter for load spreading.
+ * Sunday 18:00 of the week + random 0–60 min offset.
+ */
+export function computeSendAfter(weekStart: string): string {
+  const weekStartDate = parseISO(weekStart);
+  const sunday = addDays(weekStartDate, 6); // Sunday of that week
+  const sundayEvening = new Date(sunday);
+  sundayEvening.setHours(18, 0, 0, 0);
+  const jitterMs = Math.random() * 60 * 60 * 1000; // 0–60 min
+  return new Date(sundayEvening.getTime() + jitterMs).toISOString();
+}
+
 export class WeekStateService {
   static async loadWeekState(referenceDate: Date = new Date()): Promise<WeekStateReadModel> {
     const context = await this.getWeekContext(referenceDate);
-    const queueRows = await this.reconcileInvalidQueuedWeeks(context);
+    const queueRows = await this.reconcileInvalidQueuedWeeks(context, referenceDate);
     const queueByWeekStart = new Map(queueRows.map((row) => [row.weekStart, row]));
 
     const activeWeeks: WeekStateRecord[] = [];
@@ -92,6 +143,7 @@ export class WeekStateService {
         isCurrentWeek,
         confirmedDays,
         queueRecord: queueByWeekStart.get(weekStart),
+        referenceDate,
       });
 
       const row: WeekStateRecord = {
@@ -124,15 +176,19 @@ export class WeekStateService {
     const normalizedWeekStart = normalizeWeekStartKey(weekStart);
     const currentWeekStart = formatDateKey(getWeekStartDate(startOfDay(referenceDate)));
 
-    // Queueing is only for past weeks.
-    if (normalizedWeekStart >= currentWeekStart) {
-      return;
-    }
-
     const weekEnd = formatDateKey(addDays(parseISO(normalizedWeekStart), WEEK_DAYS - 1));
     const dailyActuals = await db.getDailyActualsForRange(normalizedWeekStart, weekEnd);
-    if (dailyActuals.length < WEEK_DAYS) {
-      throw new Error('Week must be fully confirmed before queueing');
+
+    if (!canQueueWeek({
+      weekStart: normalizedWeekStart,
+      currentWeekStart,
+      confirmedDays: dailyActuals.length,
+      referenceDate,
+    })) {
+      if (dailyActuals.length < WEEK_DAYS) {
+        throw new Error('Week must be fully confirmed before queueing');
+      }
+      return; // not eligible (e.g. current week before Sunday 18:00)
     }
 
     const existing = await db.getReportsWeekByStart(normalizedWeekStart);
@@ -147,6 +203,7 @@ export class WeekStateService {
       queuedAt: existing?.queuedAt ?? now,
       sentAt: null,
       lastError: existing?.lastError ?? null,
+      sendAfter: existing?.sendAfter ?? computeSendAfter(normalizedWeekStart),
       updatedAt: now,
     });
   }
@@ -203,13 +260,16 @@ export class WeekStateService {
 
   static async reconcileAutoSendQueue(referenceDate: Date = new Date()): Promise<void> {
     const context = await this.getWeekContext(referenceDate);
-    const queueRows = await this.reconcileInvalidQueuedWeeks(context);
+    const queueRows = await this.reconcileInvalidQueuedWeeks(context, referenceDate);
     const queueByWeekStart = new Map(queueRows.map((row) => [row.weekStart, row]));
 
     for (const [weekStart, confirmedDays] of context.confirmedDaysByWeekStart.entries()) {
-      const isPastWeek = weekStart < context.currentWeekStartKey;
-      const isFullyConfirmed = confirmedDays >= WEEK_DAYS;
-      if (!isPastWeek || !isFullyConfirmed) {
+      if (!canQueueWeek({
+        weekStart,
+        currentWeekStart: context.currentWeekStartKey,
+        confirmedDays,
+        referenceDate,
+      })) {
         continue;
       }
 
@@ -225,6 +285,7 @@ export class WeekStateService {
         queuedAt: now,
         sentAt: null,
         lastError: null,
+        sendAfter: computeSendAfter(weekStart),
         updatedAt: now,
       });
     }
@@ -290,7 +351,10 @@ export class WeekStateService {
     return counts;
   }
 
-  private static async reconcileInvalidQueuedWeeks(context: WeekContext): Promise<ReportsWeekQueueRecord[]> {
+  private static async reconcileInvalidQueuedWeeks(
+    context: WeekContext,
+    referenceDate: Date = new Date(),
+  ): Promise<ReportsWeekQueueRecord[]> {
     const validRows: ReportsWeekQueueRecord[] = [];
 
     for (const row of context.queueRows) {
@@ -300,10 +364,13 @@ export class WeekStateService {
       }
 
       const confirmedDays = context.confirmedDaysByWeekStart.get(row.weekStart) ?? 0;
-      const isPastWeek = row.weekStart < context.currentWeekStartKey;
-      const isFullyConfirmed = confirmedDays >= WEEK_DAYS;
 
-      if (isPastWeek && isFullyConfirmed) {
+      if (canQueueWeek({
+        weekStart: row.weekStart,
+        currentWeekStart: context.currentWeekStartKey,
+        confirmedDays,
+        referenceDate,
+      })) {
         validRows.push(row);
         continue;
       }
@@ -318,16 +385,22 @@ export class WeekStateService {
     isCurrentWeek,
     confirmedDays,
     queueRecord,
+    referenceDate,
   }: {
     isCurrentWeek: boolean;
     confirmedDays: number;
     queueRecord: ReportsWeekQueueRecord | undefined;
+    referenceDate: Date;
   }): WeekState {
-    if (isCurrentWeek) {
-      return 'unconfirmed';
-    }
-
     const isFullyConfirmed = confirmedDays >= WEEK_DAYS;
+
+    if (isCurrentWeek) {
+      // Current week is only eligible on Sunday after 18:00 with 7/7 confirmed
+      if (!isSundayEveningCutoff(referenceDate) || !isFullyConfirmed) {
+        return 'unconfirmed';
+      }
+      // Fall through to normal resolution below
+    }
 
     if (queueRecord?.status === 'sent') {
       return 'sent';

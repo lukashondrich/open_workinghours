@@ -32,6 +32,8 @@ import ProfileScreen from '@/modules/auth/screens/ProfileScreen';
 
 import { useAuth } from '@/lib/auth/auth-context';
 import { WeekFinalizationService } from '@/modules/reports/services/WeekFinalizationService';
+import { WeekStateService } from '@/modules/reports/services/WeekStateService';
+import { SundayNotificationService } from '@/modules/reports/services/SundayNotificationService';
 
 export type RootStackParamList = {
   // Auth stack
@@ -238,7 +240,15 @@ export default function AppNavigator() {
 
     finalizationInFlightRef.current = true;
     try {
+      // Reconcile auto-send queue first (may queue current week on Sunday evening)
+      const autoSend = await WeekStateService.getAutoSend();
+      if (autoSend) {
+        await WeekStateService.reconcileAutoSendQueue();
+      }
+      // Then send eligible queued weeks
       await WeekFinalizationService.sendEligibleQueuedWeeks();
+      // Reschedule Sunday notifications
+      await SundayNotificationService.scheduleWeeklyNotifications();
     } catch (error) {
       console.error('[AppNavigator] Failed to finalize queued weeks:', error);
     } finally {
