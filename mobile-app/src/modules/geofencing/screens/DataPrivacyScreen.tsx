@@ -108,6 +108,7 @@ export default function DataPrivacyScreen() {
   };
 
   const queuedCount = weekQueue.filter((w) => w.status === 'queued').length;
+  const sentCount = weekQueue.filter((w) => w.status === 'sent').length;
 
   const formatConsentDate = (isoDate: string | undefined) => {
     if (!isoDate) return '\u2014';
@@ -329,15 +330,11 @@ export default function DataPrivacyScreen() {
           </Text>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>{t('dataPrivacyScreen.queued')}</Text>
-            <Text style={styles.summaryValue}>
-              {weekQueue.filter((w) => w.status === 'queued').length}
-            </Text>
+            <Text style={styles.summaryValue}>{queuedCount}</Text>
           </View>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>{t('dataPrivacyScreen.sent')}</Text>
-            <Text style={styles.summaryValue}>
-              {weekQueue.filter((w) => w.status === 'sent').length}
-            </Text>
+            <Text style={styles.summaryValue}>{sentCount}</Text>
           </View>
         </Card>
 
