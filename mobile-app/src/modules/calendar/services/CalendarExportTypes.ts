@@ -130,6 +130,15 @@ export interface UpsertManagedEventInput {
   notes: string;
 }
 
+export interface CalendarExportEventDTO {
+  appId: string;
+  entityType: ManagedCalendarEntityType;
+  title: string;
+  startDate: Date;
+  endDate: Date;
+  allDay: boolean;
+}
+
 export interface CalendarExportReconcileResult {
   created: number;
   updated: number;

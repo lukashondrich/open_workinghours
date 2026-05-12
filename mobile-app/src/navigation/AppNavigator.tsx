@@ -22,6 +22,7 @@ import LocationsListScreen from '@/modules/geofencing/screens/LocationsListScree
 import NotificationsScreen from '@/modules/geofencing/screens/NotificationsScreen';
 import PermissionsScreen from '@/modules/geofencing/screens/PermissionsScreen';
 import DataPrivacyScreen from '@/modules/geofencing/screens/DataPrivacyScreen';
+import CalendarExportScreen from '@/modules/calendar/screens/CalendarExportScreen';
 
 // Auth screens
 import WelcomeScreen from '@/modules/auth/screens/WelcomeScreen';
@@ -53,6 +54,7 @@ export type RootStackParamList = {
   Notifications: undefined;
   Permissions: undefined;
   DataPrivacy: undefined;
+  CalendarExport: undefined;
   Profile: undefined;
 };
 
@@ -382,6 +384,13 @@ export default function AppNavigator() {
             options={Platform.OS === 'android'
               ? { headerShown: false }
               : { title: t('navigation.dataPrivacy'), headerBackTitle: t('navigation.settings') }}
+          />
+          <Stack.Screen
+            name="CalendarExport"
+            component={CalendarExportScreen}
+            options={Platform.OS === 'android'
+              ? { headerShown: false }
+              : { title: t('settings.calendarExport'), headerBackTitle: t('navigation.settings') }}
           />
           <Stack.Screen
             name="Profile"

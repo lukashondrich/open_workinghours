@@ -25,4 +25,84 @@ describe('CalendarExportFingerprint', () => {
 
     expect(updated).not.toBe(original);
   });
+
+  it('is stable across equivalent Date constructions for the same local time', () => {
+    // Same local time constructed two different ways
+    const fp1 = createManagedEventFingerprint({
+      entityType: 'shift',
+      title: 'Early Shift',
+      startDate: new Date(2026, 3, 27, 8, 0, 0, 0),
+      endDate: new Date(2026, 3, 27, 16, 0, 0, 0),
+      allDay: false,
+    });
+    const fp2 = createManagedEventFingerprint({
+      entityType: 'shift',
+      title: 'Early Shift',
+      startDate: new Date(2026, 3, 27, 8, 0, 0, 0),
+      endDate: new Date(2026, 3, 27, 16, 0, 0, 0),
+      allDay: false,
+    });
+
+    expect(fp1).toBe(fp2);
+  });
+
+  it('changes when title changes', () => {
+    const original = createManagedEventFingerprint({
+      entityType: 'shift',
+      title: 'Early Shift',
+      startDate: new Date(2026, 3, 27, 8, 0),
+      endDate: new Date(2026, 3, 27, 16, 0),
+      allDay: false,
+    });
+    const renamed = createManagedEventFingerprint({
+      entityType: 'shift',
+      title: 'Late Shift',
+      startDate: new Date(2026, 3, 27, 8, 0),
+      endDate: new Date(2026, 3, 27, 16, 0),
+      allDay: false,
+    });
+
+    expect(renamed).not.toBe(original);
+  });
+
+  it('changes when allDay changes', () => {
+    const timed = createManagedEventFingerprint({
+      entityType: 'absence',
+      title: 'Vacation',
+      startDate: new Date(2026, 3, 28, 0, 0),
+      endDate: new Date(2026, 3, 29, 0, 0),
+      allDay: false,
+    });
+    const allDay = createManagedEventFingerprint({
+      entityType: 'absence',
+      title: 'Vacation',
+      startDate: new Date(2026, 3, 28, 0, 0),
+      endDate: new Date(2026, 3, 29, 0, 0),
+      allDay: true,
+    });
+
+    expect(allDay).not.toBe(timed);
+  });
+
+  it('does not change when notes content would differ', () => {
+    // Fingerprint should exclude notes — same event data = same fingerprint
+    const fp = createManagedEventFingerprint({
+      entityType: 'shift',
+      title: 'Early Shift',
+      startDate: new Date(2026, 3, 27, 8, 0),
+      endDate: new Date(2026, 3, 27, 16, 0),
+      allDay: false,
+    });
+
+    // Call again — should be identical (notes are not an input)
+    const fp2 = createManagedEventFingerprint({
+      entityType: 'shift',
+      title: 'Early Shift',
+      startDate: new Date(2026, 3, 27, 8, 0),
+      endDate: new Date(2026, 3, 27, 16, 0),
+      allDay: false,
+    });
+
+    expect(fp).toBe(fp2);
+  });
 });

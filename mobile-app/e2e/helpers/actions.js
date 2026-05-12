@@ -432,12 +432,13 @@ async function performTestRegistration(driver) {
 }
 
 /**
- * Tab bar testID and text mapping
+ * Tab bar testID and text mapping.
+ * NOTE: Settings is NOT a tab — it's a gear button on the StatusScreen.
+ * Use navigateToSettings() instead of navigateToTab(driver, 'settings').
  */
 const tabConfig = {
   status: { testId: 'tab-status', de: 'Status', en: 'Status' },
   calendar: { testId: 'tab-calendar', de: 'Kalender', en: 'Calendar' },
-  settings: { testId: 'tab-settings', de: 'Einstellungen', en: 'Settings' },
 };
 
 /**
@@ -872,6 +873,16 @@ async function ensureCleanCalendarState(driver) {
   }
 }
 
+/**
+ * Navigate to Settings screen by tapping the gear button.
+ * Replaces the fragile navigateToTab(driver, 'settings') pattern.
+ * @param {WebdriverIO.Browser} driver
+ */
+async function navigateToSettings(driver) {
+  await tapTestId(driver, 'settings-gear-button', 5000);
+  await driver.pause(500);
+}
+
 module.exports = {
   tapTestId,
   tapText,
@@ -891,6 +902,7 @@ module.exports = {
   performTestRegistration,
   ensureAuthenticated,
   navigateToTab,
+  navigateToSettings,
   screenshot,
   isLocationConfigured,
   ensureLocationConfigured,

@@ -774,3 +774,129 @@ Germany switches clocks in March and October. A shift at 02:30 on the switch day
 | External edits policy | Confirmed | App-owned native fields are overwritten by desired app state on reconcile |
 | Revoked-permission cleanup | Confirmed | Best effort only; warn clearly if OS permission blocks native deletion |
 | Calendar identity recovery | Confirmed | `calendar_id` is authoritative; never recover by name alone |
+
+---
+
+## 18. Post-Implementation Amendments (2026-04-30)
+
+Based on user testing feedback and code review findings, two scope changes and one UI restructuring are added to the plan.
+
+### 18.1 UI Change: Dedicated Settings Subpage
+
+**Problem:** The calendar export settings (toggle, disclosure text, warning states) take too much vertical space inline in the main Settings screen.
+
+**Change:** Move calendar export to a dedicated subpage, navigated via a list item in Settings — the same pattern used by "Notifications", "Permissions", "Data & Privacy".
+
+**Settings screen shows:**
+
+```text
+Calendar Export          >
+```
+
+**Subpage layout:**
+
+```text
+← Calendar Export
+
+Live Sync
+────────────────────────────────────
+Sync shifts and absences to your
+device calendar. If that calendar
+syncs with iCloud/Google or is
+shared, those events may appear
+there too.
+GPS-tracked hours are never exported.
+
+Sync to Device Calendar    [toggle]
+
+⚠ Calendar access revoked...       ← only if unhealthy
+────────────────────────────────────
+
+Download as File
+────────────────────────────────────
+Export your schedule as an .ics file
+to share or import into any calendar
+app.
+
+[  Next 4 weeks  ]
+[  Next 3 months ]
+[ All future shifts ]
+[   Past month   ]
+────────────────────────────────────
+```
+
+This also creates a natural home for the ICS export (see 18.2).
+
+**Navigation:** Add `CalendarExport` to `RootStackParamList` in `AppNavigator.tsx`. The screen uses `SettingsDetailLayout` for consistent Android header behavior.
+
+**i18n:** Add keys under `settings.calendarExport.*` for the subpage title, section headers, and button labels.
+
+### 18.2 New Feature: One-Time ICS File Export
+
+**Motivation:** Not all users want live sync. Some want to grab a file and send it to a colleague, paste it into Outlook, or keep a local backup. This is complementary to live sync — different use case, same underlying data.
+
+**Scope:** Export shift instances and absence instances as a standard `.ics` (iCalendar RFC 5545) file, shared via the OS share sheet.
+
+**Preset date ranges (no custom picker in v1):**
+
+| Button | Scope |
+|--------|-------|
+| Next 4 weeks | `today .. today + 28 days` |
+| Next 3 months | `today .. today + 90 days` |
+| All future shifts | `today .. max date in data` |
+| Past month | `today - 30 days .. today` |
+
+**ICS generation:**
+
+Reuse the existing normalization logic (`CalendarExportNormalize.ts`) to produce structured event objects. Add a new `IcsFileGenerator.ts` that serializes them to RFC 5545 text format:
+
+```
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Open Working Hours//EN
+CALSCALE:GREGORIAN
+BEGIN:VEVENT
+UID:shift-instance-abc123@openworkinghours
+DTSTART;TZID=Europe/Berlin:20260501T060000
+DTEND;TZID=Europe/Berlin:20260501T143000
+SUMMARY:Frühschicht
+STATUS:CONFIRMED
+END:VEVENT
+...
+END:VCALENDAR
+```
+
+**Key rules:**
+- `UID` must be globally unique and stable — use `{entityType}-{appId}@openworkinghours`
+- `DTSTART`/`DTEND` use `TZID=` parameter with the device timezone (never floating, never UTC-only)
+- Full-day absences use `VALUE=DATE` format (`DTSTART;VALUE=DATE:20260501`)
+- Overnight shifts: `DTEND` naturally falls on the next day
+- `TRANSP:TRANSPARENT` for absences (free), `TRANSP:OPAQUE` for shifts (busy)
+- No `VALARM` (reminders) in v1
+- No recurrence rules — each instance is a separate `VEVENT`
+
+**Share flow:**
+1. User taps a preset button
+2. App queries SQLite for shifts + absences in the date range
+3. Normalizes to event objects (reuse existing logic)
+4. Generates ICS string
+5. Writes to temp file via `expo-file-system`
+6. Opens share sheet via `expo-sharing` with `mimeType: 'text/calendar'` and UTI `com.apple.ical.ics`
+
+This follows the exact same pattern as the existing CSV export in `exportHistory.ts` / `LogScreen.tsx`.
+
+**File naming:** `open-working-hours-{startDate}-to-{endDate}.ics` (e.g., `open-working-hours-2026-05-01-to-2026-05-28.ics`)
+
+**No new dependencies needed.** `expo-file-system` and `expo-sharing` are already in the project.
+
+### 18.3 Implementation Sequence (Amended)
+
+The original sequence (Section 13) remains for the live sync feature. The new items slot in after the existing work:
+
+1. ~~Steps 1-11 from Section 13~~ (live sync — already implemented, in code review)
+2. **Apply code review fixes** (see `docs/CALENDAR_EXPORT_CODE_REVIEW.md`, 5 must-fix items)
+3. **Extract Settings UI to subpage** — create `CalendarExportScreen.tsx`, add to navigation, move existing toggle/disclosure there
+4. **Build `IcsFileGenerator.ts`** — RFC 5545 serializer, reusing normalization
+5. **Add preset buttons to subpage** — date range queries, file generation, share sheet
+6. **Add i18n strings** for subpage and ICS export
+7. **Test ICS output** — import into Apple Calendar, Google Calendar, Outlook to verify compatibility

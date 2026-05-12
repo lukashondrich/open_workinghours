@@ -1,7 +1,7 @@
 import type { AbsenceInstance, ShiftInstance } from '@/lib/calendar/types';
 
 import { createManagedEventFingerprint } from './CalendarExportFingerprint';
-import { isWithinCalendarExportWindow } from './CalendarExportDateWindow';
+import { isWithinCalendarExportWindow, getNextDateKey } from './CalendarExportDateWindow';
 import { formatManagedEventNotes } from './CalendarExportMarker';
 import type {
   BuildDesiredManagedEventsInput,
@@ -78,14 +78,14 @@ function normalizeAbsenceInstance(
     : createLocalDate(instance.date, instance.startTime);
 
   const endDate = instance.isFullDay
-    ? new Date(createLocalMidnight(instance.date).getTime() + 24 * 60 * 60000)
+    ? createLocalMidnight(getNextDateKey(instance.date))
     : (() => {
         const sameDayEnd = createLocalDate(instance.date, instance.endTime);
         if (sameDayEnd > startDate) {
           return sameDayEnd;
         }
 
-        return new Date(sameDayEnd.getTime() + 24 * 60 * 60000);
+        return createLocalDate(getNextDateKey(instance.date), instance.endTime);
       })();
 
   if (!isWithinCalendarExportWindow(startDate, endDate, window)) {

@@ -76,6 +76,12 @@ function getSettingsItems(): SettingsItem[] {
       icon: <Trash2 size={ICON_SIZE} color={colors.primary[500]} />,
       screen: 'DataPrivacy',
     },
+    {
+      id: '5',
+      title: t('settings.calendarExport'),
+      icon: <Calendar size={ICON_SIZE} color={colors.primary[500]} />,
+      screen: 'CalendarExport',
+    },
   ];
 }
 
@@ -90,9 +96,6 @@ export default function SettingsScreen() {
   const [biometricEnabled, setBiometricEnabled] = useState(false);
   const [biometricType, setBiometricType] = useState('Biometrics');
   const [biometricLoading, setBiometricLoading] = useState(true);
-  const [calendarSyncEnabled, setCalendarSyncEnabled] = useState(false);
-  const [calendarSyncLoading, setCalendarSyncLoading] = useState(true);
-  const [calendarSyncWarning, setCalendarSyncWarning] = useState(false);
 
   // Check biometric availability on mount
   useEffect(() => {
@@ -116,10 +119,6 @@ export default function SettingsScreen() {
     }
 
     checkBiometrics();
-  }, []);
-
-  useEffect(() => {
-    void refreshCalendarSyncState();
   }, []);
 
   const handleBiometricToggle = async (value: boolean) => {
@@ -153,82 +152,6 @@ export default function SettingsScreen() {
     navigation.navigate(screen);
   };
 
-  const refreshCalendarSyncState = async () => {
-    try {
-      const manager = await getCalendarExportManager();
-      const exportState = await manager.getState();
-      setCalendarSyncEnabled(exportState?.enabled === true);
-      setCalendarSyncWarning(
-        exportState?.enabled === true && exportState.lastSyncError === 'permission-denied'
-      );
-    } catch (error) {
-      console.error('[SettingsScreen] Failed to load calendar sync state:', error);
-    } finally {
-      setCalendarSyncLoading(false);
-    }
-  };
-
-  const selectAndroidTarget = async () => {
-    const manager = await getCalendarExportManager();
-    const targets = await manager.getAndroidTargets();
-
-    if (targets.length <= 1) {
-      const target = targets[0] ?? null;
-      return target
-        ? {
-            targetMode: target.mode,
-            targetSourceId: target.source.id ?? null,
-          }
-        : undefined;
-    }
-
-    return new Promise<{ targetMode: 'android-account' | 'android-local'; targetSourceId: string | null } | null>((resolve) => {
-      Alert.alert(
-        t('settings.calendarSync'),
-        t('settings.calendarSyncDescription'),
-        [
-          ...targets.map((target) => ({
-            text: target.label,
-            onPress: () => resolve({
-              targetMode: target.mode,
-              targetSourceId: target.source.id ?? null,
-            }),
-          })),
-          {
-            text: t('common.cancel'),
-            style: 'cancel' as const,
-            onPress: () => resolve(null),
-          },
-        ],
-      );
-    });
-  };
-
-  const handleDeleteBlocked = (onKeepEvents: () => Promise<void>) => {
-    Alert.alert(
-      t('settings.calendarSyncDeleteBlockedTitle'),
-      t('settings.calendarSyncDeleteBlockedMessage'),
-      [
-        {
-          text: t('common.cancel'),
-          style: 'cancel',
-        },
-        {
-          text: t('settings.calendarSyncOpenSettings'),
-          onPress: () => {
-            void Linking.openSettings();
-          },
-        },
-        {
-          text: t('settings.keepExportedEvents'),
-          onPress: () => {
-            void onKeepEvents();
-          },
-        },
-      ],
-    );
-  };
-
   const performSignOut = async (deleteExportedEvents: boolean) => {
     try {
       const manager = await getCalendarExportManager();
@@ -236,11 +159,27 @@ export default function SettingsScreen() {
       if (deleteExportedEvents) {
         const result = await manager.deleteExportedCalendarData();
         if (result.status === 'blocked-permission') {
-          handleDeleteBlocked(async () => {
-            await manager.markDisabledKeepingEvents();
-            await signOut();
-            await refreshCalendarSyncState();
-          });
+          Alert.alert(
+            t('settings.calendarSyncDeleteBlockedTitle'),
+            t('settings.calendarSyncDeleteBlockedMessage'),
+            [
+              {
+                text: t('common.cancel'),
+                style: 'cancel',
+              },
+              {
+                text: t('settings.calendarSyncOpenSettings'),
+                onPress: () => { void Linking.openSettings(); },
+              },
+              {
+                text: t('settings.keepExportedEvents'),
+                onPress: async () => {
+                  await manager.markDisabledKeepingEvents();
+                  await signOut();
+                },
+              },
+            ],
+          );
           return;
         }
       } else {
@@ -248,89 +187,8 @@ export default function SettingsScreen() {
       }
 
       await signOut();
-      await refreshCalendarSyncState();
     } catch (error) {
       Alert.alert(t('common.error'), t('settings.signOutFailed'));
-    }
-  };
-
-  const handleCalendarSyncToggle = async (value: boolean) => {
-    if (calendarSyncLoading) {
-      return;
-    }
-
-    if (!value) {
-      Alert.alert(
-        t('settings.calendarSyncDisableTitle'),
-        t('settings.calendarSyncDisableMessage'),
-        [
-          {
-            text: t('common.cancel'),
-            style: 'cancel',
-          },
-          {
-            text: t('settings.keepExportedEvents'),
-            onPress: async () => {
-              setCalendarSyncLoading(true);
-              try {
-                const manager = await getCalendarExportManager();
-                await manager.markDisabledKeepingEvents();
-                await refreshCalendarSyncState();
-              } finally {
-                setCalendarSyncLoading(false);
-              }
-            },
-          },
-          {
-            text: t('settings.deleteExportedEvents'),
-            style: 'destructive',
-            onPress: async () => {
-              setCalendarSyncLoading(true);
-              try {
-                const manager = await getCalendarExportManager();
-                const result = await manager.deleteExportedCalendarData();
-                if (result.status === 'blocked-permission') {
-                  handleDeleteBlocked(async () => {
-                    await manager.markDisabledKeepingEvents();
-                    await refreshCalendarSyncState();
-                  });
-                  return;
-                }
-                await refreshCalendarSyncState();
-              } finally {
-                setCalendarSyncLoading(false);
-              }
-            },
-          },
-        ],
-      );
-      return;
-    }
-
-    setCalendarSyncLoading(true);
-    try {
-      const manager = await getCalendarExportManager();
-      const targetSelection = Platform.OS === 'android'
-        ? await selectAndroidTarget()
-        : undefined;
-
-      if (Platform.OS === 'android' && targetSelection === null) {
-        return;
-      }
-
-      const result = await manager.enableSync(targetSelection ?? undefined);
-      if (result.status === 'blocked-permission') {
-        Alert.alert(
-          t('settings.calendarSyncPermissionTitle'),
-          t('settings.calendarSyncPermissionMessage'),
-        );
-      }
-    } catch (error) {
-      console.error('[SettingsScreen] Failed to enable calendar sync:', error);
-      Alert.alert(t('common.error'), t('settings.calendarSyncEnableFailed'));
-    } finally {
-      await refreshCalendarSyncState();
-      setCalendarSyncLoading(false);
     }
   };
 
@@ -368,7 +226,17 @@ export default function SettingsScreen() {
           text: t('settings.signOut'),
           style: 'destructive',
           onPress: async () => {
-            if (!calendarSyncEnabled) {
+            let calendarExportEnabled = false;
+
+            try {
+              const manager = await getCalendarExportManager();
+              const exportState = await manager.getState();
+              calendarExportEnabled = exportState?.enabled === true;
+            } catch (error) {
+              console.error('[SettingsScreen] Failed to load calendar sync state for sign-out:', error);
+            }
+
+            if (!calendarExportEnabled) {
               await performSignOut(false);
               return;
             }
@@ -472,33 +340,9 @@ export default function SettingsScreen() {
               title={item.title}
               icon={item.icon}
               onPress={() => handleItemPress(item.screen)}
+              testID={item.id === '5' ? 'settings-calendar-export' : undefined}
             />
           ))}
-
-          <View style={styles.calendarSection}>
-            <Text style={styles.sectionTitle}>{t('settings.calendarSync')}</Text>
-            <ListItem
-              title={t('settings.calendarSyncTitle')}
-              subtitle={t('settings.calendarSyncDescription')}
-              icon={<Calendar size={ICON_SIZE} color={colors.primary[500]} />}
-              rightElement={calendarSyncLoading ? (
-                <ActivityIndicator color={colors.primary[500]} size="small" />
-              ) : (
-                <Switch
-                  value={calendarSyncEnabled}
-                  onValueChange={handleCalendarSyncToggle}
-                  trackColor={{ false: colors.grey[300], true: colors.primary[300] }}
-                  thumbColor={calendarSyncEnabled ? colors.primary[500] : colors.grey[100]}
-                />
-              )}
-              showChevron={false}
-            />
-            {calendarSyncWarning && (
-              <Text style={styles.calendarWarningText}>
-                {t('settings.calendarSyncPermissionWarning')}
-              </Text>
-            )}
-          </View>
 
           {/* Biometric Section - only show if available */}
           {!biometricLoading && biometricAvailable && (
@@ -597,6 +441,7 @@ export default function SettingsScreen() {
               onPress={handleSignOut}
               icon={<LogOut size={20} color={colors.white} />}
               fullWidth
+              testID="sign-out-button"
             >
               {t('settings.signOut')}
             </Button>
@@ -630,12 +475,6 @@ const styles = StyleSheet.create({
   actionSection: {
     marginTop: spacing.xxl,
   },
-  calendarSection: {
-    marginTop: spacing.xxl,
-    paddingTop: spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: colors.border.default,
-  },
   loadingContainer: {
     height: 48,
     justifyContent: 'center',
@@ -652,11 +491,6 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.semibold,
     color: colors.text.secondary,
     marginBottom: spacing.md,
-  },
-  calendarWarningText: {
-    marginTop: spacing.sm,
-    fontSize: fontSize.sm,
-    color: colors.error.main,
   },
   demoButtons: {
     gap: spacing.sm,
