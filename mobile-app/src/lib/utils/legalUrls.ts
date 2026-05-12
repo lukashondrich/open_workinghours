@@ -29,6 +29,16 @@ export function getPrivacyUrl(): string {
 }
 
 /**
+ * Get the privacy explainer URL for the current locale.
+ */
+export function getPrivacyExplainerUrl(): string {
+  const locale = getDateLocale();
+  return locale === 'de'
+    ? `${BASE_URL}/de/privacy`
+    : `${BASE_URL}/privacy`;
+}
+
+/**
  * Open the Terms of Service in the device browser.
  */
 export async function openTermsUrl(): Promise<void> {
@@ -47,5 +57,16 @@ export async function openPrivacyUrl(): Promise<void> {
     await Linking.openURL(getPrivacyUrl());
   } catch (error) {
     console.error('[legalUrls] Failed to open Privacy URL:', error);
+  }
+}
+
+/**
+ * Open the privacy explainer in the device browser.
+ */
+export async function openPrivacyExplainerUrl(): Promise<void> {
+  try {
+    await Linking.openURL(getPrivacyExplainerUrl());
+  } catch (error) {
+    console.error('[legalUrls] Failed to open Privacy explainer URL:', error);
   }
 }
