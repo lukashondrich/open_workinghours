@@ -1,4 +1,6 @@
 describe('DeviceCalendarService', () => {
+  let consoleWarnSpy: jest.SpyInstance;
+
   const expoCalendarMock = {
     getCalendarPermissionsAsync: jest.fn(),
     requestCalendarPermissionsAsync: jest.fn(),
@@ -29,6 +31,11 @@ describe('DeviceCalendarService', () => {
       }
     });
     jest.resetModules();
+    consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    consoleWarnSpy.mockRestore();
   });
 
   async function loadService(platformOS: 'ios' | 'android') {
@@ -58,8 +65,10 @@ describe('DeviceCalendarService', () => {
 
   it('creates a managed iOS calendar using the default source', async () => {
     expoCalendarMock.getDefaultCalendarAsync.mockResolvedValue({
+      allowsModifications: true,
       source: { id: 'source-1', name: 'iCloud', type: 'caldav' },
     });
+    expoCalendarMock.getCalendarsAsync.mockResolvedValue([]);
     expoCalendarMock.createCalendarAsync.mockResolvedValue('calendar-1');
 
     const service = await loadService('ios');
@@ -76,6 +85,85 @@ describe('DeviceCalendarService', () => {
       entityType: 'event',
       sourceId: 'source-1',
       source: { id: 'source-1', name: 'iCloud', type: 'caldav' },
+    });
+  });
+
+  it('falls back to a writable local iOS source when the default calendar is read-only', async () => {
+    expoCalendarMock.getDefaultCalendarAsync.mockResolvedValue({
+      allowsModifications: false,
+      source: { id: 'source-1', name: 'Subscribed', type: 'caldav' },
+    });
+    expoCalendarMock.getCalendarsAsync.mockResolvedValue([
+      {
+        id: 'calendar-local',
+        title: 'On My iPhone',
+        allowsModifications: true,
+        source: { id: 'local-1', name: 'On My iPhone', type: 'local' },
+      },
+      {
+        id: 'calendar-remote',
+        title: 'Work',
+        allowsModifications: true,
+        source: { id: 'remote-1', name: 'Work', type: 'exchange' },
+      },
+    ]);
+    expoCalendarMock.createCalendarAsync.mockResolvedValue('calendar-2');
+
+    const service = await loadService('ios');
+    const id = await service.createManagedCalendar({
+      title: 'Open Working Hours',
+      color: '#0F766E',
+      targetMode: 'ios-default',
+    });
+
+    expect(id).toBe('calendar-2');
+    expect(expoCalendarMock.createCalendarAsync).toHaveBeenCalledWith({
+      title: 'Open Working Hours',
+      color: '#0F766E',
+      entityType: 'event',
+      sourceId: 'local-1',
+      source: { id: 'local-1', name: 'On My iPhone', type: 'local', isLocalAccount: undefined },
+    });
+  });
+
+  it('retries the next writable iOS source when calendar creation fails', async () => {
+    expoCalendarMock.getDefaultCalendarAsync.mockResolvedValue({
+      allowsModifications: true,
+      source: { id: 'source-1', name: 'iCloud', type: 'caldav' },
+    });
+    expoCalendarMock.getCalendarsAsync.mockResolvedValue([
+      {
+        id: 'calendar-local',
+        title: 'On My iPhone',
+        allowsModifications: true,
+        source: { id: 'local-1', name: 'On My iPhone', type: 'local' },
+      },
+    ]);
+    expoCalendarMock.createCalendarAsync
+      .mockRejectedValueOnce(new Error('Source is not writable'))
+      .mockResolvedValueOnce('calendar-3');
+
+    const service = await loadService('ios');
+    const id = await service.createManagedCalendar({
+      title: 'Open Working Hours',
+      color: '#0F766E',
+      targetMode: 'ios-default',
+    });
+
+    expect(id).toBe('calendar-3');
+    expect(expoCalendarMock.createCalendarAsync).toHaveBeenNthCalledWith(1, {
+      title: 'Open Working Hours',
+      color: '#0F766E',
+      entityType: 'event',
+      sourceId: 'source-1',
+      source: { id: 'source-1', name: 'iCloud', type: 'caldav', isLocalAccount: undefined },
+    });
+    expect(expoCalendarMock.createCalendarAsync).toHaveBeenNthCalledWith(2, {
+      title: 'Open Working Hours',
+      color: '#0F766E',
+      entityType: 'event',
+      sourceId: 'local-1',
+      source: { id: 'local-1', name: 'On My iPhone', type: 'local', isLocalAccount: undefined },
     });
   });
 

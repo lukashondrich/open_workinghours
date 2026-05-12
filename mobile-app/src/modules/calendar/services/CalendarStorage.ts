@@ -912,8 +912,9 @@ let calendarStorage: CalendarStorage | null = null;
 
 export async function getCalendarStorage() {
   if (!calendarStorage) {
-    calendarStorage = new CalendarStorage();
-    await calendarStorage.initialize();
+    const instance = new CalendarStorage();
+    await instance.initialize();
+    calendarStorage = instance;
   }
   return calendarStorage;
 }

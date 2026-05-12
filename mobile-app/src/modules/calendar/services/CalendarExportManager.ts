@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+
 import { addLocalDays, createCalendarExportWindow } from './CalendarExportDateWindow';
 import { parseManagedEventMarker } from './CalendarExportMarker';
 import { CalendarExportReconciler } from './CalendarExportReconciler';
@@ -10,6 +12,13 @@ import type {
 } from './CalendarExportTypes';
 import { DeviceCalendarService } from './DeviceCalendarService';
 import { CalendarStorage, getCalendarStorage } from './CalendarStorage';
+
+export class MultipleManagedCalendarsError extends Error {
+  constructor() {
+    super('Multiple managed calendar candidates were found; refusing to guess.');
+    this.name = 'MultipleManagedCalendarsError';
+  }
+}
 
 export type CalendarExportSyncOutcome =
   | { status: 'disabled' }
@@ -56,22 +65,29 @@ export class CalendarExportManager {
       return { status: 'blocked-permission' };
     }
 
-    const calendarResolution = await this.ensureManagedCalendar(state, now);
-    const result = await this.reconciler.reconcileManagedCalendar(calendarResolution.calendarId, now);
+    try {
+      const calendarResolution = await this.ensureManagedCalendar(state, now);
+      const result = await this.reconciler.reconcileManagedCalendar(calendarResolution.calendarId, now);
 
-    await this.persistState(state, {
-      calendarId: calendarResolution.calendarId,
-      targetMode: calendarResolution.targetMode ?? state.targetMode ?? null,
-      targetSourceId: calendarResolution.targetSourceId ?? state.targetSourceId ?? null,
-      lastFullSyncAt: now.toISOString(),
-      lastSyncError: null,
-    });
+      await this.persistState(state, {
+        calendarId: calendarResolution.calendarId,
+        targetMode: calendarResolution.targetMode ?? state.targetMode ?? null,
+        targetSourceId: calendarResolution.targetSourceId ?? state.targetSourceId ?? null,
+        lastFullSyncAt: now.toISOString(),
+        lastSyncError: null,
+      });
 
-    return {
-      status: 'ok',
-      calendarId: calendarResolution.calendarId,
-      result,
-    };
+      return {
+        status: 'ok',
+        calendarId: calendarResolution.calendarId,
+        result,
+      };
+    } catch (error) {
+      await this.persistState(state, {
+        lastSyncError: error instanceof Error ? error.message : 'unknown',
+      });
+      throw error;
+    }
   }
 
   async getState(): Promise<DeviceCalendarStateRecord | null> {
@@ -226,7 +242,7 @@ export class CalendarExportManager {
     }
 
     if (markerBearing.length > 1) {
-      throw new Error('Multiple managed calendar candidates were found; refusing to guess.');
+      throw new MultipleManagedCalendarsError();
     }
 
     return markerBearing[0];
@@ -277,10 +293,14 @@ export class CalendarExportManager {
     const requestedTargetMode = options?.targetMode ?? currentState?.targetMode ?? null;
     const requestedTargetSourceId = options?.targetSourceId ?? currentState?.targetSourceId ?? null;
 
-    if (requestedTargetMode === 'android-account' || requestedTargetMode === 'android-local') {
+    if (
+      requestedTargetMode === 'android-account' ||
+      requestedTargetMode === 'android-local' ||
+      (!requestedTargetMode && Platform.OS === 'android')
+    ) {
       const targets = await this.deviceCalendarService.resolveAndroidTargets();
       const chosen = targets.find((target) => target.source.id === requestedTargetSourceId)
-        ?? targets.find((target) => target.mode === requestedTargetMode)
+        ?? (requestedTargetMode ? targets.find((target) => target.mode === requestedTargetMode) : null)
         ?? targets.find((target) => target.mode === 'android-account')
         ?? targets.find((target) => target.mode === 'android-local')
         ?? null;
@@ -319,7 +339,10 @@ export async function getCalendarExportManager(): Promise<CalendarExportManager>
     calendarExportManagerPromise = (async () => {
       const storage = await getCalendarStorage();
       return new CalendarExportManager(storage, new DeviceCalendarService());
-    })();
+    })().catch((error) => {
+      calendarExportManagerPromise = null;
+      throw error;
+    });
   }
 
   return calendarExportManagerPromise;

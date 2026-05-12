@@ -50,6 +50,7 @@ export function ListItem({
       disabled={disabled || !onPress}
       activeOpacity={0.7}
       testID={testID}
+      accessible={!rightElement}
     >
       {icon && <View style={styles.iconContainer}>{icon}</View>}
 

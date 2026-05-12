@@ -14,7 +14,7 @@ const {
   ensureAuthenticated,
   existsTestId,
   isAuthenticated,
-  navigateToTab,
+  navigateToSettings,
 } = require('../helpers/actions');
 
 describe('Auth Flow', () => {
@@ -53,18 +53,28 @@ describe('Auth Flow', () => {
     expect(exists).toBe(true);
   });
 
-  test('should display Settings tab', async () => {
-    const exists = await existsTestId(driver, 'tab-settings');
+  test('should display Settings gear button', async () => {
+    const exists = await existsTestId(driver, 'settings-gear-button');
     expect(exists).toBe(true);
   });
 
-  test('should be able to navigate between tabs', async () => {
-    await navigateToTab(driver, 'settings');
+  test('should be able to navigate to Settings and back', async () => {
+    await navigateToSettings(driver);
     await driver.pause(500);
-    const settingsVisible = await existsTestId(driver, 'tab-settings');
-    expect(settingsVisible).toBe(true);
+    const signOutVisible = await existsTestId(driver, 'sign-out-button');
+    expect(signOutVisible).toBe(true);
 
-    await navigateToTab(driver, 'status');
+    // Go back to tab bar
+    if (driver.isIOS) {
+      try {
+        const backButton = await driver.$('-ios predicate string:label == "Back" OR label == "Zurück"');
+        if (await backButton.isExisting()) {
+          await backButton.click();
+        }
+      } catch { /* fallback below */ }
+    } else {
+      await driver.back();
+    }
     await driver.pause(500);
     const statusVisible = await existsTestId(driver, 'tab-status');
     expect(statusVisible).toBe(true);

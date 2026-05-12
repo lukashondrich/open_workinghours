@@ -83,6 +83,71 @@ describe('CalendarExportNormalize', () => {
     expect(events).toEqual([]);
   });
 
+  it('produces DST-safe full-day absence end on spring-forward', () => {
+    // Germany spring-forward: 2026-03-29 02:00 → 03:00 (only 23 hours in this day)
+    const window = createCalendarExportWindow(new Date(2026, 2, 29, 0, 0), 365);
+    const events = buildDesiredManagedCalendarEvents({
+      shifts: [],
+      absences: [
+        makeAbsence({ id: 'dst-absence', date: '2026-03-29', name: 'Spring Forward Day Off' }),
+      ],
+      window,
+    });
+
+    expect(events).toHaveLength(1);
+    const event = events[0];
+    expect(event.allDay).toBe(true);
+    // End must be midnight of March 30, not 23:00 on March 29 (which +86400ms would produce)
+    expect(event.endDate.getFullYear()).toBe(2026);
+    expect(event.endDate.getMonth()).toBe(2); // March
+    expect(event.endDate.getDate()).toBe(30);
+    expect(event.endDate.getHours()).toBe(0);
+    expect(event.endDate.getMinutes()).toBe(0);
+  });
+
+  it('produces DST-safe full-day absence end on fall-back', () => {
+    // Germany fall-back: 2026-10-25 03:00 → 02:00 (25 hours in this day)
+    const window = createCalendarExportWindow(new Date(2026, 9, 25, 0, 0), 365);
+    const events = buildDesiredManagedCalendarEvents({
+      shifts: [],
+      absences: [
+        makeAbsence({ id: 'dst-absence-fall', date: '2026-10-25', name: 'Fall Back Day Off' }),
+      ],
+      window,
+    });
+
+    expect(events).toHaveLength(1);
+    const event = events[0];
+    expect(event.endDate.getDate()).toBe(26);
+    expect(event.endDate.getHours()).toBe(0);
+  });
+
+  it('produces DST-safe overnight partial absence across DST boundary', () => {
+    // Absence 22:00 on March 28 → 06:00 on March 29 (spring-forward night)
+    const window = createCalendarExportWindow(new Date(2026, 2, 28, 0, 0), 365);
+    const events = buildDesiredManagedCalendarEvents({
+      shifts: [],
+      absences: [
+        makeAbsence({
+          id: 'overnight-dst',
+          date: '2026-03-28',
+          name: 'Night Absence',
+          isFullDay: false,
+          startTime: '22:00',
+          endTime: '06:00',
+        }),
+      ],
+      window,
+    });
+
+    expect(events).toHaveLength(1);
+    const event = events[0];
+    // End should be 06:00 on March 29, constructed via date math not ms addition
+    expect(event.endDate.getDate()).toBe(29);
+    expect(event.endDate.getHours()).toBe(6);
+    expect(event.endDate.getMinutes()).toBe(0);
+  });
+
   it('writes a parseable marker into notes', () => {
     const window = createCalendarExportWindow(new Date(2026, 3, 27, 9, 0), 365);
     const [event] = buildDesiredManagedCalendarEvents({

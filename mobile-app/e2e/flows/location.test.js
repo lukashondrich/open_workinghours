@@ -19,6 +19,7 @@ const {
   tapTestId,
   typeTestId,
   tapI18n,
+  navigateToSettings,
   navigateToTab,
   waitForText,
   existsTestId,
@@ -49,12 +50,12 @@ describe('Location Setup', () => {
   });
 
   test('should navigate to Settings', async () => {
-    await navigateToTab(driver, 'settings');
+    await navigateToSettings(driver);
     await driver.pause(500);
 
-    // Verify we're on settings by looking for common elements (bilingual)
-    const header = await byI18nFast(driver, 'settings');
-    expect(await header.isDisplayed()).toBe(true);
+    // Verify we're on settings by looking for sign-out button
+    const signOutExists = await existsTestId(driver, 'sign-out-button');
+    expect(signOutExists).toBe(true);
   });
 
   test('should find Work Locations section', async () => {
@@ -195,6 +196,24 @@ describe('Location Setup', () => {
   });
 
   test('should return to main app', async () => {
+    // After backing out of the wizard, we're on the Settings screen.
+    // Settings is a stack screen that covers the tab bar, so we need
+    // to go back to the main tabs first.
+    if (driver.isIOS) {
+      try {
+        const backButton = await driver.$('-ios predicate string:label == "Back" OR label == "Zurück"');
+        if (await backButton.isExisting()) {
+          await backButton.click();
+          await driver.pause(500);
+        }
+      } catch {
+        // Fallback: try navigateToTab directly (might work if tab bar is visible)
+      }
+    } else {
+      await driver.back();
+      await driver.pause(500);
+    }
+
     await navigateToTab(driver, 'status');
     await driver.pause(500);
 

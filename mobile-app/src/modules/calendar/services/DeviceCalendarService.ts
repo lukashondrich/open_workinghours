@@ -16,9 +16,11 @@ function mapPermissionState(response: {
   granted: boolean;
   canAskAgain: boolean;
 }): DeviceCalendarPermissionState {
-  const status = response.status === 'granted' || response.status === 'denied'
-    ? response.status
-    : 'undetermined';
+  const status = response.status === 'granted'
+    ? 'granted'
+    : response.status === 'denied' || response.status === 'restricted'
+      ? 'denied'
+      : 'undetermined';
 
   return {
     status,
@@ -75,6 +77,23 @@ function isAndroidLocalSource(source: DeviceCalendarSourceRecord | null | undefi
   return source.isLocalAccount === true || !source.type;
 }
 
+function getSourceKey(source: DeviceCalendarSourceRecord | null | undefined): string | null {
+  if (!source) {
+    return null;
+  }
+
+  return [
+    source.id ?? '',
+    source.name,
+    source.type ?? '',
+    source.isLocalAccount === true ? 'local' : 'remote',
+  ].join(':');
+}
+
+function toExpoSource(source: DeviceCalendarSourceRecord): Calendar.Source {
+  return source as unknown as Calendar.Source;
+}
+
 export class DeviceCalendarService {
   async getPermissionState(): Promise<DeviceCalendarPermissionState> {
     return mapPermissionState(await Calendar.getCalendarPermissionsAsync());
@@ -104,28 +123,45 @@ export class DeviceCalendarService {
     return calendars.filter((calendar) => calendar.title === title);
   }
 
-  async getBestIosSource(): Promise<DeviceCalendarSourceRecord | null> {
+  async getPreferredIosSources(): Promise<DeviceCalendarSourceRecord[]> {
     if (Platform.OS !== 'ios') {
-      return null;
+      return [];
     }
 
+    const candidates: DeviceCalendarSourceRecord[] = [];
+    const seen = new Set<string>();
+    const addCandidate = (source: DeviceCalendarSourceRecord | null | undefined) => {
+      const key = getSourceKey(source);
+      if (!key || seen.has(key) || !source?.id) {
+        return;
+      }
+
+      seen.add(key);
+      candidates.push(source);
+    };
+
     try {
-      const defaultCalendar = await Calendar.getDefaultCalendarAsync();
-      const source = mapSource((defaultCalendar as any)?.source);
-      if (source) {
-        return source;
+      const defaultCalendar = mapCalendarRecord(await Calendar.getDefaultCalendarAsync());
+      if (defaultCalendar.allowsModifications) {
+        addCandidate(defaultCalendar.source);
       }
     } catch (error) {
       console.warn('[DeviceCalendarService] Failed to load iOS default calendar source:', error);
     }
 
     const calendars = await this.getWritableCalendars();
-    const local = calendars.find((calendar) => calendar.source?.type === Calendar.SourceType.LOCAL);
-    if (local?.source) {
-      return local.source;
-    }
+    calendars
+      .filter((calendar) => calendar.source?.type === Calendar.SourceType.LOCAL)
+      .forEach((calendar) => addCandidate(calendar.source));
 
-    return calendars.find((calendar) => calendar.source?.id)?.source ?? null;
+    calendars.forEach((calendar) => addCandidate(calendar.source));
+
+    return candidates;
+  }
+
+  async getBestIosSource(): Promise<DeviceCalendarSourceRecord | null> {
+    const [best] = await this.getPreferredIosSources();
+    return best ?? null;
   }
 
   async resolveAndroidTargets(): Promise<AndroidCalendarTarget[]> {
@@ -163,18 +199,37 @@ export class DeviceCalendarService {
 
   async createManagedCalendar(input: CreateManagedCalendarInput): Promise<string> {
     if (Platform.OS === 'ios') {
-      const source = input.source ?? await this.getBestIosSource();
-      if (!source?.id) {
+      const candidateSources = input.source
+        ? [input.source]
+        : await this.getPreferredIosSources();
+
+      if (candidateSources.length === 0) {
         throw new Error('No writable calendar source is available on this device.');
       }
 
-      return Calendar.createCalendarAsync({
-        title: input.title,
-        color: input.color,
-        entityType: Calendar.EntityTypes.EVENT,
-        sourceId: source.id,
-        source,
-      });
+      let lastError: unknown = null;
+      for (const source of candidateSources) {
+        if (!source?.id) {
+          continue;
+        }
+
+        try {
+          return await Calendar.createCalendarAsync({
+            title: input.title,
+            color: input.color,
+            entityType: Calendar.EntityTypes.EVENT,
+            sourceId: source.id,
+            source: toExpoSource(source),
+          });
+        } catch (error) {
+          lastError = error;
+          console.warn('[DeviceCalendarService] Failed to create iOS managed calendar with source, retrying next candidate:', error);
+        }
+      }
+
+      throw lastError instanceof Error
+        ? lastError
+        : new Error('No writable calendar source is available on this device.');
     }
 
     const source = input.source ?? {
@@ -188,7 +243,7 @@ export class DeviceCalendarService {
       name: input.title,
       ownerAccount: source.name,
       accessLevel: Calendar.CalendarAccessLevel.OWNER,
-      source,
+      source: toExpoSource(source),
       ...(input.targetMode === 'android-account' && input.source ? { isSynced: true } : {}),
     });
   }

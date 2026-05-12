@@ -1,7 +1,7 @@
 # E2E Testing — Deep Dive
 
-**Updated:** 2026-02-03
-**Status:** iOS 48/48 (~200s, ~100% stable), Android 45-48/48 (~130-160s, ~75-80% stable)
+**Updated:** 2026-05-01
+**Status:** NOT YET VALIDATED — 64 total tests (48 existing + 16 calendar-export). Requires native rebuild due to `expo-calendar` dependency. Last validated: 2026-02-03 (48/48 iOS, 45/48 Android).
 
 > **Quick start?** See [mobile-app/e2e/README.md](../mobile-app/e2e/README.md) for the runbook.
 > This document is the deep reference for architecture decisions, robustness helpers, testID reference, and session history.
@@ -40,31 +40,50 @@ See `mobile-app/e2e/README.md` for full setup (driver installation, device auto-
 
 | Suite | Tests | What's covered |
 |-------|-------|----------------|
-| auth | 5 | Verify authenticated state, tab bar presence (Status/Calendar/Settings), tab navigation |
+| auth | 5 | Verify authenticated state, tab bar presence (Status/Calendar), Settings gear button, Settings navigation |
 | calendar | 7 | Tab navigation, FAB menu (with retry), week prev/next, month/week toggle |
+| calendar-export | 16 | **NEW** — Live sync toggle (enable/disable with keep/delete), permission handling, sign-out with calendar dialog (keep/remove events), re-auth state verification, ICS export preset buttons + share sheet |
 | shifts | 9 | FAB → shifts panel, create-or-reuse template, arm template, close panel (overlay testID), **double-tap week-view day column to place shift**, month-view dot verification, close |
 | absences | 11 | FAB → absences panel, create absence template, edit name, save, persistence, **arm absence → month-view day tap → verify absence icon**, close |
 | manual-session | 5 | FAB → Log Hours, **ensureLocationConfigured**, verify all form fields (location/date/start/end/save), save with validation handling |
 | location | 11 | Settings nav, add location wizard (search → radius → name), conditional skip if configured |
-| **Total** | **48** | |
+| **Total** | **64** | |
+
+### Calendar Export Test Breakdown (16 tests)
+
+**Live Sync (tests 1-8):**
+1. Navigate to CalendarExport subpage, verify sync section exists
+2. Verify sync initially disabled
+3. Enable sync, handle permission dialog
+4. Verify no warning when permission granted
+5. Disable sync with "Keep exported events"
+6. Re-enable sync after disabling
+7. Disable sync with "Delete exported events"
+8. Cancel disable dialog without changing state
+
+**Sign-out (tests 9-13):**
+9. Sign-out shows calendar-specific dialog when sync enabled (chained alerts)
+10. Sign-out with "Keep events" → lands on welcome screen
+11. Re-authenticate after sign-out
+12. Sign-out with "Remove events" when sync enabled
+13. Re-authenticate and verify sync is disabled
+
+**ICS Export (tests 14-16):**
+14. Download section visible on CalendarExport screen
+15. All four preset buttons visible
+16. Tap "Next 4 weeks" → handle share sheet or "no events" alert
 
 ### Not yet covered (next priorities)
-
-**High items completed (2026-01-30 session 2):**
-- ~~Template arming → week-view day tap~~ → Done: double-tap on `week-day-column-{dateKey}` places shift
-- ~~Manual session save~~ → Done: `ensureLocationConfigured()` auto-completes wizard, form fields verified, save with validation handling
-- ~~Absence arming → day tap → verify absence icon~~ → Done: arm template, tap month-view day, check vacation icon testID
 
 **Medium — new flows:**
 1. Shift/absence deletion + confirm alert
 2. Overlap detection (two overlapping shifts → warning)
-3. Settings (language toggle, account info)
-4. Location management (edit/delete existing)
+3. Location management (edit/delete existing)
 
 **Lower — complex to simulate:**
-5. Data submission to backend (needs connectivity or mocking)
-6. Geofencing dashboard (needs location simulation)
-7. 14-day planned/tracked hours chart
+4. Data submission to backend (needs connectivity or mocking)
+5. Geofencing dashboard (needs location simulation)
+6. 14-day planned/tracked hours chart
 
 ---
 
@@ -84,6 +103,16 @@ See `mobile-app/e2e/README.md` for full setup (driver installation, device auto-
 | Android app not in foreground after `deleteSession()` | Appium doesn't auto-launch with `noReset: true` after activity destroyed | Fixed: `ensureAuthenticated` calls `activateApp()` on Android |
 | `auth.test.js` wiped app state | `noReset: false` cleared data, breaking subsequent suites | Fixed: rewrote auth to use `noReset: true` like all suites |
 | Accumulated templates from repeated runs | `template-add` click failed because save button scrolled off-screen | Fixed: shifts test reuses existing templates instead of always creating |
+
+### Calendar Export E2E — anticipated issues
+
+| Issue | Risk | Mitigation |
+|-------|------|------------|
+| `expo-calendar` permission dialog at startup | Medium | May block tests if not dismissed. Existing `dismissSystemDialogs` should handle "Allow" text, but verify on first run |
+| Chained Alert dialogs in sign-out (tests 9-13) | High | Uses `waitForAlertButton` with 3s poll. If second dialog is slow, increase timeout or add pause |
+| iOS back button label mismatch (test 9, 12) | Low | Uses `label == "Settings" OR label == "Einstellungen"` predicate. May need adjustment if header title differs |
+| Android calendar permission dialog | Medium | Uses resource ID for permission controller. Calendar permission may use a different dialog style on some Android versions |
+| ListItem accessibility with Switch (calendar-sync-toggle) | Fixed | `ListItem.tsx` has `accessible={!rightElement}` to break aggregation when Switch is present |
 
 ### Flakiness & robustness
 
@@ -348,11 +377,35 @@ manual-session-save       Save button (requires location configured)
 
 ### Navigation
 ```
-tab-status     Status tab
-tab-calendar   Calendar tab
-tab-settings   Settings tab
-calendar-prev  Previous week/month arrow
-calendar-next  Next week/month arrow
+tab-status              Status tab (bottom tab bar)
+tab-calendar            Calendar tab (bottom tab bar)
+tab-reports             Reports tab (bottom tab bar)
+settings-gear-button    Settings gear icon (on StatusScreen header, NOT a tab)
+calendar-prev           Previous week/month arrow
+calendar-next           Next week/month arrow
+```
+
+NOTE: Settings is NOT a tab. It's a gear button on the StatusScreen header.
+Use `navigateToSettings(driver)` from `actions.js`, not `navigateToTab(driver, 'settings')`.
+
+### CalendarExportScreen (`CalendarExportScreen.tsx`)
+```
+calendar-sync-section       Live Sync section container
+calendar-sync-item          ListItem containing the toggle
+calendar-sync-toggle        Switch toggle for live sync
+calendar-sync-loading       ActivityIndicator during loading
+calendar-sync-warning       Warning text when permission revoked
+ics-export-section          Download as File section container
+ics-export-next4weeks       "Next 4 weeks" preset button
+ics-export-next3months      "Next 3 months" preset button
+ics-export-allfuture        "All future events" preset button
+ics-export-pastmonth        "Past month" preset button
+```
+
+### SettingsScreen (`SettingsScreen.tsx`)
+```
+settings-calendar-export    ListItem navigating to CalendarExport subpage
+sign-out-button             Sign Out button
 ```
 
 ---
@@ -364,15 +417,16 @@ mobile-app/e2e/
 ├── helpers/
 │   ├── driver.js       # Appium caps, device auto-detection
 │   ├── selectors.js    # byTestId, byI18nFast, bilingual dictionary
-│   └── actions.js      # tapTestId, ensureAuthenticated, dismissSystemDialogs,
-│                        # waitForTestIdWithRetry, dismissPermissionDialogs
+│   └── actions.js      # tapTestId, ensureAuthenticated, navigateToSettings,
+│                        # dismissSystemDialogs, waitForTestIdWithRetry
 ├── flows/
-│   ├── auth.test.js         # 5 tests
-│   ├── calendar.test.js     # 7 tests
-│   ├── shifts.test.js       # 9 tests
-│   ├── absences.test.js     # 11 tests
+│   ├── auth.test.js           # 5 tests
+│   ├── calendar.test.js       # 7 tests
+│   ├── calendar-export.test.js # 16 tests (NEW)
+│   ├── shifts.test.js         # 9 tests
+│   ├── absences.test.js       # 11 tests
 │   ├── manual-session.test.js # 5 tests
-│   └── location.test.js    # 11 tests
+│   └── location.test.js      # 11 tests
 ├── start-infra.sh      # Starts Appium + simulator/emulator
 ├── jest.config.js      # 120s timeout, verbose
 └── package.json        # webdriverio ^9, jest ^29
@@ -440,6 +494,65 @@ These were identified during the 2026-01-31 review. Fixes #2, #5, #7, #8 are don
 ---
 
 ## Session Log
+
+### 2026-05-01: Calendar Export E2E — Code Review + Test Fixes (NOT YET RUN)
+
+**Goal:** Review calendar export feature, fix E2E test regressions for merge readiness.
+
+**Context:** The calendar export feature (branch `worktree-feature-calendar-export`) adds 16 new E2E tests in `calendar-export.test.js` plus the `expo-calendar` native dependency. The feature code has been through code review, rework (phases 1A-1D), and all 53 unit tests pass.
+
+**What was done:**
+
+1. **Code review of calendar export feature** — reviewed all service files, screens, types, tests, and planning docs. Feature is well-architected (root-level orchestrator, SQLite-backed reconciliation, notes markers, single-flight queue). All 12 code review items from the rework plan have been addressed.
+
+2. **Found and fixed regressions in existing E2E suites** — `auth.test.js` and `location.test.js` still used the stale `navigateToTab(driver, 'settings')` and `existsTestId(driver, 'tab-settings')` patterns. Settings is NOT a tab — it's a gear button (`settings-gear-button` testID) on the StatusScreen header. These would fail on both platforms.
+
+3. **Verified calendar-export E2E tests already had all fixes applied** — the `calendar-export.test.js` file already uses `navigateToSettings()`, `existsTestId(driver, 'tab-status')`, `waitForAlertButton()` for chained alerts, and is adapted to the Settings subpage navigation. ICS export tests (14-16) are present.
+
+**Files changed:**
+
+| File | Change |
+|------|--------|
+| `e2e/flows/auth.test.js` | Replaced `navigateToTab`/`tab-settings` with `navigateToSettings`/`settings-gear-button`/`sign-out-button` |
+| `e2e/flows/location.test.js` | Replaced `navigateToTab` with `navigateToSettings`, verify via `sign-out-button` |
+| `e2e/helpers/actions.js` | Removed stale `settings` entry from `tabConfig` (Settings is not a tab) |
+| `e2e/README.md` | Added `calendar-export` to suite list and test structure |
+| `docs/E2E_TESTING_PLAN.md` | This entry + updated coverage table, testID reference, file reference |
+
+**What the next agent needs to do:**
+
+1. **Build the app** — `expo-calendar` is a new native dependency, so a rebuild is required:
+   ```bash
+   cd mobile-app/e2e
+   npm run build:ios          # native rebuild with expo-calendar
+   ```
+
+2. **Run the existing suites first** (auth, calendar, location, shifts, absences, manual-session) to verify no regressions from the native dependency change:
+   ```bash
+   npm run infra:ios          # terminal 1
+   npm run test:auth          # terminal 2 — quick sanity
+   npm run test:ios           # full existing suite (48 tests)
+   ```
+
+3. **Then run the calendar-export suite:**
+   ```bash
+   npm run test:calendar-export   # 16 tests
+   ```
+
+4. **Expected results:**
+   - Existing suites: 48/48 iOS (same as before)
+   - Calendar-export: 13/16 on first run is acceptable — sign-out tests (9, 10, 12) may need timing adjustments for chained Alert dialogs on some simulators
+   - Android: rebuild + run separately. Sign-out chained dialogs are historically flaky on Android emulators
+
+5. **If sign-out tests fail (tests 9-13):** The most likely issue is chained Alert timing. The test uses `waitForAlertButton` with 3s timeout. If the second dialog is slow to appear:
+   - Increase the timeout in `waitForAlertButton` calls (lines 356-359, 394, 462)
+   - Or add a small pause between the first dialog dismiss and the poll start
+
+6. **If the `expo-calendar` permission dialog appears at app startup** (blocking other tests): Add calendar permission dismissal to `dismissSystemDialogs` in `actions.js`. The permission dialog text is "Allow Open Working Hours to access your calendar..." — add "Allow" handling (may already be covered by existing patterns).
+
+**Unit test status:** 53/53 pass (10 suites, 1.1s). No regressions.
+
+---
 
 ### 2026-02-03 (session 3): Full E2E Validation — iOS 48/48, Android 45/48
 

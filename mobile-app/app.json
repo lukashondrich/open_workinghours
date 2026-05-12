@@ -22,11 +22,8 @@
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "We need your location to automatically track when you're at work.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "We need your location in the background to automatically clock you in/out when you arrive/leave work.",
-        "NSCalendarsUsageDescription": "Allow Open Working Hours to access your calendar so planned shifts and absences can be exported to a device calendar.",
-        "NSRemindersUsageDescription": "Allow Open Working Hours to access your reminders when working with your device calendar.",
         "NSFaceIDUsageDescription": "Use Face ID to quickly unlock Open Working Hours.",
         "UIBackgroundModes": [
-          "location",
           "location"
         ],
         "ITSAppUsesNonExemptEncryption": false

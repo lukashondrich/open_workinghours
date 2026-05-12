@@ -110,12 +110,13 @@ npm run test:android   # Terminal 2
 ### Run Individual Suites
 
 ```bash
-npm run test:auth           # 5 tests, ~10s
-npm run test:calendar       # 7 tests, ~35s
-npm run test:location       # 11 tests, ~10s
-npm run test:shifts         # 9 tests, ~80s
-npm run test:absences       # 11 tests, ~75s
-npm run test:manual-session # 5 tests, ~85s
+npm run test:auth            # 5 tests, ~10s
+npm run test:calendar        # 7 tests, ~35s
+npm run test:location        # 11 tests, ~10s
+npm run test:shifts          # 9 tests, ~80s
+npm run test:absences        # 11 tests, ~75s
+npm run test:manual-session  # 5 tests, ~85s
+npm run test:calendar-export # 16 tests — live sync, sign-out, ICS export
 ```
 
 ---
@@ -138,11 +139,12 @@ e2e/
 │   ├── selectors.js     # Cross-platform element selectors (bilingual)
 │   └── actions.js       # Common test actions + recovery helpers
 ├── flows/
-│   ├── auth.test.js         # 5 tests - authentication state
-│   ├── calendar.test.js     # 7 tests - navigation, FAB, views
-│   ├── location.test.js     # 11 tests - setup wizard
-│   ├── shifts.test.js       # 9 tests - templates, arming, placement
-│   ├── absences.test.js     # 11 tests - absence templates
+│   ├── auth.test.js           # 5 tests - authentication state
+│   ├── calendar.test.js       # 7 tests - navigation, FAB, views
+│   ├── calendar-export.test.js # 16 tests - live sync, sign-out, ICS export
+│   ├── location.test.js       # 11 tests - setup wizard
+│   ├── shifts.test.js         # 9 tests - templates, arming, placement
+│   ├── absences.test.js       # 11 tests - absence templates
 │   └── manual-session.test.js # 5 tests - Log Hours form
 ├── jest.config.js       # 120s timeout, verbose
 └── package.json         # webdriverio ^9, jest ^29

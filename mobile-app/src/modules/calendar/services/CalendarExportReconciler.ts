@@ -126,6 +126,13 @@ export class CalendarExportReconciler {
 
       usedActualIds.add(actualEvent.id);
 
+      if (needsUpdate(actualEvent, desiredEvent)) {
+        await this.deviceCalendarService.updateEvent(actualEvent.id, toUpsertInput(desiredEvent));
+        result.updated += 1;
+      } else {
+        result.unchanged += 1;
+      }
+
       if (this.shouldRepairMapping(mapping, desiredEvent, actualEvent)) {
         await this.storage.saveDeviceCalendarMapping({
           appId: desiredEvent.appId,
@@ -134,13 +141,6 @@ export class CalendarExportReconciler {
           fingerprint: desiredEvent.fingerprint,
         });
         result.repairedMappings += 1;
-      }
-
-      if (needsUpdate(actualEvent, desiredEvent)) {
-        await this.deviceCalendarService.updateEvent(actualEvent.id, toUpsertInput(desiredEvent));
-        result.updated += 1;
-      } else {
-        result.unchanged += 1;
       }
     }
 

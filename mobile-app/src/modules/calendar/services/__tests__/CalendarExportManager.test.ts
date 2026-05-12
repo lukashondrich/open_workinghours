@@ -215,6 +215,80 @@ describe('CalendarExportManager', () => {
     expect(storage.deleteAllDeviceCalendarMappings).not.toHaveBeenCalled();
   });
 
+  it('persists lastSyncError when ensureManagedCalendar throws', async () => {
+    const storage = createStorageMock();
+    const deviceCalendarService = createDeviceCalendarServiceMock();
+    storage.loadDeviceCalendarState.mockResolvedValue({
+      enabled: true,
+      calendarId: 'missing-calendar',
+      targetSourceId: null,
+      targetMode: 'ios-default',
+      lastFullSyncAt: null,
+      lastSyncError: null,
+      updatedAt: '2026-04-27T08:00:00.000Z',
+    });
+    deviceCalendarService.getPermissionState.mockResolvedValue({
+      status: 'granted',
+      granted: true,
+      canAskAgain: true,
+    });
+    // Calendar not found and no recovery candidates
+    deviceCalendarService.findCalendarById.mockResolvedValue(null);
+    deviceCalendarService.findCalendarsByTitle.mockResolvedValue([]);
+    // createManagedCalendar throws
+    deviceCalendarService.createManagedCalendar.mockRejectedValue(
+      new Error('Calendar creation failed: source not available'),
+    );
+
+    const manager = new CalendarExportManager(storage as any, deviceCalendarService as any);
+    await expect(manager.runSyncIfEnabled()).rejects.toThrow('Calendar creation failed');
+
+    // lastSyncError must be persisted so the UI can show it
+    expect(storage.saveDeviceCalendarState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lastSyncError: 'Calendar creation failed: source not available',
+      }),
+    );
+  });
+
+  it('persists lastSyncError when reconciler throws', async () => {
+    const storage = createStorageMock();
+    const deviceCalendarService = createDeviceCalendarServiceMock();
+    storage.loadDeviceCalendarState.mockResolvedValue({
+      enabled: true,
+      calendarId: 'calendar-1',
+      targetSourceId: null,
+      targetMode: 'ios-default',
+      lastFullSyncAt: null,
+      lastSyncError: null,
+      updatedAt: '2026-04-27T08:00:00.000Z',
+    });
+    deviceCalendarService.getPermissionState.mockResolvedValue({
+      status: 'granted',
+      granted: true,
+      canAskAgain: true,
+    });
+    deviceCalendarService.findCalendarById.mockResolvedValue({
+      id: 'calendar-1',
+      title: 'Open Working Hours',
+      color: '#0F766E',
+      allowsModifications: true,
+    });
+    // Reconciler will throw because getShiftInstancesForDateRange is not mocked
+    storage.getShiftInstancesForDateRange.mockRejectedValue(
+      new Error('SQLite read failure'),
+    );
+
+    const manager = new CalendarExportManager(storage as any, deviceCalendarService as any);
+    await expect(manager.runSyncIfEnabled()).rejects.toThrow('SQLite read failure');
+
+    expect(storage.saveDeviceCalendarState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lastSyncError: 'SQLite read failure',
+      }),
+    );
+  });
+
   it('refuses to recover when multiple marker-bearing calendars share the managed title', async () => {
     const storage = createStorageMock();
     const deviceCalendarService = createDeviceCalendarServiceMock();

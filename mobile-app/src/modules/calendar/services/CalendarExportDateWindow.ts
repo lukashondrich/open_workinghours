@@ -19,6 +19,12 @@ export function formatDateKey(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
+export function getNextDateKey(dateKey: string): string {
+  const [year, month, day] = dateKey.split('-').map(Number);
+  const next = new Date(year, month - 1, day + 1);
+  return formatDateKey(next);
+}
+
 export function createCalendarExportWindow(
   now: Date = new Date(),
   horizonDays: number = DEFAULT_EXPORT_HORIZON_DAYS,

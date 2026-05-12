@@ -457,6 +457,7 @@ export default function DataPrivacyScreen() {
           onPress={handleDeleteAllData}
           fullWidth
           style={styles.deleteButton}
+          testID="delete-all-data-button"
         >
           {t('dataPrivacyScreen.deleteAllData')}
         </Button>
