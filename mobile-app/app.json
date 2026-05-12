@@ -69,6 +69,7 @@
     "extra": {
       "authBaseUrl": "https://api.openworkinghours.org",
       "submissionBaseUrl": "https://api.openworkinghours.org",
+      "googleWebClientId": "819562297268-nr59r2trbu2h1k9joios9o3u3q3e0s7d.apps.googleusercontent.com",
       "TEST_MODE": false,
       "TEST_DB_SEED": false,
       "TEST_PRIVACY_NOISE_SEED": null,
