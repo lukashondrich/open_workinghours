@@ -1,8 +1,109 @@
 # Social Auth: Sign in with Apple + Google
 
-**Status:** Planning
-**Branch:** `feature/social-auth`
+**Status:** Implementation in progress
+**Branch:** `worktree-feature-social-auth` (worktree at `.claude/worktrees/feature-social-auth`)
+**Last Updated:** 2026-05-10
 **Goal:** Add one-tap Sign in with Apple (iOS) and Google (Android) alongside existing email-code auth, to reduce friction before WhatsApp group launch (~2000 doctors), without changing the app's current onboarding strictness or post-login behavior.
+
+---
+
+## Implementation Progress
+
+### Done (2026-05-10)
+
+**Backend — fully implemented and tested:**
+- [x] User model: `auth_provider`, `provider_sub` columns added, `email_hash` made nullable, composite unique constraint
+- [x] Alembic migration `j0k1l2m3n4o5_add_social_auth_columns.py`
+- [x] Config: `SocialAuthSettings` with `apple_bundle_id` + `google_client_id` (`backend/app/config.py`)
+- [x] Provider verification module `backend/app/social_auth.py` — Apple/Google JWKS fetch with 1-hour TTL cache, social registration token (30-min expiry, HS256 signed), TEST_MODE bypass
+- [x] Three new endpoints in `backend/app/routers/auth.py`: `POST /auth/apple`, `POST /auth/google`, `POST /auth/social/register` — all rate-limited 5 req/60s
+- [x] `DELETE /auth/me` fixed to handle NULL `email_hash` for social users
+- [x] Schemas: `AppleAuthIn`, `GoogleAuthIn`, `SocialAuthStartOut`, `SocialRegisterIn` (`backend/app/schemas.py`)
+- [x] `httpx` promoted from dev to runtime dependency (`backend/pyproject.toml`)
+- [x] 19 backend tests in `backend/tests/test_social_auth.py` (18 pass, 1 xfail pre-existing SQLite tz issue)
+- [x] Full backend suite: 159 passed, 4 pre-existing failures, 3 xfailed
+
+**Mobile app — code written, not yet buildable (native deps not installed):**
+- [x] `User.email` made optional (`email?: string`) in `auth-types.ts`
+- [x] `SocialAuthStartResponse`, `SocialRegisterRequest` types added to `auth-types.ts`
+- [x] `AuthService.ts`: added `loginWithApple()`, `loginWithGoogle()`, `completeSocialRegistration()`; `getCurrentUser()` and `updateProfile()` now accept optional email
+- [x] `ProfileForm.tsx` extracted from `RegisterScreen` — shared picker/validation/consent component
+- [x] `RegisterScreen.tsx` refactored to use `ProfileForm`
+- [x] `SocialRegistrationScreen.tsx` created, uses `ProfileForm` with `completeSocialRegistration()`
+- [x] `WelcomeScreen.tsx` redesigned: Apple button (iOS via `expo-apple-authentication`), Google button (Android via `@react-native-google-signin`), "or" divider, email text link
+- [x] `AppNavigator.tsx`: added `socialRegister` mode, `SocialRegister` in `RootStackParamList`
+- [x] Mock API responses for TEST_MODE (`mockApi.ts`): Apple/Google existing+new user mocks, `authMeSocial()`
+- [x] i18n keys added (EN + DE): `auth.social.*`, `auth.register.completeSetup`, `navigation.completeSetup`
+- [x] Google Web Client ID set in `app.json` → `extra.googleWebClientId`
+- [x] Google Web Client ID set in backend local `.env` → `SOCIAL_AUTH__GOOGLE_CLIENT_ID`
+
+**Configuration completed:**
+- [x] Google Cloud Console: Android + Web OAuth client IDs created
+- [x] Apple Developer Portal: "Sign in with Apple" capability (user confirmed done)
+- [x] Local backend `.env`: `SOCIAL_AUTH__GOOGLE_CLIENT_ID` set
+
+### Remaining (TODO)
+
+**Native dependency installation + build:**
+- [ ] `npx expo install expo-apple-authentication` in `mobile-app/`
+- [ ] `npm install @react-native-google-signin/google-signin` in `mobile-app/`
+- [ ] Rebuild iOS dev client: `npx expo run:ios`
+- [ ] Rebuild Android dev client: `npx expo run:android`
+- [ ] Note: the WelcomeScreen currently imports these packages at top level (changed by user from the original dynamic imports), so the app will crash without them installed
+
+**Testing on device/simulator:**
+- [ ] Verify WelcomeScreen renders correctly on iOS (Apple button + divider + email link)
+- [ ] Verify WelcomeScreen renders correctly on Android (Google button + divider + email link)
+- [ ] Test Apple Sign In flow on iOS simulator (mock credential) or real device
+- [ ] Test Google Sign In flow on Android emulator or real device
+- [ ] Test social registration form (ProfileForm) — same pickers as email registration
+- [ ] Test existing email login flow still works through the refactored RegisterScreen/ProfileForm
+- [ ] Test session restore for social auth users (no email in stored user)
+
+**Production deployment (when ready to ship):**
+- [ ] Run Alembic migration `j0k1l2m3n4o5` on production PostgreSQL
+- [ ] Set `SOCIAL_AUTH__GOOGLE_CLIENT_ID` in production Hetzner `.env`
+- [ ] Rebuild + deploy backend Docker container
+- [ ] Build TestFlight / Play Store release with native social auth SDKs
+
+**E2E tests (can be deferred to after manual testing):**
+- [ ] New E2E tests for social auth flows (TEST_MODE mocks are ready)
+
+**Documentation (after feature is stable):**
+- [ ] Update `mobile-app/ARCHITECTURE.md` with social auth module, ProfileForm extraction, navigation changes
+- [ ] Update `backend/ARCHITECTURE.md` with new endpoints, social_auth.py, schema changes
+- [ ] Update privacy policy with Apple/Google sign-in disclosure (draft text in this doc, "Privacy Policy Update" section)
+
+---
+
+## Key Files Changed
+
+### Backend
+| File | What changed |
+|------|-------------|
+| `backend/app/models.py` | `auth_provider`, `provider_sub` columns; `email_hash` nullable; `__table_args__` with unique constraint |
+| `backend/app/config.py` | `SocialAuthSettings` class; `social_auth` field on `Settings` |
+| `backend/app/schemas.py` | `AppleAuthIn`, `GoogleAuthIn`, `SocialAuthStartOut`, `SocialRegisterIn` |
+| `backend/app/social_auth.py` | **New** — JWKS fetch/cache, Apple/Google token verification, social registration token create/verify, TEST_MODE |
+| `backend/app/routers/auth.py` | `_social_login()`, `login_with_apple()`, `login_with_google()`, `register_social_user()`; `delete_account()` NULL email_hash fix |
+| `backend/pyproject.toml` | `httpx` promoted to runtime dep |
+| `backend/alembic/versions/j0k1l2m3n4o5_add_social_auth_columns.py` | **New** — migration |
+| `backend/tests/test_social_auth.py` | **New** — 19 tests |
+
+### Mobile App
+| File | What changed |
+|------|-------------|
+| `mobile-app/src/lib/auth/auth-types.ts` | `User.email` optional; `SocialAuthStartResponse`, `SocialRegisterRequest` types |
+| `mobile-app/src/modules/auth/services/AuthService.ts` | 3 new methods; `getCurrentUser`/`updateProfile` accept optional email |
+| `mobile-app/src/lib/testing/mockApi.ts` | Social auth mock responses |
+| `mobile-app/src/modules/auth/components/ProfileForm.tsx` | **New** — shared registration form |
+| `mobile-app/src/modules/auth/screens/RegisterScreen.tsx` | Refactored to use `ProfileForm` |
+| `mobile-app/src/modules/auth/screens/SocialRegistrationScreen.tsx` | **New** |
+| `mobile-app/src/modules/auth/screens/WelcomeScreen.tsx` | Redesigned with social buttons |
+| `mobile-app/src/navigation/AppNavigator.tsx` | `socialRegister` mode; `SocialRegister` route |
+| `mobile-app/src/lib/i18n/translations/en.ts` | `auth.social.*`, `completeSetup` keys |
+| `mobile-app/src/lib/i18n/translations/de.ts` | Same keys in German |
+| `mobile-app/app.json` | `googleWebClientId` in `extra` |
 
 ---
 
