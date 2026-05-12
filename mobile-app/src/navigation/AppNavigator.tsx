@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Platform, AppState, type AppStateStatus } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, Platform, AppState, TouchableOpacity, type AppStateStatus } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BarChart3, Calendar, FileText } from 'lucide-react-native';
+import { BarChart3, Calendar, ChevronLeft, FileText } from 'lucide-react-native';
 
 import { colors, fontSize, fontWeight } from '@/theme';
 import { t } from '@/lib/i18n';
@@ -199,7 +199,14 @@ function AuthStack() {
         </Stack.Screen>
       )}
       {mode === 'verify' && (
-        <Stack.Screen name="EmailVerification" options={{ title: t('navigation.verifyEmail') }}>
+        <Stack.Screen name="EmailVerification" options={{
+          title: t('navigation.verifyEmail'),
+          headerLeft: () => (
+            <TouchableOpacity onPress={() => setMode('welcome')} hitSlop={8}>
+              <ChevronLeft size={24} color={colors.primary[500]} />
+            </TouchableOpacity>
+          ),
+        }}>
           {() => (
             <EmailVerificationScreen
               onVerified={(verifiedEmail) => {
@@ -211,7 +218,14 @@ function AuthStack() {
         </Stack.Screen>
       )}
       {mode === 'register' && (
-        <Stack.Screen name="Register" options={{ title: t('navigation.createAccount') }}>
+        <Stack.Screen name="Register" options={{
+          title: t('navigation.createAccount'),
+          headerLeft: () => (
+            <TouchableOpacity onPress={() => setMode('welcome')} hitSlop={8}>
+              <ChevronLeft size={24} color={colors.primary[500]} />
+            </TouchableOpacity>
+          ),
+        }}>
           {() => (
             <RegisterScreen
               email={email}
@@ -221,7 +235,14 @@ function AuthStack() {
         </Stack.Screen>
       )}
       {mode === 'socialRegister' && (
-        <Stack.Screen name="SocialRegister" options={{ title: t('navigation.completeSetup') || 'Complete Setup' }}>
+        <Stack.Screen name="SocialRegister" options={{
+          title: t('navigation.completeSetup') || 'Complete Setup',
+          headerLeft: () => (
+            <TouchableOpacity onPress={() => setMode('welcome')} hitSlop={8}>
+              <ChevronLeft size={24} color={colors.primary[500]} />
+            </TouchableOpacity>
+          ),
+        }}>
           {() => (
             <SocialRegistrationScreen
               socialRegistrationToken={socialRegistrationToken}
@@ -230,7 +251,14 @@ function AuthStack() {
         </Stack.Screen>
       )}
       {mode === 'login' && (
-        <Stack.Screen name="Login" options={{ title: t('navigation.logIn') }}>
+        <Stack.Screen name="Login" options={{
+          title: t('navigation.logIn'),
+          headerLeft: () => (
+            <TouchableOpacity onPress={() => setMode('welcome')} hitSlop={8}>
+              <ChevronLeft size={24} color={colors.primary[500]} />
+            </TouchableOpacity>
+          ),
+        }}>
           {() => (
             <LoginScreen
               email={email}
