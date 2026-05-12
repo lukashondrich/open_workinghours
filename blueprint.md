@@ -65,11 +65,11 @@ Email-based passwordless auth with daily data submission.
 Shift planning with reusable templates and unified picker UI.
 - Pinch-to-zoom with focal point
 - Unified InlinePicker (centered modal) for shifts, absences, and manual GPS hours
-- Double-tap to place armed shifts/absences
-- Overlap detection
+- Unified batch placement: tap to place, long-press to remove (both views)
+- Overlap detection (silent skip during batch mode)
 - Absence tracking (vacation, sick days)
 - Manual session creation for GPS failure fallback
-- Month view with summary footer (tracked/planned hours, overtime, absence counts)
+- Month view with FAB, batch placement, dynamic rows, collapsible summary footer
 - Progressive disclosure at 4 zoom levels
 
 ### Status Dashboard

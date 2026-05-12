@@ -257,34 +257,34 @@ Shift planning with templates, instances, and a unified inline picker.
 
 **Key Files:**
 - `WeekView.tsx` - Main calendar view with pinch-zoom
-- `MonthView.tsx` - Monthly overview with summary footer
+- `MonthView.tsx` - Monthly overview with batch shift placement, collapsible summary footer
 - `InlinePicker.tsx` - Unified shift/absence/GPS picker (centered modal)
 - `ManualSessionForm.tsx` - Manual tracked session creation form
 - `TemplatePanel.tsx` - Shift/absence template management (compact radio list)
-- `CalendarFAB.tsx` - Floating action button (Shifts/Absences/Log Hours)
+- `CalendarFAB.tsx` - Floating action button (Shifts/Absences/Log Hours), visible in both views (48dp compact)
 - `CalendarHeader.tsx` - Header with navigation, week badge, GPS toggle
 - `CalendarStorage.ts` - SQLite persistence
 - `calendar-reducer.ts` - State management
 
 **InlinePicker (Unified Picker UI):**
 - Centered modal with three tabs: Shifts, Absences, GPS
-- Two modes: **direct placement** (with targetDate → places immediately) and **arming** (without targetDate → arms for double-tap)
-- Entry points: FAB, WeekView (tap/long-press), MonthView (long-press)
+- Two modes: **direct placement** (with targetDate → places immediately) and **arming** (without targetDate → arms for tap-to-place)
+- Entry points: FAB (both views), WeekView (tap/long-press), MonthView (long-press)
 - Edit icon (pencil) on LEFT of template rows, inline edit form with name/time/color/break duration
 - Focus ring on target day in both WeekView and MonthView
 - Blocked on locked/confirmed days
 - 28 testIDs for E2E compatibility
 
-**Interaction Model:**
+**Interaction Model (unified across both views):**
 
 | View | Action | Not Armed | Armed |
 |------|--------|-----------|-------|
-| WeekView | Single tap | Open InlinePicker | Blocked |
-| WeekView | Double tap | Open InlinePicker | Place shift/absence |
-| WeekView | Long press | Open InlinePicker | Open InlinePicker |
-| MonthView | Single tap | Navigate to WeekView | Delayed navigate (allows double-tap) |
-| MonthView | Double tap | Navigate to WeekView | Place armed shift |
-| MonthView | Long press | Open InlinePicker | Open InlinePicker |
+| WeekView | Single tap | Open InlinePicker | Place shift/absence (instant) |
+| WeekView | Long press | Open InlinePicker | Remove shift of armed template |
+| MonthView | Single tap | Navigate to WeekView | Place shift/absence (instant) |
+| MonthView | Long press | Open InlinePicker | Remove shift of armed template |
+
+Batch mode banner shows "Tap to place · Hold to remove". Overlap during batch placement silently skips (light haptic). `DELETE_INSTANCE` preserves armed mode in reducer.
 
 **Week View Features:**
 - Pinch-to-zoom with focal point (ref-based, platform-specific gesture handling)
@@ -302,15 +302,16 @@ Shift planning with templates, instances, and a unified inline picker.
 - Submit button (was "Confirm?") with review mode header hint
 
 **Month View Features:**
-- Grid uses fixed 6-week (42 cell) layout for consistent height across all months
+- Dynamic row count: 5 weeks when month fits, 6 only when needed (reclaims vertical space)
 - Day cells show: day number, shift dots (colored), tracked dot (rose), absence icons
 - Per-day overtime for confirmed days (e.g., "+1h 30m ✓") — color-coded green/red/grey
 - Unconfirmed days with activity show ? icon
-- Monthly summary footer: tracked hours, planned hours, overtime, vacation/sick counts
+- Collapsible summary footer: collapsed by default (overtime + chevron), tap to expand full details (tracked, planned, overtime, absences)
 - Confirmation nudge: "(X confirmed)" hint when some overtime is unconfirmed
 - Swipe left/right to navigate months (with slide animation)
 - Header title click navigates to current month
-- GPS toggle and FAB hidden (month view is overview-only)
+- FAB visible (48dp compact) for batch shift/absence placement ("paint mode")
+- Visual flash feedback on day cells: green on place, red on remove (400ms fade)
 - Full month tracking data loaded when switching to month view in review mode
 - Multi-day sessions correctly split across days using `getTrackedMinutesForDate()`
 - Armed shift banner in fixed-height slot inside `Animated.View` (no layout shift)
