@@ -1,8 +1,8 @@
 # Mobile App Architecture
 
-**Last Updated:** 2026-02-09
+**Last Updated:** 2026-04-22
 **Platform:** React Native + Expo
-**Current Build:** #30 (TestFlight)
+**Current Build:** #52 (TestFlight)
 
 ---
 
@@ -81,10 +81,14 @@ mobile-app/
 │   │   │   ├── components/     # WeekView, MonthView, InlinePicker, TemplatePanel, CalendarFAB, ManualSessionForm
 │   │   │   └── services/       # CalendarStorage, DailyAggregator
 │   │   │
-│   │   └── geofencing/         # Location tracking
-│   │       ├── components/     # Dashboard widgets
-│   │       ├── screens/        # Status, Settings, Locations
-│   │       └── services/       # GeofenceService, TrackingManager
+│   │   ├── geofencing/         # Location tracking
+│   │   │   ├── components/     # Dashboard widgets
+│   │   │   ├── screens/        # Status, Settings, Locations
+│   │   │   └── services/       # GeofenceService, TrackingManager, ForegroundKeepaliveService
+│   │   │
+│   │   └── reports/            # Weekly reports & collective insights
+│   │       ├── screens/        # ReportsScreen
+│   │       └── services/       # WeekStateService, WeekFinalizationService, CollectiveInsightsService
 │   │
 │   ├── navigation/             # AppNavigator, tab config
 │   └── test-utils/             # Demo data seeding
@@ -109,15 +113,25 @@ Automatic clock-in/out based on GPS location with robust hysteresis.
 - `Database.ts` - SQLite operations, pending exit state management
 
 **Behavior:**
-- Clock-in: Triggered on geofence enter (accuracy recorded)
-- Clock-out: Uses 4-layer protection before finalizing:
-  1. **GPS accuracy filter**: Ignore exits with accuracy > 100m
-  2. **Signal degradation**: Ignore if accuracy 3x worse than check-in
-  3. **Pending exit state**: Wait 5 min before confirming exit
-  4. **Re-entry cancellation**: Cancel pending exit if user returns
+- Clock-in: Triggered on geofence enter, validated by GPS (see Enter Validation below)
+- Clock-out: Uses multi-layer protection before finalizing (see Exit Protection below)
 - Sessions < 5 min are kept (not deleted) with visual indicator
 - Manual clock-in/out available as fallback
 - GPS telemetry logged for parameter tuning (via Report Issue)
+- StatusScreen and TrackingScreen show "location transition pending" for `pending_exit` sessions
+
+**Enter Validation (Build #52):**
+On geofence enter callbacks, the app fetches a GPS reading and validates the device is actually near the geofence center. If `distance - accuracy > radius` (confidently outside), the enter is silently ignored. This prevents phantom clock-ins from stale/false OS callbacks, which are common on Android OEMs with aggressive battery optimization.
+
+**Exit Protection (3 layers):**
+1. **Signal degradation**: Ignore exit if GPS accuracy is 3x worse than check-in accuracy (relative, not absolute). Only applied to non-`active_fetch` readings.
+2. **Pending exit state**: Wait 5 min before confirming exit (hysteresis)
+3. **Re-entry cancellation**: Cancel pending exit if user returns within hysteresis window
+
+**Android Reliability — Foreground Keepalive (Build #48+):**
+Android OEMs (Samsung, Xiaomi, Huawei) aggressively kill background processes. Samsung is rated 5/5 severity on dontkillmyapp.com. Without a foreground service, the OS stops delivering geofence PendingIntents entirely after killing the app process.
+
+Solution: `ForegroundKeepaliveService.ts` runs `expo-location`'s `startLocationUpdatesAsync` with the `foregroundService` option. This creates a persistent notification that gives the app elevated process priority. The foreground service acts purely as a keep-alive — actual geofence detection continues via `startGeofencingAsync`. A `KeepaliveHealthCheckService.ts` periodically verifies the service is alive and restarts it if needed.
 
 **Session States:**
 - `active` - User is clocked in
@@ -128,14 +142,14 @@ Automatic clock-in/out based on GPS location with robust hysteresis.
 - If `clockOut` is NULL → `state` must be `'active'` or `'pending_exit'`
 - If `clockOut` is set → `state` must be `'completed'`
 
-All methods that modify sessions (`clockOut()`, `updateSession()`) enforce this invariant. Migration v4 repairs any inconsistent sessions.
+All methods that modify sessions (`clockOut()`, `updateSession()`) enforce this invariant. Migration v4 repairs any inconsistent sessions. Migration v7 adds a unique index enforcing one open session per location.
 
 **Constants (tunable):**
 ```typescript
 EXIT_HYSTERESIS_MINUTES = 5     // Wait before confirming clock-out
-GPS_ACCURACY_THRESHOLD = 100    // Ignore exits with accuracy > 100m
 DEGRADATION_FACTOR = 3          // Ignore if accuracy 3x worse than check-in
 EVENT_COOLDOWN_MS = 10000       // Debounce rapid geofence events (10s)
+IMMEDIATE_EXIT_ACCURACY_THRESHOLD = 50  // Skip hysteresis if accuracy < 50m
 ```
 
 **Exit Verification Service (`ExitVerificationService.ts`):**
@@ -243,34 +257,34 @@ Shift planning with templates, instances, and a unified inline picker.
 
 **Key Files:**
 - `WeekView.tsx` - Main calendar view with pinch-zoom
-- `MonthView.tsx` - Monthly overview with summary footer
+- `MonthView.tsx` - Monthly overview with batch shift placement, collapsible summary footer
 - `InlinePicker.tsx` - Unified shift/absence/GPS picker (centered modal)
 - `ManualSessionForm.tsx` - Manual tracked session creation form
 - `TemplatePanel.tsx` - Shift/absence template management (compact radio list)
-- `CalendarFAB.tsx` - Floating action button (Shifts/Absences/Log Hours)
+- `CalendarFAB.tsx` - Floating action button (Shifts/Absences/Log Hours), visible in both views (48dp compact)
 - `CalendarHeader.tsx` - Header with navigation, week badge, GPS toggle
 - `CalendarStorage.ts` - SQLite persistence
 - `calendar-reducer.ts` - State management
 
 **InlinePicker (Unified Picker UI):**
 - Centered modal with three tabs: Shifts, Absences, GPS
-- Two modes: **direct placement** (with targetDate → places immediately) and **arming** (without targetDate → arms for double-tap)
-- Entry points: FAB, WeekView (tap/long-press), MonthView (long-press)
+- Two modes: **direct placement** (with targetDate → places immediately) and **arming** (without targetDate → arms for tap-to-place)
+- Entry points: FAB (both views), WeekView (tap/long-press), MonthView (long-press)
 - Edit icon (pencil) on LEFT of template rows, inline edit form with name/time/color/break duration
 - Focus ring on target day in both WeekView and MonthView
 - Blocked on locked/confirmed days
 - 28 testIDs for E2E compatibility
 
-**Interaction Model:**
+**Interaction Model (unified across both views):**
 
 | View | Action | Not Armed | Armed |
 |------|--------|-----------|-------|
-| WeekView | Single tap | Open InlinePicker | Blocked |
-| WeekView | Double tap | Open InlinePicker | Place shift/absence |
-| WeekView | Long press | Open InlinePicker | Open InlinePicker |
-| MonthView | Single tap | Navigate to WeekView | Delayed navigate (allows double-tap) |
-| MonthView | Double tap | Navigate to WeekView | Place armed shift |
-| MonthView | Long press | Open InlinePicker | Open InlinePicker |
+| WeekView | Single tap | Open InlinePicker | Place shift/absence (instant) |
+| WeekView | Long press | Open InlinePicker | Remove shift of armed template |
+| MonthView | Single tap | Navigate to WeekView | Place shift/absence (instant) |
+| MonthView | Long press | Open InlinePicker | Remove shift of armed template |
+
+Batch mode banner shows "Tap to place · Hold to remove". Overlap during batch placement silently skips (light haptic). `DELETE_INSTANCE` preserves armed mode in reducer.
 
 **Week View Features:**
 - Pinch-to-zoom with focal point (ref-based, platform-specific gesture handling)
@@ -288,15 +302,16 @@ Shift planning with templates, instances, and a unified inline picker.
 - Submit button (was "Confirm?") with review mode header hint
 
 **Month View Features:**
-- Grid uses fixed 6-week (42 cell) layout for consistent height across all months
+- Dynamic row count: 5 weeks when month fits, 6 only when needed (reclaims vertical space)
 - Day cells show: day number, shift dots (colored), tracked dot (rose), absence icons
 - Per-day overtime for confirmed days (e.g., "+1h 30m ✓") — color-coded green/red/grey
 - Unconfirmed days with activity show ? icon
-- Monthly summary footer: tracked hours, planned hours, overtime, vacation/sick counts
+- Collapsible summary footer: collapsed by default (overtime + chevron), tap to expand full details (tracked, planned, overtime, absences)
 - Confirmation nudge: "(X confirmed)" hint when some overtime is unconfirmed
 - Swipe left/right to navigate months (with slide animation)
 - Header title click navigates to current month
-- GPS toggle and FAB hidden (month view is overview-only)
+- FAB visible (48dp compact) for batch shift/absence placement ("paint mode")
+- Visual flash feedback on day cells: green on place, red on remove (400ms fade)
 - Full month tracking data loaded when switching to month view in review mode
 - Multi-day sessions correctly split across days using `getTrackedMinutesForDate()`
 - Armed shift banner in fixed-height slot inside `Animated.View` (no layout shift)
@@ -332,6 +347,26 @@ Shift planning with templates, instances, and a unified inline picker.
 - Time badge pill: `● 2h 30m` showing elapsed time
 - Subtle "End" button for clocking out
 - Inactive card: normal styling with "Clock In" button
+
+### Reports Module (Build #52)
+
+Weekly reports with auto-finalization and collective insights from the backend.
+
+**Key Files:**
+- `ReportsScreen.tsx` - Main reports view with week cards and collective insights
+- `WeekStateService.ts` - Week lifecycle state machine (open → ready → finalized → submitted)
+- `WeekFinalizationService.ts` - Auto-finalizes completed weeks, syncs with calendar confirmations
+- `CollectiveInsightsService.ts` - Fetches published group statistics from backend
+
+**Week State Machine:**
+- `open` — Current or future week, still accepting edits
+- `ready` — All days confirmed, eligible for finalization
+- `finalized` — Locked for submission, no further edits
+- `submitted` — Sent to backend
+
+**Auto-finalization:** When all 7 days of a past week are confirmed in the calendar, `WeekFinalizationService` automatically transitions the week to `finalized` state. Same-day confirmations and finalizations are allowed.
+
+**Database:** `reports_week_queue` table (migration v6) tracks week state. `app_preferences` table stores UI state like last-viewed week.
 
 ---
 
@@ -420,7 +455,37 @@ day_confirmations (
   date TEXT PRIMARY KEY,
   confirmed_at TEXT
 )
+
+-- Reports week queue (migration v6)
+reports_week_queue (
+  week_start TEXT PRIMARY KEY,
+  status TEXT NOT NULL,        -- 'open' | 'ready' | 'finalized' | 'submitted'
+  queued_at TEXT,
+  sent_at TEXT,
+  last_error TEXT,
+  updated_at TEXT NOT NULL
+)
+
+-- App preferences (migration v6)
+app_preferences (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+)
 ```
+
+**Migration History:**
+| Version | Purpose |
+|---------|---------|
+| 1 | Initial schema (locations, sessions, events, daily_actuals) |
+| 2 | Hysteresis: state, pending_exit_at, exit_accuracy columns |
+| 3 | Telemetry: accuracy, ignored, ignore_reason columns |
+| 4 | Session integrity: repair inconsistent clockOut/state |
+| 5 | accuracy_source column on geofence_events |
+| 6 | Reports: reports_week_queue + app_preferences tables |
+| 7 | Session integrity: unique index (one open session per location) + idempotent reports table backfill |
+
+**Migration v7 note:** Both v6 and v7 create the reports tables with `CREATE IF NOT EXISTS`. This is intentional — the android-bugs branch originally used v6 for session integrity, while main used v6 for reports tables. The backfill in v7 ensures devices on either upgrade path end up with the same schema.
 
 ---
 
@@ -597,6 +662,24 @@ useEffect(() => {
 - **New file**: `src/lib/events/trackingEvents.ts`
 - **TrackingManager changes**: Emits `tracking-changed` on all clock events
 - **CalendarProvider changes**: Subscribes and refreshes tracking records in review mode
+
+### Android: react-native-maps Controlled vs Uncontrolled (2026-04-04)
+- **Problem**: On Android, using a controlled `region` prop with `animateToRegion` causes a feedback loop — `onRegionChangeComplete` fires with intermediate positions, triggers re-render, which fights the animation (5+ seconds of flickering)
+- **Root cause**: Android's Google Maps SDK doesn't handle controlled `region` + animation gracefully. iOS does.
+- **Solution**: Use uncontrolled `initialRegion` with a ref. All map movement via `animateToRegion` only.
+```typescript
+// GOOD — uncontrolled, no feedback loop
+const regionRef = useRef(defaultRegion);
+<MapView
+  initialRegion={regionRef.current}
+  onRegionChangeComplete={(r) => { regionRef.current = r; }}  // ref, not state
+/>
+
+// BAD — causes flicker on Android
+<MapView region={region} onRegionChangeComplete={setRegion} />
+```
+- **Key detail**: When a multi-step wizard remounts MapView (e.g., SetupScreen step 1→2), `initialRegion={regionRef.current}` ensures the new MapView starts at the location selected in the previous step
+- **Files**: `LocationsListScreen.tsx`, `SetupScreen.tsx`
 
 ### Android Gesture System (2026-01-20)
 - **Problem**: RNGH GestureDetector wrapping ScrollView causes gesture conflicts on Android (scroll doesn't work reliably, pinch zoom broken)
@@ -893,6 +976,8 @@ npm test -- --testPathPattern=GeofenceService
 5. Testers manually update via TestFlight app
 
 ### E2E Testing (Appium)
+
+**→ See [e2e/README.md](./e2e/README.md)** for the full runbook, Android-specific pitfalls, and TEST_MODE details.
 
 Cross-platform E2E testing using [Appium](https://appium.io/) with WebdriverIO.
 

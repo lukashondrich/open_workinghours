@@ -8,7 +8,7 @@
 
 ### Android E2E: Month view toggle and location wizard flakiness
 
-**Status:** Open
+**Status:** Fix applied (2026-03-24) — awaiting rebuild + verification
 **Discovered:** 2026-02-03 (documented), confirmed 2026-03-24
 **Severity:** Medium — blocks full Android E2E green, does not affect iOS
 **Affects:** `shifts.test.js`, `absences.test.js`, `manual-session.test.js`, `location.test.js`
@@ -21,28 +21,25 @@
 
 **Scope:** 24 failures in full suite run (2026-03-24). Auth (5/5), Calendar (7/7), Registration (7/7) all pass consistently.
 
-**Root causes (suspected):**
-1. **Month/Week toggle:** The toggle is rendered by `CalendarHeader.tsx` inside a `SegmentedControl`-like pattern. On Android, the text may not be exposed to UiAutomator2 when the calendar is in a transitional state (panel closing, view switching). The `byI18nFast` regex selector relies on text matching which may fail when the element is mid-animation or obscured.
-2. **Location wizard timing:** Photon geocoding API is slow on emulator (network latency + cold start). The 8s timeout for `setup-search-result-0` is sometimes insufficient. Fallback map-tap works but subsequent steps may fail.
-3. **Panel dismissal race:** After double-tapping to place a shift, the TemplatePanel is supposed to close. On Android, the close animation (~150ms) may not complete before the next test action fires.
+**Root causes (confirmed):**
+1. **Month/Week toggle:** UiAutomator2 `textMatches()` regex fails when text isn't exposed during animation. Replaced with `testID`-based selection.
+2. **Location wizard timing:** Photon geocoding 8s timeout too short on emulator. Increased to 15s.
+3. **Panel dismissal race:** TemplatePanel 300ms animation was running even in TEST_MODE. Now skipped in TEST_MODE (follows ManualSessionForm pattern).
 
-**Workarounds:**
-- Re-run flaky suites individually (usually passes on second attempt)
-- Run iOS E2E for reliable regression testing (48/48, 100% stable)
-- Run `registration.test.js` + `auth.test.js` + `calendar.test.js` for Android smoke test (19/19 stable)
+**Fixes applied (2026-03-24):**
+1. Added `testID="toggle-week"` / `testID="toggle-month"` to `CalendarHeader.tsx` toggle buttons (+ `accessible={true}`, `accessibilityRole="button"`, parent `accessible={false}`)
+2. Replaced all `byI18nFast(driver, 'month'/'week')` with `byTestId(driver, 'toggle-month'/'toggle-week')` in `shifts.test.js`, `absences.test.js`, `calendar.test.js`
+3. Added `isTestMode()` animation skip to `TemplatePanel.tsx` (instant open/close in TEST_MODE)
+4. Increased geocoding timeout in `actions.js` from 8s → 15s
 
-**Potential fixes:**
-1. Replace `byI18nFast` with `byTestId` for Month/Week toggle (add `testID="toggle-week"` / `testID="toggle-month"` to `CalendarHeader.tsx`)
-2. Increase location wizard geocoding timeout from 8s → 15s, add retry loop
-3. Add explicit `waitForExist` after panel close animations before proceeding to next action
-4. Consider adding `TEST_MODE` animation skip for `CalendarHeader` toggle transitions
+**Rebuild required:** testID and TEST_MODE changes need `npm run build:android` before testing.
 
-**Reproduce:**
+**Verify:**
 ```bash
 cd mobile-app/e2e
-npm run build:android                    # Fresh build with TEST_MODE
+npm run build:android                    # Rebuild with fixes
 npm run infra:android                    # Terminal 1
-PLATFORM=android npm run test:android    # Terminal 2 — expect ~24 failures
+PLATFORM=android npm run test:android    # Terminal 2 — expect improvement
 ```
 
 **Related:** `mobile-app/e2e/README.md` (Known flakiness section), `docs/E2E_TESTING_PLAN.md` (session logs)

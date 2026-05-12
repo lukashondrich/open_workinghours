@@ -129,6 +129,7 @@ export default function TrackingScreen({ navigation, route }: Props) {
   }
 
   const isTracking = activeSession !== null;
+  const isPendingTransition = activeSession?.state === 'pending_exit';
 
   // Map circle colors
   const MAP_CIRCLE_STROKE = 'rgba(46, 139, 107, 0.6)';
@@ -195,6 +196,11 @@ export default function TrackingScreen({ navigation, route }: Props) {
                   {new Date(activeSession.clockIn).toLocaleTimeString()}
                 </Text>
                 <Text style={styles.elapsedTime}>{elapsedTime}</Text>
+                {isPendingTransition && (
+                  <Text style={styles.pendingTransitionText}>
+                    {t('tracking.locationTransitionPending')}
+                  </Text>
+                )}
                 <View style={styles.trackingMethodRow}>
                   {activeSession.trackingMethod === 'geofence_auto' ? (
                     <>
@@ -237,7 +243,9 @@ export default function TrackingScreen({ navigation, route }: Props) {
             )}
 
             <Text style={styles.hint}>
-              {isTracking
+              {isPendingTransition
+                ? t('tracking.locationTransitionPending')
+                : isTracking
                 ? t('tracking.hintTracking')
                 : t('tracking.hintNotTracking')}
             </Text>
@@ -322,6 +330,11 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xl,
     color: colors.primary[500],
     fontWeight: fontWeight.semibold,
+    marginBottom: spacing.sm,
+  },
+  pendingTransitionText: {
+    fontSize: fontSize.sm,
+    color: colors.text.secondary,
     marginBottom: spacing.sm,
   },
   trackingMethodRow: {

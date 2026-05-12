@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Platform, AppState, type AppStateStatus } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, Platform, AppState, TouchableOpacity, type AppStateStatus } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BarChart3, Calendar, FileText } from 'lucide-react-native';
+import { BarChart3, Calendar, ChevronLeft, FileText } from 'lucide-react-native';
 
 import { colors, fontSize, fontWeight } from '@/theme';
 import { t } from '@/lib/i18n';
@@ -30,16 +30,20 @@ import EmailVerificationScreen from '@/modules/auth/screens/EmailVerificationScr
 import RegisterScreen from '@/modules/auth/screens/RegisterScreen';
 import LoginScreen from '@/modules/auth/screens/LoginScreen';
 import LockScreen from '@/modules/auth/screens/LockScreen';
+import SocialRegistrationScreen from '@/modules/auth/screens/SocialRegistrationScreen';
 import ProfileScreen from '@/modules/auth/screens/ProfileScreen';
 
 import { useAuth } from '@/lib/auth/auth-context';
 import { WeekFinalizationService } from '@/modules/reports/services/WeekFinalizationService';
+import { WeekStateService } from '@/modules/reports/services/WeekStateService';
+import { SundayNotificationService } from '@/modules/reports/services/SundayNotificationService';
 
 export type RootStackParamList = {
   // Auth stack
   Welcome: undefined;
   EmailVerification: undefined;
   Register: { email: string };
+  SocialRegister: undefined;
   Login: { email: string };
   // Main app stack
   MainTabs: undefined;
@@ -166,8 +170,9 @@ function LoadingScreen() {
  */
 function AuthStack() {
   const Stack = createNativeStackNavigator<RootStackParamList>();
-  const [mode, setMode] = useState<'welcome' | 'verify' | 'register' | 'login'>('welcome');
+  const [mode, setMode] = useState<'welcome' | 'verify' | 'register' | 'login' | 'socialRegister'>('welcome');
   const [email, setEmail] = useState('');
+  const [socialRegistrationToken, setSocialRegistrationToken] = useState('');
 
   return (
     <Stack.Navigator
@@ -188,12 +193,23 @@ function AuthStack() {
             <WelcomeScreen
               onLoginPress={() => setMode('login')}
               onRegisterPress={() => setMode('verify')}
+              onSocialRegistrationRequired={(token) => {
+                setSocialRegistrationToken(token);
+                setMode('socialRegister');
+              }}
             />
           )}
         </Stack.Screen>
       )}
       {mode === 'verify' && (
-        <Stack.Screen name="EmailVerification" options={{ title: t('navigation.verifyEmail') }}>
+        <Stack.Screen name="EmailVerification" options={{
+          title: t('navigation.verifyEmail'),
+          headerLeft: () => (
+            <TouchableOpacity onPress={() => setMode('welcome')} hitSlop={8}>
+              <ChevronLeft size={24} color={colors.primary[500]} />
+            </TouchableOpacity>
+          ),
+        }}>
           {() => (
             <EmailVerificationScreen
               onVerified={(verifiedEmail) => {
@@ -205,7 +221,14 @@ function AuthStack() {
         </Stack.Screen>
       )}
       {mode === 'register' && (
-        <Stack.Screen name="Register" options={{ title: t('navigation.createAccount') }}>
+        <Stack.Screen name="Register" options={{
+          title: t('navigation.createAccount'),
+          headerLeft: () => (
+            <TouchableOpacity onPress={() => setMode('welcome')} hitSlop={8}>
+              <ChevronLeft size={24} color={colors.primary[500]} />
+            </TouchableOpacity>
+          ),
+        }}>
           {() => (
             <RegisterScreen
               email={email}
@@ -214,8 +237,31 @@ function AuthStack() {
           )}
         </Stack.Screen>
       )}
+      {mode === 'socialRegister' && (
+        <Stack.Screen name="SocialRegister" options={{
+          title: t('navigation.completeSetup') || 'Complete Setup',
+          headerLeft: () => (
+            <TouchableOpacity onPress={() => setMode('welcome')} hitSlop={8}>
+              <ChevronLeft size={24} color={colors.primary[500]} />
+            </TouchableOpacity>
+          ),
+        }}>
+          {() => (
+            <SocialRegistrationScreen
+              socialRegistrationToken={socialRegistrationToken}
+            />
+          )}
+        </Stack.Screen>
+      )}
       {mode === 'login' && (
-        <Stack.Screen name="Login" options={{ title: t('navigation.logIn') }}>
+        <Stack.Screen name="Login" options={{
+          title: t('navigation.logIn'),
+          headerLeft: () => (
+            <TouchableOpacity onPress={() => setMode('welcome')} hitSlop={8}>
+              <ChevronLeft size={24} color={colors.primary[500]} />
+            </TouchableOpacity>
+          ),
+        }}>
           {() => (
             <LoginScreen
               email={email}
@@ -241,7 +287,15 @@ export default function AppNavigator() {
 
     finalizationInFlightRef.current = true;
     try {
+      // Reconcile auto-send queue first (may queue current week on Sunday evening)
+      const autoSend = await WeekStateService.getAutoSend();
+      if (autoSend) {
+        await WeekStateService.reconcileAutoSendQueue();
+      }
+      // Then send eligible queued weeks
       await WeekFinalizationService.sendEligibleQueuedWeeks();
+      // Reschedule Sunday notifications
+      await SundayNotificationService.scheduleWeeklyNotifications();
     } catch (error) {
       console.error('[AppNavigator] Failed to finalize queued weeks:', error);
     } finally {

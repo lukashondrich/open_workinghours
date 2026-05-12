@@ -94,18 +94,6 @@ export interface WeeklySubmissionRecord {
   updatedAt: string;
 }
 
-export interface DailySubmissionRecord {
-  id: string;
-  date: string; // YYYY-MM-DD
-  plannedHours: number;
-  actualHours: number;
-  source: 'geofence' | 'manual' | 'mixed';
-  status: SubmissionStatus;
-  createdAt: string;
-  submittedAt: string | null;
-  errorMessage: string | null;
-}
-
 export type ReportsWeekQueueStatus = 'queued' | 'sent';
 
 export interface ReportsWeekQueueRecord {
@@ -114,5 +102,6 @@ export interface ReportsWeekQueueRecord {
   queuedAt: string | null;
   sentAt: string | null;
   lastError: string | null;
+  sendAfter: string | null; // ISO8601 timestamp — jitter for load spreading
   updatedAt: string;
 }

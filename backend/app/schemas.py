@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field, validator
@@ -135,12 +136,21 @@ class WeeklySubmissionListItem(BaseModel):
 
 class FinalizedUserWeekIn(BaseModel):
     week_start: date
+    planned_hours: float | None = Field(None, ge=0, le=168)
+    actual_hours: float | None = Field(None, ge=0, le=168)
 
     @validator("week_start")
     def _week_start_must_be_monday(cls, week_start: date) -> date:
         if week_start.weekday() != 0:
             raise ValueError("week_start must be a Monday")
         return week_start
+
+    @validator("actual_hours", always=True)
+    def _both_hours_or_neither(cls, actual_hours: float | None, values: dict) -> float | None:
+        planned = values.get("planned_hours")
+        if (planned is None) != (actual_hours is None):
+            raise ValueError("planned_hours and actual_hours must both be provided or both omitted")
+        return actual_hours
 
 
 class FinalizedUserWeekOut(BaseModel):
@@ -340,6 +350,97 @@ class UserDataExportOut(BaseModel):
     exported_at: datetime
     profile: dict
     work_events: list[dict]
+
+
+# ============================================================================
+# SOCIAL AUTH (Sign in with Apple + Google)
+# ============================================================================
+
+
+class AppleAuthIn(BaseModel):
+    """Apple Sign In request — identity token from ASAuthorizationAppleIDProvider."""
+    identity_token: str = Field(..., min_length=1)
+
+
+class GoogleAuthIn(BaseModel):
+    """Google Sign In request — ID token from Google Sign-In SDK."""
+    id_token: str = Field(..., min_length=1)
+
+
+class SocialAuthStartOut(BaseModel):
+    """
+    Response from /auth/apple and /auth/google.
+
+    - status="authenticated": existing linked user, full session returned.
+    - status="registration_required": first-time social sign-in, needs profile completion.
+    """
+    status: Literal["authenticated", "registration_required"]
+    access_token: str | None = None
+    token_type: str | None = "bearer"
+    expires_at: datetime | None = None
+    user_id: UUID | None = None
+    user: UserOut | None = None
+    social_registration_token: str | None = None
+
+
+class SocialRegisterIn(BaseModel):
+    """
+    Social auth registration request — same field contract as UserRegisterIn
+    minus email, plus social_registration_token.
+    """
+    social_registration_token: str = Field(..., min_length=1)
+    # v1 fields (required for backward compat with downstream aggregation)
+    hospital_id: str = Field(..., min_length=1, max_length=255)
+    specialty: str = Field(..., min_length=1, max_length=100)
+    role_level: str = Field(..., min_length=1, max_length=50)
+    state_code: str | None = Field(default=None, max_length=10)
+    # v2 taxonomy fields
+    profession: str | None = Field(default=None, max_length=20)
+    seniority: str | None = Field(default=None, max_length=30)
+    department_group: str | None = Field(default=None, max_length=50)
+    specialization_code: str | None = Field(default=None, max_length=10)
+    hospital_ref_id: int | None = None
+    # GDPR consent
+    terms_version: str | None = Field(default=None, max_length=20)
+    privacy_version: str | None = Field(default=None, max_length=20)
+
+    @validator("profession")
+    def _validate_profession(cls, value: str | None) -> str | None:
+        if value is not None and value not in [p.value for p in Profession]:
+            raise ValueError(f"Invalid profession: {value}. Must be one of: {[p.value for p in Profession]}")
+        return value
+
+    @validator("seniority")
+    def _validate_seniority(cls, value: str | None, values: dict) -> str | None:
+        if value is None:
+            return value
+        if value not in ALL_SENIORITY_VALUES:
+            raise ValueError(f"Invalid seniority: {value}")
+        profession = values.get("profession")
+        if profession is not None and not validate_seniority(profession, value):
+            valid = SENIORITY_BY_PROFESSION.get(Profession(profession), [])
+            raise ValueError(f"Seniority '{value}' is not valid for profession '{profession}'. Valid: {valid}")
+        return value
+
+    @validator("department_group")
+    def _validate_department_group(cls, value: str | None) -> str | None:
+        if value is not None and value not in ALL_DEPARTMENT_GROUPS:
+            raise ValueError(f"Invalid department_group: {value}")
+        return value
+
+    @validator("specialization_code")
+    def _validate_specialization_code(cls, value: str | None) -> str | None:
+        if value is not None and value not in ALL_SPECIALIZATION_CODES:
+            raise ValueError(f"Invalid specialization_code: {value}")
+        return value
+
+    @validator("state_code")
+    def _validate_state_code(cls, value: str | None) -> str | None:
+        if value is not None and len(value) == 2:
+            value = value.upper()
+            if value not in ALL_STATE_CODES:
+                raise ValueError(f"Invalid state_code: {value}. Must be a valid German federal state code.")
+        return value
 
 
 # ============================================================================

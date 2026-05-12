@@ -39,6 +39,7 @@ jest.mock('lucide-react-native', () => {
     FileText: Icon,
     Shield: Icon,
     Fingerprint: Icon,
+    UserCircle: Icon,
   };
 });
 
@@ -56,6 +57,11 @@ jest.mock('@/components/ui', () => ({
     const ReactLocal = require('react');
     const { Text: NativeText } = require('react-native');
     return ReactLocal.createElement(NativeText, null, title);
+  },
+  SettingsDetailLayout: ({ children }: any) => {
+    const ReactLocal = require('react');
+    const { View: NativeView } = require('react-native');
+    return ReactLocal.createElement(NativeView, null, children);
   },
 }));
 

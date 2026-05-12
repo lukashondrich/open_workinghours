@@ -24,8 +24,10 @@ const {
   waitForText,
   existsTestId,
   dismissPermissionDialogs,
+  dismissNativeDialog,
   ensureAuthenticated,
   dismissKeyboard,
+  advancePastSetupForegroundPrimer,
 } = require('../helpers/actions');
 
 describe('Location Setup', () => {
@@ -91,7 +93,16 @@ describe('Location Setup', () => {
 
     const addButton = await byI18nFast(driver, 'addLocation');
     await addButton.click();
-    await driver.pause(1000);
+    await driver.pause(driver.isAndroid ? 3000 : 1000);
+    await advancePastSetupForegroundPrimer(driver);
+
+    // Dismiss GPS/location dialogs that may appear on Android after map loads
+    await dismissPermissionDialogs(driver);
+    for (let i = 0; i < 3; i++) {
+      const dismissed = await dismissNativeDialog(driver, ['OK']);
+      if (!dismissed) break;
+      await driver.pause(500);
+    }
 
     // Step 1: Search input should be visible
     const searchInput = await byTestId(driver, 'setup-search-input');
@@ -105,10 +116,10 @@ describe('Location Setup', () => {
     }
 
     await typeTestId(driver, 'setup-search-input', 'Berlin');
-    await driver.pause(2000); // Wait for search results
 
-    // Tap first search result
+    // Wait for geocoding results — Photon API can be slow on Android emulators
     const firstResult = await byTestId(driver, 'setup-search-result-0');
+    await firstResult.waitForDisplayed({ timeout: 15000 });
     expect(await firstResult.isDisplayed()).toBe(true);
 
     await firstResult.click();

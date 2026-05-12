@@ -12,6 +12,7 @@ import Constants from 'expo-constants';
 import type {
   VerificationCodeResponse,
   VerifyCodeResponse,
+  SocialAuthStartResponse,
   User,
 } from '@/lib/auth/auth-types';
 import type { GeocodingResult } from '@/modules/geofencing/services/GeocodingService';
@@ -80,6 +81,63 @@ export const mockResponses = {
     seniority: 'assistenzarzt',
     departmentGroup: 'innere_medizin',
     hospitalRefId: 6, // Sana Klinik München (BY)
+    createdAt: new Date().toISOString(),
+    termsAcceptedVersion: '1.0.0',
+    privacyAcceptedVersion: '1.0.0',
+    consentAcceptedAt: new Date().toISOString(),
+  }),
+
+  /**
+   * POST /auth/apple — existing user
+   */
+  authAppleExistingUser: {
+    status: 'authenticated',
+    access_token: 'mock-jwt-token-e2e-apple-12345',
+    token_type: 'bearer',
+    expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    user_id: 'mock-user-id-apple-67890',
+  } as SocialAuthStartResponse,
+
+  /**
+   * POST /auth/apple — new user
+   */
+  authAppleNewUser: {
+    status: 'registration_required',
+    social_registration_token: 'mock-social-registration-token-apple',
+  } as SocialAuthStartResponse,
+
+  /**
+   * POST /auth/google — existing user
+   */
+  authGoogleExistingUser: {
+    status: 'authenticated',
+    access_token: 'mock-jwt-token-e2e-google-12345',
+    token_type: 'bearer',
+    expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    user_id: 'mock-user-id-google-67890',
+  } as SocialAuthStartResponse,
+
+  /**
+   * POST /auth/google — new user
+   */
+  authGoogleNewUser: {
+    status: 'registration_required',
+    social_registration_token: 'mock-social-registration-token-google',
+  } as SocialAuthStartResponse,
+
+  /**
+   * GET /auth/me — social auth user (no email)
+   */
+  authMeSocial: (): User => ({
+    userId: 'mock-user-id-social-67890',
+    hospitalId: 'E2E Test Hospital',
+    specialty: 'Internal Medicine',
+    roleLevel: 'Resident',
+    stateCode: 'BY',
+    profession: 'physician',
+    seniority: 'assistenzarzt',
+    departmentGroup: 'innere_medizin',
+    hospitalRefId: 6,
     createdAt: new Date().toISOString(),
     termsAcceptedVersion: '1.0.0',
     privacyAcceptedVersion: '1.0.0',

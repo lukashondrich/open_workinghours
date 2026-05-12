@@ -81,7 +81,7 @@ class User(Base):
     __tablename__ = "users"
 
     user_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    email_hash = Column(String(64), unique=True, nullable=False, index=True)
+    email_hash = Column(String(64), unique=True, nullable=True, index=True)  # NULL for social-auth users
     hospital_id = Column(String(255), nullable=False, index=True)
     specialty = Column(String(100), nullable=False, index=True)
     role_level = Column(String(50), nullable=False)
@@ -90,6 +90,10 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     last_submission_at = Column(DateTime(timezone=True))
+
+    # Social auth (NULL for email users)
+    auth_provider = Column(String(20), nullable=True)   # "apple" | "google" | NULL (email)
+    provider_sub = Column(String(255), nullable=True, index=True)
 
     # Taxonomy v2 fields (nullable — NULL means legacy/not yet updated)
     profession = Column(String(20), nullable=True, index=True)
@@ -106,6 +110,10 @@ class User(Base):
     # Relationships
     work_events = relationship("WorkEvent", back_populates="user", cascade="all, delete-orphan")
     finalized_weeks = relationship("FinalizedUserWeek", back_populates="user", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        UniqueConstraint("auth_provider", "provider_sub", name="uq_user_auth_provider_sub"),
+    )
 
 
 class WorkEvent(Base):

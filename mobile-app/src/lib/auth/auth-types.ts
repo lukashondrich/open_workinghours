@@ -12,7 +12,7 @@ export interface AuthState {
 
 export interface User {
   userId: string;
-  email: string;
+  email?: string;  // Optional — social auth users have no stored email
   hospitalId: string;
   specialty: string;
   roleLevel: string;
@@ -108,6 +108,47 @@ export interface MeResponse {
   roleLevel: string;
   stateCode?: string;
   createdAt: string; // ISO 8601 format
+}
+
+// Social auth types
+export interface SocialAuthStartResponse {
+  status: 'authenticated' | 'registration_required';
+  access_token?: string;
+  token_type?: string;
+  expires_at?: string;
+  user_id?: string;
+  user?: {
+    user_id: string;
+    hospital_id: string;
+    specialty: string;
+    role_level: string;
+    state_code?: string;
+    created_at: string;
+    profession?: string;
+    seniority?: string;
+    department_group?: string;
+    specialization_code?: string;
+    hospital_ref_id?: number;
+    terms_accepted_version?: string;
+    privacy_accepted_version?: string;
+    consent_accepted_at?: string;
+  };
+  social_registration_token?: string;
+}
+
+export interface SocialRegisterRequest {
+  socialRegistrationToken: string;
+  hospitalId: string;
+  specialty: string;
+  roleLevel: string;
+  stateCode?: string;
+  profession?: string;
+  seniority?: string;
+  departmentGroup?: string;
+  specializationCode?: string;
+  hospitalRefId?: number;
+  termsVersion?: string;
+  privacyVersion?: string;
 }
 
 export interface UserDataExport {

@@ -17,6 +17,7 @@ export const en = {
     clear: 'Clear',
     adjust: 'Adjust',
     addAnyway: 'Add Anyway',
+    dismiss: 'Dismiss',
     // Day names (abbreviated)
     weekdays: {
       mon: 'Mon',
@@ -26,6 +27,26 @@ export const en = {
       fri: 'Fri',
       sat: 'Sat',
       sun: 'Sun',
+    },
+  },
+
+  onboardingTooltips: {
+    gotIt: 'Got it',
+    calendar: {
+      title: 'Plan shifts and compare hours',
+      body: 'Plan your shifts here. The app compares planned hours with GPS-tracked hours to build your dashboard.',
+    },
+    fab: {
+      title: 'Add calendar details',
+      body: 'Shifts plan your schedule. Absences mark vacation or sick days. Log Hours adds hours manually if GPS missed a session.',
+    },
+    batch: {
+      title: 'Place shifts quickly',
+      body: 'Double-tap any day to place this shift. Tap X to stop placing it.',
+    },
+    trackedSession: {
+      title: 'Automatically tracked session',
+      body: 'This session was tracked automatically via GPS. Confirm the day in Calendar to submit your hours.',
     },
   },
 
@@ -48,6 +69,7 @@ export const en = {
     verifyEmail: 'Verify Email',
     createAccount: 'Create Account',
     logIn: 'Log In',
+    completeSetup: 'Complete Setup',
     back: 'Back',
   },
 
@@ -147,6 +169,7 @@ export const en = {
     batch: {
       placing: 'Placing:',
       doubleTapHint: 'Double-tap to place',
+      tapHint: 'Tap to place · Hold to remove',
       exitHint: 'Tap ✕ to exit batch mode',
     },
     week: {
@@ -271,6 +294,7 @@ export const en = {
       accountExistsMessage: 'An account with this email already exists. Please use login instead.',
       goToLogin: 'Go to Login',
       registrationFailed: 'Registration failed',
+      completeSetup: 'Complete Setup',
     },
     profile: {
       profileSection: 'Your Profile',
@@ -279,6 +303,20 @@ export const en = {
       savedMessage: 'Your profile has been updated. Changes apply to future weeks.',
       saveFailed: 'Update failed',
       futureWeeksHint: 'Changes apply to future weeks only. Already-finalized weeks retain their original values.',
+    },
+    social: {
+      appleButton: 'Continue with Apple',
+      googleButton: 'Continue with Google',
+      or: 'or',
+      emailLink: 'Continue with email',
+      legal: 'By continuing, you agree to our Terms of Service and Privacy Policy.',
+      legalPrefix: 'By continuing, you agree to our ',
+      termsLink: 'Terms of Service',
+      legalJoin: ' and ',
+      privacyLink: 'Privacy Policy',
+      legalSuffix: '.',
+      error: 'Sign-In Failed',
+      tryAgain: 'Please try again or use email sign-in.',
     },
   },
 
@@ -297,10 +335,12 @@ export const en = {
     },
     keyPoints: {
       title: 'In short:',
-      aggregation: 'Your hours contribute to anonymous statistics (only when groups are large enough)',
-      gpsLocal: 'GPS coordinates never leave your device',
+      localData: 'GPS coordinates, workplace names, shift templates, absences, and unconfirmed sessions stay on your device.',
+      submission: 'Your profile and confirmed daily working-hour totals are sent to Open Working Hours so they can be aggregated into privacy-protected statistics.',
+      publicStats: 'Public statistics are only shown for groups of 5+ people and include statistical noise to reduce re-identification risk.',
       deletion: 'Delete your account and all data anytime',
     },
+    privacyExplainer: 'How your data is protected',
     checkbox: 'I agree to the Terms of Service and Privacy Policy',
     accept: 'I Agree & Continue',
     preAnnounce: "By continuing, you'll review our Terms and Privacy Policy",
@@ -319,8 +359,8 @@ export const en = {
     checkIn: 'Clock In',
     checkOut: 'Out',
     end: 'End',
-    noLocations: 'No workplace set up yet',
-    noLocationsHint: 'Add your workplace to start tracking hours automatically',
+    noLocations: 'Set up your workplace to start tracking hours hands-free',
+    noLocationsHint: 'Your phone can detect arrivals and departures once location access is enabled.',
     addWorkplace: 'Add Workplace',
     tapToManage: 'Tap to manage locations',
     manualCheckInSuccess: 'Manually checked in',
@@ -332,6 +372,7 @@ export const en = {
     failedToLoadData: 'Failed to load status data',
     failedToCheckIn: 'Failed to check in',
     failedToCheckOut: 'Failed to check out',
+    locationTransitionPending: 'Location transition is being checked...',
   },
 
   // Dashboard widgets
@@ -454,26 +495,26 @@ export const en = {
     requestPermission: 'Request Permission',
     openSettings: 'Open Settings',
     successTitle: 'Success',
-    backgroundGranted: 'Background location permission granted!',
-    backgroundRequiredTitle: 'Background Permission Required',
-    backgroundRequiredMessage: 'Please go to Settings → [App] → Location → Always Allow to enable automatic tracking.',
-    foregroundRequiredTitle: 'Foreground Permission Required',
-    foregroundRequiredMessage: 'Location permission is required for this app to function.',
+    backgroundGranted: 'Automatic tracking is enabled.',
+    backgroundRequiredTitle: 'Enable automatic tracking',
+    backgroundRequiredMessage: 'To clock in and out automatically, enable background location in Settings → [App] → Location → Always Allow.',
+    foregroundRequiredTitle: 'Location access helps set up your workplace',
+    foregroundRequiredMessage: 'To find your workplace on the map and set up automatic tracking, the app needs location access.',
     requestFailed: 'Failed to request permissions',
-    infoBox: 'Background location is required for automatic tracking. Without it, you can only use manual check-in/out.\n\nTo enable: Settings → [App] → Location → Always Allow',
+    infoBox: 'Background location lets the app clock you in and out automatically when you arrive and leave. Without it, you can still track manually.\n\nTo enable: Settings → [App] → Location → Always Allow',
   },
 
   // Setup screen (Add Location)
   setup: {
-    permissionRequiredTitle: 'Permission Required',
-    permissionRequiredMessage: 'Location permission is required to set up geofencing.',
+    permissionRequiredTitle: 'Location access helps set up your workplace',
+    permissionRequiredMessage: 'To find your workplace on the map and set up automatic tracking, the app needs location access.',
     locationUnavailableTitle: 'Location Unavailable',
     locationUnavailableMessage: 'Could not get your current location. You can manually position the map.',
     initializationFailed: 'Failed to initialize location services',
     missingInfoTitle: 'Missing Information',
     missingInfoMessage: 'Please enter a location name',
-    backgroundPermissionTitle: 'Background Permission Required',
-    backgroundPermissionMessage: 'Background location permission is required for automatic tracking. You can continue anyway, but automatic clock-in/out will not work.\n\nTo enable: Settings → [App] → Location → Always Allow',
+    backgroundPermissionTitle: 'Enable automatic tracking',
+    backgroundPermissionMessage: "Background location lets the app clock you in and out automatically — even when you're not looking at it. You can skip this and track manually instead.\n\nTo enable: Settings → [App] → Location → Always Allow",
     continueAnyway: 'Continue Anyway',
     saveFailed: 'Failed to save location. Please try again.',
     getLocationFailed: 'Failed to get your location',
@@ -482,7 +523,7 @@ export const en = {
     locationName: 'Location Name',
     locationNamePlaceholder: 'e.g., UCSF Medical Center',
     geofenceRadius: 'Geofence Radius: {{radius}}m',
-    mapHint: 'Drag the map to position the marker at your workplace. The circle shows the automatic tracking zone.',
+    mapHint: 'Position the circle over your workplace entrance. The app will detect when you enter and leave this area.',
     saveLocation: 'Save Location',
     // 3-step wizard
     stepOf: 'Step {{current}} of {{total}}',
@@ -491,7 +532,7 @@ export const en = {
     step3Title: 'Name This Location',
     searchPlaceholder: 'Search for address...',
     tapToPlace: 'Tap map to place pin',
-    dragToAdjust: 'Drag pin to fine-tune position',
+    dragToAdjust: 'Position the circle over your workplace entrance. The app will detect when you enter and leave this area.',
     continue: 'Continue',
     save: 'Save',
     locationNameLabel: 'Location name',
@@ -502,6 +543,28 @@ export const en = {
     editStep3Title: 'Edit Name',
     update: 'Update',
     edit: 'Edit',
+    foregroundPrimer: {
+      title: 'Automatic clock-in/out',
+      body: 'When you arrive at or leave your workplace, the app detects it and tracks your hours — no manual input needed.',
+      privacy: 'Your location is checked on-device only. GPS coordinates are never sent to our servers.',
+      enable: 'Enable Location',
+      notNow: 'Not Now',
+    },
+    backgroundPrimer: {
+      title: 'Automatic tracking — even in the background',
+      body: 'To clock you in and out automatically when you arrive and leave, the app needs background location access.',
+      bodyAndroid: "Next, Android may open Location settings. Choose 'Allow all the time' so the app can clock you in and out automatically.",
+      privacy: 'GPS coordinates and workplace names stay on this device. Your profile and confirmed daily working-hour totals are sent only when you confirm a day.',
+      enable: 'Enable Automatic Tracking',
+      skip: 'Track Manually Instead',
+    },
+    notificationPrimer: {
+      title: 'Get clock-in/out confirmations',
+      body: 'Notifications let you know when the app clocks you in or out and help verify when a session should end.',
+      privacy: 'You can change this later in system settings.',
+      enable: 'Enable Notifications',
+      skip: 'Skip Notifications',
+    },
   },
 
   // Tracking screen
@@ -517,6 +580,7 @@ export const en = {
     manuallyClocked: 'Manually clocked in',
     clockOut: 'Clock Out',
     clockIn: 'Clock In',
+    locationTransitionPending: 'Location transition is being checked...',
     hintTracking: 'Leave the geofence area to automatically clock out',
     hintNotTracking: 'Enter the geofence area to automatically clock in',
     viewHistory: 'View Work History',
@@ -563,6 +627,7 @@ export const en = {
     createAccount: 'Create Account',
   },
 
+
   // Email Verification screen
   emailVerification: {
     title: 'Open Working Hours',
@@ -592,9 +657,12 @@ export const en = {
 
   // Permission Warning Banner
   permissionWarning: {
-    title: 'Background Permission Missing',
-    message: 'Automatic tracking is disabled. Enable in Settings for geofencing to work.',
-    goToSettings: 'Go to Settings',
+    title: 'Enable automatic tracking',
+    message: 'Enable background location to clock in and out automatically when you arrive and leave.',
+    deniedTitle: 'Automatic tracking is available',
+    deniedMessage: 'You can keep tracking manually. Location access also lets the app clock you in and out automatically when you arrive and leave.',
+    goToSettings: 'Review Permissions',
+    dontAskAgain: "Don't Ask Again",
   },
 
   // Data & Privacy screen
@@ -611,17 +679,10 @@ export const en = {
     storedData: 'Local Data',
     workLocations: 'Work Locations:',
     workSessions: 'Work Sessions:',
-    dailySubmissions: 'Daily Submissions',
-    submissionExplainer: 'When you confirm a day in the calendar, it\'s automatically submitted to the backend (authenticated).',
-    pending: 'Pending:',
-    failed: 'Failed:',
+    weeklySubmissions: 'Weekly Submissions',
+    weeklySubmissionExplainer: 'Weekly totals are submitted when you queue them for Sunday or have auto-send enabled. Only total hours are shared — no daily details.',
+    queued: 'Queued:',
     sent: 'Sent:',
-    queueEmpty: 'No submissions yet. Confirm days in the Calendar to get started.',
-    status: 'Status: {{status}}',
-    plannedHours: 'Planned: {{hours}}h',
-    actualHours: 'Actual: {{hours}}h',
-    retryFailed: 'Retry Failed',
-    retrying: 'Retrying...',
     deleteAllData: 'Delete Local Data',
     deleteConfirmTitle: 'Delete Local Data?',
     deleteConfirmMessage: 'Are you sure you want to delete all local data?\n\nThis will permanently remove:\n• All work locations\n• All work sessions\n• All tracking history\n\nYour account will remain active.',
@@ -629,21 +690,15 @@ export const en = {
     dataDeletedTitle: 'Data Deleted',
     dataDeletedMessage: 'All local data has been permanently deleted.',
     deleteFailed: 'Failed to delete data. Please try again.',
-    retryQueued: 'Retry queued',
-    retryQueuedMessage: 'Failed submissions were re-sent.',
-    retryFailedTitle: 'Retry failed',
-    retryFailedMessage: 'Could not update submissions. Try again later.',
-    noFailedTitle: 'No failed submissions',
-    noFailedMessage: 'Everything looks good!',
     warningBox: 'Warning: Deleting local data cannot be undone. All locations and work history will be permanently removed from this device.',
-    privacyInfo: 'Your GPS location never leaves your phone. All work sessions are stored locally with encryption.\n\nWhen you confirm a day, only your hours (planned and actual) are shared. Your data is combined with other users and mathematically protected before any statistics are published.',
+    privacyInfo: 'Your GPS coordinates, workplace names, shift templates, absences, and unconfirmed sessions stay on your phone.\n\nWhen you confirm a day, your profile and confirmed working-hour totals are sent to Open Working Hours so they can be aggregated into privacy-protected statistics. Public statistics are only shown for groups of 5+ people and include statistical noise.',
     // Consent withdrawal section
     withdrawConsent: 'Withdraw Consent & Delete Account',
     withdrawConfirmTitle: 'Delete Account?',
     withdrawConfirmMessage: 'This will permanently delete your account and all data from our servers. Your local data will also be cleared.\n\nThis action cannot be undone.',
     withdrawConfirmButton: 'Delete Everything',
     pendingDataTitle: 'Pending Data',
-    pendingDataWarning: 'You have {{count}} day(s) of unsubmitted work data that will be lost if you continue.',
+    pendingDataWarning: 'You have {{count}} week(s) of queued data that will not be submitted if you continue.',
     continueAnyway: 'Continue Anyway',
     accountDeleted: 'Account Deleted',
     accountDeletedMessage: 'Your account and all associated data have been permanently deleted.',
@@ -730,6 +785,7 @@ export const en = {
       dayToConfirm: 'day to confirm',
       daysToConfirm: 'days to confirm',
       allConfirmed: 'All days confirmed',
+      availableSundayEvening: 'All days confirmed — available Sunday evening',
       reviewInCalendar: 'Review in Calendar',
       queueForSunday: 'Queue for Sunday',
       sendingSunday: 'Sending Sunday',
@@ -758,8 +814,18 @@ export const en = {
       body: 'By submitting this week, you\'re contributing your working hours to the collective dataset.',
       bullet1: 'Weekly totals are anonymized and added to aggregate stats',
       bullet2: 'No individual shifts are shared',
-      bullet3: 'After Sunday, this can\'t be undone',
+      bullet3: 'Once a week is sent, it can\'t be undone',
       gotIt: 'Got it',
     },
+  },
+
+  // Sunday notifications
+  notifications: {
+    sundayUnconfirmedTitle: 'Unconfirmed days this week',
+    sundayUnconfirmedBody: 'You have {{count}} unconfirmed day(s) this week. Open the app to confirm them.',
+    sundayQueueTitle: 'Ready for tonight?',
+    sundayQueueBody: '{{week}} is fully confirmed. Open the app after 18:00 to queue it.',
+    sundayReadyTitle: 'Weekly data ready',
+    sundayReadyBody: 'Your weekly hours are ready. Open the app to queue or send them.',
   },
 };
