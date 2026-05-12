@@ -21,6 +21,13 @@ describe('GeofenceService', () => {
       status: 'granted',
     });
     (Location.hasStartedGeofencingAsync as jest.Mock).mockResolvedValue(false);
+    (Location.getCurrentPositionAsync as jest.Mock).mockResolvedValue({
+      coords: {
+        latitude: 37.7625,
+        longitude: -122.4577,
+        accuracy: 24,
+      },
+    });
     (getDatabase as jest.Mock).mockResolvedValue({
       getActiveLocations: jest.fn().mockResolvedValue([]),
     });
@@ -154,6 +161,7 @@ describe('GeofenceService', () => {
 
     it('should stop all geofencing', async () => {
       await service.registerGeofence(testLocation);
+      (Location.hasStartedGeofencingAsync as jest.Mock).mockResolvedValue(true);
 
       await service.stopAll();
 

@@ -26,6 +26,7 @@ const {
   dismissNativeDialog,
   ensureAuthenticated,
   dismissKeyboard,
+  advancePastSetupForegroundPrimer,
 } = require('../helpers/actions');
 
 describe('Location Setup', () => {
@@ -92,6 +93,7 @@ describe('Location Setup', () => {
     const addButton = await byI18nFast(driver, 'addLocation');
     await addButton.click();
     await driver.pause(driver.isAndroid ? 3000 : 1000);
+    await advancePastSetupForegroundPrimer(driver);
 
     // Dismiss GPS/location dialogs that may appear on Android after map loads
     await dismissPermissionDialogs(driver);
