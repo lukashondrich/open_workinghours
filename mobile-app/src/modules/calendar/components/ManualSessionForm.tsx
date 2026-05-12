@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   TouchableOpacity,
@@ -80,6 +80,14 @@ export default function ManualSessionForm({ visible, defaultDate, onClose }: Pro
   const [pickerMode, setPickerMode] = useState<PickerMode>(null);
   // For iOS: track which picker value we're editing
   const [tempPickerValue, setTempPickerValue] = useState<Date | null>(null);
+
+  // Refs mirroring form state — used by openPicker to avoid nested state setters
+  const selectedDateRef = useRef(selectedDate);
+  selectedDateRef.current = selectedDate;
+  const startTimeRef = useRef(startTime);
+  startTimeRef.current = startTime;
+  const endTimeRef = useRef(endTime);
+  endTimeRef.current = endTime;
 
   // Load locations on mount
   useEffect(() => {
@@ -170,54 +178,59 @@ export default function ManualSessionForm({ visible, defaultDate, onClose }: Pro
     }
   };
 
-  // Date/Time picker handlers
-  const handleDateChange = (event: DateTimePickerEvent, date?: Date) => {
+  // Date/Time picker handlers (stable callbacks via useCallback)
+  const handleDateChange = useCallback((event: DateTimePickerEvent, date?: Date) => {
     if (Platform.OS === 'android') {
       setPickerMode(null);
       if (event.type === 'set' && date) {
         setSelectedDate(date);
       }
     } else {
-      // iOS - update temp value
       if (date) setTempPickerValue(date);
     }
-  };
+  }, []);
 
-  const handleTimeChange = (event: DateTimePickerEvent, date?: Date) => {
+  const handleTimeChange = useCallback((event: DateTimePickerEvent, date?: Date) => {
     if (Platform.OS === 'android') {
-      const mode = pickerMode;
-      setPickerMode(null);
-      if (event.type === 'set' && date) {
-        if (mode === 'startTime') setStartTime(date);
-        else if (mode === 'endTime') setEndTime(date);
-      }
+      setPickerMode((currentMode) => {
+        if (event.type === 'set' && date) {
+          if (currentMode === 'startTime') setStartTime(date);
+          else if (currentMode === 'endTime') setEndTime(date);
+        }
+        return null;
+      });
     } else {
-      // iOS - update temp value
       if (date) setTempPickerValue(date);
     }
-  };
+  }, []);
 
-  const confirmIOSPicker = () => {
-    if (tempPickerValue) {
-      if (pickerMode === 'date') setSelectedDate(tempPickerValue);
-      else if (pickerMode === 'startTime') setStartTime(tempPickerValue);
-      else if (pickerMode === 'endTime') setEndTime(tempPickerValue);
-    }
-    setPickerMode(null);
+  const confirmIOSPicker = useCallback(() => {
+    setTempPickerValue((tempVal) => {
+      if (tempVal) {
+        setPickerMode((currentMode) => {
+          if (currentMode === 'date') setSelectedDate(tempVal);
+          else if (currentMode === 'startTime') setStartTime(tempVal);
+          else if (currentMode === 'endTime') setEndTime(tempVal);
+          return null;
+        });
+      } else {
+        setPickerMode(null);
+      }
+      return null;
+    });
+  }, []);
+
+  const cancelIOSPicker = useCallback(() => {
     setTempPickerValue(null);
-  };
-
-  const cancelIOSPicker = () => {
     setPickerMode(null);
-    setTempPickerValue(null);
-  };
+  }, []);
 
-  const openPicker = (mode: PickerMode) => {
+  const openPicker = useCallback((mode: PickerMode) => {
     setPickerMode(mode);
-    if (mode === 'date') setTempPickerValue(selectedDate);
-    else if (mode === 'startTime') setTempPickerValue(startTime);
-    else if (mode === 'endTime') setTempPickerValue(endTime);
-  };
+    if (mode === 'date') setTempPickerValue(selectedDateRef.current);
+    else if (mode === 'startTime') setTempPickerValue(startTimeRef.current);
+    else if (mode === 'endTime') setTempPickerValue(endTimeRef.current);
+  }, []);
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString(undefined, {
@@ -389,6 +402,8 @@ export default function ManualSessionForm({ visible, defaultDate, onClose }: Pro
       </KeyboardAvoidingView>
 
       {/* iOS Date/Time Picker — on top of everything */}
+      {/* Separate picker blocks for date vs time to prevent maximumDate leaking
+          from the date picker into the time picker (causes grayed-out hours). */}
       {pickerMode && Platform.OS === 'ios' && (
         <View style={styles.pickerOverlay}>
           <TouchableWithoutFeedback onPress={cancelIOSPicker}>
@@ -403,21 +418,36 @@ export default function ManualSessionForm({ visible, defaultDate, onClose }: Pro
                 <Text style={styles.pickerDone}>{t('common.save')}</Text>
               </TouchableOpacity>
             </View>
-            <DateTimePicker
-              value={
-                tempPickerValue ||
-                (pickerMode === 'date'
-                  ? selectedDate
-                  : pickerMode === 'startTime'
-                    ? startTime
-                    : endTime)
-              }
-              mode={pickerMode === 'date' ? 'date' : 'time'}
-              display="spinner"
-              onChange={pickerMode === 'date' ? handleDateChange : handleTimeChange}
-              minuteInterval={5}
-              maximumDate={pickerMode === 'date' ? new Date() : undefined}
-            />
+            {pickerMode === 'date' && (
+              <DateTimePicker
+                key="ios-date-picker"
+                value={tempPickerValue || selectedDate}
+                mode="date"
+                display="spinner"
+                onChange={handleDateChange}
+                maximumDate={new Date()}
+              />
+            )}
+            {pickerMode === 'startTime' && (
+              <DateTimePicker
+                key="ios-start-picker"
+                value={tempPickerValue || startTime}
+                mode="time"
+                display="spinner"
+                onChange={handleTimeChange}
+                minuteInterval={5}
+              />
+            )}
+            {pickerMode === 'endTime' && (
+              <DateTimePicker
+                key="ios-end-picker"
+                value={tempPickerValue || endTime}
+                mode="time"
+                display="spinner"
+                onChange={handleTimeChange}
+                minuteInterval={5}
+              />
+            )}
           </View>
         </View>
       )}

@@ -3,4 +3,5 @@ screenshots/
 
 # Keep the directory structure
 !screenshots/.gitkeep
+reports/
 !reports/.gitkeep

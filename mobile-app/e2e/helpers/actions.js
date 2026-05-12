@@ -5,6 +5,7 @@
  */
 
 const { byTestId, byText, byI18n, byI18nFast, t, i18n } = require('./selectors');
+const { execSync } = require('child_process');
 
 /**
  * Dismiss iOS keyboard by tapping a neutral area.
@@ -723,18 +724,47 @@ async function isLocationConfigured(driver) {
  * @param {WebdriverIO.Browser} driver
  */
 async function completeLocationWizard(driver) {
-  // Tap "Add Workplace" button on Status screen
-  await tapTestId(driver, 'add-workplace-button');
-  await driver.pause(2000);
+  // On Android, grant background location permission via adb before starting the wizard.
+  // Without it, "Add Workplace" navigates to a Permissions screen instead of the setup wizard.
+  if (driver.isAndroid) {
+    try {
+      execSync('adb shell pm grant com.openworkinghours.mobileapp android.permission.ACCESS_BACKGROUND_LOCATION 2>/dev/null');
+      // Enable high-accuracy location mode to prevent Google "Location Accuracy" dialog
+      execSync('adb shell settings put secure location_mode 3 2>/dev/null');
+      console.log('Granted background location permission + enabled high-accuracy mode via adb');
+    } catch { /* already granted or adb failed */ }
+
+    // Force-restart app so it picks up the adb permission grant (app caches permission state)
+    try {
+      await driver.terminateApp('com.openworkinghours.mobileapp');
+      await driver.pause(1000);
+      await driver.activateApp('com.openworkinghours.mobileapp');
+      await driver.pause(5000);
+      await dismissSystemDialogs(driver);
+    } catch { /* ignore */ }
+
+    // Navigate to Status tab where "Add Workplace" button is
+    await navigateToTab(driver, 'status');
+    await driver.pause(1000);
+
+    // Tap "Add Workplace" to open the wizard (it's still showing after restart)
+    try {
+      await tapTestId(driver, 'add-workplace-button', 5000);
+      await driver.pause(2000);
+      console.log('Tapped "Add Workplace" after app restart');
+    } catch (e) {
+      console.log('Could not tap "Add Workplace" after restart:', e.message);
+    }
+  }
 
   // Dismiss location permission dialog (Android shows it immediately after map load)
   await dismissPermissionDialogs(driver);
   await driver.pause(driver.isAndroid ? 3000 : 1000); // Wait for map + potential GPS dialog
 
-  // Dismiss "Location Unavailable" / "Standort nicht verfügbar" dialog.
+  // Dismiss Google "Location Accuracy" dialog and other GPS dialogs.
   // May appear with a delay after the map loads, so poll for it.
   for (let i = 0; i < 6; i++) {
-    const dismissed = await dismissNativeDialog(driver, ['OK']);
+    const dismissed = await dismissNativeDialog(driver, ['OK', 'No thanks', 'No Thanks', 'Turn on']);
     if (dismissed) {
       console.log('Dismissed GPS/location dialog');
       break;
@@ -750,7 +780,7 @@ async function completeLocationWizard(driver) {
   let searchWorked = false;
   try {
     const firstResult = await byTestId(driver, 'setup-search-result-0');
-    await firstResult.waitForDisplayed({ timeout: 8000 });
+    await firstResult.waitForDisplayed({ timeout: 15000 });
     await firstResult.click();
     searchWorked = true;
     await driver.pause(1000);
@@ -840,34 +870,51 @@ async function ensureLocationConfigured(driver, returnToTab = 'calendar') {
  * @param {WebdriverIO.Browser} driver
  */
 async function ensureCleanCalendarState(driver) {
-  // Dismiss any open panel (overlay tap on iOS, back on Android)
-  if (driver.isAndroid) {
-    try { await driver.back(); } catch { /* ignore */ }
-  } else {
-    try {
-      await driver.action('pointer', { parameters: { pointerType: 'touch' } })
-        .move({ x: 215, y: 50 }).down().up().perform();
-    } catch { /* ignore */ }
-  }
-  await driver.pause(500);
-
-  // Navigate to calendar tab
+  // Navigate to calendar tab first
   await navigateToTab(driver, 'calendar');
   await driver.pause(500);
 
-  // Ensure week view (FAB is only visible in week view)
-  const fabExists = await existsTestId(driver, 'calendar-fab');
+  // Dismiss any open panels/pickers if FAB is not visible
+  // (FAB is hidden when InlinePicker, TemplatePanel, or ManualSessionForm is open, or in month view)
+  let fabExists = await existsTestId(driver, 'calendar-fab');
   if (!fabExists) {
-    const { byText: byTxt } = require('./selectors');
-    for (const text of ['Woche', 'Week']) {
-      try {
-        const toggle = await byTxt(driver, text, true);
-        if (await toggle.isExisting()) {
-          await toggle.click();
-          await driver.pause(1000);
-          break;
-        }
-      } catch { /* try next */ }
+    // Try dismissing open overlays — press back on Android, tap outside on iOS
+    for (let i = 0; i < 2; i++) {
+      if (driver.isAndroid) {
+        try { await driver.back(); } catch { /* ignore */ }
+      } else {
+        try {
+          await driver.action('pointer', { parameters: { pointerType: 'touch' } })
+            .move({ x: 215, y: 50 }).down().up().perform();
+        } catch { /* ignore */ }
+      }
+      await driver.pause(500);
+      fabExists = await existsTestId(driver, 'calendar-fab');
+      if (fabExists) break;
+    }
+  }
+
+  // If FAB still not visible, we may be in month view — switch to week
+  if (!fabExists) {
+    try {
+      const toggle = await byTestId(driver, 'toggle-week');
+      if (await toggle.isExisting()) {
+        await toggle.click();
+        await driver.pause(1000);
+      }
+    } catch {
+      // Fallback to text matching for older builds
+      const { byText: byTxt } = require('./selectors');
+      for (const text of ['Woche', 'Week']) {
+        try {
+          const toggle = await byTxt(driver, text, true);
+          if (await toggle.isExisting()) {
+            await toggle.click();
+            await driver.pause(1000);
+            break;
+          }
+        } catch { /* try next */ }
+      }
     }
   }
 }

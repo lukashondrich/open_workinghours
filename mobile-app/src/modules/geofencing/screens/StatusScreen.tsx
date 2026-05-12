@@ -19,6 +19,7 @@ import { MapPin, Settings } from 'lucide-react-native';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
 import { t } from '@/lib/i18n';
 import { useAuth } from '@/lib/auth/auth-context';
+import { trackingEvents } from '@/lib/events/trackingEvents';
 import { getDatabase, Database } from '@/modules/geofencing/services/Database';
 import { TrackingManager } from '@/modules/geofencing/services/TrackingManager';
 import {
@@ -46,6 +47,7 @@ interface LocationStatus {
   isCheckedIn: boolean;
   clockInTime?: string;
   elapsedMinutes?: number;
+  isPendingTransition?: boolean;
 }
 
 function CollapsedStatusLine({
@@ -61,7 +63,7 @@ function CollapsedStatusLine({
   onLocationPress: () => void;
   index: number;
 }) {
-  const { location, isCheckedIn, elapsedMinutes } = status;
+  const { location, isCheckedIn, elapsedMinutes, isPendingTransition } = status;
 
   const formatElapsed = (minutes: number): string => {
     const hours = Math.floor(minutes / 60);
@@ -73,7 +75,7 @@ function CollapsedStatusLine({
   };
 
   const accessibilityLabel = isCheckedIn
-    ? `${location.name}, ${t('status.checkedIn')}${elapsedMinutes !== undefined ? `, ${formatElapsed(elapsedMinutes)}` : ''}`
+    ? `${location.name}, ${isPendingTransition ? t('status.locationTransitionPending') : t('status.checkedIn')}${elapsedMinutes !== undefined ? `, ${formatElapsed(elapsedMinutes)}` : ''}`
     : `${location.name}, ${t('status.notCheckedIn')}`;
 
   if (isCheckedIn) {
@@ -92,9 +94,16 @@ function CollapsedStatusLine({
           accessibilityLabel={`${location.name}, ${t('status.tapToManage')}`}
         >
           <View style={[styles.statusDot, styles.statusDotActive]} />
-          <Text style={styles.locationName} numberOfLines={1}>
-            {location.name}
-          </Text>
+          <View style={styles.locationTextContainer}>
+            <Text style={styles.locationName} numberOfLines={1}>
+              {location.name}
+            </Text>
+            {isPendingTransition && (
+              <Text style={styles.pendingTransitionText}>
+                {t('status.locationTransitionPending')}
+              </Text>
+            )}
+          </View>
         </TouchableOpacity>
         <View style={styles.activeControls}>
           <View style={styles.timeBadge} accessibilityElementsHidden={true}>
@@ -132,9 +141,16 @@ function CollapsedStatusLine({
         accessibilityLabel={`${location.name}, ${t('status.tapToManage')}`}
       >
         <View style={[styles.statusDot, styles.statusDotInactive]} />
-        <Text style={styles.locationName} numberOfLines={1}>
-          {location.name}
-        </Text>
+        <View style={styles.locationTextContainer}>
+          <Text style={styles.locationName} numberOfLines={1}>
+            {location.name}
+          </Text>
+          {isPendingTransition && (
+            <Text style={styles.pendingTransitionText}>
+              {t('status.locationTransitionPending')}
+            </Text>
+          )}
+        </View>
       </TouchableOpacity>
       <TouchableOpacity
         style={styles.checkInButton}
@@ -181,11 +197,13 @@ export default function StatusScreen() {
             isCheckedIn: true,
             clockInTime: activeSession.clockIn,
             elapsedMinutes,
+            isPendingTransition: activeSession.state === 'pending_exit',
           });
         } else {
           statuses.push({
             location,
             isCheckedIn: false,
+            isPendingTransition: false,
           });
         }
       }
@@ -275,6 +293,18 @@ export default function StatusScreen() {
     }, 60000);
 
     return () => clearInterval(interval);
+  }, [loadAllData]);
+
+  // Refresh instantly when tracking state changes (clock in/out, exit verification, etc.).
+  useEffect(() => {
+    const handleTrackingChanged = () => {
+      loadAllData();
+    };
+
+    trackingEvents.on('tracking-changed', handleTrackingChanged);
+    return () => {
+      trackingEvents.off('tracking-changed', handleTrackingChanged);
+    };
   }, [loadAllData]);
 
   // Update elapsed times every minute (for checked-in status)
@@ -542,7 +572,14 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     fontWeight: fontWeight.semibold,
     color: colors.text.primary,
+  },
+  locationTextContainer: {
     flex: 1,
+  },
+  pendingTransitionText: {
+    marginTop: 2,
+    fontSize: fontSize.xs,
+    color: colors.text.tertiary,
   },
   activeControls: {
     flexDirection: 'row',

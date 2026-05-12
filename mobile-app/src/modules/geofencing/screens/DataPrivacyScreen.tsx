@@ -16,6 +16,7 @@ import { colors, spacing, fontSize, fontWeight } from '@/theme';
 import { Button, Card, InfoBox, SettingsDetailLayout } from '@/components/ui';
 import { getDatabase } from '@/modules/geofencing/services/Database';
 import { getGeofenceService } from '@/modules/geofencing/services/GeofenceService';
+import { syncKeepaliveState } from '@/modules/geofencing/services/ForegroundKeepaliveService';
 import type { ReportsWeekQueueRecord } from '@/modules/geofencing/types';
 import { AuthService } from '@/modules/auth/services/AuthService';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -93,6 +94,12 @@ export default function DataPrivacyScreen() {
 
       // Delete all database data
       await db.deleteAllData();
+
+      try {
+        await syncKeepaliveState();
+      } catch (syncError) {
+        console.warn('[DataPrivacyScreen] Failed to sync keepalive after data deletion:', syncError);
+      }
 
       Alert.alert(
         t('dataPrivacyScreen.dataDeletedTitle'),
@@ -207,6 +214,12 @@ export default function DataPrivacyScreen() {
 
         // Delete all database data
         await db.deleteAllData();
+
+        try {
+          await syncKeepaliveState();
+        } catch (syncError) {
+          console.warn('[DataPrivacyScreen] Failed to sync keepalive during account deletion:', syncError);
+        }
 
         // Clear consent storage
         await ConsentStorage.clear();

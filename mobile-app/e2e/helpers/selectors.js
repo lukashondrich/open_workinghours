@@ -26,7 +26,7 @@ async function byTestId(driver, testId) {
     // On Android, testID maps to resource-id
     // Use resourceIdMatches with regex to handle cases with/without package prefix
     // Pattern matches: "testId" OR "com.package:id/testId"
-    return driver.$(`android=new UiSelector().resourceIdMatches(".*${testId}.*").instance(0)`);
+    return driver.$(`android=new UiSelector().resourceIdMatches("(.*:id/)?${testId}$").instance(0)`);
   }
 }
 

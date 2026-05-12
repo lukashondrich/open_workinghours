@@ -8,7 +8,7 @@ import {
   Text,
   Switch,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SettingsDetailLayout } from '@/components/ui';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
@@ -22,6 +22,7 @@ import {
   FileText,
   Shield,
   Fingerprint,
+  UserCircle,
 } from 'lucide-react-native';
 
 import { colors, spacing, fontSize, fontWeight } from '@/theme';
@@ -48,6 +49,12 @@ const ICON_SIZE = 24;
 
 function getSettingsItems(): SettingsItem[] {
   return [
+    {
+      id: '0',
+      title: t('settings.profile'),
+      icon: <UserCircle size={ICON_SIZE} color={colors.primary[500]} />,
+      screen: 'Profile',
+    },
     {
       id: '1',
       title: t('settings.workLocations'),
@@ -248,9 +255,8 @@ export default function SettingsScreen() {
   const settingsItems = getSettingsItems();
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        <ScrollView contentContainerStyle={styles.scrollContent}>
+    <SettingsDetailLayout title={t('navigation.settings')}>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
           {settingsItems.map((item) => (
             <ListItem
               key={item.id}
@@ -362,20 +368,11 @@ export default function SettingsScreen() {
             </Button>
           </View>
         </ScrollView>
-      </View>
-    </SafeAreaView>
+    </SettingsDetailLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.background.default,
-  },
-  container: {
-    flex: 1,
-    backgroundColor: colors.background.default,
-  },
   scrollContent: {
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.lg,
