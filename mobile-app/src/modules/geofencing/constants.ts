@@ -1,6 +1,7 @@
 import { GeofenceConfig } from './types';
 
 export const GEOFENCE_TASK_NAME = 'GEOFENCE_TASK';
+export const LOCATION_KEEPALIVE_TASK_NAME = 'LOCATION_KEEPALIVE_TASK';
 
 export const GEOFENCE_CONFIG: GeofenceConfig = {
   minRadius: 100,         // Minimum 100 meters

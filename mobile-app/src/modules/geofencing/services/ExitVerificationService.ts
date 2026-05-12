@@ -6,7 +6,7 @@
  * even when the app is in the background.
  *
  * Flow:
- * 1. On geofence exit → schedule 3 silent notifications (at 1, 3, 5 minutes)
+ * 1. On geofence exit → schedule 3 background-check notifications (at 1, 3, 5 minutes)
  * 2. Each notification triggers a quick GPS check
  * 3. If confidently inside → cancel pending exit
  * 4. If confidently outside at 5 min → confirm clock-out
@@ -141,15 +141,15 @@ export async function scheduleVerificationChecks(
   };
   await setVerificationState(state);
 
-  // Schedule silent notifications at 1, 3, 5 minutes
+  // Schedule lightweight verification notifications at 1, 3, 5 minutes.
+  // On Android these can still appear in the shade, so keep content explicit.
   for (let i = 0; i < CHECK_INTERVALS_MINUTES.length; i++) {
     try {
       await Notifications.scheduleNotificationAsync({
         identifier: VERIFICATION_NOTIFICATION_IDS[i],
         content: {
-          // Silent notification - just triggers the handler
-          title: '',
-          body: '',
+          title: 'Open Working Hours',
+          body: 'Checking location in background...',
           data: { type: 'exit-verification', checkIndex: i },
           sound: undefined,
         },

@@ -15,6 +15,8 @@ import type {
   LoginResponse,
   MeResponse,
   ProfileUpdateRequest,
+  SocialAuthStartResponse,
+  SocialRegisterRequest,
   User,
   UserDataExport,
 } from '@/lib/auth/auth-types';
@@ -244,9 +246,10 @@ export class AuthService {
    * GET /auth/me
    *
    * Requires: Valid JWT token
-   * Note: Backend doesn't return email, so it must be provided separately
+   * Note: Backend doesn't return email, so it must be provided separately.
+   * For social auth users, email is undefined.
    */
-  static async getCurrentUser(token: string, email: string): Promise<User> {
+  static async getCurrentUser(token: string, email?: string): Promise<User> {
     try {
       const response = await fetch(`${BASE_URL}/auth/me`, {
         method: 'GET',
@@ -297,11 +300,11 @@ export class AuthService {
    * Update profile fields (GDPR Art. 16 — right to rectification)
    * PATCH /auth/me/profile
    */
-  static async updateProfile(token: string, email: string, request: ProfileUpdateRequest): Promise<User> {
+  static async updateProfile(token: string, email: string | undefined, request: ProfileUpdateRequest): Promise<User> {
     // Test mode: return mock user with updated fields
     if (isTestMode()) {
       console.log('[AuthService] TEST_MODE: Returning mock profile update');
-      const mockUser = mockResponses.authMe(email);
+      const mockUser = email ? mockResponses.authMe(email) : mockResponses.authMeSocial();
       if (request.profession !== undefined) mockUser.profession = request.profession;
       if (request.seniority !== undefined) mockUser.seniority = request.seniority;
       if (request.stateCode !== undefined) mockUser.stateCode = request.stateCode;
@@ -359,6 +362,133 @@ export class AuthService {
       };
     } catch (error) {
       console.error('[AuthService] Failed to update profile:', error);
+      throw error;
+    }
+  }
+
+  // ============================================================================
+  // SOCIAL AUTH (Sign in with Apple + Google)
+  // ============================================================================
+
+  /**
+   * Sign in with Apple
+   * POST /auth/apple
+   */
+  static async loginWithApple(identityToken: string): Promise<SocialAuthStartResponse> {
+    if (isTestMode()) {
+      console.log('[AuthService] TEST_MODE: Returning mock Apple auth');
+      return mockResponses.authAppleExistingUser;
+    }
+
+    try {
+      const response = await fetch(`${BASE_URL}/auth/apple`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identity_token: identityToken }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Apple authentication failed');
+      }
+
+      return response.json();
+    } catch (error) {
+      console.error('[AuthService] Apple auth failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Sign in with Google
+   * POST /auth/google
+   */
+  static async loginWithGoogle(idToken: string): Promise<SocialAuthStartResponse> {
+    if (isTestMode()) {
+      console.log('[AuthService] TEST_MODE: Returning mock Google auth');
+      return mockResponses.authGoogleExistingUser;
+    }
+
+    try {
+      const response = await fetch(`${BASE_URL}/auth/google`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id_token: idToken }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Google authentication failed');
+      }
+
+      return response.json();
+    } catch (error) {
+      console.error('[AuthService] Google auth failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Complete social registration for first-time social auth users
+   * POST /auth/social/register
+   */
+  static async completeSocialRegistration(request: SocialRegisterRequest): Promise<{
+    user: User;
+    token: string;
+    expiresAt: Date;
+  }> {
+    if (isTestMode()) {
+      console.log('[AuthService] TEST_MODE: Returning mock social registration');
+      const mockUser = mockResponses.authMeSocial();
+      mockUser.hospitalId = request.hospitalId;
+      mockUser.specialty = request.specialty;
+      mockUser.roleLevel = request.roleLevel;
+      mockUser.stateCode = request.stateCode;
+      mockUser.hospitalRefId = request.hospitalRefId;
+      return {
+        user: mockUser,
+        token: mockResponses.authRegister.access_token,
+        expiresAt: new Date(mockResponses.authRegister.expires_at),
+      };
+    }
+
+    try {
+      const response = await fetch(`${BASE_URL}/auth/social/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          social_registration_token: request.socialRegistrationToken,
+          hospital_id: request.hospitalId,
+          specialty: request.specialty,
+          role_level: request.roleLevel,
+          state_code: request.stateCode,
+          profession: request.profession,
+          seniority: request.seniority,
+          department_group: request.departmentGroup,
+          specialization_code: request.specializationCode,
+          hospital_ref_id: request.hospitalRefId,
+          terms_version: request.termsVersion,
+          privacy_version: request.privacyVersion,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Social registration failed');
+      }
+
+      const data = await response.json();
+
+      // Fetch full user info (social users have no email)
+      const userInfo = await this.getCurrentUser(data.access_token);
+
+      return {
+        user: userInfo,
+        token: data.access_token,
+        expiresAt: new Date(data.expires_at),
+      };
+    } catch (error) {
+      console.error('[AuthService] Social registration failed:', error);
       throw error;
     }
   }

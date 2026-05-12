@@ -9,7 +9,6 @@ import {
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import * as SecureStore from 'expo-secure-store';
 import { AppText as Text } from '@/components/ui/AppText';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -19,15 +18,22 @@ import { MapPin, Settings } from 'lucide-react-native';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
 import { t } from '@/lib/i18n';
 import { useAuth } from '@/lib/auth/auth-context';
+import { trackingEvents } from '@/lib/events/trackingEvents';
 import { getDatabase, Database } from '@/modules/geofencing/services/Database';
 import { TrackingManager } from '@/modules/geofencing/services/TrackingManager';
 import {
   loadDashboardData,
   DashboardData,
 } from '@/modules/geofencing/services/DashboardDataService';
+import {
+  decidePermissionPrompt,
+  PermissionPromptDecision,
+} from '@/modules/geofencing/services/PermissionPromptPolicy';
 import PermissionWarningBanner from '@/modules/geofencing/components/PermissionWarningBanner';
 import HoursSummaryWidget from '@/modules/geofencing/components/HoursSummaryWidget';
 import NextShiftWidget from '@/modules/geofencing/components/NextShiftWidget';
+import OnboardingTooltip from '@/components/OnboardingTooltip';
+import { OnboardingPreferences } from '@/lib/storage/OnboardingPreferences';
 import type { UserLocation } from '@/modules/geofencing/types';
 import type { RootStackParamList, MainTabParamList } from '@/navigation/AppNavigator';
 import type { CompositeNavigationProp } from '@react-navigation/native';
@@ -38,14 +44,12 @@ type StatusScreenNavigationProp = CompositeNavigationProp<
   NativeStackNavigationProp<RootStackParamList>
 >;
 
-const PERMISSION_WARNING_DISMISSED_KEY = 'permission_warning_dismissed_at';
-const DISMISS_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
-
 interface LocationStatus {
   location: UserLocation;
   isCheckedIn: boolean;
   clockInTime?: string;
   elapsedMinutes?: number;
+  isPendingTransition?: boolean;
 }
 
 function CollapsedStatusLine({
@@ -61,7 +65,7 @@ function CollapsedStatusLine({
   onLocationPress: () => void;
   index: number;
 }) {
-  const { location, isCheckedIn, elapsedMinutes } = status;
+  const { location, isCheckedIn, elapsedMinutes, isPendingTransition } = status;
 
   const formatElapsed = (minutes: number): string => {
     const hours = Math.floor(minutes / 60);
@@ -73,7 +77,7 @@ function CollapsedStatusLine({
   };
 
   const accessibilityLabel = isCheckedIn
-    ? `${location.name}, ${t('status.checkedIn')}${elapsedMinutes !== undefined ? `, ${formatElapsed(elapsedMinutes)}` : ''}`
+    ? `${location.name}, ${isPendingTransition ? t('status.locationTransitionPending') : t('status.checkedIn')}${elapsedMinutes !== undefined ? `, ${formatElapsed(elapsedMinutes)}` : ''}`
     : `${location.name}, ${t('status.notCheckedIn')}`;
 
   if (isCheckedIn) {
@@ -92,9 +96,16 @@ function CollapsedStatusLine({
           accessibilityLabel={`${location.name}, ${t('status.tapToManage')}`}
         >
           <View style={[styles.statusDot, styles.statusDotActive]} />
-          <Text style={styles.locationName} numberOfLines={1}>
-            {location.name}
-          </Text>
+          <View style={styles.locationTextContainer}>
+            <Text style={styles.locationName} numberOfLines={1}>
+              {location.name}
+            </Text>
+            {isPendingTransition && (
+              <Text style={styles.pendingTransitionText}>
+                {t('status.locationTransitionPending')}
+              </Text>
+            )}
+          </View>
         </TouchableOpacity>
         <View style={styles.activeControls}>
           <View style={styles.timeBadge} accessibilityElementsHidden={true}>
@@ -132,9 +143,16 @@ function CollapsedStatusLine({
         accessibilityLabel={`${location.name}, ${t('status.tapToManage')}`}
       >
         <View style={[styles.statusDot, styles.statusDotInactive]} />
-        <Text style={styles.locationName} numberOfLines={1}>
-          {location.name}
-        </Text>
+        <View style={styles.locationTextContainer}>
+          <Text style={styles.locationName} numberOfLines={1}>
+            {location.name}
+          </Text>
+          {isPendingTransition && (
+            <Text style={styles.pendingTransitionText}>
+              {t('status.locationTransitionPending')}
+            </Text>
+          )}
+        </View>
       </TouchableOpacity>
       <TouchableOpacity
         style={styles.checkInButton}
@@ -158,7 +176,8 @@ export default function StatusScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [hasBackgroundPermission, setHasBackgroundPermission] = useState(true);
-  const [warningDismissed, setWarningDismissed] = useState(false);
+  const [permissionPromptDecision, setPermissionPromptDecision] = useState<PermissionPromptDecision | null>(null);
+  const [showTrackedSessionTooltip, setShowTrackedSessionTooltip] = useState(false);
 
   const loadAllData = useCallback(async () => {
     try {
@@ -181,11 +200,13 @@ export default function StatusScreen() {
             isCheckedIn: true,
             clockInTime: activeSession.clockIn,
             elapsedMinutes,
+            isPendingTransition: activeSession.state === 'pending_exit',
           });
         } else {
           statuses.push({
             location,
             isCheckedIn: false,
+            isPendingTransition: false,
           });
         }
       }
@@ -194,6 +215,20 @@ export default function StatusScreen() {
       // Load dashboard data (pass account creation date for accurate display)
       const dashboard = await loadDashboardData(authState.user?.createdAt);
       setDashboardData(dashboard);
+
+      const hasSeenTrackedSessionTooltip = await OnboardingPreferences.hasSeenTrackedSessionTooltip();
+      if (!hasSeenTrackedSessionTooltip) {
+        const end = new Date();
+        const start = new Date(end);
+        start.setDate(start.getDate() - 13);
+        const recentSessions = await db.getSessionsBetween(start.toISOString(), end.toISOString());
+        const hasCompletedAutomaticSession = recentSessions.some(
+          (session) => session.trackingMethod === 'geofence_auto' && Boolean(session.clockOut)
+        );
+        setShowTrackedSessionTooltip(hasCompletedAutomaticSession);
+      } else {
+        setShowTrackedSessionTooltip(false);
+      }
 
       setLoading(false);
       setRefreshing(false);
@@ -212,37 +247,60 @@ export default function StatusScreen() {
       setHasBackgroundPermission(isGranted);
 
       if (isGranted) {
-        // Permission granted - clear any dismiss timestamp so warning shows
-        // immediately if permission is revoked again
-        await SecureStore.deleteItemAsync(PERMISSION_WARNING_DISMISSED_KEY);
-        setWarningDismissed(false);
-      } else {
-        // Check if warning was dismissed recently
-        const dismissedAt = await SecureStore.getItemAsync(PERMISSION_WARNING_DISMISSED_KEY);
-        if (dismissedAt) {
-          const dismissedTime = parseInt(dismissedAt, 10);
-          const now = Date.now();
-          if (now - dismissedTime < DISMISS_DURATION_MS) {
-            setWarningDismissed(true);
-          } else {
-            // Expired - show warning again
-            setWarningDismissed(false);
-            await SecureStore.deleteItemAsync(PERMISSION_WARNING_DISMISSED_KEY);
-          }
-        }
+        setPermissionPromptDecision(null);
       }
     } catch (error) {
       console.error('[StatusScreen] Failed to check background permission:', error);
     }
   };
 
-  const handleDismissWarning = async () => {
+  const maybeShowPermissionPrompt = async (): Promise<boolean> => {
     try {
-      await SecureStore.setItemAsync(PERMISSION_WARNING_DISMISSED_KEY, Date.now().toString());
-      setWarningDismissed(true);
+      const [foregroundPermission, backgroundPermission] = await Promise.all([
+        Location.getForegroundPermissionsAsync(),
+        Location.getBackgroundPermissionsAsync(),
+      ]);
+      const now = new Date();
+      const decision = decidePermissionPrompt({
+        foregroundGranted: foregroundPermission.status === 'granted',
+        backgroundGranted: backgroundPermission.status === 'granted',
+        userDeclinedLocationPermission: await OnboardingPreferences.hasUserDeclinedLocationPermission(),
+        firstDeclinedAt: await OnboardingPreferences.getUserDeclinedLocationPermissionAt(),
+        promptCount: await OnboardingPreferences.getPermissionRePromptCount(),
+        lastPromptedAt: await OnboardingPreferences.getLastPermissionRePromptAt(),
+        permanentlyDismissed: await OnboardingPreferences.hasPermanentlyDismissedPermissionPrompt(),
+        context: 'manual-clock-in',
+        now,
+      });
+
+      setHasBackgroundPermission(backgroundPermission.status === 'granted');
+
+      if (!decision.shouldPrompt) {
+        setPermissionPromptDecision(null);
+        return false;
+      }
+
+      await OnboardingPreferences.recordPermissionRePromptShown(now);
+      setPermissionPromptDecision(decision);
+      return true;
     } catch (error) {
-      console.error('[StatusScreen] Failed to save dismiss timestamp:', error);
+      console.error('[StatusScreen] Failed to evaluate permission prompt:', error);
+      return false;
     }
+  };
+
+  const handleDismissWarning = () => {
+    setPermissionPromptDecision(null);
+  };
+
+  const handleDontAskPermissionAgain = async () => {
+    await OnboardingPreferences.setPermissionPromptPermanentlyDismissed(true);
+    setPermissionPromptDecision(null);
+  };
+
+  const handleDismissTrackedSessionTooltip = async () => {
+    setShowTrackedSessionTooltip(false);
+    await OnboardingPreferences.setTrackedSessionTooltipSeen(true);
   };
 
   // Process any pending exits that may have expired (fallback mechanism)
@@ -277,6 +335,18 @@ export default function StatusScreen() {
     return () => clearInterval(interval);
   }, [loadAllData]);
 
+  // Refresh instantly when tracking state changes (clock in/out, exit verification, etc.).
+  useEffect(() => {
+    const handleTrackingChanged = () => {
+      loadAllData();
+    };
+
+    trackingEvents.on('tracking-changed', handleTrackingChanged);
+    return () => {
+      trackingEvents.off('tracking-changed', handleTrackingChanged);
+    };
+  }, [loadAllData]);
+
   // Update elapsed times every minute (for checked-in status)
   useEffect(() => {
     const interval = setInterval(() => {
@@ -302,8 +372,11 @@ export default function StatusScreen() {
       const db = await getDatabase();
       const trackingManager = new TrackingManager(db);
       await trackingManager.clockIn(locationId);
-      Alert.alert(t('common.success'), t('status.manualCheckInSuccess'));
       await loadAllData();
+      const showedPermissionPrompt = await maybeShowPermissionPrompt();
+      if (!showedPermissionPrompt) {
+        Alert.alert(t('common.success'), t('status.manualCheckInSuccess'));
+      }
     } catch (error) {
       console.error('[StatusScreen] Failed to check in:', error);
       if (error instanceof Error && error.message.includes('Already clocked in')) {
@@ -384,8 +457,16 @@ export default function StatusScreen() {
 
       {/* Permission Warning Banner */}
       <PermissionWarningBanner
-        visible={!hasBackgroundPermission && !warningDismissed}
+        visible={!hasBackgroundPermission && permissionPromptDecision?.shouldPrompt === true}
         onDismiss={handleDismissWarning}
+        onDontAskAgain={handleDontAskPermissionAgain}
+        showDontAskAgain={permissionPromptDecision?.showDontAskAgain}
+        title={permissionPromptDecision?.variant === 'denied-all'
+          ? t('permissionWarning.deniedTitle')
+          : t('permissionWarning.title')}
+        message={permissionPromptDecision?.variant === 'denied-all'
+          ? t('permissionWarning.deniedMessage')
+          : t('permissionWarning.message')}
       />
 
       {/* Scrollable Content */}
@@ -455,6 +536,13 @@ export default function StatusScreen() {
           />
         )}
       </ScrollView>
+      <OnboardingTooltip
+        visible={showTrackedSessionTooltip}
+        title={t('onboardingTooltips.trackedSession.title')}
+        body={t('onboardingTooltips.trackedSession.body')}
+        onDismiss={handleDismissTrackedSessionTooltip}
+        testIDPrefix="tracked-session-tooltip"
+      />
     </View>
   );
 }
@@ -542,7 +630,14 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     fontWeight: fontWeight.semibold,
     color: colors.text.primary,
+  },
+  locationTextContainer: {
     flex: 1,
+  },
+  pendingTransitionText: {
+    marginTop: 2,
+    fontSize: fontSize.xs,
+    color: colors.text.tertiary,
   },
   activeControls: {
     flexDirection: 'row',

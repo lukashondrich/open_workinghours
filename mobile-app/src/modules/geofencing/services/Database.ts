@@ -5,7 +5,6 @@ import {
   GeofenceEvent,
   DailyActual,
   WeeklySubmissionRecord,
-  DailySubmissionRecord,
   SubmissionStatus,
   AccuracySource,
   ReportsWeekQueueRecord,
@@ -113,27 +112,13 @@ export class Database {
         FOREIGN KEY (day_id) REFERENCES daily_actuals(id) ON DELETE CASCADE
       );
 
-      CREATE TABLE IF NOT EXISTS daily_submission_queue (
-        id TEXT PRIMARY KEY,
-        date TEXT NOT NULL,
-        planned_hours REAL NOT NULL,
-        actual_hours REAL NOT NULL,
-        source TEXT NOT NULL,
-        status TEXT NOT NULL DEFAULT 'pending',
-        created_at TEXT NOT NULL,
-        submitted_at TEXT,
-        error_message TEXT
-      );
-
-      CREATE INDEX IF NOT EXISTS idx_daily_submission_status
-        ON daily_submission_queue(status);
-
       CREATE TABLE IF NOT EXISTS reports_week_queue (
         week_start TEXT PRIMARY KEY,
         status TEXT NOT NULL,
         queued_at TEXT,
         sent_at TEXT,
         last_error TEXT,
+        send_after TEXT,
         updated_at TEXT NOT NULL
       );
 
@@ -284,6 +269,109 @@ export class Database {
       );
 
       console.log('[Database] Migration to version 6 complete');
+    }
+
+    // Migration to version 7: Open-session integrity + ensure reports tables exist.
+    // Note: migration 6 created reports tables on main, but devices that ran the
+    // android-bugs branch first got session integrity as migration 6 instead.
+    // The CREATE IF NOT EXISTS statements make this safe for both paths.
+    if (version < 7) {
+      console.log('[Database] Running migration to version 7 (open-session integrity + reports tables backfill)');
+
+      // Ensure reports tables exist (idempotent — safe if migration 6 already created them)
+      await this.db.execAsync(`
+        CREATE TABLE IF NOT EXISTS reports_week_queue (
+          week_start TEXT PRIMARY KEY,
+          status TEXT NOT NULL,
+          queued_at TEXT,
+          sent_at TEXT,
+          last_error TEXT,
+          updated_at TEXT NOT NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_reports_week_queue_status
+          ON reports_week_queue(status);
+
+        CREATE TABLE IF NOT EXISTS app_preferences (
+          key TEXT PRIMARY KEY,
+          value TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+      `);
+
+      // Close open sessions whose location no longer exists.
+      await this.db.runAsync(`
+        UPDATE tracking_sessions
+        SET state = 'completed',
+            clock_out = COALESCE(clock_out, clock_in),
+            duration_minutes = COALESCE(duration_minutes, 0),
+            pending_exit_at = NULL,
+            updated_at = datetime('now')
+        WHERE state IN ('active', 'pending_exit')
+          AND clock_out IS NULL
+          AND location_id NOT IN (SELECT id FROM user_locations)
+      `);
+
+      // Keep only the newest open session per location and close older duplicates.
+      await this.db.runAsync(`
+        WITH ranked_open_sessions AS (
+          SELECT
+            id,
+            ROW_NUMBER() OVER (
+              PARTITION BY location_id
+              ORDER BY datetime(clock_in) DESC, datetime(created_at) DESC, id DESC
+            ) AS row_num
+          FROM tracking_sessions
+          WHERE state IN ('active', 'pending_exit') AND clock_out IS NULL
+        )
+        UPDATE tracking_sessions
+        SET state = 'completed',
+            clock_out = COALESCE(clock_out, clock_in),
+            duration_minutes = COALESCE(duration_minutes, 0),
+            pending_exit_at = NULL,
+            updated_at = datetime('now')
+        WHERE id IN (
+          SELECT id FROM ranked_open_sessions WHERE row_num > 1
+        )
+      `);
+
+      // Enforce one open session per location at the DB layer.
+      await this.db.execAsync(`
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_tracking_sessions_single_open_per_location
+        ON tracking_sessions(location_id)
+        WHERE state IN ('active', 'pending_exit') AND clock_out IS NULL;
+      `);
+
+      await this.db.runAsync(
+        `INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (?, datetime('now'))`,
+        7
+      );
+
+      console.log('[Database] Migration to version 7 complete');
+    }
+
+    // Migration v8: Simplify submission pipeline
+    // - Add send_after column to reports_week_queue for jitter
+    // - Drop daily_submission_queue (daily data stays on device only)
+    if (version < 8) {
+      console.log('[Database] Running migration to version 8 (submission pipeline simplification)');
+
+      await this.db.execAsync(`
+        ALTER TABLE reports_week_queue ADD COLUMN send_after TEXT;
+      `).catch(() => {
+        // Column may already exist if table was created fresh with new schema
+      });
+
+      await this.db.execAsync(`
+        DROP TABLE IF EXISTS daily_submission_queue;
+      `);
+
+      await this.db.runAsync(
+        `INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (?, datetime('now'))`,
+        8
+      );
+
+      console.log('[Database] Migration to version 8 complete');
     }
   }
 
@@ -560,6 +648,19 @@ export class Database {
     );
 
     return result ? this.mapSession(result) : null;
+  }
+
+  async hasOpenSession(): Promise<boolean> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const result = await this.db.getFirstAsync<{ id: string }>(
+      `SELECT id
+       FROM tracking_sessions
+       WHERE state IN ('active', 'pending_exit') AND clock_out IS NULL
+       LIMIT 1`
+    );
+
+    return Boolean(result);
   }
 
   async getSessionHistory(locationId: string, limit: number): Promise<TrackingSession[]> {
@@ -1023,6 +1124,7 @@ export class Database {
       queuedAt: row.queued_at,
       sentAt: row.sent_at,
       lastError: row.last_error,
+      sendAfter: row.send_after ?? null,
       updatedAt: row.updated_at,
     };
   }
@@ -1163,19 +1265,21 @@ export class Database {
     if (!this.db) throw new Error('Database not initialized');
 
     await this.db.runAsync(
-      `INSERT INTO reports_week_queue (week_start, status, queued_at, sent_at, last_error, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?)
+      `INSERT INTO reports_week_queue (week_start, status, queued_at, sent_at, last_error, send_after, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(week_start) DO UPDATE SET
          status = excluded.status,
          queued_at = excluded.queued_at,
          sent_at = excluded.sent_at,
          last_error = excluded.last_error,
+         send_after = excluded.send_after,
          updated_at = excluded.updated_at`,
       record.weekStart,
       record.status,
       record.queuedAt,
       record.sentAt,
       record.lastError,
+      record.sendAfter,
       record.updatedAt,
     );
   }
@@ -1234,95 +1338,6 @@ export class Database {
     return row?.value ?? null;
   }
 
-  // ============================================================================
-  // Daily Submission Queue (v2.0 - authenticated submissions)
-  // ============================================================================
-
-  private mapDailySubmission(row: any): DailySubmissionRecord {
-    return {
-      id: row.id,
-      date: row.date,
-      plannedHours: row.planned_hours,
-      actualHours: row.actual_hours,
-      source: row.source as 'geofence' | 'manual' | 'mixed',
-      status: row.status as SubmissionStatus,
-      createdAt: row.created_at,
-      submittedAt: row.submitted_at,
-      errorMessage: row.error_message,
-    };
-  }
-
-  async enqueueDailySubmission(record: DailySubmissionRecord): Promise<void> {
-    if (!this.db) throw new Error('Database not initialized');
-
-    await this.db.runAsync(
-      `INSERT INTO daily_submission_queue (
-        id, date, planned_hours, actual_hours, source,
-        status, created_at, submitted_at, error_message
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      record.id,
-      record.date,
-      record.plannedHours,
-      record.actualHours,
-      record.source,
-      record.status,
-      record.createdAt,
-      record.submittedAt,
-      record.errorMessage
-    );
-  }
-
-  async getDailySubmissionQueue(status?: SubmissionStatus): Promise<DailySubmissionRecord[]> {
-    if (!this.db) throw new Error('Database not initialized');
-
-    const query = status
-      ? 'SELECT * FROM daily_submission_queue WHERE status = ? ORDER BY date DESC'
-      : 'SELECT * FROM daily_submission_queue ORDER BY date DESC';
-
-    const rows = status
-      ? await this.db.getAllAsync<any>(query, status)
-      : await this.db.getAllAsync<any>(query);
-
-    return rows.map((row) => this.mapDailySubmission(row));
-  }
-
-  async getDailySubmissionQueueForRange(startDate: string, endDate: string): Promise<DailySubmissionRecord[]> {
-    if (!this.db) throw new Error('Database not initialized');
-
-    const rows = await this.db.getAllAsync<any>(
-      `SELECT * FROM daily_submission_queue
-       WHERE date BETWEEN ? AND ?
-       ORDER BY date ASC`,
-      startDate,
-      endDate,
-    );
-    return rows.map((row) => this.mapDailySubmission(row));
-  }
-
-  async updateDailySubmissionStatus(
-    id: string,
-    status: SubmissionStatus,
-    submittedAt?: string,
-    errorMessage?: string
-  ): Promise<void> {
-    if (!this.db) throw new Error('Database not initialized');
-
-    await this.db.runAsync(
-      `UPDATE daily_submission_queue
-       SET status = ?, submitted_at = ?, error_message = ?
-       WHERE id = ?`,
-      status,
-      submittedAt || null,
-      errorMessage || null,
-      id
-    );
-  }
-
-  async deleteDailySubmission(id: string): Promise<void> {
-    if (!this.db) throw new Error('Database not initialized');
-    await this.db.runAsync('DELETE FROM daily_submission_queue WHERE id = ?', id);
-  }
-
   async deleteAllData(): Promise<void> {
     if (!this.db) throw new Error('Database not initialized');
     await this.db.execAsync('BEGIN TRANSACTION');
@@ -1345,11 +1360,39 @@ export class Database {
 
 // Singleton instance
 let dbInstance: Database | null = null;
+let dbInitializationPromise: Promise<Database> | null = null;
+let isDatabaseInitialized = false;
 
 export async function getDatabase(): Promise<Database> {
-  if (!dbInstance) {
-    dbInstance = new Database();
-    await dbInstance.initialize();
+  if (dbInstance && isDatabaseInitialized) {
+    return dbInstance;
   }
-  return dbInstance;
+
+  if (dbInitializationPromise) {
+    return dbInitializationPromise;
+  }
+
+  dbInitializationPromise = (async () => {
+    if (!dbInstance) {
+      dbInstance = new Database();
+    }
+
+    if (!isDatabaseInitialized) {
+      await dbInstance.initialize();
+      isDatabaseInitialized = true;
+    }
+
+    return dbInstance;
+  })();
+
+  try {
+    return await dbInitializationPromise;
+  } catch (error) {
+    // If init fails, reset singleton state so a future call can retry cleanly.
+    dbInstance = null;
+    isDatabaseInitialized = false;
+    throw error;
+  } finally {
+    dbInitializationPromise = null;
+  }
 }

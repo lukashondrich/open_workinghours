@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, RouteProp } from '@react-navigation/native';
@@ -12,12 +12,16 @@ import TemplatePanel from '../components/TemplatePanel';
 import CalendarFAB from '../components/CalendarFAB';
 import InlinePicker from '../components/InlinePicker';
 import type { MainTabParamList } from '@/navigation/AppNavigator';
+import OnboardingTooltip from '@/components/OnboardingTooltip';
+import { OnboardingPreferences } from '@/lib/storage/OnboardingPreferences';
+import { t } from '@/lib/i18n';
 
 type CalendarScreenRouteProp = RouteProp<MainTabParamList, 'Calendar'>;
 
 function CalendarLayout({ targetDate }: { targetDate?: string }) {
   const { state, dispatch } = useCalendar();
   const lastProcessedTargetDate = useRef<string | undefined>(undefined);
+  const [showCalendarTooltip, setShowCalendarTooltip] = useState(false);
 
   // Navigate to target date's week if provided
   useEffect(() => {
@@ -35,6 +39,29 @@ function CalendarLayout({ targetDate }: { targetDate?: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [targetDate]);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    OnboardingPreferences.hasSeenCalendarTooltip()
+      .then((seen) => {
+        if (isMounted && !seen) {
+          setShowCalendarTooltip(true);
+        }
+      })
+      .catch((error) => {
+        console.error('[CalendarScreen] Failed to load calendar tooltip flag:', error);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleDismissCalendarTooltip = async () => {
+    setShowCalendarTooltip(false);
+    await OnboardingPreferences.setCalendarTooltipSeen(true);
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
@@ -46,6 +73,13 @@ function CalendarLayout({ targetDate }: { targetDate?: string }) {
           visible={state.inlinePickerOpen}
           targetDate={state.inlinePickerTargetDate}
           onClose={() => dispatch({ type: 'CLOSE_INLINE_PICKER' })}
+        />
+        <OnboardingTooltip
+          visible={showCalendarTooltip}
+          title={t('onboardingTooltips.calendar.title')}
+          body={t('onboardingTooltips.calendar.body')}
+          onDismiss={handleDismissCalendarTooltip}
+          testIDPrefix="calendar-intro-tooltip"
         />
       </View>
     </SafeAreaView>

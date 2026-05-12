@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   Pressable,
   Alert,
-  Modal,
   PanResponder,
   Vibration,
   Animated,
@@ -50,11 +49,13 @@ import {
 } from '@/lib/calendar/calendar-utils';
 import type { ShiftInstance, TrackingRecord, AbsenceInstance } from '@/lib/calendar/types';
 import { getCalendarStorage } from '@/modules/calendar/services/CalendarStorage';
-import { TreePalm, Thermometer, Clock, X, Info } from 'lucide-react-native';
+import { TreePalm, Thermometer, Clock, X } from 'lucide-react-native';
 import { OnboardingStorage } from '@/lib/storage/OnboardingStorage';
+import { SundayNotificationService } from '@/modules/reports/services/SundayNotificationService';
+import { OnboardingPreferences } from '@/lib/storage/OnboardingPreferences';
+import OnboardingTooltip from '@/components/OnboardingTooltip';
 // ShiftEditModal removed - using native time picker for start time only
 import { persistDailyActualForDate } from '../services/DailyAggregator';
-import { DailySubmissionService } from '@/modules/auth/services/DailySubmissionService';
 
 // Base dimensions (now imported from zoom-context, kept here for reference)
 const DEFAULT_HOUR_HEIGHT = BASE_HOUR_HEIGHT; // 48
@@ -740,14 +741,26 @@ export default function WeekView() {
 
   // Submit tooltip state (first-time explanation)
   const [showSubmitTooltip, setShowSubmitTooltip] = useState(false);
+  const [showBatchTooltip, setShowBatchTooltip] = useState(false);
   const [pendingSubmitDate, setPendingSubmitDate] = useState<string | null>(null);
   const hasSeenSubmitTooltip = useRef<boolean | null>(null); // null = not yet loaded
+  const hasSeenBatchTooltip = useRef<boolean | null>(null);
 
   // Load submit tooltip seen flag on mount
   useEffect(() => {
     OnboardingStorage.hasSeenConfirmTooltip().then((seen) => {
       hasSeenSubmitTooltip.current = seen;
     });
+  }, []);
+
+  useEffect(() => {
+    OnboardingPreferences.hasSeenBatchTooltip()
+      .then((seen) => {
+        hasSeenBatchTooltip.current = seen;
+      })
+      .catch((error) => {
+        console.error('[WeekView] Failed to load batch tooltip flag:', error);
+      });
   }, []);
 
   // Hide FAB when overlays are open
@@ -1058,10 +1071,6 @@ export default function WeekView() {
   const disclosureLevel = getDisclosureLevel(currentScale);
   const isCompactHeader = disclosureLevel === 'minimal' || disclosureLevel === 'compact';
 
-  // Double-tap tracking for shift/absence placement
-  // (Double-tap zoom removed - pinch is sufficient for zooming)
-  const lastTapRef = useRef<{ dateKey: string; time: number }>({ dateKey: '', time: 0 });
-  const DOUBLE_TAP_DELAY = 300; // ms
 
 
   // Pinch gesture for zooming (non-reanimated, uses refs to avoid stale closures)
@@ -1187,7 +1196,69 @@ export default function WeekView() {
     return Object.values(state.trackingRecords).filter((record) => record.date === dateKey);
   };
 
-  const handleHourPress = async (dateKey: string) => {
+  // Place the armed shift/absence on a given date
+  const placeArmedOnDate = async (dateKey: string) => {
+    if (state.armedTemplateId) {
+      const template = state.templates[state.armedTemplateId];
+      if (template) {
+        const overlap = findOverlappingShift(dateKey, template.startTime, template.duration, state.instances);
+        if (overlap) {
+          // Silent skip — light haptic instead of disruptive alert during batch placement
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          return;
+        }
+      }
+      dispatch({ type: 'PLACE_SHIFT', date: dateKey });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } else if (state.armedAbsenceTemplateId) {
+      const absenceTemplate = state.absenceTemplates[state.armedAbsenceTemplateId];
+      if (absenceTemplate) {
+        const startTime = absenceTemplate.isFullDay ? '00:00' : (absenceTemplate.startTime || '00:00');
+        const endTime = absenceTemplate.isFullDay ? '23:59' : (absenceTemplate.endTime || '23:59');
+
+        const newInstance: Omit<AbsenceInstance, 'id' | 'createdAt' | 'updatedAt'> = {
+          templateId: absenceTemplate.id,
+          type: absenceTemplate.type,
+          date: dateKey,
+          startTime,
+          endTime,
+          isFullDay: absenceTemplate.isFullDay,
+          name: absenceTemplate.name,
+          color: absenceTemplate.color,
+        };
+
+        try {
+          const storage = await getCalendarStorage();
+          const created = await storage.createAbsenceInstance(newInstance);
+          dispatch({ type: 'ADD_ABSENCE_INSTANCE', instance: created });
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        } catch (error) {
+          console.error('[WeekView] Failed to create absence instance:', error);
+        }
+      }
+    }
+  };
+
+  // Remove the armed shift/absence from a given date
+  const removeArmedFromDate = (dateKey: string) => {
+    if (state.armedTemplateId) {
+      const instanceToRemove = Object.values(state.instances)
+        .find(i => i.templateId === state.armedTemplateId && i.date === dateKey);
+      if (instanceToRemove) {
+        dispatch({ type: 'DELETE_INSTANCE', id: instanceToRemove.id });
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      }
+    } else if (state.armedAbsenceTemplateId) {
+      const absenceToRemove = Object.values(state.absenceInstances)
+        .find(a => a.templateId === state.armedAbsenceTemplateId && a.date === dateKey);
+      if (absenceToRemove) {
+        dispatch({ type: 'DELETE_ABSENCE_INSTANCE', id: absenceToRemove.id });
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      }
+    }
+  };
+
+  const handleHourPress = (dateKey: string) => {
     // Clear active tracking selection when clicking elsewhere
     if (activeTracking) {
       setActiveTracking(null);
@@ -1200,93 +1271,13 @@ export default function WeekView() {
       return;
     }
 
-    // Check for double-tap (only used for batch mode placement)
-    const now = Date.now();
-    const lastTap = lastTapRef.current;
-    const isDoubleTap = lastTap.dateKey === dateKey && (now - lastTap.time) < DOUBLE_TAP_DELAY;
-
-    // Update last tap tracking
-    lastTapRef.current = { dateKey, time: now };
-
-    // Double-tap with armed template: place shift/absence (batch mode)
-    if (isDoubleTap && (state.armedTemplateId || state.armedAbsenceTemplateId)) {
-      // Reset tap tracking to prevent triple-tap from placing again
-      lastTapRef.current = { dateKey: '', time: 0 };
-
-      // Handle absence placement if an absence template is armed
-      if (state.armedAbsenceTemplateId) {
-        const absenceTemplate = state.absenceTemplates[state.armedAbsenceTemplateId];
-        if (absenceTemplate) {
-          // Haptic feedback for placement
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-          const startTime = absenceTemplate.isFullDay ? '00:00' : (absenceTemplate.startTime || '00:00');
-          const endTime = absenceTemplate.isFullDay ? '23:59' : (absenceTemplate.endTime || '23:59');
-
-          const newInstance: Omit<AbsenceInstance, 'id' | 'createdAt' | 'updatedAt'> = {
-            templateId: absenceTemplate.id,
-            type: absenceTemplate.type,
-            date: dateKey,
-            startTime,
-            endTime,
-            isFullDay: absenceTemplate.isFullDay,
-            name: absenceTemplate.name,
-            color: absenceTemplate.color,
-          };
-
-          try {
-            const storage = await getCalendarStorage();
-            const created = await storage.createAbsenceInstance(newInstance);
-            dispatch({ type: 'ADD_ABSENCE_INSTANCE', instance: created });
-          } catch (error) {
-            console.error('[WeekView] Failed to create absence instance:', error);
-          }
-        }
-        return;
-      }
-
-      // Handle shift placement if a shift template is armed
-      if (state.armedTemplateId) {
-        // Haptic feedback for placement
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-        // Check for overlap before placing shift
-        const template = state.templates[state.armedTemplateId];
-        if (template) {
-          const overlap = findOverlappingShift(
-            dateKey,
-            template.startTime,
-            template.duration,
-            state.instances
-          );
-
-          if (overlap) {
-            Alert.alert(
-              t('calendar.week.overlapTitle'),
-              t('calendar.week.overlapMessage', { name: overlap.name })
-            );
-            return;
-          }
-        }
-
-        dispatch({ type: 'PLACE_SHIFT', date: dateKey });
-        return;
-      }
-    }
-
-    // Single tap behavior depends on batch mode
-    if (!isDoubleTap) {
-      if (state.armedTemplateId || state.armedAbsenceTemplateId) {
-        // In batch mode: block single tap entirely (only double-tap places, long-press opens picker)
-        return;
-      } else {
-        // Not in batch mode: open picker immediately
-        handleHourLongPress(dateKey);
-      }
+    // Armed: single-tap places instantly
+    if (state.armedTemplateId || state.armedAbsenceTemplateId) {
+      placeArmedOnDate(dateKey);
       return;
     }
 
-    // Double-tap without armed template: open picker
+    // Not armed: open picker
     handleHourLongPress(dateKey);
   };
 
@@ -1335,16 +1326,7 @@ export default function WeekView() {
       const trackingRecords = getTrackingForDate(dateKey);
       const record = await persistDailyActualForDate(dateKey, state.instances, trackingRecords);
       dispatch({ type: 'CONFIRM_DAY', date: dateKey, confirmedAt: record.confirmedAt });
-
-      // Enqueue daily submission (v2.0 - authenticated, no noise)
-      try {
-        await DailySubmissionService.enqueueDailySubmission(dateKey);
-        await DailySubmissionService.processQueue();
-        console.log('[WeekView] Daily submission enqueued and sent for', dateKey);
-      } catch (submissionError) {
-        console.warn('[WeekView] Daily submission failed (queued for retry):', submissionError);
-        // Don't block confirmation on submission failure - it's queued for retry
-      }
+      await SundayNotificationService.scheduleWeeklyNotifications();
 
       const locale = getDateLocale() === 'de' ? deLocale : undefined;
       const formatted = formatDate(new Date(dateKey), 'EEEE', { locale });
@@ -1371,6 +1353,12 @@ export default function WeekView() {
       setPendingSubmitDate(null);
       await executeSubmit(dateKey);
     }
+  };
+
+  const handleBatchTooltipDismiss = async () => {
+    setShowBatchTooltip(false);
+    hasSeenBatchTooltip.current = true;
+    await OnboardingPreferences.setBatchTooltipSeen(true);
   };
 
   const confirmDay = async (dateKey: string) => {
@@ -1699,11 +1687,16 @@ export default function WeekView() {
     setSelectedTime(null);
   };
 
-  // Long-press or single-tap on empty hour cell → open inline picker
+  // Long-press: when armed, remove shift; when not armed, open picker
   const handleHourLongPress = (dateKey: string) => {
     // Check if day is locked - block on locked days
     const dayStatus = state.confirmedDayStatus[dateKey];
     if (dayStatus?.status === 'locked') return;
+
+    if (state.armedTemplateId || state.armedAbsenceTemplateId) {
+      removeArmedFromDate(dateKey);
+      return;
+    }
 
     dispatch({ type: 'OPEN_INLINE_PICKER', targetDate: dateKey });
   };
@@ -1725,6 +1718,32 @@ export default function WeekView() {
   const armedAbsenceTemplate = state.armedAbsenceTemplateId
     ? state.absenceTemplates[state.armedAbsenceTemplateId]
     : null;
+
+  useEffect(() => {
+    if (!armedTemplate && !armedAbsenceTemplate) {
+      return;
+    }
+
+    if (hasSeenBatchTooltip.current === true) {
+      return;
+    }
+
+    let isMounted = true;
+
+    const maybeShowBatchTooltip = async () => {
+      const seen = hasSeenBatchTooltip.current ?? await OnboardingPreferences.hasSeenBatchTooltip();
+      hasSeenBatchTooltip.current = seen;
+      if (isMounted && !seen) {
+        setShowBatchTooltip(true);
+      }
+    };
+
+    void maybeShowBatchTooltip();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [armedTemplate, armedAbsenceTemplate]);
 
   // Platform-conditional gesture handling:
   // iOS: Use RNGH GestureDetector (works well with native gesture coordination)
@@ -2078,7 +2097,7 @@ export default function WeekView() {
               {t('calendar.batch.placing')} {armedTemplate?.name || armedAbsenceTemplate?.name}
             </Text>
             <Text style={styles.batchHint}>
-              {t('calendar.batch.doubleTapHint')}
+              {t('calendar.batch.tapHint')}
             </Text>
           </View>
           <TouchableOpacity
@@ -2097,35 +2116,22 @@ export default function WeekView() {
         </View>
       )}
 
-      {/* First-time submit tooltip modal */}
-      <Modal
+      <OnboardingTooltip
         visible={showSubmitTooltip}
-        transparent
-        animationType="fade"
-        onRequestClose={handleSubmitTooltipDismiss}
-      >
-        <View style={styles.submitTooltipOverlay}>
-          <View style={styles.submitTooltipContainer}>
-            <View style={styles.submitTooltipHeader}>
-              <Info size={20} color={colors.primary[500]} />
-              <Text style={styles.submitTooltipTitle}>
-                {t('calendar.week.submitTooltipTitle')}
-              </Text>
-            </View>
-            <Text style={styles.submitTooltipBody}>
-              {t('calendar.week.submitTooltipBody')}
-            </Text>
-            <TouchableOpacity
-              style={styles.submitTooltipButton}
-              onPress={handleSubmitTooltipDismiss}
-            >
-              <Text style={styles.submitTooltipButtonText}>
-                {t('calendar.week.submitTooltipDismiss')}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+        title={t('calendar.week.submitTooltipTitle')}
+        body={t('calendar.week.submitTooltipBody')}
+        dismissLabel={t('calendar.week.submitTooltipDismiss')}
+        onDismiss={handleSubmitTooltipDismiss}
+        testIDPrefix="submit-tooltip"
+      />
+
+      <OnboardingTooltip
+        visible={showBatchTooltip}
+        title={t('onboardingTooltips.batch.title')}
+        body={t('onboardingTooltips.batch.body')}
+        onDismiss={handleBatchTooltipDismiss}
+        testIDPrefix="calendar-batch-tooltip"
+      />
     </View>
   );
 
@@ -2496,51 +2502,6 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontWeight: fontWeight.semibold,
   },
-  // Submit tooltip modal styles
-  submitTooltipOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: spacing.xl,
-  },
-  submitTooltipContainer: {
-    backgroundColor: colors.background.paper,
-    borderRadius: borderRadius.xl,
-    padding: spacing.xl,
-    maxWidth: 320,
-    width: '100%',
-    ...shadows.lg,
-  },
-  submitTooltipHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  submitTooltipTitle: {
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.semibold,
-    color: colors.text.primary,
-  },
-  submitTooltipBody: {
-    fontSize: fontSize.md,
-    color: colors.text.secondary,
-    lineHeight: 22,
-    marginBottom: spacing.lg,
-  },
-  submitTooltipButton: {
-    backgroundColor: colors.primary[500],
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.xl,
-    borderRadius: borderRadius.lg,
-    alignItems: 'center',
-  },
-  submitTooltipButtonText: {
-    color: colors.white,
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.semibold,
-  },
   currentTimeLine: {
     position: 'absolute',
     left: 0,
@@ -2601,7 +2562,7 @@ const styles = StyleSheet.create({
   // Batch mode indicator styles
   batchIndicator: {
     position: 'absolute',
-    bottom: 90, // Above FAB
+    bottom: 82, // Above FAB (48dp)
     left: spacing.lg,
     right: spacing.lg,
     flexDirection: 'row',

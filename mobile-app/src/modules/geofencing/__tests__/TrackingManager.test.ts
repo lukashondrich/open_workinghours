@@ -144,7 +144,7 @@ describe('TrackingManager', () => {
       expect(sessions).toHaveLength(0);
     });
 
-    it('should send leaving notification on exit (hysteresis)', async () => {
+    it('should mark pending exit without sending user notification (hysteresis path)', async () => {
       // First clock in
       await db.clockIn(testLocationId, new Date().toISOString(), 'geofence_auto');
 
@@ -156,14 +156,13 @@ describe('TrackingManager', () => {
 
       await manager.handleGeofenceExit(event);
 
-      expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledWith({
-        content: {
-          title: 'Leaving work area',
-          body: expect.stringContaining('5 minutes'),
-          data: expect.any(Object),
-        },
-        trigger: null,
-      });
+      // Hysteresis path: no user-facing notification is sent (only silent verification scheduled)
+      // The scheduleNotificationAsync should NOT be called with a user-visible alert
+      expect(Notifications.scheduleNotificationAsync).not.toHaveBeenCalled();
+
+      // Session should be in pending_exit state
+      const session = await db.getActiveSession(testLocationId);
+      expect(session?.state).toBe('pending_exit');
     });
 
     it('should log geofence event', async () => {
@@ -188,15 +187,17 @@ describe('TrackingManager', () => {
       // Clock in
       await db.clockIn(testLocationId, new Date().toISOString(), 'geofence_auto');
 
-      // Exit (creates pending exit)
+      // Exit (creates pending exit) — use timestamp >10s ago to avoid debounce
+      const exitTime = new Date(Date.now() - 15000).toISOString();
       const exitEvent: GeofenceEventData = {
         eventType: 'exit',
         locationId: testLocationId,
-        timestamp: new Date().toISOString(),
+        timestamp: exitTime,
       };
       await manager.handleGeofenceExit(exitEvent);
 
-      // Re-enter
+      // Re-enter — timestamp must also be >10s after the logged exit event
+      // The debounce checks elapsed time from the last logged event's timestamp
       const enterEvent: GeofenceEventData = {
         eventType: 'enter',
         locationId: testLocationId,

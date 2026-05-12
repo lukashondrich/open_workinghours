@@ -21,6 +21,7 @@ import { useCalendar } from '@/lib/calendar/calendar-context';
 import type { ShiftColor, ShiftTemplate, AbsenceTemplate } from '@/lib/calendar/types';
 import { getColorPalette } from '@/lib/calendar/calendar-utils';
 import { t } from '@/lib/i18n';
+import { isTestMode } from '@/lib/testing/mockApi';
 
 // Include teal as the first/default color option (rose removed - conflicts with tracked time display)
 const COLORS: ShiftColor[] = ['teal', 'blue', 'green', 'amber', 'purple'];
@@ -33,6 +34,11 @@ export default function TemplatePanel() {
   const animValue = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    // TEST_MODE: Skip animation for instant E2E test interaction
+    if (isTestMode()) {
+      animValue.setValue(isOpen ? 1 : 0);
+      return;
+    }
     Animated.timing(animValue, {
       toValue: isOpen ? 1 : 0,
       duration: 300,
@@ -513,12 +519,15 @@ export default function TemplatePanel() {
                             onPress={() => handleArm(template.id)}
                             activeOpacity={0.7}
                             testID={`template-row-${index}`}
+                            accessible={true}
+                            accessibilityRole="button"
                           >
                             {/* Edit button (left) */}
                             <TouchableOpacity
                               onPress={() => handleEdit(template)}
                               style={styles.editButtonLeft}
                               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                              accessible={false}
                             >
                               <Pencil size={18} color={colors.grey[500]} />
                             </TouchableOpacity>
@@ -675,12 +684,15 @@ export default function TemplatePanel() {
                                 onPress={() => handleArmAbsence(template.id)}
                                 activeOpacity={0.7}
                                 testID={`absence-row-vacation-${index}`}
+                                accessible={true}
+                                accessibilityRole="button"
                               >
                                 {/* Edit button (left) */}
                                 <TouchableOpacity
                                   onPress={() => handleEditAbsence(template)}
                                   style={styles.editButtonLeft}
                                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                  accessible={false}
                                 >
                                   <Pencil size={18} color={colors.grey[500]} />
                                 </TouchableOpacity>
@@ -725,12 +737,15 @@ export default function TemplatePanel() {
                                 onPress={() => handleArmAbsence(template.id)}
                                 activeOpacity={0.7}
                                 testID={`absence-row-sick-${index}`}
+                                accessible={true}
+                                accessibilityRole="button"
                               >
                                 {/* Edit button (left) */}
                                 <TouchableOpacity
                                   onPress={() => handleEditAbsence(template)}
                                   style={styles.editButtonLeft}
                                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                  accessible={false}
                                 >
                                   <Pencil size={18} color={colors.grey[500]} />
                                 </TouchableOpacity>

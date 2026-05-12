@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -13,10 +13,14 @@ import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/
 import { useCalendar } from '@/lib/calendar/calendar-context';
 import { t } from '@/lib/i18n';
 import ManualSessionForm from './ManualSessionForm';
+import OnboardingTooltip from '@/components/OnboardingTooltip';
+import { OnboardingPreferences } from '@/lib/storage/OnboardingPreferences';
 
 export default function CalendarFAB() {
   const { state, dispatch } = useCalendar();
   const [menuVisible, setMenuVisible] = useState(false);
+  const [showFabTooltip, setShowFabTooltip] = useState(false);
+  const hasSeenFabTooltip = useRef<boolean | null>(null);
   const insets = useSafeAreaInsets();
 
   // Calculate bottom offset to achieve equal margins from right edge and tab bar
@@ -26,8 +30,33 @@ export default function CalendarFAB() {
   // This makes the visual gap from tab bar equal to the right margin from screen edge.
   const fabBottomOffset = spacing.xl - insets.bottom;
 
-  const handleFABPress = () => {
-    setMenuVisible(!menuVisible);
+  useEffect(() => {
+    OnboardingPreferences.hasSeenFabTooltip()
+      .then((seen) => {
+        hasSeenFabTooltip.current = seen;
+      })
+      .catch((error) => {
+        console.error('[CalendarFAB] Failed to load FAB tooltip flag:', error);
+      });
+  }, []);
+
+  const handleFABPress = async () => {
+    const nextMenuVisible = !menuVisible;
+    setMenuVisible(nextMenuVisible);
+
+    if (nextMenuVisible && hasSeenFabTooltip.current !== true) {
+      const seen = hasSeenFabTooltip.current ?? await OnboardingPreferences.hasSeenFabTooltip();
+      hasSeenFabTooltip.current = seen;
+      if (!seen) {
+        setShowFabTooltip(true);
+      }
+    }
+  };
+
+  const handleDismissFabTooltip = async () => {
+    setShowFabTooltip(false);
+    hasSeenFabTooltip.current = true;
+    await OnboardingPreferences.setFabTooltipSeen(true);
   };
 
   const handleOptionPress = (tab: 'shifts' | 'absences') => {
@@ -58,8 +87,8 @@ export default function CalendarFAB() {
     />
   );
 
-  // Hide FAB when overlays are open or in month view
-  if (state.templatePanelOpen || state.manualSessionFormOpen || state.inlinePickerOpen || state.hideFAB || state.view === 'month') {
+  // Hide FAB when overlays are open
+  if (state.templatePanelOpen || state.manualSessionFormOpen || state.inlinePickerOpen || state.hideFAB) {
     return manualSessionForm;
   }
 
@@ -87,7 +116,7 @@ export default function CalendarFAB() {
 
         {/* Menu — always rendered, hidden via opacity + pointerEvents */}
         <View
-          style={[styles.menu, { bottom: fabBottomOffset + 56 + 8, opacity: menuVisible ? 1 : 0 }]}
+          style={[styles.menu, { bottom: fabBottomOffset + 48 + 8, opacity: menuVisible ? 1 : 0 }]}
           pointerEvents={menuVisible ? 'auto' : 'none'}
           accessibilityElementsHidden={!menuVisible}
           accessible={false}
@@ -142,12 +171,19 @@ export default function CalendarFAB() {
           accessibilityState={{ expanded: menuVisible }}
         >
           {menuVisible ? (
-            <X size={28} color={colors.white} />
+            <X size={22} color={colors.white} />
           ) : (
-            <Plus size={28} color={colors.white} />
+            <Plus size={22} color={colors.white} />
           )}
         </TouchableOpacity>
       </View>
+      <OnboardingTooltip
+        visible={showFabTooltip}
+        title={t('onboardingTooltips.fab.title')}
+        body={t('onboardingTooltips.fab.body')}
+        onDismiss={handleDismissFabTooltip}
+        testIDPrefix="calendar-fab-tooltip"
+      />
     </>
   );
 }
@@ -161,9 +197,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: spacing.xl,
     // bottom is applied dynamically via fabBottomOffset for equal margins
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: colors.primary[500],
     justifyContent: 'center',
     alignItems: 'center',
@@ -174,7 +210,7 @@ const styles = StyleSheet.create({
   },
   menu: {
     position: 'absolute',
-    // bottom is applied dynamically: fabBottomOffset + FAB height (56) + gap (8)
+    // bottom is applied dynamically: fabBottomOffset + FAB height (48) + gap (8)
     right: spacing.xl,
     backgroundColor: colors.background.paper,
     borderRadius: borderRadius.lg,
