@@ -26,7 +26,9 @@ class MockDatabase {
     }
   }
 
-  async runAsync(sql: string, ...params: any[]): Promise<void> {
+  async runAsync(sql: string, ...params: any[]): Promise<{ changes: number }> {
+    let changes = 0;
+
     if (sql.includes('INSERT INTO')) {
       const tableName = sql.match(/INSERT INTO (\w+)/)?.[1];
       if (tableName) {
@@ -74,6 +76,7 @@ class MockDatabase {
 
         table.push(row);
         this.tables.set(tableName, table);
+        changes = 1;
       }
     } else if (sql.includes('UPDATE')) {
       const tableName = sql.match(/UPDATE (\w+)/)?.[1];
@@ -97,6 +100,20 @@ class MockDatabase {
                 row[fieldName] = params[idx];
               });
             }
+            changes = 1;
+          }
+        }
+
+        // Handle bulk UPDATE with state-based WHERE (e.g., confirmStalePendingExits)
+        if (whereClause?.includes("state = 'pending_exit'")) {
+          const cutoffParam = params[params.length - 1];
+          const matching = table.filter((r: any) =>
+            r.state === 'pending_exit' && r.pending_exit_at && r.pending_exit_at < cutoffParam
+          );
+          for (const row of matching) {
+            row.state = 'completed';
+            row.clock_out = row.pending_exit_at;
+            changes++;
           }
         }
       }
@@ -106,9 +123,12 @@ class MockDatabase {
         const table = this.tables.get(tableName) || [];
         const id = params[0];
         const filtered = table.filter((r: any) => r.id !== id);
+        changes = table.length - filtered.length;
         this.tables.set(tableName, filtered);
       }
     }
+
+    return { changes };
   }
 
   async getFirstAsync<T>(sql: string, ...params: any[]): Promise<T | null> {

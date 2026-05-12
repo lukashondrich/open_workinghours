@@ -15,7 +15,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.openworkinghours.mobileapp",
-      "buildNumber": "47",
+      "buildNumber": "53",
       "config": {
         "usesNonExemptEncryption": false
       },
@@ -24,7 +24,6 @@
         "NSLocationAlwaysAndWhenInUseUsageDescription": "We need your location in the background to automatically clock you in/out when you arrive/leave work.",
         "NSFaceIDUsageDescription": "Use Face ID to quickly unlock Open Working Hours.",
         "UIBackgroundModes": [
-          "location",
           "location"
         ],
         "ITSAppUsesNonExemptEncryption": false
@@ -32,7 +31,7 @@
     },
     "android": {
       "package": "com.openworkinghours.mobileapp",
-      "versionCode": 3,
+      "versionCode": 4,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"

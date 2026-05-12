@@ -1,17 +1,29 @@
 import { GeofenceService } from '../services/GeofenceService';
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
+import { getDatabase } from '../services/Database';
 
 // Mock expo modules
 jest.mock('expo-location');
 jest.mock('expo-task-manager');
+jest.mock('../services/Database', () => ({
+  getDatabase: jest.fn(),
+}));
 
 describe('GeofenceService', () => {
   let service: GeofenceService;
 
   beforeEach(() => {
-    service = new GeofenceService();
     jest.clearAllMocks();
+    service = new GeofenceService();
+    (Location as any).Accuracy = { Balanced: 'balanced' };
+    (Location.getBackgroundPermissionsAsync as jest.Mock).mockResolvedValue({
+      status: 'granted',
+    });
+    (Location.hasStartedGeofencingAsync as jest.Mock).mockResolvedValue(false);
+    (getDatabase as jest.Mock).mockResolvedValue({
+      getActiveLocations: jest.fn().mockResolvedValue([]),
+    });
   });
 
   describe('Permission Handling', () => {
@@ -116,7 +128,13 @@ describe('GeofenceService', () => {
 
       // Clear mocks
       jest.clearAllMocks();
+      (Location.getBackgroundPermissionsAsync as jest.Mock).mockResolvedValue({
+        status: 'granted',
+      });
       (Location.hasStartedGeofencingAsync as jest.Mock).mockResolvedValue(true);
+      (getDatabase as jest.Mock).mockResolvedValue({
+        getActiveLocations: jest.fn().mockResolvedValue([testLocation]),
+      });
 
       // Then unregister
       await service.unregisterGeofence('loc-123');
@@ -184,17 +202,27 @@ describe('GeofenceService', () => {
           longitude: -122.4577,
           radius: 200,
         },
+        location: {
+          coords: {
+            latitude: 37.7625,
+            longitude: -122.4577,
+            accuracy: 5,
+          },
+        },
       };
 
       await taskHandler({ data: eventData, error: null });
 
-      expect(mockCallback).toHaveBeenCalledWith({
+      const event = mockCallback.mock.calls[0][0];
+      expect(event).toEqual(expect.objectContaining({
         eventType: 'enter',
         locationId: 'loc-123',
-        timestamp: expect.any(String),
         latitude: 37.7625,
         longitude: -122.4577,
-      });
+        accuracy: 5,
+        accuracySource: 'event',
+      }));
+      expect(event.timestamp).toEqual(expect.any(String));
     });
 
     it('should handle task callback for exit event', async () => {
@@ -215,17 +243,27 @@ describe('GeofenceService', () => {
           longitude: -122.4577,
           radius: 200,
         },
+        location: {
+          coords: {
+            latitude: 37.7625,
+            longitude: -122.4577,
+            accuracy: 5,
+          },
+        },
       };
 
       await taskHandler({ data: eventData, error: null });
 
-      expect(mockCallback).toHaveBeenCalledWith({
+      const event = mockCallback.mock.calls[0][0];
+      expect(event).toEqual(expect.objectContaining({
         eventType: 'exit',
         locationId: 'loc-123',
-        timestamp: expect.any(String),
         latitude: 37.7625,
         longitude: -122.4577,
-      });
+        accuracy: 5,
+        accuracySource: 'event',
+      }));
+      expect(event.timestamp).toEqual(expect.any(String));
     });
 
     it('should handle task error', async () => {

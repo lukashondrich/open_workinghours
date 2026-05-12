@@ -13,6 +13,7 @@ import { CheckCircle2, XCircle, HelpCircle } from 'lucide-react-native';
 import { colors, spacing, fontSize, fontWeight } from '@/theme';
 import { Button, Card, InfoBox, SettingsDetailLayout } from '@/components/ui';
 import { t } from '@/lib/i18n';
+import { syncKeepaliveState } from '@/modules/geofencing/services/ForegroundKeepaliveService';
 
 interface PermissionStatus {
   foreground: 'granted' | 'denied' | 'unknown';
@@ -51,7 +52,13 @@ export default function PermissionsScreen() {
       if (foreground.granted) {
         // Then request background
         const background = await Location.requestBackgroundPermissionsAsync();
-        checkPermissions();
+        await checkPermissions();
+
+        try {
+          await syncKeepaliveState();
+        } catch (syncError) {
+          console.warn('[PermissionsScreen] Failed to sync keepalive state:', syncError);
+        }
 
         if (background.granted) {
           Alert.alert(t('permissionsScreen.successTitle'), t('permissionsScreen.backgroundGranted'));

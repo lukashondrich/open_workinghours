@@ -33,6 +33,7 @@ describe('Absence Management', () => {
     driver = await createDriver(getPlatform());
     await driver.pause(2000);
     await ensureAuthenticated(driver);
+    await ensureCleanCalendarState(driver);
   }, 180000);
 
   afterAll(async () => {
@@ -80,8 +81,26 @@ describe('Absence Management', () => {
     await tapTestId(driver, 'absence-add');
     await driver.pause(1000);
 
+    // Dismiss keyboard (auto-focused name input) so save button is visible
+    await dismissKeyboard(driver);
+    await driver.pause(500);
+
+    // Scroll down in the picker to reveal save/cancel buttons
+    // (the ScrollView maxHeight may clip them when many templates exist)
+    if (driver.isAndroid) {
+      try {
+        const { width, height } = await driver.getWindowSize();
+        await driver.action('pointer', { parameters: { pointerType: 'touch' } })
+          .move({ x: Math.round(width / 2), y: Math.round(height * 0.45) })
+          .down()
+          .move({ x: Math.round(width / 2), y: Math.round(height * 0.25), duration: 300 })
+          .up()
+          .perform();
+        await driver.pause(500);
+      } catch { /* scroll attempt, continue */ }
+    }
+
     // Verify edit mode — save button should appear
-    // Try testID first (needs rebuild), fallback to text
     let saveFound = false;
     try {
       const saveButton = await byTestId(driver, 'absence-save');
@@ -90,9 +109,11 @@ describe('Absence Management', () => {
 
     if (!saveFound) {
       // Fallback: look for Save text button
-      const saveText = await byI18nFast(driver, 'save');
-      await saveText.waitForDisplayed({ timeout: 5000 });
-      saveFound = await saveText.isDisplayed();
+      try {
+        const saveText = await byI18nFast(driver, 'save');
+        await saveText.waitForDisplayed({ timeout: 5000 });
+        saveFound = await saveText.isDisplayed();
+      } catch { /* not found */ }
     }
     expect(saveFound).toBe(true);
   });
@@ -146,14 +167,19 @@ describe('Absence Management', () => {
 
   test('should verify absence template persists', async () => {
     // Close panel first (save closes edit mode but panel stays open)
-    if (driver.isAndroid) {
-      await driver.back();
-    } else {
-      await driver.action('pointer', { parameters: { pointerType: 'touch' } })
-        .move({ x: 215, y: 200 })
-        .down()
-        .up()
-        .perform();
+    // Use inline-picker-cancel (most reliable on Android), fallback to back/tap
+    try {
+      await tapTestId(driver, 'inline-picker-cancel', 3000);
+    } catch {
+      if (driver.isAndroid) {
+        await driver.back();
+      } else {
+        await driver.action('pointer', { parameters: { pointerType: 'touch' } })
+          .move({ x: 215, y: 200 })
+          .down()
+          .up()
+          .perform();
+      }
     }
     await driver.pause(1000);
 
@@ -162,6 +188,9 @@ describe('Absence Management', () => {
     await driver.pause(500);
     await navigateToTab(driver, 'calendar');
     await driver.pause(500);
+
+    // Ensure we're in week view with FAB visible
+    await ensureCleanCalendarState(driver);
 
     await tapTestId(driver, 'calendar-fab');
     await driver.pause(1500);
@@ -190,6 +219,22 @@ describe('Absence Management', () => {
       } catch { /* not found */ }
     }
     expect(found).toBe(true);
+
+    // Close the picker so the next test starts with a clean state
+    try {
+      await tapTestId(driver, 'inline-picker-cancel', 3000);
+    } catch {
+      if (driver.isAndroid) {
+        await driver.back();
+      } else {
+        await driver.action('pointer', { parameters: { pointerType: 'touch' } })
+          .move({ x: 215, y: 200 })
+          .down()
+          .up()
+          .perform();
+      }
+    }
+    await driver.pause(1000);
   });
 
   test('should arm an absence template', async () => {
@@ -225,20 +270,30 @@ describe('Absence Management', () => {
   });
 
   test('should close panel and tap day in month view with armed absence', async () => {
-    // Close absence panel
-    if (driver.isAndroid) {
-      await driver.back();
-    } else {
-      await driver.action('pointer', { parameters: { pointerType: 'touch' } })
-        .move({ x: 215, y: 200 })
-        .down()
-        .up()
-        .perform();
+    // Close absence panel — picker may already be closed (arming in TEST_MODE closes instantly)
+    const pickerStillOpen = await existsTestId(driver, 'inline-picker-cancel');
+    if (pickerStillOpen) {
+      try {
+        await tapTestId(driver, 'inline-picker-cancel', 3000);
+      } catch {
+        if (driver.isAndroid) {
+          await driver.back();
+        } else {
+          await driver.action('pointer', { parameters: { pointerType: 'touch' } })
+            .move({ x: 215, y: 200 })
+            .down()
+            .up()
+            .perform();
+        }
+      }
     }
     await driver.pause(1000);
 
+    // Ensure FAB is visible (we should be in week view)
+    await ensureCleanCalendarState(driver);
+
     // Switch to month view
-    const monthToggle = await byI18nFast(driver, 'month');
+    const monthToggle = await byTestId(driver, 'toggle-month');
     await monthToggle.waitForDisplayed({ timeout: 5000 });
     await monthToggle.click();
     await driver.pause(1000);
@@ -252,7 +307,7 @@ describe('Absence Management', () => {
     if (!hasDayTestId) {
       console.log('⏭ month-day testIDs not available — skipping day tap');
       // Switch back to week view
-      const weekToggle = await byI18nFast(driver, 'week');
+      const weekToggle = await byTestId(driver, 'toggle-week');
       await weekToggle.waitForDisplayed({ timeout: 5000 });
       await weekToggle.click();
       await driver.pause(500);
@@ -275,8 +330,11 @@ describe('Absence Management', () => {
     yesterday.setDate(yesterday.getDate() - 1);
     const dateKey = yesterday.toISOString().split('T')[0];
 
+    // Ensure clean state in case previous test failed mid-way
+    await ensureCleanCalendarState(driver);
+
     // Switch to month view
-    const monthToggle = await byI18nFast(driver, 'month');
+    const monthToggle = await byTestId(driver, 'toggle-month');
     await monthToggle.waitForDisplayed({ timeout: 5000 });
     await monthToggle.click();
     await driver.pause(1000);
@@ -290,14 +348,15 @@ describe('Absence Management', () => {
     expect(true).toBe(true);
 
     // Switch back to week view
-    const weekToggle = await byI18nFast(driver, 'week');
+    const weekToggle = await byTestId(driver, 'toggle-week');
     await weekToggle.waitForDisplayed({ timeout: 5000 });
     await weekToggle.click();
     await driver.pause(500);
   });
 
   test('should close absence panel', async () => {
-    // Panel may already be closed from arming flow. Verify we're on calendar.
+    // Panel may already be closed from arming flow. Ensure clean state.
+    await ensureCleanCalendarState(driver);
     const fab = await byTestId(driver, 'calendar-fab');
     await fab.waitForExist({ timeout: 5000 });
     expect(await fab.isExisting()).toBe(true);

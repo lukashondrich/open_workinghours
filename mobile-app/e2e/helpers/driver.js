@@ -88,6 +88,8 @@ function getDeviceCapabilities(platform) {
       'appium:appActivity': '.MainActivity',
       'appium:noReset': true,
       'appium:newCommandTimeout': 300,
+      'appium:uiautomator2ServerLaunchTimeout': 60000,
+      'appium:adbExecTimeout': 40000,
       // Increase snapshot depth for complex React Native views
       'appium:settings[snapshotMaxDepth]': 62,
       'appium:settings[enableMultiWindows]': true,

@@ -333,6 +333,7 @@ export const de = {
     failedToLoadData: 'Statusdaten konnten nicht geladen werden',
     failedToCheckIn: 'Einstempeln fehlgeschlagen',
     failedToCheckOut: 'Ausstempeln fehlgeschlagen',
+    locationTransitionPending: 'Standortwechsel wird geprüft …',
   },
 
   // Dashboard widgets
@@ -488,6 +489,7 @@ export const de = {
     manuallyClocked: 'Manuell eingestempelt',
     clockOut: 'Ausstempeln',
     clockIn: 'Einstempeln',
+    locationTransitionPending: 'Standortwechsel wird geprüft …',
     hintTracking: 'Verlassen Sie den Geofence-Bereich, um automatisch auszustempeln',
     hintNotTracking: 'Betreten Sie den Geofence-Bereich, um automatisch einzustempeln',
     viewHistory: 'Arbeitsverlauf anzeigen',
