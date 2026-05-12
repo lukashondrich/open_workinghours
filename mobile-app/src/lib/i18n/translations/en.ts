@@ -48,6 +48,7 @@ export const en = {
     verifyEmail: 'Verify Email',
     createAccount: 'Create Account',
     logIn: 'Log In',
+    completeSetup: 'Complete Setup',
     back: 'Back',
   },
 
@@ -272,6 +273,7 @@ export const en = {
       accountExistsMessage: 'An account with this email already exists. Please use login instead.',
       goToLogin: 'Go to Login',
       registrationFailed: 'Registration failed',
+      completeSetup: 'Complete Setup',
     },
     profile: {
       profileSection: 'Your Profile',
@@ -280,6 +282,20 @@ export const en = {
       savedMessage: 'Your profile has been updated. Changes apply to future weeks.',
       saveFailed: 'Update failed',
       futureWeeksHint: 'Changes apply to future weeks only. Already-finalized weeks retain their original values.',
+    },
+    social: {
+      appleButton: 'Continue with Apple',
+      googleButton: 'Continue with Google',
+      or: 'or',
+      emailLink: 'Continue with email',
+      legal: 'By continuing, you agree to our Terms of Service and Privacy Policy.',
+      legalPrefix: 'By continuing, you agree to our ',
+      termsLink: 'Terms of Service',
+      legalJoin: ' and ',
+      privacyLink: 'Privacy Policy',
+      legalSuffix: '.',
+      error: 'Sign-In Failed',
+      tryAgain: 'Please try again or use email sign-in.',
     },
   },
 
@@ -535,6 +551,7 @@ export const en = {
     logIn: 'Log In',
     createAccount: 'Create Account',
   },
+
 
   // Email Verification screen
   emailVerification: {

@@ -17,8 +17,29 @@ from ..dependencies import get_current_user
 from ..dp_group_stats.accounting import user_annual_summary
 from ..models import FeedbackReport, User, VerificationRequest, VerificationStatus, WorkEvent
 from ..rate_limit import rate_limit
-from ..schemas import AuthTokenOut, ConsentUpdateIn, PrivacyBudgetOut, UserDataExportOut, UserLoginIn, UserOut, UserProfileUpdateIn, UserRegisterIn
+from ..schemas import (
+    AppleAuthIn,
+    AuthTokenOut,
+    ConsentUpdateIn,
+    GoogleAuthIn,
+    PrivacyBudgetOut,
+    SocialAuthStartOut,
+    SocialRegisterIn,
+    UserDataExportOut,
+    UserLoginIn,
+    UserOut,
+    UserProfileUpdateIn,
+    UserRegisterIn,
+)
 from ..security import create_user_access_token, hash_code, hash_email
+from ..social_auth import (
+    ProviderIdentity,
+    ProviderVerificationError,
+    create_social_registration_token,
+    verify_apple_identity_token,
+    verify_google_id_token,
+    verify_social_registration_token,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -401,7 +422,7 @@ def delete_account(
     email_hash = current_user.email_hash
 
     # Prevent demo account deletion
-    if settings.demo is not None:
+    if settings.demo is not None and email_hash is not None:
         demo_email_hash = hash_email(settings.demo.email.lower())
         if email_hash == demo_email_hash:
             raise HTTPException(
@@ -418,11 +439,196 @@ def delete_account(
     ).delete(synchronize_session=False)
 
     # Delete VerificationRequest (email_hash + domain should be removed)
-    db.query(VerificationRequest).filter(
-        VerificationRequest.email_hash == email_hash
-    ).delete(synchronize_session=False)
+    # Social auth users have no email_hash, so skip this step for them
+    if email_hash is not None:
+        db.query(VerificationRequest).filter(
+            VerificationRequest.email_hash == email_hash
+        ).delete(synchronize_session=False)
 
     # Delete user - WorkEvents are cascade deleted automatically
     logger.info(f"User {user_id} deleted account (GDPR Art. 17)")
     db.delete(user)
     db.commit()
+
+
+# ============================================================================
+# SOCIAL AUTH (Sign in with Apple + Google)
+# ============================================================================
+
+
+def _social_login(
+    provider_identity: ProviderIdentity,
+    db: Session,
+) -> SocialAuthStartOut:
+    """
+    Shared logic for Apple/Google sign-in endpoints.
+
+    - Existing linked user → issue app JWT
+    - First-time user → return registration_required + social_registration_token
+    """
+    user = (
+        db.query(User)
+        .filter(
+            User.auth_provider == provider_identity.provider,
+            User.provider_sub == provider_identity.sub,
+        )
+        .one_or_none()
+    )
+
+    if user is not None:
+        token, expires_at = create_user_access_token(user_id=str(user.user_id))
+        logger.info(f"Social login ({provider_identity.provider}) for existing user {user.user_id}")
+        return SocialAuthStartOut(
+            status="authenticated",
+            access_token=token,
+            expires_at=expires_at,
+            user_id=user.user_id,
+            user=UserOut.from_orm(user),
+        )
+
+    # First-time social sign-in — issue registration token, do NOT create user
+    reg_token = create_social_registration_token(
+        provider=provider_identity.provider,
+        sub=provider_identity.sub,
+    )
+    logger.info(f"Social login ({provider_identity.provider}) — new user, registration required")
+    return SocialAuthStartOut(
+        status="registration_required",
+        social_registration_token=reg_token,
+    )
+
+
+@router.post("/apple", response_model=SocialAuthStartOut)
+def login_with_apple(
+    payload: AppleAuthIn,
+    db: Session = Depends(_get_db_session),
+    _rl: None = Depends(rate_limit(5, 60)),
+) -> SocialAuthStartOut:
+    """
+    Sign in with Apple.
+
+    Verifies the Apple identity token, extracts the opaque `sub`,
+    and returns either an app session or a registration-required response.
+    """
+    settings = get_settings()
+    try:
+        identity = verify_apple_identity_token(
+            payload.identity_token,
+            bundle_id=settings.social_auth.apple_bundle_id,
+        )
+    except ProviderVerificationError as exc:
+        logger.warning("Apple token verification failed: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Apple authentication failed.",
+        )
+
+    return _social_login(identity, db)
+
+
+@router.post("/google", response_model=SocialAuthStartOut)
+def login_with_google(
+    payload: GoogleAuthIn,
+    db: Session = Depends(_get_db_session),
+    _rl: None = Depends(rate_limit(5, 60)),
+) -> SocialAuthStartOut:
+    """
+    Sign in with Google.
+
+    Verifies the Google ID token, extracts the opaque `sub`,
+    and returns either an app session or a registration-required response.
+    """
+    settings = get_settings()
+    if not settings.social_auth.google_client_id:
+        raise HTTPException(
+            status_code=status.HTTP_501_NOT_IMPLEMENTED,
+            detail="Google Sign-In is not configured.",
+        )
+
+    try:
+        identity = verify_google_id_token(
+            payload.id_token,
+            client_id=settings.social_auth.google_client_id,
+        )
+    except ProviderVerificationError as exc:
+        logger.warning("Google token verification failed: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Google authentication failed.",
+        )
+
+    return _social_login(identity, db)
+
+
+@router.post("/social/register", response_model=AuthTokenOut, status_code=status.HTTP_201_CREATED)
+def register_social_user(
+    payload: SocialRegisterIn,
+    db: Session = Depends(_get_db_session),
+    _rl: None = Depends(rate_limit(5, 60)),
+) -> AuthTokenOut:
+    """
+    Complete registration for a first-time social auth user.
+
+    Verifies the social_registration_token, creates a full User row with the
+    same field contract as email registration, and issues an app JWT.
+    """
+    # Verify the registration token
+    try:
+        identity = verify_social_registration_token(payload.social_registration_token)
+    except ProviderVerificationError as exc:
+        logger.warning("Social registration token verification failed: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Registration token invalid or expired. Please sign in again.",
+        )
+
+    # Check for duplicate — prevent re-registration with replayed token
+    existing = (
+        db.query(User)
+        .filter(
+            User.auth_provider == identity.provider,
+            User.provider_sub == identity.sub,
+        )
+        .one_or_none()
+    )
+    if existing is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Account already registered. Please sign in instead.",
+        )
+
+    # Create full user row — same contract as email registration
+    now = datetime.now(timezone.utc)
+    new_user = User(
+        email_hash=None,  # Social auth users have no stored email
+        auth_provider=identity.provider,
+        provider_sub=identity.sub,
+        hospital_id=payload.hospital_id,
+        specialty=payload.specialty,
+        role_level=payload.role_level,
+        state_code=payload.state_code,
+        country_code="DEU",
+        # v2 taxonomy fields
+        profession=payload.profession,
+        seniority=payload.seniority,
+        department_group=payload.department_group,
+        specialization_code=payload.specialization_code,
+        hospital_ref_id=payload.hospital_ref_id,
+        # GDPR consent
+        terms_accepted_version=payload.terms_version,
+        privacy_accepted_version=payload.privacy_version,
+        consent_accepted_at=now if payload.terms_version else None,
+    )
+
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+
+    token, expires_at = create_user_access_token(user_id=str(new_user.user_id))
+    logger.info(f"Social registration complete ({identity.provider}) — user {new_user.user_id}")
+
+    return AuthTokenOut(
+        access_token=token,
+        expires_at=expires_at,
+        user_id=new_user.user_id,
+    )

@@ -15,11 +15,13 @@
   },
   "dependencies": {
     "@react-native-community/datetimepicker": "^8.6.0",
+    "@react-native-google-signin/google-signin": "^16.1.2",
     "@react-navigation/bottom-tabs": "^7.8.6",
     "@react-navigation/native": "^7.1.20",
     "@react-navigation/native-stack": "^7.6.3",
     "date-fns": "^4.1.0",
     "expo": "~54.0.32",
+    "expo-apple-authentication": "~8.0.8",
     "expo-crypto": "~15.0.7",
     "expo-dev-client": "~6.0.20",
     "expo-device": "~8.0.10",
