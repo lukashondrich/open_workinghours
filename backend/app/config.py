@@ -28,6 +28,12 @@ class EmailSettings(BaseModel):
     use_tls: bool = True
 
 
+class SocialAuthSettings(BaseModel):
+    """Social auth provider config. Set via SOCIAL_AUTH__* env vars."""
+    apple_bundle_id: str = Field(default="com.openworkinghours.mobileapp")
+    google_client_id: str = Field(default="")  # Web/Server OAuth client ID
+
+
 class DemoSettings(BaseModel):
     """Demo account for Apple App Review. Set via DEMO__EMAIL and DEMO__CODE."""
 
@@ -48,6 +54,7 @@ class Settings(BaseSettings):
     security: SecuritySettings
     database: DatabaseSettings
     email: EmailSettings | None = None
+    social_auth: SocialAuthSettings = Field(default_factory=SocialAuthSettings)
     demo: DemoSettings | None = None  # Optional demo account for App Store review
 
     class Config:

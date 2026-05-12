@@ -28,6 +28,7 @@ import EmailVerificationScreen from '@/modules/auth/screens/EmailVerificationScr
 import RegisterScreen from '@/modules/auth/screens/RegisterScreen';
 import LoginScreen from '@/modules/auth/screens/LoginScreen';
 import LockScreen from '@/modules/auth/screens/LockScreen';
+import SocialRegistrationScreen from '@/modules/auth/screens/SocialRegistrationScreen';
 import ProfileScreen from '@/modules/auth/screens/ProfileScreen';
 
 import { useAuth } from '@/lib/auth/auth-context';
@@ -40,6 +41,7 @@ export type RootStackParamList = {
   Welcome: undefined;
   EmailVerification: undefined;
   Register: { email: string };
+  SocialRegister: undefined;
   Login: { email: string };
   // Main app stack
   MainTabs: undefined;
@@ -165,8 +167,9 @@ function LoadingScreen() {
  */
 function AuthStack() {
   const Stack = createNativeStackNavigator<RootStackParamList>();
-  const [mode, setMode] = useState<'welcome' | 'verify' | 'register' | 'login'>('welcome');
+  const [mode, setMode] = useState<'welcome' | 'verify' | 'register' | 'login' | 'socialRegister'>('welcome');
   const [email, setEmail] = useState('');
+  const [socialRegistrationToken, setSocialRegistrationToken] = useState('');
 
   return (
     <Stack.Navigator
@@ -187,6 +190,10 @@ function AuthStack() {
             <WelcomeScreen
               onLoginPress={() => setMode('login')}
               onRegisterPress={() => setMode('verify')}
+              onSocialRegistrationRequired={(token) => {
+                setSocialRegistrationToken(token);
+                setMode('socialRegister');
+              }}
             />
           )}
         </Stack.Screen>
@@ -209,6 +216,15 @@ function AuthStack() {
             <RegisterScreen
               email={email}
               onLoginPress={() => setMode('login')}
+            />
+          )}
+        </Stack.Screen>
+      )}
+      {mode === 'socialRegister' && (
+        <Stack.Screen name="SocialRegister" options={{ title: t('navigation.completeSetup') || 'Complete Setup' }}>
+          {() => (
+            <SocialRegistrationScreen
+              socialRegistrationToken={socialRegistrationToken}
             />
           )}
         </Stack.Screen>

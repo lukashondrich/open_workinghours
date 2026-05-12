@@ -13,6 +13,10 @@ export default {
   ...appJson,
   expo: {
     ...appJson.expo,
+    plugins: [
+      ...(appJson.expo.plugins || []),
+      "@react-native-google-signin/google-signin",
+    ],
     android: {
       ...appJson.expo.android,
       config: {

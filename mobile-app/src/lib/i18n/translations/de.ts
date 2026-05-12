@@ -48,6 +48,7 @@ export const de = {
     verifyEmail: 'E-Mail bestätigen',
     createAccount: 'Konto erstellen',
     logIn: 'Anmelden',
+    completeSetup: 'Einrichtung abschließen',
     back: 'Zurück',
   },
 
@@ -272,6 +273,7 @@ export const de = {
       accountExistsMessage: 'Ein Konto mit dieser E-Mail existiert bereits. Bitte nutzen Sie die Anmeldung.',
       goToLogin: 'Zur Anmeldung',
       registrationFailed: 'Registrierung fehlgeschlagen',
+      completeSetup: 'Einrichtung abschließen',
     },
     profile: {
       profileSection: 'Ihr Profil',
@@ -280,6 +282,20 @@ export const de = {
       savedMessage: 'Ihr Profil wurde aktualisiert. Änderungen gelten für zukünftige Wochen.',
       saveFailed: 'Aktualisierung fehlgeschlagen',
       futureWeeksHint: 'Änderungen gelten nur für zukünftige Wochen. Bereits abgeschlossene Wochen behalten ihre ursprünglichen Werte.',
+    },
+    social: {
+      appleButton: 'Weiter mit Apple',
+      googleButton: 'Weiter mit Google',
+      or: 'oder',
+      emailLink: 'Weiter mit E-Mail',
+      legal: 'Durch Fortfahren stimmen Sie unseren Nutzungsbedingungen und unserer Datenschutzerklärung zu.',
+      legalPrefix: 'Durch Fortfahren stimmen Sie unseren ',
+      termsLink: 'Nutzungsbedingungen',
+      legalJoin: ' und unserer ',
+      privacyLink: 'Datenschutzerklärung',
+      legalSuffix: ' zu.',
+      error: 'Anmeldung fehlgeschlagen',
+      tryAgain: 'Bitte versuchen Sie es erneut oder nutzen Sie die E-Mail-Anmeldung.',
     },
   },
 
