@@ -1,7 +1,7 @@
 # Claude Context: Open Working Hours
 
-**Last Updated:** 2026-03-21
-**Current Build:** #31 (TestFlight)
+**Last Updated:** 2026-04-27
+**Current Build:** #52 (TestFlight)
 
 ---
 
@@ -44,7 +44,7 @@
 
 ## Current State
 
-All core features complete. User test feedback (Clusters A-F) fully implemented. Build #31 on TestFlight. 3-4 active users.
+All core features complete. User test feedback (Clusters A-F) fully implemented. Build #52 on TestFlight. 3-4 active users.
 
 **What's working:**
 - Geofencing with automatic clock-in/out
