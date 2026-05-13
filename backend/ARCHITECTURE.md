@@ -1,6 +1,6 @@
 # Backend Architecture
 
-**Last Updated:** 2026-03-21
+**Last Updated:** 2026-05-13
 **Framework:** FastAPI + PostgreSQL
 **Status:** Production (Hetzner, Germany)
 
@@ -43,8 +43,10 @@ backend/
 │   ├── periods.py           # Period boundary helpers (weekly/biweekly/monthly)
 │   ├── rate_limit.py        # In-memory rate limiting
 │   │
+│   ├── social_auth.py         # Apple/Google token verification, JWKS cache, registration tokens
+│   │
 │   ├── routers/
-│   │   ├── auth.py          # /auth/* endpoints
+│   │   ├── auth.py          # /auth/* endpoints (email + social)
 │   │   ├── verification.py  # /verification/* endpoints
 │   │   ├── work_events.py   # /work-events/* endpoints
 │   │   ├── finalized_weeks.py # /finalized-weeks/* endpoints
@@ -81,6 +83,9 @@ backend/
 | GET | `/auth/me/export` | Export all user data (GDPR Art. 20) |
 | GET | `/auth/me/privacy-budget` | Per-user ε budget summary (GDPR Art. 15) |
 | DELETE | `/auth/me` | Delete account and all data (GDPR Art. 17) |
+| POST | `/auth/apple` | Verify Apple identity token, return session or registration token |
+| POST | `/auth/google` | Verify Google ID token, return session or registration token |
+| POST | `/auth/social/register` | Complete first-time social user registration |
 | POST | `/auth/consent` | Update GDPR consent (for policy updates) |
 
 **GDPR Consent:**
@@ -92,6 +97,16 @@ backend/
 - `/auth/me/export` returns JSON with profile + all work events (Art. 20 - Data Portability)
 - `DELETE /auth/me` deletes user, work_events (cascade), FeedbackReports, VerificationRequest (Art. 17 - Right to Erasure)
 - Demo account is protected from deletion (returns 403)
+
+**Social Auth (Apple + Google):**
+- `/auth/apple` and `/auth/google` verify provider identity tokens against Apple/Google JWKS (public keys cached 1h via `social_auth.py`)
+- Existing user (matched by `auth_provider` + `provider_sub`) → JWT issued directly
+- New user → `social_registration_token` returned (30-min expiry, HS256 signed) — no User row created yet
+- `/auth/social/register` verifies the registration token, creates full User row with same required fields as email registration, issues JWT
+- Provider email is intentionally discarded (privacy consistency) — `email_hash` is nullable for social users
+- Database: `auth_provider` (string, nullable), `provider_sub` (string, nullable, indexed), composite unique constraint `(auth_provider, provider_sub)`
+- Migration: `j0k1l2m3n4o5_add_social_auth_columns.py`
+- All three endpoints rate-limited at 5 req/60s
 
 ### Work Events (`/work-events`)
 

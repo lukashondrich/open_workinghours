@@ -1,8 +1,8 @@
 # Social Auth: Sign in with Apple + Google
 
-**Status:** Implementation in progress
-**Branch:** `worktree-feature-social-auth` (worktree at `.claude/worktrees/feature-social-auth`)
-**Last Updated:** 2026-05-10
+**Status:** Shipped (deployed to production 2026-05-13)
+**Branch:** Merged to `main` (commit `35e9481`)
+**Last Updated:** 2026-05-13
 **Goal:** Add one-tap Sign in with Apple (iOS) and Google (Android) alongside existing email-code auth, to reduce friction before WhatsApp group launch (~2000 doctors), without changing the app's current onboarding strictness or post-login behavior.
 
 ---
@@ -23,7 +23,7 @@
 - [x] 19 backend tests in `backend/tests/test_social_auth.py` (18 pass, 1 xfail pre-existing SQLite tz issue)
 - [x] Full backend suite: 159 passed, 4 pre-existing failures, 3 xfailed
 
-**Mobile app — code written, not yet buildable (native deps not installed):**
+**Mobile app — shipped:**
 - [x] `User.email` made optional (`email?: string`) in `auth-types.ts`
 - [x] `SocialAuthStartResponse`, `SocialRegisterRequest` types added to `auth-types.ts`
 - [x] `AuthService.ts`: added `loginWithApple()`, `loginWithGoogle()`, `completeSocialRegistration()`; `getCurrentUser()` and `updateProfile()` now accept optional email
@@ -42,37 +42,23 @@
 - [x] Apple Developer Portal: "Sign in with Apple" capability (user confirmed done)
 - [x] Local backend `.env`: `SOCIAL_AUTH__GOOGLE_CLIENT_ID` set
 
-### Remaining (TODO)
+### Completed (2026-05-13)
 
-**Native dependency installation + build:**
-- [ ] `npx expo install expo-apple-authentication` in `mobile-app/`
-- [ ] `npm install @react-native-google-signin/google-signin` in `mobile-app/`
-- [ ] Rebuild iOS dev client: `npx expo run:ios`
-- [ ] Rebuild Android dev client: `npx expo run:android`
-- [ ] Note: the WelcomeScreen currently imports these packages at top level (changed by user from the original dynamic imports), so the app will crash without them installed
+**Native deps + build:** Installed `expo-apple-authentication` + `@react-native-google-signin/google-signin`. Platform-conditional `require()` prevents cross-platform native module crashes. Built and verified on iOS simulator (iPhone 16 Pro) + Android emulator (Pixel 7a).
 
-**Testing on device/simulator:**
-- [ ] Verify WelcomeScreen renders correctly on iOS (Apple button + divider + email link)
-- [ ] Verify WelcomeScreen renders correctly on Android (Google button + divider + email link)
-- [ ] Test Apple Sign In flow on iOS simulator (mock credential) or real device
-- [ ] Test Google Sign In flow on Android emulator or real device
-- [ ] Test social registration form (ProfileForm) — same pickers as email registration
-- [ ] Test existing email login flow still works through the refactored RegisterScreen/ProfileForm
-- [ ] Test session restore for social auth users (no email in stored user)
+**WelcomeScreen redesign:** Social-first layout with app icon branding, custom Google button (official multi-color G SVG), `isAvailableAsync()` guard for Apple, full-width outlined email button, linked legal footer (Terms + Privacy Policy). i18n updated to "Continue with" / "Weiter mit".
 
-**Production deployment (when ready to ship):**
-- [ ] Run Alembic migration `j0k1l2m3n4o5` on production PostgreSQL
-- [ ] Set `SOCIAL_AUTH__GOOGLE_CLIENT_ID` in production Hetzner `.env`
-- [ ] Rebuild + deploy backend Docker container
-- [ ] Build TestFlight / Play Store release with native social auth SDKs
+**Testing on real device:** Apple Sign In verified end-to-end on iPhone — sign in, sign out, re-sign in, profile check, email flow, legal links, consent status.
 
-**E2E tests (can be deferred to after manual testing):**
-- [ ] New E2E tests for social auth flows (TEST_MODE mocks are ready)
+**Production deployment:** Backend deployed to Hetzner, Alembic migration `j0k1l2m3n4o5` run, endpoints live (`/auth/apple`, `/auth/google`, `/auth/social/register`).
 
-**Documentation (after feature is stable):**
-- [ ] Update `mobile-app/ARCHITECTURE.md` with social auth module, ProfileForm extraction, navigation changes
-- [ ] Update `backend/ARCHITECTURE.md` with new endpoints, social_auth.py, schema changes
-- [ ] Update privacy policy with Apple/Google sign-in disclosure (draft text in this doc, "Privacy Policy Update" section)
+**Documentation:** `CLAUDE.md`, `mobile-app/ARCHITECTURE.md`, `backend/ARCHITECTURE.md` updated.
+
+### Remaining (deferred)
+
+- [ ] E2E tests for social auth flows (TEST_MODE mocks are ready)
+- [ ] Google Sign-In testing on real Android device
+- [ ] Privacy policy text update with Apple/Google sign-in disclosure (draft in this doc, "Privacy Policy Update" section)
 
 ---
 

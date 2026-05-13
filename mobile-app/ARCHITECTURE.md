@@ -1,6 +1,6 @@
 # Mobile App Architecture
 
-**Last Updated:** 2026-04-22
+**Last Updated:** 2026-05-13
 **Platform:** React Native + Expo
 **Current Build:** #52 (TestFlight)
 
@@ -32,6 +32,9 @@ Quick reference for common tasks:
 | **Change clock-in/out** | `src/modules/geofencing/services/TrackingManager.ts` |
 | **Cross-module events** | `src/lib/events/trackingEvents.ts` |
 | **Modify auth flow** | `src/modules/auth/services/AuthService.ts` |
+| **Social auth (Apple/Google)** | `src/modules/auth/screens/WelcomeScreen.tsx` |
+| **Social registration form** | `src/modules/auth/screens/SocialRegistrationScreen.tsx`, `src/modules/auth/components/ProfileForm.tsx` |
+| **Google logo SVG** | `src/modules/auth/components/GoogleLogo.tsx` |
 | **Edit database schema** | `src/modules/calendar/services/CalendarStorage.ts` |
 | **Change navigation** | `src/navigation/AppNavigator.tsx` |
 | **Add a new screen** | `src/modules/[module]/screens/` + update `AppNavigator` |
@@ -184,13 +187,16 @@ IMMEDIATE_EXIT_ACCURACY_THRESHOLD = 50  // Skip hysteresis if accuracy < 50m
 
 ### Module 2: Authentication & Submission
 
-Email-based passwordless auth with daily data submission, biometric unlock, and lock screen.
+Email-based passwordless auth + social auth (Apple/Google), with daily data submission, biometric unlock, and lock screen.
 
 **Key Files:**
-- `AuthService.ts` - Login, registration, token management
+- `AuthService.ts` - Login, registration, social auth, token management
 - `BiometricService.ts` - Face ID/Touch ID/Fingerprint auth, passcode fallback
 - `LockScreen.tsx` - Lock screen with biometric + passcode + email options
-- `WelcomeScreen.tsx` - Initial screen with Log In / Create Account choice
+- `WelcomeScreen.tsx` - Social-first entry: Apple (iOS) / Google (Android) button, email fallback
+- `SocialRegistrationScreen.tsx` - First-time social user registration
+- `ProfileForm.tsx` - Shared registration form (used by both email and social registration)
+- `GoogleLogo.tsx` - Official multi-color G SVG for custom Google button
 - `DailySubmissionService.ts` - Submits confirmed days to backend
 - `ConsentBottomSheet.tsx` - GDPR consent modal
 - `ConsentStorage.ts` - Local consent record persistence
@@ -203,7 +209,14 @@ App Launch
     ▼
 Token exists & valid?
     │
-    ├── No → WelcomeScreen → "Log In" (single code) or "Create Account" (registration)
+    ├── No → WelcomeScreen
+    │         ├── "Continue with Apple" (iOS) → Apple auth → backend /auth/apple
+    │         ├── "Continue with Google" (Android) → Google auth → backend /auth/google
+    │         └── "Continue with email" → LoginScreen (existing email-code flow)
+    │
+    │   Social auth result:
+    │         ├── Existing user → session created → MainTabs
+    │         └── New user → SocialRegistrationScreen → ProfileForm → MainTabs
     │
     Yes
     │
@@ -216,6 +229,13 @@ Biometric enabled? → No → Restore session → MainTabs
     ├── "Use device passcode" → Passcode prompt → Success → MainTabs
     └── "Sign in with email" → Sign out → WelcomeScreen
 ```
+
+**Social Auth Design Notes:**
+- Platform-conditional native imports: `require('expo-apple-authentication')` on iOS only, `require('@react-native-google-signin/google-signin')` on Android only — prevents cross-platform native module crashes
+- Apple button uses native `AppleAuthenticationButton` (CONTINUE type) with `isAvailableAsync()` guard (graceful fallback when unavailable, e.g. simulator)
+- Google button is a custom `TouchableOpacity` with official multi-color G SVG — matches email button styling
+- All buttons: same height (50px), corner radius (12px), full width
+- `ProfileForm` is shared between `RegisterScreen` (email) and `SocialRegistrationScreen` (social) — same required fields, same consent flow
 
 **Lock Screen (N26/Revolut pattern):**
 - Auto-prompts biometric on mount

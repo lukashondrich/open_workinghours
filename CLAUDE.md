@@ -1,7 +1,7 @@
 # Claude Context: Open Working Hours
 
-**Last Updated:** 2026-04-27
-**Current Build:** #52 (TestFlight)
+**Last Updated:** 2026-05-13
+**Current Build:** #54 (TestFlight)
 
 ---
 
@@ -52,6 +52,7 @@ All core features complete. User test feedback (Clusters A-F) fully implemented.
 - 14-day dashboard with hours overview
 - Authentication and daily submission to backend
 - Photon geocoding for location search
+- Social auth: Sign in with Apple (iOS) + Google (Android)
 - Full German translation (i18n)
 
 ---
@@ -194,6 +195,40 @@ All new UI **must** be testable by Appium (XCUITest on iOS, UiAutomator2 on Andr
 ---
 
 ## Recent Updates (Last 7 Days)
+
+### 2026-05-13: Social Auth — Sign in with Apple + Google (Deployed)
+
+**What shipped:**
+- Sign in with Apple (iOS) and Google Sign-In (Android) alongside existing email-code auth
+- Redesigned WelcomeScreen: social-first layout, app icon branding, custom Google button with official multi-color G SVG, full-width outlined email button, linked legal footer
+- `ProfileForm` extracted from `RegisterScreen` — shared between email and social registration
+- `SocialRegistrationScreen` for first-time social users (same required fields as email)
+- Platform-conditional native imports (no cross-platform crash)
+- `isAvailableAsync()` guard for Apple button (graceful fallback on simulator)
+- i18n: "Continue with" / "Weiter mit" (EN + DE)
+
+**Backend (3 new endpoints, deployed to production):**
+- `POST /auth/apple` — Apple identity token verification via JWKS
+- `POST /auth/google` — Google ID token verification via JWKS
+- `POST /auth/social/register` — complete first-time social registration
+- `social_auth.py` module: JWKS fetch with 1h TTL cache, social registration tokens (30-min expiry)
+- Migration `j0k1l2m3n4o5`: `auth_provider`, `provider_sub` columns, `email_hash` nullable
+- 19 tests in `test_social_auth.py`
+
+**Key files:**
+
+| File | Changes |
+|------|---------|
+| `mobile-app/src/modules/auth/screens/WelcomeScreen.tsx` | Complete redesign |
+| `mobile-app/src/modules/auth/components/ProfileForm.tsx` | New — shared registration form |
+| `mobile-app/src/modules/auth/screens/SocialRegistrationScreen.tsx` | New |
+| `mobile-app/src/modules/auth/components/GoogleLogo.tsx` | New — official multi-color G SVG |
+| `mobile-app/src/modules/auth/services/AuthService.ts` | `loginWithApple()`, `loginWithGoogle()`, `completeSocialRegistration()` |
+| `mobile-app/src/navigation/AppNavigator.tsx` | `socialRegister` mode |
+| `backend/app/social_auth.py` | New — provider verification module |
+| `backend/app/routers/auth.py` | 3 social auth endpoints |
+
+**Full design doc:** `docs/SOCIAL_AUTH_PLAN.md`
 
 ### 2026-04-22: Build #52 — Android Bugs + Reports Tab + Geofencing Reliability
 
