@@ -1,4 +1,4 @@
-export type Profession = 'physician' | 'nurse';
+export type Profession = 'physician' | 'nurse' | 'other';
 
 export type PhysicianSeniority = 'assistenzarzt' | 'facharzt' | 'oberarzt_plus';
 export type NurseSeniority = 'pflegefachkraft' | 'leitung';

@@ -38,11 +38,11 @@ import {
 import type { Profession, Seniority, DepartmentGroup } from '@/lib/taxonomy';
 
 export interface ProfileFormData {
-  stateCode: string;
+  stateCode: string | undefined;
   hospitalValue: string;
   hospitalRefId: number | undefined;
   profession: Profession;
-  seniority: Seniority;
+  seniority: Seniority | undefined;
   departmentGroup: DepartmentGroup | undefined;
   termsVersion: string;
   privacyVersion: string;
@@ -88,11 +88,13 @@ export default function ProfileForm({ onSubmit, email, submitLabel, footer }: Pr
     setSeniority(null);
   }, []);
 
-  // Build seniority options based on selected profession
+  // Build seniority options based on selected profession (empty for 'other')
   const seniorityOptions: PickerOption[] = useMemo(() => {
     if (!profession) return [];
+    const options = SENIORITY_BY_PROFESSION[profession];
+    if (!options || options.length === 0) return [];
     const lang = t('_locale') === 'de' ? 'labelDe' : 'labelEn';
-    return SENIORITY_BY_PROFESSION[profession].map((s) => ({
+    return options.map((s) => ({
       value: s.value,
       label: s[lang],
     }));
@@ -106,20 +108,21 @@ export default function ProfileForm({ onSubmit, email, submitLabel, footer }: Pr
     }));
   }, []);
 
-  // Build hospital options (filtered by selected state)
+  // Build hospital options (filtered by selected state, or just "Other" if no state)
   const hospitalOptions: PickerOption[] = useMemo(() => {
-    if (!stateCode) return [];
+    const otherOption: PickerOption = {
+      value: 'other',
+      label: t('auth.register.hospitalOther'),
+      pinned: true,
+    };
+    if (!stateCode) return [otherOption];
     const hospitals = getHospitalsByState(stateCode);
     const options: PickerOption[] = hospitals.map((h) => ({
       value: String(h.id),
       label: h.name,
       subtitle: h.city,
     }));
-    options.push({
-      value: 'other',
-      label: t('auth.register.hospitalOther'),
-      pinned: true,
-    });
+    options.push(otherOption);
     return options;
   }, [stateCode]);
 
@@ -142,10 +145,6 @@ export default function ProfileForm({ onSubmit, email, submitLabel, footer }: Pr
   }, []);
 
   const validateForm = (): boolean => {
-    if (!stateCode) {
-      Alert.alert(t('auth.register.stateRequired'), t('auth.register.stateRequiredMessage'));
-      return false;
-    }
     if (!hospitalValue) {
       Alert.alert(t('auth.register.hospitalRequired'), t('auth.register.hospitalRequiredMessage'));
       return false;
@@ -154,7 +153,7 @@ export default function ProfileForm({ onSubmit, email, submitLabel, footer }: Pr
       Alert.alert(t('auth.register.professionRequired'), t('auth.register.professionRequiredMessage'));
       return false;
     }
-    if (!seniority) {
+    if (profession !== 'other' && !seniority) {
       Alert.alert(t('auth.register.seniorityRequired'), t('auth.register.seniorityRequiredMessage'));
       return false;
     }
@@ -171,16 +170,16 @@ export default function ProfileForm({ onSubmit, email, submitLabel, footer }: Pr
       setLoading(true);
 
       const consentRecord = createConsentRecord();
-      const hospitalRefId = hospitalValue && hospitalValue !== 'other'
-        ? parseInt(hospitalValue, 10)
-        : undefined;
+      const hospitalRefId = hospitalValue === 'other'
+        ? 0
+        : (hospitalValue ? parseInt(hospitalValue, 10) : undefined);
 
       await onSubmit({
-        stateCode: stateCode!,
+        stateCode: stateCode || undefined,
         hospitalValue: hospitalValue!,
         hospitalRefId,
         profession: profession!,
-        seniority: seniority!,
+        seniority: profession === 'other' ? undefined : seniority!,
         departmentGroup: departmentGroup || undefined,
         termsVersion: CURRENT_TERMS_VERSION,
         privacyVersion: CURRENT_PRIVACY_VERSION,
@@ -228,20 +227,18 @@ export default function ProfileForm({ onSubmit, email, submitLabel, footer }: Pr
             testID="state-picker"
           />
 
-          {stateCode && (
-            <Picker
-              label={t('auth.register.hospitalLabel')}
-              value={hospitalValue}
-              options={hospitalOptions}
-              onSelect={setHospitalValue}
-              placeholder={t('auth.register.hospitalPlaceholder')}
-              searchable
-              searchPlaceholder={t('auth.register.hospitalPlaceholder')}
-              searchMinChars={2}
-              searchHint={t('auth.register.hospitalSearchHint')}
-              testID="hospital-picker"
-            />
-          )}
+          <Picker
+            label={t('auth.register.hospitalLabel')}
+            value={hospitalValue}
+            options={hospitalOptions}
+            onSelect={setHospitalValue}
+            placeholder={t('auth.register.hospitalPlaceholder')}
+            searchable={!!stateCode}
+            searchPlaceholder={stateCode ? t('auth.register.hospitalPlaceholder') : undefined}
+            searchMinChars={2}
+            searchHint={stateCode ? t('auth.register.hospitalSearchHint') : undefined}
+            testID="hospital-picker"
+          />
 
           <Picker
             label={t('auth.register.professionLabel')}
@@ -252,7 +249,7 @@ export default function ProfileForm({ onSubmit, email, submitLabel, footer }: Pr
             testID="profession-picker"
           />
 
-          {profession && (
+          {profession && seniorityOptions.length > 0 && (
             <Picker
               label={t('auth.register.seniorityLabel')}
               value={seniority}

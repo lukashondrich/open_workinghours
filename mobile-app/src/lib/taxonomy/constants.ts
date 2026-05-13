@@ -14,6 +14,7 @@ import type {
 export const PROFESSIONS: LabeledOption<Profession>[] = [
   { value: 'physician', labelEn: 'Physician', labelDe: 'Ärzt:in' },
   { value: 'nurse', labelEn: 'Nurse', labelDe: 'Pflegekraft' },
+  { value: 'other', labelEn: 'Other', labelDe: 'Sonstige' },
 ];
 
 // ---------------------------------------------------------------------------
@@ -34,6 +35,7 @@ export const NURSE_SENIORITY: LabeledOption<NurseSeniority>[] = [
 export const SENIORITY_BY_PROFESSION: Record<Profession, LabeledOption[]> = {
   physician: PHYSICIAN_SENIORITY,
   nurse: NURSE_SENIORITY,
+  other: [],
 };
 
 // ---------------------------------------------------------------------------
