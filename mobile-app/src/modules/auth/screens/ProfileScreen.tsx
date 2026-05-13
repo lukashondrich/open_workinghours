@@ -31,7 +31,7 @@ export default function ProfileScreen() {
 
   const [stateCode, setStateCode] = useState<string | null>(user?.stateCode || null);
   const [hospitalValue, setHospitalValue] = useState<string | null>(
-    user?.hospitalRefId ? String(user.hospitalRefId) : null,
+    user?.hospitalRefId === 0 ? 'other' : (user?.hospitalRefId ? String(user.hospitalRefId) : null),
   );
   const [profession, setProfession] = useState<string | null>(user?.profession || null);
   const [seniority, setSeniority] = useState<string | null>(user?.seniority || null);
@@ -52,7 +52,7 @@ export default function ProfileScreen() {
     if (!profession) return [];
     const prof = profession as Profession;
     const options = SENIORITY_BY_PROFESSION[prof];
-    if (!options) return [];
+    if (!options || options.length === 0) return [];
     const lang = t('_locale') === 'de' ? 'labelDe' : 'labelEn';
     return options.map((s) => ({
       value: s.value,
@@ -68,18 +68,19 @@ export default function ProfileScreen() {
   }, []);
 
   const hospitalOptions: PickerOption[] = useMemo(() => {
-    if (!stateCode) return [];
+    const otherOption: PickerOption = {
+      value: 'other',
+      label: t('auth.register.hospitalOther'),
+      pinned: true,
+    };
+    if (!stateCode) return [otherOption];
     const hospitals = getHospitalsByState(stateCode);
     const options: PickerOption[] = hospitals.map((h) => ({
       value: String(h.id),
       label: h.name,
       subtitle: h.city,
     }));
-    options.push({
-      value: 'other',
-      label: t('auth.register.hospitalOther'),
-      pinned: true,
-    });
+    options.push(otherOption);
     return options;
   }, [stateCode]);
 
@@ -101,12 +102,17 @@ export default function ProfileScreen() {
 
   const hasChanges = useMemo(() => {
     if (!user) return false;
-    const currentHospitalValue = user.hospitalRefId ? String(user.hospitalRefId) : null;
+    const currentHospitalValue = user.hospitalRefId === 0
+      ? 'other'
+      : (user.hospitalRefId ? String(user.hospitalRefId) : null);
+    // Skip seniority comparison when profession is 'other' — backend
+    // doesn't clear old seniority, so it would always show as changed.
+    const seniorityChanged = profession !== 'other' && seniority !== (user.seniority || null);
     return (
       stateCode !== (user.stateCode || null) ||
       hospitalValue !== currentHospitalValue ||
       profession !== (user.profession || null) ||
-      seniority !== (user.seniority || null) ||
+      seniorityChanged ||
       departmentGroup !== (user.departmentGroup || null)
     );
   }, [user, stateCode, hospitalValue, profession, seniority, departmentGroup]);
@@ -116,9 +122,9 @@ export default function ProfileScreen() {
 
     try {
       setSaving(true);
-      const hospitalRefId = hospitalValue && hospitalValue !== 'other'
-        ? parseInt(hospitalValue, 10)
-        : undefined;
+      const hospitalRefId = hospitalValue === 'other'
+        ? 0
+        : (hospitalValue ? parseInt(hospitalValue, 10) : undefined);
 
       const updatedUser = await AuthService.updateProfile(
         state.token,
@@ -127,7 +133,7 @@ export default function ProfileScreen() {
           stateCode: stateCode || undefined,
           hospitalRefId,
           profession: profession || undefined,
-          seniority: seniority || undefined,
+          seniority: profession === 'other' ? undefined : (seniority || undefined),
           departmentGroup: departmentGroup || undefined,
         },
       );
@@ -161,20 +167,18 @@ export default function ProfileScreen() {
           testID="profile-state-picker"
         />
 
-        {stateCode && (
-          <Picker
-            label={t('auth.register.hospitalLabel')}
-            value={hospitalValue}
-            options={hospitalOptions}
-            onSelect={setHospitalValue}
-            placeholder={t('auth.register.hospitalPlaceholder')}
-            searchable
-            searchPlaceholder={t('auth.register.hospitalPlaceholder')}
-            searchMinChars={2}
-            searchHint={t('auth.register.hospitalSearchHint')}
-            testID="profile-hospital-picker"
-          />
-        )}
+        <Picker
+          label={t('auth.register.hospitalLabel')}
+          value={hospitalValue}
+          options={hospitalOptions}
+          onSelect={setHospitalValue}
+          placeholder={t('auth.register.hospitalPlaceholder')}
+          searchable={!!stateCode}
+          searchPlaceholder={stateCode ? t('auth.register.hospitalPlaceholder') : undefined}
+          searchMinChars={2}
+          searchHint={stateCode ? t('auth.register.hospitalSearchHint') : undefined}
+          testID="profile-hospital-picker"
+        />
 
         <Picker
           label={t('auth.register.professionLabel')}
@@ -185,7 +189,7 @@ export default function ProfileScreen() {
           testID="profile-profession-picker"
         />
 
-        {profession && (
+        {profession && seniorityOptions.length > 0 && (
           <Picker
             label={t('auth.register.seniorityLabel')}
             value={seniority}

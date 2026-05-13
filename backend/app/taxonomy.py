@@ -16,6 +16,7 @@ from enum import Enum
 class Profession(str, Enum):
     physician = "physician"
     nurse = "nurse"
+    other = "other"
 
 
 # ---------------------------------------------------------------------------
@@ -36,6 +37,7 @@ class NurseSeniority(str, Enum):
 SENIORITY_BY_PROFESSION: dict[Profession, list[str]] = {
     Profession.physician: [s.value for s in PhysicianSeniority],
     Profession.nurse: [s.value for s in NurseSeniority],
+    Profession.other: [],
 }
 
 ALL_SENIORITY_VALUES: set[str] = {

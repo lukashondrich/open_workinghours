@@ -109,7 +109,7 @@ def register_user(
         country_code="DEU",  # Default to Germany
         # v2 taxonomy fields (when present)
         profession=payload.profession,
-        seniority=payload.seniority,
+        seniority=None if payload.profession == "other" else payload.seniority,
         department_group=payload.department_group,
         specialization_code=payload.specialization_code,
         hospital_ref_id=payload.hospital_ref_id,
@@ -371,6 +371,12 @@ def update_profile(
         if value is not None:
             setattr(user, field_name, value)
 
+    # Clear seniority when profession changes to 'other' — no valid
+    # seniority exists for this profession, and stale values would
+    # pollute finalized-week snapshots used in aggregation.
+    if user.profession == "other":
+        user.seniority = None
+
     db.commit()
     db.refresh(user)
 
@@ -610,7 +616,7 @@ def register_social_user(
         country_code="DEU",
         # v2 taxonomy fields
         profession=payload.profession,
-        seniority=payload.seniority,
+        seniority=None if payload.profession == "other" else payload.seniority,
         department_group=payload.department_group,
         specialization_code=payload.specialization_code,
         hospital_ref_id=payload.hospital_ref_id,
