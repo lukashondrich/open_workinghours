@@ -761,6 +761,7 @@ export const de = {
       group: 'Gruppe Ø',
       placeholder: 'Teile mit Kolleg:innen, um kollektive Einblicke für deine Region freizuschalten.',
       share: 'App teilen',
+      shareMessage: 'Open Working Hours ist eine App für Beschäftigte im Gesundheitswesen, um Arbeitszeiten transparent und anonym zu erfassen. Je mehr mitmachen, desto aussagekräftiger die kollektiven Daten.',
       avgPlanned: 'Geplant',
       avgActual: 'Tatsächlich',
       avgOvertime: 'Überstunden',

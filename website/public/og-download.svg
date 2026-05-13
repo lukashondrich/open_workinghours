@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#fafaf9"/>
+  <!-- Subtle teal accent bar at top -->
+  <rect width="1200" height="4" fill="#0d9488"/>
+
+  <!-- Logo icon -->
+  <g transform="translate(520, 180) scale(0.25)">
+    <path d="M256,56 A200,200 0 1,1 115,397 L175,336 A113,113 0 1,0 256,143 Z" fill="#C0E6DD" opacity="0.7"/>
+    <path d="M115,397 A200,200 0 0,1 256,56 L256,143 A113,113 0 0,0 175,336 Z" fill="#F5F0EB" opacity="0.6"/>
+    <circle cx="256" cy="256" r="113" fill="#2E8B6B"/>
+    <line x1="256" y1="256" x2="256" y2="164" stroke="#F5F0EB" stroke-width="18" stroke-linecap="round"/>
+    <line x1="256" y1="256" x2="199" y2="313" stroke="#F5F0EB" stroke-width="15" stroke-linecap="round"/>
+    <circle cx="256" cy="256" r="13" fill="#F5F0EB"/>
+  </g>
+
+  <!-- App name -->
+  <text x="600" y="370" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="48" font-weight="700" fill="#1c1917">Open Working Hours</text>
+
+  <!-- Tagline -->
+  <text x="600" y="420" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="24" fill="#57534e">Privacy-first working hours tracking</text>
+  <text x="600" y="455" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="24" fill="#57534e">for healthcare professionals</text>
+
+  <!-- Download CTA -->
+  <rect x="475" y="490" width="250" height="50" rx="12" fill="#0d9488"/>
+  <text x="600" y="522" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="20" font-weight="600" fill="white">Download the App</text>
+</svg>
