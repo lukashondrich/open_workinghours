@@ -12,6 +12,7 @@ import {
   NativeSyntheticEvent,
   NativeScrollEvent,
   Alert,
+  Share,
 } from 'react-native';
 
 // Enable LayoutAnimation on Android
@@ -208,6 +209,21 @@ function InsightYouVsGroup({
         accessibilityRole="button"
         accessibilityLabel={t('reports.collective.share')}
         testID="share-button"
+        onPress={async () => {
+          const url = 'https://openworkinghours.org/download';
+          const message = t('reports.collective.shareMessage');
+          try {
+            await Share.share(
+              Platform.select({
+                ios: { message, url },
+                android: { message: `${message}\n${url}` },
+              })!,
+              { subject: 'Open Working Hours' },
+            );
+          } catch (_) {
+            // Silently ignore — don't track or report
+          }
+        }}
       >
         <Share2 size={16} color={colors.primary[500]} />
         <Text style={styles.shareButtonText}>{t('reports.collective.share')}</Text>

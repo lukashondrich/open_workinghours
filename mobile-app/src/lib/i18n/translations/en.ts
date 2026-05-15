@@ -762,6 +762,7 @@ export const en = {
       group: 'Group Ø',
       placeholder: 'Share with colleagues to unlock collective insights for your region.',
       share: 'Share App',
+      shareMessage: 'Open Working Hours is an app for healthcare workers to track working hours transparently and anonymously. The more people participate, the more meaningful the collective data.',
       avgPlanned: 'Planned',
       avgActual: 'Actual',
       avgOvertime: 'Overtime',
