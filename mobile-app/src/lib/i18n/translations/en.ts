@@ -109,7 +109,6 @@ export const en = {
       color: 'Color',
       breakDuration: 'Break Duration',
       newShift: 'New Shift',
-      selectTemplate: 'Select Shift Template',
       updateFutureTitle: 'Update Future Shifts?',
       updateFutureMessage: 'This will also update {{count}} future shifts.',
       update: 'Update',
@@ -157,6 +156,7 @@ export const en = {
       shifts: 'Shifts',
       absences: 'Absences',
       logHours: 'Log Hours',
+      note: 'Note',
       // Accessibility
       openMenu: 'Open add menu',
       closeMenu: 'Close menu',
@@ -165,6 +165,13 @@ export const en = {
     picker: {
       logHours: 'Log Tracked Hours',
       addTo: 'Add to {{date}}',
+    },
+    notes: {
+      tab: 'Notes',
+      placeholder: 'Add a note for this day...',
+      deleteTitle: 'Delete Note?',
+      deleteMessage: 'Remove this note?',
+      saved: 'Note saved',
     },
     batch: {
       placing: 'Placing:',

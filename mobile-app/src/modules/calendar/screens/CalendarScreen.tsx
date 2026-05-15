@@ -11,6 +11,7 @@ import MonthView from '../components/MonthView';
 import TemplatePanel from '../components/TemplatePanel';
 import CalendarFAB from '../components/CalendarFAB';
 import InlinePicker from '../components/InlinePicker';
+import NoteEditor from '../components/NoteEditor';
 import type { MainTabParamList } from '@/navigation/AppNavigator';
 import OnboardingTooltip from '@/components/OnboardingTooltip';
 import { OnboardingPreferences } from '@/lib/storage/OnboardingPreferences';
@@ -73,6 +74,11 @@ function CalendarLayout({ targetDate }: { targetDate?: string }) {
           visible={state.inlinePickerOpen}
           targetDate={state.inlinePickerTargetDate}
           onClose={() => dispatch({ type: 'CLOSE_INLINE_PICKER' })}
+        />
+        <NoteEditor
+          visible={state.noteEditorOpen}
+          date={state.noteEditorDate}
+          onClose={() => dispatch({ type: 'CLOSE_NOTE_EDITOR' })}
         />
         <OnboardingTooltip
           visible={showCalendarTooltip}
