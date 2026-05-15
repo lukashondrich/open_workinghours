@@ -10,6 +10,17 @@ import type {
 
 export class CalendarStorage {
   private db: SQLite.SQLiteDatabase | null = null;
+  // Android expo-sqlite can reject prepared statements when public calls overlap on one handle.
+  private operationQueue: Promise<void> = Promise.resolve();
+
+  private enqueueOperation<T>(operation: () => Promise<T>): Promise<T> {
+    const nextOperation = this.operationQueue.then(operation);
+    this.operationQueue = nextOperation.then(
+      () => undefined,
+      () => undefined
+    );
+    return nextOperation;
+  }
 
   async initialize() {
     if (this.db) return;
@@ -261,28 +272,146 @@ export class CalendarStorage {
   }
 
   async loadTemplates(): Promise<Record<string, ShiftTemplate>> {
-    const db = this.getDb();
-    const rows = await db.getAllAsync<any>('SELECT * FROM shift_templates');
-    const templates: Record<string, ShiftTemplate> = {};
-    rows.forEach((row) => {
-      templates[row.id] = {
-        id: row.id,
-        name: row.name,
-        startTime: row.start_time,
-        duration: row.duration,
-        color: row.color,
-        breakMinutes: row.break_minutes ?? 0,
-      };
+    return this.enqueueOperation(async () => {
+      const db = this.getDb();
+      const rows = await db.getAllAsync<any>('SELECT * FROM shift_templates');
+      const templates: Record<string, ShiftTemplate> = {};
+      rows.forEach((row) => {
+        templates[row.id] = {
+          id: row.id,
+          name: row.name,
+          startTime: row.start_time,
+          duration: row.duration,
+          color: row.color,
+          breakMinutes: row.break_minutes ?? 0,
+        };
+      });
+      return templates;
     });
-    return templates;
   }
 
   async loadInstances(): Promise<Record<string, ShiftInstance>> {
-    const db = this.getDb();
-    const rows = await db.getAllAsync<any>('SELECT * FROM shift_instances');
-    const instances: Record<string, ShiftInstance> = {};
-    rows.forEach((row) => {
-      instances[row.id] = {
+    return this.enqueueOperation(async () => {
+      const db = this.getDb();
+      const rows = await db.getAllAsync<any>('SELECT * FROM shift_instances');
+      const instances: Record<string, ShiftInstance> = {};
+      rows.forEach((row) => {
+        instances[row.id] = {
+          id: row.id,
+          templateId: row.template_id,
+          date: row.date,
+          startTime: row.start_time,
+          duration: row.duration,
+          endTime: row.end_time,
+          color: row.color,
+          name: row.name,
+        };
+      });
+      return instances;
+    });
+  }
+
+  async loadTrackingRecords(): Promise<Record<string, TrackingRecord>> {
+    return this.enqueueOperation(async () => {
+      const db = this.getDb();
+      const rows = await db.getAllAsync<any>('SELECT * FROM tracking_records');
+      const records: Record<string, TrackingRecord> = {};
+      rows.forEach((row) => {
+        records[row.id] = {
+          id: row.id,
+          date: row.date,
+          startTime: row.start_time,
+          duration: row.duration,
+          breakMinutes: row.break_minutes ?? 0,
+        };
+      });
+      return records;
+    });
+  }
+
+  async loadConfirmedDays(): Promise<Record<string, ConfirmedDayStatus>> {
+    return this.enqueueOperation(async () => {
+      const db = this.getDb();
+      const rows = await db.getAllAsync<any>('SELECT * FROM confirmed_days');
+      const confirmed: Record<string, ConfirmedDayStatus> = {};
+      rows.forEach((row) => {
+        confirmed[row.date] = {
+          status: row.status ?? 'pending',
+          confirmedAt: row.confirmed_at,
+          lockedSubmissionId: row.locked_submission_id,
+        };
+      });
+      return confirmed;
+    });
+  }
+
+  async replaceTemplates(templates: ShiftTemplate[]) {
+    return this.enqueueOperation(async () => {
+      const db = this.getDb();
+      await db.runAsync('DELETE FROM shift_templates');
+      for (const template of templates) {
+        await db.runAsync(
+          `INSERT INTO shift_templates (id, name, start_time, duration, color, break_minutes) VALUES (?, ?, ?, ?, ?, ?)`,
+          template.id,
+          template.name,
+          template.startTime,
+          template.duration,
+          template.color,
+          template.breakMinutes ?? 0,
+        );
+      }
+    });
+  }
+
+  async saveShiftTemplate(template: ShiftTemplate): Promise<void> {
+    return this.enqueueOperation(async () => {
+      const db = this.getDb();
+      await db.runAsync(
+        `INSERT OR REPLACE INTO shift_templates (id, name, start_time, duration, color, break_minutes) VALUES (?, ?, ?, ?, ?, ?)`,
+        template.id,
+        template.name,
+        template.startTime,
+        template.duration,
+        template.color,
+        template.breakMinutes ?? 0,
+      );
+    });
+  }
+
+  async replaceInstances(instances: ShiftInstance[]) {
+    return this.enqueueOperation(async () => {
+      const db = this.getDb();
+      await db.runAsync('DELETE FROM shift_instances');
+      for (const instance of instances) {
+        await db.runAsync(
+          `INSERT INTO shift_instances (id, template_id, date, start_time, duration, end_time, color, name)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          instance.id,
+          instance.templateId,
+          instance.date,
+          instance.startTime,
+          instance.duration,
+          instance.endTime,
+          instance.color,
+          instance.name,
+        );
+      }
+      scheduleEvents.emit('schedule-changed', {
+        source: 'shifts',
+        occurredAt: new Date().toISOString(),
+      });
+    });
+  }
+
+  async getShiftInstancesForDateRange(startDate: string, endDate: string): Promise<ShiftInstance[]> {
+    return this.enqueueOperation(async () => {
+      const db = this.getDb();
+      const rows = await db.getAllAsync<any>(
+        'SELECT * FROM shift_instances WHERE date >= ? AND date <= ? ORDER BY date, start_time',
+        startDate,
+        endDate
+      );
+      return rows.map((row) => ({
         id: row.id,
         templateId: row.template_id,
         date: row.date,
@@ -291,151 +420,55 @@ export class CalendarStorage {
         endTime: row.end_time,
         color: row.color,
         name: row.name,
-      };
+      }));
     });
-    return instances;
-  }
-
-  async loadTrackingRecords(): Promise<Record<string, TrackingRecord>> {
-    const db = this.getDb();
-    const rows = await db.getAllAsync<any>('SELECT * FROM tracking_records');
-    const records: Record<string, TrackingRecord> = {};
-    rows.forEach((row) => {
-      records[row.id] = {
-        id: row.id,
-        date: row.date,
-        startTime: row.start_time,
-        duration: row.duration,
-        breakMinutes: row.break_minutes ?? 0,
-      };
-    });
-    return records;
-  }
-
-  async loadConfirmedDays(): Promise<Record<string, ConfirmedDayStatus>> {
-    const db = this.getDb();
-    const rows = await db.getAllAsync<any>('SELECT * FROM confirmed_days');
-    const confirmed: Record<string, ConfirmedDayStatus> = {};
-    rows.forEach((row) => {
-      confirmed[row.date] = {
-        status: row.status ?? 'pending',
-        confirmedAt: row.confirmed_at,
-        lockedSubmissionId: row.locked_submission_id,
-      };
-    });
-    return confirmed;
-  }
-
-  async replaceTemplates(templates: ShiftTemplate[]) {
-    const db = this.getDb();
-    await db.runAsync('DELETE FROM shift_templates');
-    for (const template of templates) {
-      await db.runAsync(
-        `INSERT INTO shift_templates (id, name, start_time, duration, color, break_minutes) VALUES (?, ?, ?, ?, ?, ?)`,
-        template.id,
-        template.name,
-        template.startTime,
-        template.duration,
-        template.color,
-        template.breakMinutes ?? 0,
-      );
-    }
-  }
-
-  async saveShiftTemplate(template: ShiftTemplate): Promise<void> {
-    const db = this.getDb();
-    await db.runAsync(
-      `INSERT OR REPLACE INTO shift_templates (id, name, start_time, duration, color, break_minutes) VALUES (?, ?, ?, ?, ?, ?)`,
-      template.id,
-      template.name,
-      template.startTime,
-      template.duration,
-      template.color,
-      template.breakMinutes ?? 0,
-    );
-  }
-
-  async replaceInstances(instances: ShiftInstance[]) {
-    const db = this.getDb();
-    await db.runAsync('DELETE FROM shift_instances');
-    for (const instance of instances) {
-      await db.runAsync(
-        `INSERT INTO shift_instances (id, template_id, date, start_time, duration, end_time, color, name)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        instance.id,
-        instance.templateId,
-        instance.date,
-        instance.startTime,
-        instance.duration,
-        instance.endTime,
-        instance.color,
-        instance.name,
-      );
-    }
-    scheduleEvents.emit('schedule-changed', {
-      source: 'shifts',
-      occurredAt: new Date().toISOString(),
-    });
-  }
-
-  async getShiftInstancesForDateRange(startDate: string, endDate: string): Promise<ShiftInstance[]> {
-    const db = this.getDb();
-    const rows = await db.getAllAsync<any>(
-      'SELECT * FROM shift_instances WHERE date >= ? AND date <= ? ORDER BY date, start_time',
-      startDate,
-      endDate
-    );
-    return rows.map((row) => ({
-      id: row.id,
-      templateId: row.template_id,
-      date: row.date,
-      startTime: row.start_time,
-      duration: row.duration,
-      endTime: row.end_time,
-      color: row.color,
-      name: row.name,
-    }));
   }
 
   async replaceTrackingRecords(records: TrackingRecord[]) {
     // Use INSERT OR REPLACE (upsert) instead of DELETE + INSERT
     // This is safe for concurrent calls - no race conditions
     // Old records from other weeks stay in the table but get overwritten when loaded again
-    const db = this.getDb();
-    for (const record of records) {
-      await db.runAsync(
-        `INSERT OR REPLACE INTO tracking_records (id, date, start_time, duration, break_minutes) VALUES (?, ?, ?, ?, ?)`,
-        record.id,
-        record.date,
-        record.startTime,
-        record.duration,
-        record.breakMinutes ?? 0,
-      );
-    }
+    return this.enqueueOperation(async () => {
+      const db = this.getDb();
+      for (const record of records) {
+        await db.runAsync(
+          `INSERT OR REPLACE INTO tracking_records (id, date, start_time, duration, break_minutes) VALUES (?, ?, ?, ?, ?)`,
+          record.id,
+          record.date,
+          record.startTime,
+          record.duration,
+          record.breakMinutes ?? 0,
+        );
+      }
+    });
   }
 
   async updateTrackingBreak(id: string, breakMinutes: number): Promise<void> {
-    const db = this.getDb();
-    await db.runAsync(
-      'UPDATE tracking_records SET break_minutes = ? WHERE id = ?',
-      breakMinutes,
-      id
-    );
+    return this.enqueueOperation(async () => {
+      const db = this.getDb();
+      await db.runAsync(
+        'UPDATE tracking_records SET break_minutes = ? WHERE id = ?',
+        breakMinutes,
+        id
+      );
+    });
   }
 
   async replaceConfirmedDays(days: Record<string, ConfirmedDayStatus>) {
-    const db = this.getDb();
-    await db.runAsync('DELETE FROM confirmed_days');
-    for (const [date, meta] of Object.entries(days)) {
-      await db.runAsync(
-        `INSERT INTO confirmed_days (date, status, confirmed_at, locked_submission_id, notes)
-         VALUES (?, ?, ?, ?, NULL)`,
-        date,
-        meta.status,
-        meta.confirmedAt ?? null,
-        meta.lockedSubmissionId ?? null,
-      );
-    }
+    return this.enqueueOperation(async () => {
+      const db = this.getDb();
+      await db.runAsync('DELETE FROM confirmed_days');
+      for (const [date, meta] of Object.entries(days)) {
+        await db.runAsync(
+          `INSERT INTO confirmed_days (date, status, confirmed_at, locked_submission_id, notes)
+           VALUES (?, ?, ?, ?, NULL)`,
+          date,
+          meta.status,
+          meta.confirmedAt ?? null,
+          meta.lockedSubmissionId ?? null,
+        );
+      }
+    });
   }
 
   // ========================================
@@ -496,119 +529,129 @@ export class CalendarStorage {
   }
 
   async loadAbsenceTemplates(): Promise<Record<string, AbsenceTemplate>> {
-    const db = this.getDb();
-    const rows = await db.getAllAsync<any>('SELECT * FROM absence_templates');
-    const templates: Record<string, AbsenceTemplate> = {};
-    rows.forEach((row) => {
-      templates[row.id] = {
-        id: row.id,
-        type: row.type as AbsenceType,
-        name: row.name,
-        color: row.color,
-        startTime: row.start_time,
-        endTime: row.end_time,
-        isFullDay: row.is_full_day === 1,
-        createdAt: row.created_at,
-        updatedAt: row.updated_at,
-      };
+    return this.enqueueOperation(async () => {
+      const db = this.getDb();
+      const rows = await db.getAllAsync<any>('SELECT * FROM absence_templates');
+      const templates: Record<string, AbsenceTemplate> = {};
+      rows.forEach((row) => {
+        templates[row.id] = {
+          id: row.id,
+          type: row.type as AbsenceType,
+          name: row.name,
+          color: row.color,
+          startTime: row.start_time,
+          endTime: row.end_time,
+          isFullDay: row.is_full_day === 1,
+          createdAt: row.created_at,
+          updatedAt: row.updated_at,
+        };
+      });
+      return templates;
     });
-    return templates;
   }
 
   async createAbsenceTemplate(
     template: Omit<AbsenceTemplate, 'id' | 'createdAt' | 'updatedAt'>
   ): Promise<AbsenceTemplate> {
-    const db = this.getDb();
-    const id = `absence-template-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    const now = new Date().toISOString();
+    return this.enqueueOperation(async () => {
+      const db = this.getDb();
+      const id = `absence-template-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const now = new Date().toISOString();
 
-    await db.runAsync(
-      `INSERT INTO absence_templates
-       (id, type, name, color, start_time, end_time, is_full_day, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      id,
-      template.type,
-      template.name,
-      template.color,
-      template.startTime,
-      template.endTime,
-      template.isFullDay ? 1 : 0,
-      now,
-      now
-    );
-
-    return {
-      id,
-      ...template,
-      createdAt: now,
-      updatedAt: now,
-    };
-  }
-
-  async updateAbsenceTemplate(id: string, updates: Partial<AbsenceTemplate>): Promise<void> {
-    const db = this.getDb();
-    const now = new Date().toISOString();
-
-    const setClauses: string[] = ['updated_at = ?'];
-    const values: any[] = [now];
-
-    if (updates.type !== undefined) {
-      setClauses.push('type = ?');
-      values.push(updates.type);
-    }
-    if (updates.name !== undefined) {
-      setClauses.push('name = ?');
-      values.push(updates.name);
-    }
-    if (updates.color !== undefined) {
-      setClauses.push('color = ?');
-      values.push(updates.color);
-    }
-    if (updates.startTime !== undefined) {
-      setClauses.push('start_time = ?');
-      values.push(updates.startTime);
-    }
-    if (updates.endTime !== undefined) {
-      setClauses.push('end_time = ?');
-      values.push(updates.endTime);
-    }
-    if (updates.isFullDay !== undefined) {
-      setClauses.push('is_full_day = ?');
-      values.push(updates.isFullDay ? 1 : 0);
-    }
-
-    values.push(id);
-    await db.runAsync(
-      `UPDATE absence_templates SET ${setClauses.join(', ')} WHERE id = ?`,
-      ...values
-    );
-  }
-
-  async deleteAbsenceTemplate(id: string): Promise<void> {
-    const db = this.getDb();
-    await db.runAsync('DELETE FROM absence_templates WHERE id = ?', id);
-  }
-
-  async replaceAbsenceTemplates(templates: AbsenceTemplate[]): Promise<void> {
-    const db = this.getDb();
-    await db.runAsync('DELETE FROM absence_templates');
-    const now = new Date().toISOString();
-    for (const template of templates) {
       await db.runAsync(
         `INSERT INTO absence_templates
          (id, type, name, color, start_time, end_time, is_full_day, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        template.id,
+        id,
         template.type,
         template.name,
         template.color,
         template.startTime,
         template.endTime,
         template.isFullDay ? 1 : 0,
-        template.createdAt || now,
-        template.updatedAt || now
+        now,
+        now
       );
-    }
+
+      return {
+        id,
+        ...template,
+        createdAt: now,
+        updatedAt: now,
+      };
+    });
+  }
+
+  async updateAbsenceTemplate(id: string, updates: Partial<AbsenceTemplate>): Promise<void> {
+    return this.enqueueOperation(async () => {
+      const db = this.getDb();
+      const now = new Date().toISOString();
+
+      const setClauses: string[] = ['updated_at = ?'];
+      const values: any[] = [now];
+
+      if (updates.type !== undefined) {
+        setClauses.push('type = ?');
+        values.push(updates.type);
+      }
+      if (updates.name !== undefined) {
+        setClauses.push('name = ?');
+        values.push(updates.name);
+      }
+      if (updates.color !== undefined) {
+        setClauses.push('color = ?');
+        values.push(updates.color);
+      }
+      if (updates.startTime !== undefined) {
+        setClauses.push('start_time = ?');
+        values.push(updates.startTime);
+      }
+      if (updates.endTime !== undefined) {
+        setClauses.push('end_time = ?');
+        values.push(updates.endTime);
+      }
+      if (updates.isFullDay !== undefined) {
+        setClauses.push('is_full_day = ?');
+        values.push(updates.isFullDay ? 1 : 0);
+      }
+
+      values.push(id);
+      await db.runAsync(
+        `UPDATE absence_templates SET ${setClauses.join(', ')} WHERE id = ?`,
+        ...values
+      );
+    });
+  }
+
+  async deleteAbsenceTemplate(id: string): Promise<void> {
+    return this.enqueueOperation(async () => {
+      const db = this.getDb();
+      await db.runAsync('DELETE FROM absence_templates WHERE id = ?', id);
+    });
+  }
+
+  async replaceAbsenceTemplates(templates: AbsenceTemplate[]): Promise<void> {
+    return this.enqueueOperation(async () => {
+      const db = this.getDb();
+      await db.runAsync('DELETE FROM absence_templates');
+      const now = new Date().toISOString();
+      for (const template of templates) {
+        await db.runAsync(
+          `INSERT INTO absence_templates
+           (id, type, name, color, start_time, end_time, is_full_day, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          template.id,
+          template.type,
+          template.name,
+          template.color,
+          template.startTime,
+          template.endTime,
+          template.isFullDay ? 1 : 0,
+          template.createdAt || now,
+          template.updatedAt || now
+        );
+      }
+    });
   }
 
   // ========================================
@@ -616,11 +659,37 @@ export class CalendarStorage {
   // ========================================
 
   async loadAbsenceInstances(): Promise<Record<string, AbsenceInstance>> {
-    const db = this.getDb();
-    const rows = await db.getAllAsync<any>('SELECT * FROM absence_instances');
-    const instances: Record<string, AbsenceInstance> = {};
-    rows.forEach((row) => {
-      instances[row.id] = {
+    return this.enqueueOperation(async () => {
+      const db = this.getDb();
+      const rows = await db.getAllAsync<any>('SELECT * FROM absence_instances');
+      const instances: Record<string, AbsenceInstance> = {};
+      rows.forEach((row) => {
+        instances[row.id] = {
+          id: row.id,
+          templateId: row.template_id,
+          type: row.type as AbsenceType,
+          date: row.date,
+          startTime: row.start_time,
+          endTime: row.end_time,
+          isFullDay: row.is_full_day === 1,
+          name: row.name,
+          color: row.color,
+          createdAt: row.created_at,
+          updatedAt: row.updated_at,
+        };
+      });
+      return instances;
+    });
+  }
+
+  async getAbsenceInstancesForDate(date: string): Promise<AbsenceInstance[]> {
+    return this.enqueueOperation(async () => {
+      const db = this.getDb();
+      const rows = await db.getAllAsync<any>(
+        'SELECT * FROM absence_instances WHERE date = ?',
+        date
+      );
+      return rows.map((row) => ({
         id: row.id,
         templateId: row.template_id,
         type: row.type as AbsenceType,
@@ -632,173 +701,48 @@ export class CalendarStorage {
         color: row.color,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
-      };
+      }));
     });
-    return instances;
-  }
-
-  async getAbsenceInstancesForDate(date: string): Promise<AbsenceInstance[]> {
-    const db = this.getDb();
-    const rows = await db.getAllAsync<any>(
-      'SELECT * FROM absence_instances WHERE date = ?',
-      date
-    );
-    return rows.map((row) => ({
-      id: row.id,
-      templateId: row.template_id,
-      type: row.type as AbsenceType,
-      date: row.date,
-      startTime: row.start_time,
-      endTime: row.end_time,
-      isFullDay: row.is_full_day === 1,
-      name: row.name,
-      color: row.color,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-    }));
   }
 
   async getAbsenceInstancesForDateRange(startDate: string, endDate: string): Promise<AbsenceInstance[]> {
-    const db = this.getDb();
-    const rows = await db.getAllAsync<any>(
-      'SELECT * FROM absence_instances WHERE date >= ? AND date <= ? ORDER BY date, start_time',
-      startDate,
-      endDate
-    );
-    return rows.map((row) => ({
-      id: row.id,
-      templateId: row.template_id,
-      type: row.type as AbsenceType,
-      date: row.date,
-      startTime: row.start_time,
-      endTime: row.end_time,
-      isFullDay: row.is_full_day === 1,
-      name: row.name,
-      color: row.color,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-    }));
+    return this.enqueueOperation(async () => {
+      const db = this.getDb();
+      const rows = await db.getAllAsync<any>(
+        'SELECT * FROM absence_instances WHERE date >= ? AND date <= ? ORDER BY date, start_time',
+        startDate,
+        endDate
+      );
+      return rows.map((row) => ({
+        id: row.id,
+        templateId: row.template_id,
+        type: row.type as AbsenceType,
+        date: row.date,
+        startTime: row.start_time,
+        endTime: row.end_time,
+        isFullDay: row.is_full_day === 1,
+        name: row.name,
+        color: row.color,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      }));
+    });
   }
 
   async createAbsenceInstance(
     instance: Omit<AbsenceInstance, 'id' | 'createdAt' | 'updatedAt'>
   ): Promise<AbsenceInstance> {
-    const db = this.getDb();
-    const id = `absence-instance-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    const now = new Date().toISOString();
-
-    await db.runAsync(
-      `INSERT INTO absence_instances
-       (id, template_id, type, date, start_time, end_time, is_full_day, name, color, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      id,
-      instance.templateId,
-      instance.type,
-      instance.date,
-      instance.startTime,
-      instance.endTime,
-      instance.isFullDay ? 1 : 0,
-      instance.name,
-      instance.color,
-      now,
-      now
-    );
-
-    const created = {
-      id,
-      ...instance,
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    scheduleEvents.emit('schedule-changed', {
-      source: 'absences',
-      occurredAt: now,
-    });
-
-    return created;
-  }
-
-  async updateAbsenceInstance(id: string, updates: Partial<AbsenceInstance>): Promise<void> {
-    const db = this.getDb();
-    const now = new Date().toISOString();
-
-    const setClauses: string[] = ['updated_at = ?'];
-    const values: any[] = [now];
-
-    if (updates.templateId !== undefined) {
-      setClauses.push('template_id = ?');
-      values.push(updates.templateId);
-    }
-    if (updates.type !== undefined) {
-      setClauses.push('type = ?');
-      values.push(updates.type);
-    }
-    if (updates.date !== undefined) {
-      setClauses.push('date = ?');
-      values.push(updates.date);
-    }
-    if (updates.startTime !== undefined) {
-      setClauses.push('start_time = ?');
-      values.push(updates.startTime);
-    }
-    if (updates.endTime !== undefined) {
-      setClauses.push('end_time = ?');
-      values.push(updates.endTime);
-    }
-    if (updates.isFullDay !== undefined) {
-      setClauses.push('is_full_day = ?');
-      values.push(updates.isFullDay ? 1 : 0);
-    }
-    if (updates.name !== undefined) {
-      setClauses.push('name = ?');
-      values.push(updates.name);
-    }
-    if (updates.color !== undefined) {
-      setClauses.push('color = ?');
-      values.push(updates.color);
-    }
-
-    values.push(id);
-    await db.runAsync(
-      `UPDATE absence_instances SET ${setClauses.join(', ')} WHERE id = ?`,
-      ...values
-    );
-    scheduleEvents.emit('schedule-changed', {
-      source: 'absences',
-      occurredAt: now,
-    });
-  }
-
-  async deleteAbsenceInstance(id: string): Promise<void> {
-    const db = this.getDb();
-    await db.runAsync('DELETE FROM absence_instances WHERE id = ?', id);
-    scheduleEvents.emit('schedule-changed', {
-      source: 'absences',
-      occurredAt: new Date().toISOString(),
-    });
-  }
-
-  async replaceAbsenceInstances(instances: AbsenceInstance[]) {
-    const db = this.getDb();
-
-    // Get valid template IDs to check FK constraint
-    const templateRows = await db.getAllAsync<{ id: string }>('SELECT id FROM absence_templates');
-    const validTemplateIds = new Set(templateRows.map(r => r.id));
-
-    await db.runAsync('DELETE FROM absence_instances');
-    for (const instance of instances) {
-      // Set templateId to null if template doesn't exist (FK constraint)
-      const templateId = instance.templateId && validTemplateIds.has(instance.templateId)
-        ? instance.templateId
-        : null;
+    return this.enqueueOperation(async () => {
+      const db = this.getDb();
+      const id = `absence-instance-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const now = new Date().toISOString();
 
       await db.runAsync(
         `INSERT INTO absence_instances
          (id, template_id, type, date, start_time, end_time, is_full_day, name, color, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        instance.id,
-        templateId,
+        id,
+        instance.templateId,
         instance.type,
         instance.date,
         instance.startTime,
@@ -806,13 +750,126 @@ export class CalendarStorage {
         instance.isFullDay ? 1 : 0,
         instance.name,
         instance.color,
-        instance.createdAt,
-        instance.updatedAt
+        now,
+        now
       );
-    }
-    scheduleEvents.emit('schedule-changed', {
-      source: 'absences',
-      occurredAt: new Date().toISOString(),
+
+      const created = {
+        id,
+        ...instance,
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      scheduleEvents.emit('schedule-changed', {
+        source: 'absences',
+        occurredAt: now,
+      });
+
+      return created;
+    });
+  }
+
+  async updateAbsenceInstance(id: string, updates: Partial<AbsenceInstance>): Promise<void> {
+    return this.enqueueOperation(async () => {
+      const db = this.getDb();
+      const now = new Date().toISOString();
+
+      const setClauses: string[] = ['updated_at = ?'];
+      const values: any[] = [now];
+
+      if (updates.templateId !== undefined) {
+        setClauses.push('template_id = ?');
+        values.push(updates.templateId);
+      }
+      if (updates.type !== undefined) {
+        setClauses.push('type = ?');
+        values.push(updates.type);
+      }
+      if (updates.date !== undefined) {
+        setClauses.push('date = ?');
+        values.push(updates.date);
+      }
+      if (updates.startTime !== undefined) {
+        setClauses.push('start_time = ?');
+        values.push(updates.startTime);
+      }
+      if (updates.endTime !== undefined) {
+        setClauses.push('end_time = ?');
+        values.push(updates.endTime);
+      }
+      if (updates.isFullDay !== undefined) {
+        setClauses.push('is_full_day = ?');
+        values.push(updates.isFullDay ? 1 : 0);
+      }
+      if (updates.name !== undefined) {
+        setClauses.push('name = ?');
+        values.push(updates.name);
+      }
+      if (updates.color !== undefined) {
+        setClauses.push('color = ?');
+        values.push(updates.color);
+      }
+
+      values.push(id);
+      await db.runAsync(
+        `UPDATE absence_instances SET ${setClauses.join(', ')} WHERE id = ?`,
+        ...values
+      );
+      scheduleEvents.emit('schedule-changed', {
+        source: 'absences',
+        occurredAt: now,
+      });
+    });
+  }
+
+  async deleteAbsenceInstance(id: string): Promise<void> {
+    return this.enqueueOperation(async () => {
+      const db = this.getDb();
+      await db.runAsync('DELETE FROM absence_instances WHERE id = ?', id);
+      scheduleEvents.emit('schedule-changed', {
+        source: 'absences',
+        occurredAt: new Date().toISOString(),
+      });
+    });
+  }
+
+  async replaceAbsenceInstances(instances: AbsenceInstance[]) {
+    return this.enqueueOperation(async () => {
+      const db = this.getDb();
+
+      // Get valid template IDs to check FK constraint
+      const templateRows = await db.getAllAsync<{ id: string }>('SELECT id FROM absence_templates');
+      const validTemplateIds = new Set(templateRows.map(r => r.id));
+
+      await db.runAsync('DELETE FROM absence_instances');
+      for (const instance of instances) {
+        // Set templateId to null if template doesn't exist (FK constraint)
+        const templateId = instance.templateId && validTemplateIds.has(instance.templateId)
+          ? instance.templateId
+          : null;
+
+        await db.runAsync(
+          `INSERT INTO absence_instances
+           (id, template_id, type, date, start_time, end_time, is_full_day, name, color, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          instance.id,
+          templateId,
+          instance.type,
+          instance.date,
+          instance.startTime,
+          instance.endTime,
+          instance.isFullDay ? 1 : 0,
+          instance.name,
+          instance.color,
+          instance.createdAt,
+          instance.updatedAt
+        );
+      }
+      scheduleEvents.emit('schedule-changed', {
+        source: 'absences',
+        occurredAt: new Date().toISOString(),
+      });
     });
   }
 
@@ -821,64 +878,82 @@ export class CalendarStorage {
   // ========================================
 
   async loadDayNotes(): Promise<Record<string, DayNote>> {
-    const db = this.getDb();
-    const rows = await db.getAllAsync<any>('SELECT * FROM day_notes');
-    const notes: Record<string, DayNote> = {};
-    rows.forEach((row) => {
-      notes[row.date] = {
-        id: row.id,
-        date: row.date,
-        content: row.content,
-        createdAt: row.created_at,
-        updatedAt: row.updated_at,
-      };
+    return this.enqueueOperation(async () => {
+      const db = this.getDb();
+      const rows = await db.getAllAsync<any>('SELECT * FROM day_notes');
+      const notes: Record<string, DayNote> = {};
+      rows.forEach((row) => {
+        notes[row.date] = {
+          id: row.id,
+          date: row.date,
+          content: row.content,
+          createdAt: row.created_at,
+          updatedAt: row.updated_at,
+        };
+      });
+      return notes;
     });
-    return notes;
   }
 
   async saveDayNote(note: DayNote): Promise<void> {
-    const db = this.getDb();
-    await db.runAsync(
-      `INSERT OR REPLACE INTO day_notes (id, date, content, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?)`,
-      note.id,
-      note.date,
-      note.content,
-      note.createdAt,
-      note.updatedAt
-    );
+    return this.enqueueOperation(async () => {
+      const db = this.getDb();
+      await db.runAsync(
+        `INSERT OR REPLACE INTO day_notes (id, date, content, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?)`,
+        note.id,
+        note.date,
+        note.content,
+        note.createdAt,
+        note.updatedAt
+      );
+    });
   }
 
   async replaceDayNotes(notes: DayNote[]): Promise<void> {
-    const db = this.getDb();
-    await db.runAsync('DELETE FROM day_notes');
-    for (const note of notes) {
-      await this.saveDayNote(note);
-    }
+    return this.enqueueOperation(async () => {
+      const db = this.getDb();
+      await db.runAsync('DELETE FROM day_notes');
+      for (const note of notes) {
+        await db.runAsync(
+          `INSERT OR REPLACE INTO day_notes (id, date, content, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?)`,
+          note.id,
+          note.date,
+          note.content,
+          note.createdAt,
+          note.updatedAt
+        );
+      }
+    });
   }
 
   async deleteDayNote(date: string): Promise<void> {
-    const db = this.getDb();
-    await db.runAsync('DELETE FROM day_notes WHERE date = ?', date);
+    return this.enqueueOperation(async () => {
+      const db = this.getDb();
+      await db.runAsync('DELETE FROM day_notes WHERE date = ?', date);
+    });
   }
 
   async loadDeviceCalendarState(): Promise<DeviceCalendarStateRecord | null> {
-    const db = this.getDb();
-    const row = await db.getFirstAsync<any>('SELECT * FROM device_calendar_state WHERE id = 1');
+    return this.enqueueOperation(async () => {
+      const db = this.getDb();
+      const row = await db.getFirstAsync<any>('SELECT * FROM device_calendar_state WHERE id = 1');
 
-    if (!row) {
-      return null;
-    }
+      if (!row) {
+        return null;
+      }
 
-    return {
-      enabled: row.enabled === 1,
-      calendarId: row.calendar_id ?? null,
-      targetSourceId: row.target_source_id ?? null,
-      targetMode: (row.target_mode as DeviceCalendarTargetMode | null) ?? null,
-      lastFullSyncAt: row.last_full_sync_at ?? null,
-      lastSyncError: row.last_sync_error ?? null,
-      updatedAt: row.updated_at,
-    };
+      return {
+        enabled: row.enabled === 1,
+        calendarId: row.calendar_id ?? null,
+        targetSourceId: row.target_source_id ?? null,
+        targetMode: (row.target_mode as DeviceCalendarTargetMode | null) ?? null,
+        lastFullSyncAt: row.last_full_sync_at ?? null,
+        lastSyncError: row.last_sync_error ?? null,
+        updatedAt: row.updated_at,
+      };
+    });
   }
 
   async saveDeviceCalendarState(state: {
@@ -889,56 +964,46 @@ export class CalendarStorage {
     lastFullSyncAt?: string | null;
     lastSyncError?: string | null;
   }): Promise<void> {
-    const db = this.getDb();
-    const now = new Date().toISOString();
+    return this.enqueueOperation(async () => {
+      const db = this.getDb();
+      const now = new Date().toISOString();
 
-    await db.runAsync(
-      `INSERT OR REPLACE INTO device_calendar_state
-       (id, enabled, calendar_id, target_source_id, target_mode, last_full_sync_at, last_sync_error, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      1,
-      state.enabled ? 1 : 0,
-      state.calendarId ?? null,
-      state.targetSourceId ?? null,
-      state.targetMode ?? null,
-      state.lastFullSyncAt ?? null,
-      state.lastSyncError ?? null,
-      now
-    );
+      await db.runAsync(
+        `INSERT OR REPLACE INTO device_calendar_state
+         (id, enabled, calendar_id, target_source_id, target_mode, last_full_sync_at, last_sync_error, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        1,
+        state.enabled ? 1 : 0,
+        state.calendarId ?? null,
+        state.targetSourceId ?? null,
+        state.targetMode ?? null,
+        state.lastFullSyncAt ?? null,
+        state.lastSyncError ?? null,
+        now
+      );
+    });
   }
 
   async clearDeviceCalendarState(): Promise<void> {
-    const db = this.getDb();
-    await db.runAsync('DELETE FROM device_calendar_state WHERE id = ?', 1);
+    return this.enqueueOperation(async () => {
+      const db = this.getDb();
+      await db.runAsync('DELETE FROM device_calendar_state WHERE id = ?', 1);
+    });
   }
 
   async loadDeviceCalendarMapping(appId: string): Promise<DeviceCalendarMappingRecord | null> {
-    const db = this.getDb();
-    const row = await db.getFirstAsync<any>(
-      'SELECT * FROM device_calendar_mappings WHERE app_id = ?',
-      appId
-    );
+    return this.enqueueOperation(async () => {
+      const db = this.getDb();
+      const row = await db.getFirstAsync<any>(
+        'SELECT * FROM device_calendar_mappings WHERE app_id = ?',
+        appId
+      );
 
-    if (!row) {
-      return null;
-    }
+      if (!row) {
+        return null;
+      }
 
-    return {
-      appId: row.app_id,
-      nativeEventId: row.native_event_id,
-      entityType: row.entity_type as ManagedCalendarEntityType,
-      fingerprint: row.fingerprint,
-      updatedAt: row.updated_at,
-    };
-  }
-
-  async loadDeviceCalendarMappings(): Promise<Record<string, DeviceCalendarMappingRecord>> {
-    const db = this.getDb();
-    const rows = await db.getAllAsync<any>('SELECT * FROM device_calendar_mappings');
-    const mappings: Record<string, DeviceCalendarMappingRecord> = {};
-
-    rows.forEach((row) => {
-      mappings[row.app_id] = {
+      return {
         appId: row.app_id,
         nativeEventId: row.native_event_id,
         entityType: row.entity_type as ManagedCalendarEntityType,
@@ -946,8 +1011,26 @@ export class CalendarStorage {
         updatedAt: row.updated_at,
       };
     });
+  }
 
-    return mappings;
+  async loadDeviceCalendarMappings(): Promise<Record<string, DeviceCalendarMappingRecord>> {
+    return this.enqueueOperation(async () => {
+      const db = this.getDb();
+      const rows = await db.getAllAsync<any>('SELECT * FROM device_calendar_mappings');
+      const mappings: Record<string, DeviceCalendarMappingRecord> = {};
+
+      rows.forEach((row) => {
+        mappings[row.app_id] = {
+          appId: row.app_id,
+          nativeEventId: row.native_event_id,
+          entityType: row.entity_type as ManagedCalendarEntityType,
+          fingerprint: row.fingerprint,
+          updatedAt: row.updated_at,
+        };
+      });
+
+      return mappings;
+    });
   }
 
   async saveDeviceCalendarMapping(mapping: {
@@ -956,37 +1039,55 @@ export class CalendarStorage {
     entityType: ManagedCalendarEntityType;
     fingerprint: string;
   }): Promise<void> {
-    const db = this.getDb();
-    await db.runAsync(
-      `INSERT OR REPLACE INTO device_calendar_mappings
-       (app_id, native_event_id, entity_type, fingerprint, updated_at)
-       VALUES (?, ?, ?, ?, ?)`,
-      mapping.appId,
-      mapping.nativeEventId,
-      mapping.entityType,
-      mapping.fingerprint,
-      new Date().toISOString()
-    );
+    return this.enqueueOperation(async () => {
+      const db = this.getDb();
+      await db.runAsync(
+        `INSERT OR REPLACE INTO device_calendar_mappings
+         (app_id, native_event_id, entity_type, fingerprint, updated_at)
+         VALUES (?, ?, ?, ?, ?)`,
+        mapping.appId,
+        mapping.nativeEventId,
+        mapping.entityType,
+        mapping.fingerprint,
+        new Date().toISOString()
+      );
+    });
   }
 
   async deleteDeviceCalendarMapping(appId: string): Promise<void> {
-    const db = this.getDb();
-    await db.runAsync('DELETE FROM device_calendar_mappings WHERE app_id = ?', appId);
+    return this.enqueueOperation(async () => {
+      const db = this.getDb();
+      await db.runAsync('DELETE FROM device_calendar_mappings WHERE app_id = ?', appId);
+    });
   }
 
   async deleteAllDeviceCalendarMappings(): Promise<void> {
-    const db = this.getDb();
-    await db.runAsync('DELETE FROM device_calendar_mappings');
+    return this.enqueueOperation(async () => {
+      const db = this.getDb();
+      await db.runAsync('DELETE FROM device_calendar_mappings');
+    });
   }
 }
 
 let calendarStorage: CalendarStorage | null = null;
+let calendarStoragePromise: Promise<CalendarStorage> | null = null;
 
 export async function getCalendarStorage() {
-  if (!calendarStorage) {
-    const instance = new CalendarStorage();
-    await instance.initialize();
-    calendarStorage = instance;
+  if (calendarStorage) {
+    return calendarStorage;
   }
-  return calendarStorage;
+
+  if (!calendarStoragePromise) {
+    calendarStoragePromise = (async () => {
+      const instance = new CalendarStorage();
+      await instance.initialize();
+      calendarStorage = instance;
+      return instance;
+    })().catch((error) => {
+      calendarStoragePromise = null;
+      throw error;
+    });
+  }
+
+  return calendarStoragePromise;
 }
