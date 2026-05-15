@@ -240,17 +240,25 @@ export default function NoteEditor({ visible, date, onClose }: Props) {
                 </TouchableOpacity>
               </View>
 
-              <TextInput
-                testID="note-editor-input"
-                style={styles.textInput}
-                multiline
-                placeholder={t('calendar.notes.placeholder')}
-                placeholderTextColor={colors.text.tertiary}
-                value={text}
-                onChangeText={setText}
-                autoFocus={visible}
-                textAlignVertical="top"
-              />
+              <ScrollView
+                style={styles.editContent}
+                contentContainerStyle={styles.editContentContainer}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+              >
+                <TextInput
+                  testID="note-editor-input"
+                  style={styles.textInput}
+                  multiline
+                  placeholder={t('calendar.notes.placeholder')}
+                  placeholderTextColor={colors.text.tertiary}
+                  value={text}
+                  onChangeText={setText}
+                  autoFocus={visible}
+                  textAlignVertical="top"
+                  scrollEnabled
+                />
+              </ScrollView>
 
               <View style={styles.footer}>
                 <View style={styles.footerActions}>
@@ -339,8 +347,10 @@ const styles = StyleSheet.create({
   },
   panelWrapper: {
     width: '100%',
+    maxHeight: '80%',
   },
   card: {
+    maxHeight: '100%',
     backgroundColor: colors.background.paper,
     borderTopLeftRadius: borderRadius.xl,
     borderTopRightRadius: borderRadius.xl,
@@ -368,6 +378,12 @@ const styles = StyleSheet.create({
     fontSize: fontSize.md,
     color: colors.primary[500],
     fontWeight: fontWeight.medium,
+  },
+  editContent: {
+    flexShrink: 1,
+  },
+  editContentContainer: {
+    paddingBottom: spacing.xs,
   },
   textInput: {
     minHeight: 100,
