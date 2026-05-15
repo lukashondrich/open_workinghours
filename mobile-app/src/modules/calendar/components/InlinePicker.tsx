@@ -16,6 +16,7 @@ import { t, getDateLocale } from '@/lib/i18n';
 import { useCalendar } from '@/lib/calendar/calendar-context';
 import {
   formatDuration,
+  formatDateKey,
   getColorPalette,
   findOverlappingShift,
 } from '@/lib/calendar/calendar-utils';
@@ -467,7 +468,7 @@ export default function InlinePicker({ visible, targetDate, onClose }: InlinePic
   const handleTabChange = (tab: 'shifts' | 'absences' | 'gps' | 'notes') => {
     if (tab === 'notes') {
       // Close picker and open NoteEditor for this date
-      const date = targetDate ?? format(new Date(), 'yyyy-MM-dd');
+      const date = targetDate ?? formatDateKey(new Date());
       handleClose();
       dispatch({ type: 'OPEN_NOTE_EDITOR', date });
       return;

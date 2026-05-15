@@ -245,10 +245,7 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
       try {
         const storage = storageRef.current ?? await getCalendarStorage();
         const notes = Object.values(state.dayNotes);
-        // Simple approach: save each note (INSERT OR REPLACE handles upsert)
-        for (const note of notes) {
-          await storage.saveDayNote(note);
-        }
+        await storage.replaceDayNotes(notes);
       } catch (error) {
         console.error('[CalendarProvider] Failed to persist day notes:', error);
       }

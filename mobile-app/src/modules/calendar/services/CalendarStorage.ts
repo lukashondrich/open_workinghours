@@ -849,6 +849,14 @@ export class CalendarStorage {
     );
   }
 
+  async replaceDayNotes(notes: DayNote[]): Promise<void> {
+    const db = this.getDb();
+    await db.runAsync('DELETE FROM day_notes');
+    for (const note of notes) {
+      await this.saveDayNote(note);
+    }
+  }
+
   async deleteDayNote(date: string): Promise<void> {
     const db = this.getDb();
     await db.runAsync('DELETE FROM day_notes WHERE date = ?', date);

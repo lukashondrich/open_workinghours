@@ -21,7 +21,6 @@ import { de as deLocale } from 'date-fns/locale/de';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
 import { t, getDateLocale } from '@/lib/i18n';
 import { useCalendar } from '@/lib/calendar/calendar-context';
-import { getCalendarStorage } from '@/modules/calendar/services/CalendarStorage';
 import { isTestMode } from '@/lib/testing/mockApi';
 
 interface Props {
@@ -129,15 +128,9 @@ export default function NoteEditor({ visible, date, onClose }: Props) {
         {
           text: t('common.delete'),
           style: 'destructive',
-          onPress: async () => {
-            try {
-              const storage = await getCalendarStorage();
-              await storage.deleteDayNote(date);
-              dispatch({ type: 'DELETE_NOTE', date });
-              onClose();
-            } catch (error) {
-              console.error('[NoteEditor] Failed to delete note:', error);
-            }
+          onPress: () => {
+            dispatch({ type: 'DELETE_NOTE', date });
+            onClose();
           },
         },
       ]
