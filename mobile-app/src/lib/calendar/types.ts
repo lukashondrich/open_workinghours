@@ -61,7 +61,7 @@ export interface TrackingRecord {
 export interface DayNote {
   id: string
   date: string              // YYYY-MM-DD (UNIQUE — one note per day)
-  content: string           // max 280 chars
+  content: string           // Local-only annotation; not submitted or exported
   createdAt: string
   updatedAt: string
 }
