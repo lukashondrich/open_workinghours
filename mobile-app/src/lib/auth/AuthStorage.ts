@@ -1,7 +1,7 @@
 /**
  * AuthStorage - Secure token and user persistence
  * Uses expo-secure-store for encrypted storage
- * Falls back to AsyncStorage on simulator without keychain entitlements
+ * Falls back to in-memory storage on simulator without keychain entitlements
  */
 
 import * as SecureStore from 'expo-secure-store';
@@ -10,6 +10,23 @@ import type { User } from './auth-types';
 // In-memory fallback when SecureStore is unavailable (unsigned simulator builds)
 let useMemoryFallback = false;
 const memoryStore: Record<string, string> = {};
+
+function isSecureStoreUnavailableError(error: unknown): boolean {
+  const message = error instanceof Error ? `${error.name} ${error.message}` : String(error);
+  const normalized = message.toLowerCase();
+
+  return (
+    normalized.includes('securestore is not available') ||
+    normalized.includes('secure store is not available') ||
+    normalized.includes('securestore is not supported') ||
+    normalized.includes('secure store is not supported') ||
+    normalized.includes('not available on this device') ||
+    normalized.includes('missing entitlement') ||
+    normalized.includes('errsecmissingentitlement') ||
+    normalized.includes('osstatus error -34018') ||
+    normalized.includes('-34018')
+  );
+}
 
 export class AuthStorage {
   private static readonly TOKEN_KEY = 'auth_token';
@@ -24,10 +41,13 @@ export class AuthStorage {
     }
     try {
       return await SecureStore.getItemAsync(key);
-    } catch {
-      console.warn('[AuthStorage] SecureStore unavailable, using in-memory fallback');
-      useMemoryFallback = true;
-      return memoryStore[key] ?? null;
+    } catch (error) {
+      if (isSecureStoreUnavailableError(error)) {
+        console.warn('[AuthStorage] SecureStore unavailable, using in-memory fallback');
+        useMemoryFallback = true;
+        return memoryStore[key] ?? null;
+      }
+      throw error;
     }
   }
 
@@ -38,10 +58,14 @@ export class AuthStorage {
     }
     try {
       await SecureStore.setItemAsync(key, value);
-    } catch {
-      console.warn('[AuthStorage] SecureStore unavailable, using in-memory fallback');
-      useMemoryFallback = true;
-      memoryStore[key] = value;
+    } catch (error) {
+      if (isSecureStoreUnavailableError(error)) {
+        console.warn('[AuthStorage] SecureStore unavailable, using in-memory fallback');
+        useMemoryFallback = true;
+        memoryStore[key] = value;
+        return;
+      }
+      throw error;
     }
   }
 
@@ -52,9 +76,13 @@ export class AuthStorage {
     }
     try {
       await SecureStore.deleteItemAsync(key);
-    } catch {
-      useMemoryFallback = true;
-      delete memoryStore[key];
+    } catch (error) {
+      if (isSecureStoreUnavailableError(error)) {
+        useMemoryFallback = true;
+        delete memoryStore[key];
+        return;
+      }
+      throw error;
     }
   }
 
@@ -82,6 +110,11 @@ export class AuthStorage {
       await this.setItem(this.TOKEN_KEY, token);
       await this.setItem(this.USER_KEY, JSON.stringify(user));
       await this.setItem(this.EXPIRES_KEY, expiresAt.toISOString());
+      if (useMemoryFallback) {
+        memoryStore[this.TOKEN_KEY] = token;
+        memoryStore[this.USER_KEY] = JSON.stringify(user);
+        memoryStore[this.EXPIRES_KEY] = expiresAt.toISOString();
+      }
     } catch (error) {
       console.error('[AuthStorage] Failed to save auth data:', error);
       throw new Error('Failed to save authentication data');

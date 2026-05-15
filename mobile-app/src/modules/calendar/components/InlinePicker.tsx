@@ -467,7 +467,7 @@ export default function InlinePicker({ visible, targetDate, onClose }: InlinePic
   const handleTabChange = (tab: 'shifts' | 'absences' | 'gps' | 'notes') => {
     if (tab === 'notes') {
       // Close picker and open NoteEditor for this date
-      const date = targetDate ?? new Date().toISOString().split('T')[0];
+      const date = targetDate ?? format(new Date(), 'yyyy-MM-dd');
       handleClose();
       dispatch({ type: 'OPEN_NOTE_EDITOR', date });
       return;

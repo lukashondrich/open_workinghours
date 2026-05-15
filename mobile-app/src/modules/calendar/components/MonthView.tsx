@@ -492,8 +492,8 @@ export default function MonthView() {
     // Check for notes
     const hasNote = !!state.dayNotes[dateKey];
 
-    // Has activity if there are shifts, tracking, absences, or notes
-    const hasActivity = templateColors.length > 0 || hasTracking || hasVacation || hasSick || hasNote;
+    // Notes are annotations; only work/schedule data should require confirmation.
+    const hasActivity = templateColors.length > 0 || hasTracking || hasVacation || hasSick;
 
     // Calculate overtime for this day
     const overtimeMinutes = trackedMinutes - plannedMinutes;
