@@ -1,5 +1,5 @@
 import { addWeeks, subWeeks, format } from 'date-fns';
-import type { CalendarState, CalendarAction, ShiftInstance, ConfirmedDayStatus, AbsenceTemplate, AbsenceInstance } from './types';
+import type { CalendarState, CalendarAction, ShiftInstance, ConfirmedDayStatus, AbsenceTemplate, AbsenceInstance, DayNote } from './types';
 import { generateSimulatedTracking } from './calendar-utils';
 
 function computeEndTime(startTime: string, duration: number): string {
@@ -53,6 +53,10 @@ export const initialState: CalendarState = {
   inlinePickerOpen: false,
   inlinePickerTargetDate: null,
   inlinePickerTab: 'shifts',
+  // Day notes state
+  dayNotes: {},
+  noteEditorOpen: false,
+  noteEditorDate: null,
 };
 
 export function calendarReducer(state: CalendarState, action: CalendarAction): CalendarState {
@@ -69,6 +73,7 @@ export function calendarReducer(state: CalendarState, action: CalendarAction): C
           : state.confirmedDates,
         absenceTemplates: action.payload.absenceTemplates ?? state.absenceTemplates,
         absenceInstances: action.payload.absenceInstances ?? state.absenceInstances,
+        dayNotes: action.payload.dayNotes ?? state.dayNotes,
       };
     case 'SET_MODE':
       return { ...state, mode: action.mode };
@@ -551,6 +556,60 @@ export function calendarReducer(state: CalendarState, action: CalendarAction): C
       return {
         ...state,
         inlinePickerTab: action.tab,
+      };
+
+    // ========================================
+    // Day Note Actions
+    // ========================================
+
+    case 'ADD_NOTE':
+      return {
+        ...state,
+        dayNotes: {
+          ...state.dayNotes,
+          [action.note.date]: action.note,
+        },
+      };
+
+    case 'UPDATE_NOTE': {
+      const existing = state.dayNotes[action.date];
+      if (!existing) return state;
+      return {
+        ...state,
+        dayNotes: {
+          ...state.dayNotes,
+          [action.date]: {
+            ...existing,
+            content: action.content,
+            updatedAt: new Date().toISOString(),
+          },
+        },
+      };
+    }
+
+    case 'DELETE_NOTE': {
+      const remaining = { ...state.dayNotes };
+      delete remaining[action.date];
+      return {
+        ...state,
+        dayNotes: remaining,
+        noteEditorOpen: state.noteEditorDate === action.date ? false : state.noteEditorOpen,
+        noteEditorDate: state.noteEditorDate === action.date ? null : state.noteEditorDate,
+      };
+    }
+
+    case 'OPEN_NOTE_EDITOR':
+      return {
+        ...state,
+        noteEditorOpen: true,
+        noteEditorDate: action.date,
+      };
+
+    case 'CLOSE_NOTE_EDITOR':
+      return {
+        ...state,
+        noteEditorOpen: false,
+        noteEditorDate: null,
       };
 
     default:

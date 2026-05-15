@@ -16,6 +16,7 @@ import { t, getDateLocale } from '@/lib/i18n';
 import { useCalendar } from '@/lib/calendar/calendar-context';
 import {
   formatDuration,
+  formatDateKey,
   getColorPalette,
   findOverlappingShift,
 } from '@/lib/calendar/calendar-utils';
@@ -36,7 +37,7 @@ export default function InlinePicker({ visible, targetDate, onClose }: InlinePic
   const { state, dispatch } = useCalendar();
 
   // Local tab state (synced from global state)
-  const [pickerTab, setPickerTab] = useState<'shifts' | 'absences' | 'gps'>(state.inlinePickerTab);
+  const [pickerTab, setPickerTab] = useState<'shifts' | 'absences' | 'gps' | 'notes'>(state.inlinePickerTab);
 
   // Sync local tab state when global state changes (e.g., FAB opens with specific tab)
   useEffect(() => {
@@ -462,8 +463,16 @@ export default function InlinePicker({ visible, targetDate, onClose }: InlinePic
     }
   };
 
+
   // Handle tab change
-  const handleTabChange = (tab: 'shifts' | 'absences' | 'gps') => {
+  const handleTabChange = (tab: 'shifts' | 'absences' | 'gps' | 'notes') => {
+    if (tab === 'notes') {
+      // Close picker and open NoteEditor for this date
+      const date = targetDate ?? formatDateKey(new Date());
+      handleClose();
+      dispatch({ type: 'OPEN_NOTE_EDITOR', date });
+      return;
+    }
     setPickerTab(tab);
     dispatch({ type: 'SET_INLINE_PICKER_TAB', tab });
   };
@@ -474,20 +483,20 @@ export default function InlinePicker({ visible, targetDate, onClose }: InlinePic
     dispatch({ type: 'OPEN_MANUAL_SESSION_FORM', date: targetDate ?? undefined });
   };
 
+
   if (!visible) return null;
 
   return (
     <Pressable style={styles.overlay} onPress={handleClose} testID="template-panel-overlay" accessible={false}>
       <Pressable style={styles.container} onPress={(e) => e.stopPropagation()} testID="inline-picker-container" accessible={false}>
-        {/* Header with optional target date */}
-        <View style={styles.header} accessible={false}>
-          <Text style={styles.title}>{t('calendar.templates.selectTemplate')}</Text>
-          {targetDateDisplay && (
+        {/* Header with target date */}
+        {targetDateDisplay && (
+          <View style={styles.header} accessible={false}>
             <Text style={styles.targetDate} testID="inline-picker-target-date">
               {t('calendar.picker.addTo', { date: targetDateDisplay })}
             </Text>
-          )}
-        </View>
+          </View>
+        )}
 
         {/* Tab bar for Shifts / Absences / GPS */}
         <View style={styles.tabBar} accessible={false}>
@@ -522,6 +531,17 @@ export default function InlinePicker({ visible, targetDate, onClose }: InlinePic
           >
             <Text style={[styles.tabText, pickerTab === 'gps' && styles.tabTextActive]}>
               {t('calendar.templates.gpsTab')}
+            </Text>
+          </Pressable>
+          <Pressable
+            style={[styles.tab, pickerTab === 'notes' && styles.tabActive]}
+            onPress={() => handleTabChange('notes')}
+            testID="inline-picker-tab-notes"
+            accessible={true}
+            accessibilityRole="button"
+          >
+            <Text style={[styles.tabText, pickerTab === 'notes' && styles.tabTextActive]}>
+              {t('calendar.notes.tab')}
             </Text>
           </Pressable>
         </View>
@@ -1119,6 +1139,7 @@ export default function InlinePicker({ visible, targetDate, onClose }: InlinePic
           </View>
         )}
 
+
         {/* Cancel button */}
         <Pressable
           style={styles.cancelButton}
@@ -1149,24 +1170,17 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.paper,
     borderRadius: borderRadius.lg,
     padding: spacing.md,
-    minWidth: 280,
-    maxWidth: '85%',
+    width: '92%',
     maxHeight: '80%',
   },
   header: {
     marginBottom: spacing.md,
   },
-  title: {
+  targetDate: {
     fontSize: fontSize.md,
     fontWeight: fontWeight.semibold,
     color: colors.text.primary,
     textAlign: 'center',
-  },
-  targetDate: {
-    fontSize: fontSize.sm,
-    color: colors.primary[500],
-    textAlign: 'center',
-    marginTop: spacing.xs,
   },
   tabBar: {
     flexDirection: 'row',
@@ -1460,14 +1474,12 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
   },
   gpsContent: {
-    paddingVertical: spacing.lg,
+    paddingVertical: spacing.md,
     paddingHorizontal: spacing.sm,
-    alignItems: 'center',
   },
   gpsHint: {
     fontSize: fontSize.sm,
     color: colors.text.secondary,
-    textAlign: 'center',
     marginBottom: spacing.md,
   },
   gpsLogButton: {
