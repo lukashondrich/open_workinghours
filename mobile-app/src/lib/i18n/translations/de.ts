@@ -109,7 +109,6 @@ export const de = {
       color: 'Farbe',
       breakDuration: 'Pausendauer',
       newShift: 'Neuer Dienst',
-      selectTemplate: 'Dienstvorlage auswählen',
       updateFutureTitle: 'Zukünftige Schichten aktualisieren?',
       updateFutureMessage: 'Dies aktualisiert auch {{count}} zukünftige Schichten.',
       update: 'Aktualisieren',
@@ -117,7 +116,7 @@ export const de = {
       deleteWithFuture: 'Dies entfernt auch {{count}} zukünftige Schichten.',
       deleteEmpty: 'Diese Vorlage hat keine geplanten Schichten.',
       shiftsTab: 'Dienste',
-      absencesTab: 'Abwesenheit',
+      absencesTab: 'Abwesend',
       gpsTab: 'GPS',
       createNew: 'Neuen Dienst erstellen...',
       createAndAdd: 'Erstellen & Hinzufügen',
@@ -157,6 +156,7 @@ export const de = {
       shifts: 'Dienste',
       absences: 'Abwesenheit',
       logHours: 'Zeit erfassen',
+      note: 'Notiz',
       // Accessibility
       openMenu: 'Menü öffnen',
       closeMenu: 'Menü schließen',
@@ -165,6 +165,13 @@ export const de = {
     picker: {
       logHours: 'Arbeitszeit erfassen',
       addTo: 'Hinzufügen am {{date}}',
+    },
+    notes: {
+      tab: 'Notizen',
+      placeholder: 'Notiz für diesen Tag hinzufügen...',
+      deleteTitle: 'Notiz löschen?',
+      deleteMessage: 'Diese Notiz entfernen?',
+      saved: 'Notiz gespeichert',
     },
     batch: {
       placing: 'Platziere:',
