@@ -49,7 +49,7 @@ import {
 } from '@/lib/calendar/calendar-utils';
 import type { ShiftInstance, TrackingRecord, AbsenceInstance } from '@/lib/calendar/types';
 import { getCalendarStorage } from '@/modules/calendar/services/CalendarStorage';
-import { TreePalm, Thermometer, Clock, X } from 'lucide-react-native';
+import { TreePalm, Thermometer, Clock, X, StickyNote } from 'lucide-react-native';
 import { OnboardingStorage } from '@/lib/storage/OnboardingStorage';
 import { SundayNotificationService } from '@/modules/reports/services/SundayNotificationService';
 import { OnboardingPreferences } from '@/lib/storage/OnboardingPreferences';
@@ -1778,6 +1778,19 @@ export default function WeekView() {
               const isTargetDay = state.inlinePickerTargetDate === dateKey;
               return (
                 <View key={dateKey} style={[styles.dayHeader, { width: dayWidth }, isTargetDay && styles.dayHeaderFocused]} testID={`week-day-${dateKey}`}>
+                  {state.dayNotes[dateKey] && (
+                    <TouchableOpacity
+                      onPress={() => dispatch({ type: 'OPEN_NOTE_EDITOR', date: dateKey })}
+                      hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+                      testID={`week-day-${dateKey}-note`}
+                      accessible={true}
+                      accessibilityRole="button"
+                      accessibilityLabel="Note"
+                      style={styles.noteIconHeader}
+                    >
+                      <StickyNote size={12} color="#6366F1" />
+                    </TouchableOpacity>
+                  )}
                   {!isCompactHeader && <Text style={styles.dayName}>{formatDate(day, 'EEE', { locale: getDateLocale() === 'de' ? deLocale : undefined })}</Text>}
                   <View style={styles.dayNumberRow}>
                     <Text style={[styles.dayNumber, isCompactHeader && styles.dayNumberCompact]}>{formatDate(day, 'd')}</Text>
@@ -2165,6 +2178,7 @@ const styles = StyleSheet.create({
     borderRightWidth: 1,
     borderRightColor: colors.border.default,
     alignItems: 'center',
+    position: 'relative',
   },
   dayName: {
     fontSize: fontSize.xs,
@@ -2262,6 +2276,13 @@ const styles = StyleSheet.create({
     borderRightWidth: 1,
     borderRightColor: colors.grey[100],
     position: 'relative',
+  },
+  noteIconHeader: {
+    position: 'absolute',
+    top: 4,
+    left: 4,
+    zIndex: 10,
+    padding: 2,
   },
   hourCell: {
     borderBottomWidth: 1,

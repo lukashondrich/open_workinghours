@@ -1,5 +1,5 @@
 import * as SQLite from 'expo-sqlite';
-import type { ShiftInstance, ShiftTemplate, TrackingRecord, ConfirmedDayStatus, AbsenceTemplate, AbsenceInstance, AbsenceType } from '@/lib/calendar/types';
+import type { ShiftInstance, ShiftTemplate, TrackingRecord, ConfirmedDayStatus, AbsenceTemplate, AbsenceInstance, AbsenceType, DayNote } from '@/lib/calendar/types';
 import { scheduleEvents } from '@/lib/events/scheduleEvents';
 import type {
   DeviceCalendarMappingRecord,
@@ -222,6 +222,32 @@ export class CalendarStorage {
         console.log('[CalendarStorage] Migration 4 complete');
       } catch (error) {
         console.error('[CalendarStorage] Migration 4 failed:', error);
+        throw error;
+      }
+    }
+
+    // Migration 5: Add day_notes table
+    if (currentVersion < 5) {
+      console.log('[CalendarStorage] Running migration 5: Adding day_notes table');
+      try {
+        await db.execAsync(`
+          CREATE TABLE IF NOT EXISTS day_notes (
+            id TEXT PRIMARY KEY,
+            date TEXT UNIQUE NOT NULL,
+            content TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+          );
+        `);
+
+        await db.execAsync(`
+          CREATE INDEX IF NOT EXISTS idx_day_notes_date ON day_notes(date);
+        `);
+
+        await this.setSchemaVersion(5);
+        console.log('[CalendarStorage] Migration 5 complete');
+      } catch (error) {
+        console.error('[CalendarStorage] Migration 5 failed:', error);
         throw error;
       }
     }
@@ -788,6 +814,44 @@ export class CalendarStorage {
       source: 'absences',
       occurredAt: new Date().toISOString(),
     });
+  }
+
+  // ========================================
+  // Day Notes CRUD
+  // ========================================
+
+  async loadDayNotes(): Promise<Record<string, DayNote>> {
+    const db = this.getDb();
+    const rows = await db.getAllAsync<any>('SELECT * FROM day_notes');
+    const notes: Record<string, DayNote> = {};
+    rows.forEach((row) => {
+      notes[row.date] = {
+        id: row.id,
+        date: row.date,
+        content: row.content,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      };
+    });
+    return notes;
+  }
+
+  async saveDayNote(note: DayNote): Promise<void> {
+    const db = this.getDb();
+    await db.runAsync(
+      `INSERT OR REPLACE INTO day_notes (id, date, content, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?)`,
+      note.id,
+      note.date,
+      note.content,
+      note.createdAt,
+      note.updatedAt
+    );
+  }
+
+  async deleteDayNote(date: string): Promise<void> {
+    const db = this.getDb();
+    await db.runAsync('DELETE FROM day_notes WHERE date = ?', date);
   }
 
   async loadDeviceCalendarState(): Promise<DeviceCalendarStateRecord | null> {

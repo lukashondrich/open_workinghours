@@ -88,8 +88,8 @@ export default function CalendarFAB() {
   );
 
   // Hide FAB when overlays are open
-  if (state.templatePanelOpen || state.manualSessionFormOpen || state.inlinePickerOpen || state.hideFAB) {
-    return manualSessionForm;
+  if (state.templatePanelOpen || state.manualSessionFormOpen || state.inlinePickerOpen || state.noteEditorOpen || state.hideFAB) {
+    return <>{manualSessionForm}</>;
   }
 
   return (

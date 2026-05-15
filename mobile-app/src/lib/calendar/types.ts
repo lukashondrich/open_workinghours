@@ -58,6 +58,14 @@ export interface TrackingRecord {
   breakMinutes?: number // minutes - default 0
 }
 
+export interface DayNote {
+  id: string
+  date: string              // YYYY-MM-DD (UNIQUE — one note per day)
+  content: string           // max 280 chars
+  createdAt: string
+  updatedAt: string
+}
+
 export type ConfirmedDayStatus = {
   status: 'pending' | 'confirmed' | 'locked'
   confirmedAt?: string | null
@@ -97,10 +105,14 @@ export interface CalendarState {
   // Manual session form state
   manualSessionFormOpen: boolean
   manualSessionFormDate: string | null  // Pre-filled date when opened from long-press
-  // Inline picker state (unified picker for shifts/absences/GPS)
+  // Inline picker state (unified picker for shifts/absences/GPS/notes)
   inlinePickerOpen: boolean
   inlinePickerTargetDate: string | null  // YYYY-MM-DD when opened with target (direct placement mode)
-  inlinePickerTab: 'shifts' | 'absences' | 'gps'
+  inlinePickerTab: 'shifts' | 'absences' | 'gps' | 'notes'
+  // Day notes state
+  dayNotes: Record<string, DayNote>  // keyed by YYYY-MM-DD
+  noteEditorOpen: boolean
+  noteEditorDate: string | null  // YYYY-MM-DD when editing directly via icon tap
 }
 
 export type CalendarAction =
@@ -160,9 +172,15 @@ export type CalendarAction =
   | { type: "OPEN_MANUAL_SESSION_FORM"; date?: string }
   | { type: "CLOSE_MANUAL_SESSION_FORM" }
   // Inline picker actions
-  | { type: "OPEN_INLINE_PICKER"; targetDate?: string; tab?: 'shifts' | 'absences' | 'gps' }
+  | { type: "OPEN_INLINE_PICKER"; targetDate?: string; tab?: 'shifts' | 'absences' | 'gps' | 'notes' }
   | { type: "CLOSE_INLINE_PICKER" }
-  | { type: "SET_INLINE_PICKER_TAB"; tab: 'shifts' | 'absences' | 'gps' }
+  | { type: "SET_INLINE_PICKER_TAB"; tab: 'shifts' | 'absences' | 'gps' | 'notes' }
+  // Day note actions
+  | { type: "ADD_NOTE"; note: DayNote }
+  | { type: "UPDATE_NOTE"; date: string; content: string }
+  | { type: "DELETE_NOTE"; date: string }
+  | { type: "OPEN_NOTE_EDITOR"; date: string }
+  | { type: "CLOSE_NOTE_EDITOR" }
   | {
       type: "HYDRATE_STATE"
       payload: {
@@ -172,5 +190,6 @@ export type CalendarAction =
         confirmedDayStatus?: Record<string, ConfirmedDayStatus>
         absenceTemplates?: Record<string, AbsenceTemplate>
         absenceInstances?: Record<string, AbsenceInstance>
+        dayNotes?: Record<string, DayNote>
       }
     }
