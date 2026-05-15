@@ -208,7 +208,7 @@ export default function NoteEditor({ visible, date, onClose }: Props) {
 
   const wrapperProps = Platform.OS === 'ios'
     ? { behavior: 'padding' as const, style: styles.flexWrapper, keyboardVerticalOffset: 80 }
-    : { behavior: 'height' as const, style: styles.flexWrapper };
+    : { style: styles.flexWrapper };
 
   return (
     <View
