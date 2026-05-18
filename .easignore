@@ -1,0 +1,33 @@
+# EAS archives from the git root, but the Expo project lives in mobile-app/.
+# Keep the upload focused on the mobile app so local repo artifacts are not sent.
+/*
+!/mobile-app/
+!/mobile-app/**
+
+# Dependencies and package-manager caches
+mobile-app/node_modules/
+mobile-app/.npm/
+mobile-app/.yarn/
+
+# Expo and local build output
+mobile-app/.expo/
+mobile-app/dist/
+mobile-app/web-build/
+mobile-app/coverage/
+
+# Generated native projects and build artifacts. EAS regenerates these from app.config.js.
+mobile-app/android/
+mobile-app/ios/
+
+# Test and tooling artifacts
+mobile-app/e2e/screenshots/
+mobile-app/.maestro/results/
+mobile-app/.maestro/screenshots/
+mobile-app/failure-*.png
+mobile-app/*.tsbuildinfo
+mobile-app/*.log
+
+# Local machine files
+mobile-app/.DS_Store
+mobile-app/*.pem
+mobile-app/.env*.local
