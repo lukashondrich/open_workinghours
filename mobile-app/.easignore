@@ -24,4 +24,6 @@ failure-*.png
 # Local machine files
 .DS_Store
 *.pem
+.env
+.env.*
 .env*.local
