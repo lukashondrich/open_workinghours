@@ -1,0 +1,27 @@
+# Dependencies and package-manager caches
+node_modules/
+.npm/
+.yarn/
+
+# Expo and local build output
+.expo/
+dist/
+web-build/
+coverage/
+
+# Generated native projects and build artifacts. EAS regenerates these from app.config.js.
+android/
+ios/
+
+# Test and tooling artifacts
+e2e/screenshots/
+.maestro/results/
+.maestro/screenshots/
+failure-*.png
+*.tsbuildinfo
+*.log
+
+# Local machine files
+.DS_Store
+*.pem
+.env*.local
