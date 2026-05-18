@@ -18,6 +18,7 @@ import type {
   ConfirmedDayStatus,
   AbsenceTemplate,
   AbsenceInstance,
+  DayNote,
 } from './types';
 import { calendarReducer, initialState } from './calendar-reducer';
 import { getCalendarStorage } from '@/modules/calendar/services/CalendarStorage';
@@ -117,13 +118,14 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
         if (!isMounted) return;
         storageRef.current = storage;
 
-        const [templates, instances, trackingRecords, confirmedDays, absenceTemplates, absenceInstances] = await Promise.all([
+        const [templates, instances, trackingRecords, confirmedDays, absenceTemplates, absenceInstances, dayNotes] = await Promise.all([
           storage.loadTemplates(),
           storage.loadInstances(),
           storage.loadTrackingRecords(),
           storage.loadConfirmedDays(),
           storage.loadAbsenceTemplates(),
           storage.loadAbsenceInstances(),
+          storage.loadDayNotes(),
         ]);
 
         if (!isMounted) return;
@@ -136,6 +138,7 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
             confirmedDayStatus: confirmedDays,
             absenceTemplates,
             absenceInstances,
+            dayNotes,
           },
         });
       } catch (error) {
@@ -234,6 +237,21 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
     };
     persistAbsenceData();
   }, [state.absenceTemplates, state.absenceInstances, isHydrated]);
+
+  // Persist day notes
+  useEffect(() => {
+    if (!isHydrated) return;
+    const persistNotes = async () => {
+      try {
+        const storage = storageRef.current ?? await getCalendarStorage();
+        const notes = Object.values(state.dayNotes);
+        await storage.replaceDayNotes(notes);
+      } catch (error) {
+        console.error('[CalendarProvider] Failed to persist day notes:', error);
+      }
+    };
+    persistNotes();
+  }, [state.dayNotes, isHydrated]);
 
   // Auto-load tracking for month view on initial mount (overview always shows tracking)
   useEffect(() => {
