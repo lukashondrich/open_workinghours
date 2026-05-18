@@ -2,7 +2,7 @@ import React, { useMemo, useRef, useState, useCallback } from 'react';
 import { View, StyleSheet, TouchableOpacity, PanResponder, Animated, useWindowDimensions } from 'react-native';
 import { AppText as Text } from '@/components/ui/AppText';
 import { format, startOfMonth, endOfMonth, startOfWeek, addDays, isSameDay, addMonths, subMonths } from 'date-fns';
-import { TreePalm, Thermometer, Check, CircleHelp, X, ChevronDown, ChevronUp } from 'lucide-react-native';
+import { TreePalm, Thermometer, Check, CircleHelp, X, ChevronDown, ChevronUp, StickyNote } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/theme';
@@ -30,6 +30,7 @@ interface DayCellIndicators {
   confirmed: boolean;
   hasVacation: boolean;
   hasSick: boolean;
+  hasNote: boolean;
   hasActivity: boolean;
   overtimeMinutes: number; // tracked - planned for this day
 }
@@ -124,10 +125,11 @@ function DayCell({
         )}
         {indicators.tracked && <View testID={`month-day-${dateKey}-tracked`} style={[styles.dot, styles.trackedDot]} />}
       </View>
-      {/* Row 2: Absence icons (always present for consistent layout) */}
+      {/* Row 2: Absence + note icons (always present for consistent layout) */}
       <View style={styles.absenceRow} accessible={false}>
         {indicators.hasVacation && <View testID={`month-day-${dateKey}-vacation`}><TreePalm size={10} color="#6B7280" /></View>}
         {indicators.hasSick && <View testID={`month-day-${dateKey}-sick`}><Thermometer size={10} color="#92400E" /></View>}
+        {indicators.hasNote && <View testID={`month-day-${dateKey}-note`}><StickyNote size={10} color="#6366F1" /></View>}
       </View>
       {/* Row 3: Confirmation status - overtime for confirmed, ? for unconfirmed with activity */}
       <View style={styles.confirmRow}>
@@ -487,7 +489,10 @@ export default function MonthView() {
     const hasVacation = absences.some((a) => a.type === 'vacation');
     const hasSick = absences.some((a) => a.type === 'sick');
 
-    // Has activity if there are shifts, tracking, or absences
+    // Check for notes
+    const hasNote = !!state.dayNotes[dateKey];
+
+    // Notes are annotations; only work/schedule data should require confirmation.
     const hasActivity = templateColors.length > 0 || hasTracking || hasVacation || hasSick;
 
     // Calculate overtime for this day
@@ -499,6 +504,7 @@ export default function MonthView() {
       confirmed,
       hasVacation,
       hasSick,
+      hasNote,
       hasActivity,
       overtimeMinutes,
     };

@@ -1,10 +1,32 @@
 /**
  * AuthStorage - Secure token and user persistence
  * Uses expo-secure-store for encrypted storage
+ * Falls back to in-memory storage on simulator without keychain entitlements
  */
 
 import * as SecureStore from 'expo-secure-store';
 import type { User } from './auth-types';
+
+// In-memory fallback when SecureStore is unavailable (unsigned simulator builds)
+let useMemoryFallback = false;
+const memoryStore: Record<string, string> = {};
+
+function isSecureStoreUnavailableError(error: unknown): boolean {
+  const message = error instanceof Error ? `${error.name} ${error.message}` : String(error);
+  const normalized = message.toLowerCase();
+
+  return (
+    normalized.includes('securestore is not available') ||
+    normalized.includes('secure store is not available') ||
+    normalized.includes('securestore is not supported') ||
+    normalized.includes('secure store is not supported') ||
+    normalized.includes('not available on this device') ||
+    normalized.includes('missing entitlement') ||
+    normalized.includes('errsecmissingentitlement') ||
+    normalized.includes('osstatus error -34018') ||
+    normalized.includes('-34018')
+  );
+}
 
 export class AuthStorage {
   private static readonly TOKEN_KEY = 'auth_token';
@@ -13,10 +35,61 @@ export class AuthStorage {
   private static readonly MAX_RETRIES = 2;
   private static readonly RETRY_DELAY_MS = 500;
 
+  private static async getItem(key: string): Promise<string | null> {
+    if (useMemoryFallback) {
+      return memoryStore[key] ?? null;
+    }
+    try {
+      return await SecureStore.getItemAsync(key);
+    } catch (error) {
+      if (isSecureStoreUnavailableError(error)) {
+        console.warn('[AuthStorage] SecureStore unavailable, using in-memory fallback');
+        useMemoryFallback = true;
+        return memoryStore[key] ?? null;
+      }
+      throw error;
+    }
+  }
+
+  private static async setItem(key: string, value: string): Promise<void> {
+    if (useMemoryFallback) {
+      memoryStore[key] = value;
+      return;
+    }
+    try {
+      await SecureStore.setItemAsync(key, value);
+    } catch (error) {
+      if (isSecureStoreUnavailableError(error)) {
+        console.warn('[AuthStorage] SecureStore unavailable, using in-memory fallback');
+        useMemoryFallback = true;
+        memoryStore[key] = value;
+        return;
+      }
+      throw error;
+    }
+  }
+
+  private static async deleteItem(key: string): Promise<void> {
+    if (useMemoryFallback) {
+      delete memoryStore[key];
+      return;
+    }
+    try {
+      await SecureStore.deleteItemAsync(key);
+    } catch (error) {
+      if (isSecureStoreUnavailableError(error)) {
+        useMemoryFallback = true;
+        delete memoryStore[key];
+        return;
+      }
+      throw error;
+    }
+  }
+
   private static async retryGetItem(key: string): Promise<string | null> {
     for (let attempt = 0; attempt <= this.MAX_RETRIES; attempt++) {
       try {
-        return await SecureStore.getItemAsync(key);
+        return await this.getItem(key);
       } catch (error) {
         if (attempt < this.MAX_RETRIES) {
           console.warn(`[AuthStorage] Keychain read failed (attempt ${attempt + 1}), retrying...`);
@@ -34,9 +107,14 @@ export class AuthStorage {
    */
   static async saveAuth(token: string, user: User, expiresAt: Date): Promise<void> {
     try {
-      await SecureStore.setItemAsync(this.TOKEN_KEY, token);
-      await SecureStore.setItemAsync(this.USER_KEY, JSON.stringify(user));
-      await SecureStore.setItemAsync(this.EXPIRES_KEY, expiresAt.toISOString());
+      await this.setItem(this.TOKEN_KEY, token);
+      await this.setItem(this.USER_KEY, JSON.stringify(user));
+      await this.setItem(this.EXPIRES_KEY, expiresAt.toISOString());
+      if (useMemoryFallback) {
+        memoryStore[this.TOKEN_KEY] = token;
+        memoryStore[this.USER_KEY] = JSON.stringify(user);
+        memoryStore[this.EXPIRES_KEY] = expiresAt.toISOString();
+      }
     } catch (error) {
       console.error('[AuthStorage] Failed to save auth data:', error);
       throw new Error('Failed to save authentication data');
@@ -88,9 +166,9 @@ export class AuthStorage {
    */
   static async clearAuth(): Promise<void> {
     try {
-      await SecureStore.deleteItemAsync(this.TOKEN_KEY);
-      await SecureStore.deleteItemAsync(this.USER_KEY);
-      await SecureStore.deleteItemAsync(this.EXPIRES_KEY);
+      await this.deleteItem(this.TOKEN_KEY);
+      await this.deleteItem(this.USER_KEY);
+      await this.deleteItem(this.EXPIRES_KEY);
     } catch (error) {
       console.error('[AuthStorage] Failed to clear auth data:', error);
       throw new Error('Failed to clear authentication data');
