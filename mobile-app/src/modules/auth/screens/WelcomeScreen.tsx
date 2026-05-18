@@ -49,6 +49,17 @@ const appIcon = require('../../../../assets/icon.png');
 const BUTTON_HEIGHT = 50;
 const BUTTON_RADIUS = borderRadius.lg; // 12px — matches card style
 
+function getSocialAuthErrorMessage(error: any, fallback: string): string {
+  const details = [
+    error?.code ? `Code: ${String(error.code)}` : null,
+    error?.message ? `Message: ${String(error.message)}` : null,
+  ].filter(Boolean);
+
+  return details.length > 0
+    ? `${fallback}\n\n${details.join('\n')}`
+    : fallback;
+}
+
 interface WelcomeScreenProps {
   onLoginPress: () => void;
   /** @deprecated No longer shown as a separate button; kept for navigator compat */
@@ -142,6 +153,11 @@ export default function WelcomeScreen({
       GoogleSignin.configure({ webClientId });
       await GoogleSignin.hasPlayServices();
       const userInfo = await GoogleSignin.signIn();
+
+      if (userInfo.type === 'cancelled') {
+        return;
+      }
+
       const idToken = userInfo.data?.idToken;
 
       if (!idToken) {
@@ -156,7 +172,10 @@ export default function WelcomeScreen({
       console.error('[WelcomeScreen] Google sign-in failed:', error);
       Alert.alert(
         t('auth.social.error') || 'Sign-In Failed',
-        t('auth.social.tryAgain') || 'Please try again or use email sign-in.',
+        getSocialAuthErrorMessage(
+          error,
+          t('auth.social.tryAgain') || 'Please try again or use email sign-in.',
+        ),
       );
     } finally {
       setLoading(false);
