@@ -6,6 +6,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BarChart3, Calendar, ChevronLeft, FileText } from 'lucide-react-native';
 
+import { SettingsDetailLayout } from '@/components/ui';
 import { colors, fontSize, fontWeight } from '@/theme';
 import { t } from '@/lib/i18n';
 
@@ -160,6 +161,24 @@ function LoadingScreen() {
   );
 }
 
+interface AuthDetailScreenProps {
+  title: string;
+  onBack: () => void;
+  children: React.ReactNode;
+}
+
+function AuthDetailScreen({ title, onBack, children }: AuthDetailScreenProps) {
+  if (Platform.OS !== 'android') {
+    return <>{children}</>;
+  }
+
+  return (
+    <SettingsDetailLayout title={title} onBack={onBack}>
+      {children}
+    </SettingsDetailLayout>
+  );
+}
+
 /**
  * Auth Stack - For unauthenticated users
  *
@@ -177,7 +196,7 @@ function AuthStack() {
   return (
     <Stack.Navigator
       screenOptions={{
-        headerShown: true,
+        headerShown: Platform.OS !== 'android',
         headerStyle: {
           backgroundColor: colors.background.paper,
         },
@@ -211,12 +230,17 @@ function AuthStack() {
           ),
         }}>
           {() => (
-            <EmailVerificationScreen
-              onVerified={(verifiedEmail) => {
-                setEmail(verifiedEmail);
-                setMode('register');
-              }}
-            />
+            <AuthDetailScreen
+              title={t('navigation.verifyEmail')}
+              onBack={() => setMode('welcome')}
+            >
+              <EmailVerificationScreen
+                onVerified={(verifiedEmail) => {
+                  setEmail(verifiedEmail);
+                  setMode('register');
+                }}
+              />
+            </AuthDetailScreen>
           )}
         </Stack.Screen>
       )}
@@ -230,10 +254,15 @@ function AuthStack() {
           ),
         }}>
           {() => (
-            <RegisterScreen
-              email={email}
-              onLoginPress={() => setMode('login')}
-            />
+            <AuthDetailScreen
+              title={t('navigation.createAccount')}
+              onBack={() => setMode('welcome')}
+            >
+              <RegisterScreen
+                email={email}
+                onLoginPress={() => setMode('login')}
+              />
+            </AuthDetailScreen>
           )}
         </Stack.Screen>
       )}
@@ -247,9 +276,14 @@ function AuthStack() {
           ),
         }}>
           {() => (
-            <SocialRegistrationScreen
-              socialRegistrationToken={socialRegistrationToken}
-            />
+            <AuthDetailScreen
+              title={t('navigation.completeSetup') || 'Complete Setup'}
+              onBack={() => setMode('welcome')}
+            >
+              <SocialRegistrationScreen
+                socialRegistrationToken={socialRegistrationToken}
+              />
+            </AuthDetailScreen>
           )}
         </Stack.Screen>
       )}
@@ -263,10 +297,15 @@ function AuthStack() {
           ),
         }}>
           {() => (
-            <LoginScreen
-              email={email}
-              onRegisterPress={() => setMode('verify')}
-            />
+            <AuthDetailScreen
+              title={t('navigation.logIn')}
+              onBack={() => setMode('welcome')}
+            >
+              <LoginScreen
+                email={email}
+                onRegisterPress={() => setMode('verify')}
+              />
+            </AuthDetailScreen>
           )}
         </Stack.Screen>
       )}
