@@ -99,6 +99,8 @@ export interface CalendarState {
   armedAbsenceTemplateId: string | null
   // UI state
   hideFAB: boolean
+  // When set, WeekView scrolls to this day on next mount, then clears it
+  weekViewFocusDate: string | null  // YYYY-MM-DD
   // Last-used tracking for picker priority
   lastUsedTemplateId: string | null
   lastUsedAbsenceTemplateId: string | null
@@ -137,6 +139,7 @@ export type CalendarAction =
   | { type: "SET_WEEK"; date: Date }
   | { type: "PREV_WEEK" }
   | { type: "NEXT_WEEK" }
+  | { type: "SET_WEEK_VIEW_FOCUS_DATE"; date: string | null }
   | { type: "SET_MONTH"; date: Date }
   | { type: "TOGGLE_TEMPLATE_PANEL" }
   | { type: "TOGGLE_REVIEW_MODE"; trackingRecords?: Record<string, TrackingRecord> }

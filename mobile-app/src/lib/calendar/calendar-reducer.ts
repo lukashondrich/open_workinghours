@@ -43,6 +43,7 @@ export const initialState: CalendarState = {
   armedAbsenceTemplateId: null,
   // UI state
   hideFAB: false,
+  weekViewFocusDate: null,
   // Last-used tracking for picker priority
   lastUsedTemplateId: null,
   lastUsedAbsenceTemplateId: null,
@@ -258,9 +259,11 @@ export function calendarReducer(state: CalendarState, action: CalendarAction): C
     case 'SET_WEEK':
       return { ...state, currentWeekStart: action.date };
     case 'PREV_WEEK':
-      return { ...state, currentWeekStart: subWeeks(state.currentWeekStart, 1) };
+      return { ...state, currentWeekStart: subWeeks(state.currentWeekStart, 1), weekViewFocusDate: null };
     case 'NEXT_WEEK':
-      return { ...state, currentWeekStart: addWeeks(state.currentWeekStart, 1) };
+      return { ...state, currentWeekStart: addWeeks(state.currentWeekStart, 1), weekViewFocusDate: null };
+    case 'SET_WEEK_VIEW_FOCUS_DATE':
+      return { ...state, weekViewFocusDate: action.date };
     case 'SET_MONTH':
       return { ...state, currentMonth: action.date };
     case 'TOGGLE_TEMPLATE_PANEL':

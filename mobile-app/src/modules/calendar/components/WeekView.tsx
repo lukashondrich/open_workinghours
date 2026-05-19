@@ -18,7 +18,7 @@ import { AppText as Text } from '@/components/ui/AppText';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import * as Haptics from 'expo-haptics';
-import { startOfWeek, subDays, format as formatDate, startOfDay, parse } from 'date-fns';
+import { startOfWeek, subDays, format as formatDate, startOfDay, parse, differenceInCalendarDays } from 'date-fns';
 import { de as deLocale } from 'date-fns/locale/de';
 
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
@@ -788,6 +788,9 @@ export default function WeekView() {
   // Track zoom direction to lock once committed ('in' | 'out' | null)
   const zoomDirection = useRef<'in' | 'out' | null>(null);
 
+  // One-shot guard: scroll to focus day / default position only on first content layout per mount
+  const hasScrolledOnMountRef = useRef(false);
+
   // Android-specific: PanResponder for pinch zoom (RNGH doesn't work well with ScrollView on Android)
   const pinchBaseDistance = useRef<number | null>(null);
   const androidPinchResponder = useRef(
@@ -985,6 +988,69 @@ export default function WeekView() {
     const { contentSize, layoutMeasurement } = e.nativeEvent;
     maxScrollX.current = contentSize.width - layoutMeasurement.width;
   }, []);
+
+  // Find the earliest event start time (in minutes since 00:00) on a given date.
+  // Considers planned shifts and tracking records; ignores absences (no specific start).
+  // Returns null if the day has no timed events.
+  const findEarliestEventMinutes = useCallback((dateKey: string): number | null => {
+    let earliest: number | null = null;
+    for (const instance of Object.values(state.instances)) {
+      if (instance.date !== dateKey) continue;
+      const mins = timeToMinutes(instance.startTime);
+      if (earliest === null || mins < earliest) earliest = mins;
+    }
+    for (const record of Object.values(state.trackingRecords)) {
+      if (record.date !== dateKey) continue;
+      const mins = timeToMinutes(record.startTime);
+      if (earliest === null || mins < earliest) earliest = mins;
+    }
+    return earliest;
+  }, [state.instances, state.trackingRecords]);
+
+  // Scroll to the focus day (horizontal) and earliest event / 6 AM (vertical) on first content layout.
+  // Fires from outer horizontal ScrollView's onContentSizeChange, guarded one-shot per mount so
+  // pinch-zoom dayWidth changes don't re-trigger.
+  const handleContentSizeChange = useCallback((contentWidth: number, _contentHeight: number) => {
+    if (hasScrolledOnMountRef.current) return;
+    hasScrolledOnMountRef.current = true;
+
+    const focusDate = state.weekViewFocusDate;
+    const TIME_COL_WIDTH = 60;
+
+    // Horizontal: center the focused day, clamped. Monday clamps to 0; Sunday clamps to maxScrollX.
+    let targetX = 0;
+    if (focusDate) {
+      const weekStart = startOfWeek(state.currentWeekStart, { weekStartsOn: 1 });
+      const focusDateObj = parse(focusDate, 'yyyy-MM-dd', new Date());
+      const dayIndex = differenceInCalendarDays(focusDateObj, weekStart);
+      if (dayIndex >= 0 && dayIndex < 7) {
+        const centered = TIME_COL_WIDTH + dayIndex * dayWidth + dayWidth / 2 - viewportWidth / 2;
+        const maxX = Math.max(0, contentWidth - viewportWidth);
+        targetX = Math.max(0, Math.min(maxX, centered));
+      }
+    }
+
+    // Vertical: earliest event on focus day minus 1h lead-in; fallback to 6 AM.
+    const fallbackY = 6 * hourHeight;
+    let targetY = fallbackY;
+    if (focusDate) {
+      const earliestMinutes = findEarliestEventMinutes(focusDate);
+      if (earliestMinutes !== null) {
+        targetY = Math.max(0, (earliestMinutes - 60) * (hourHeight / 60));
+      }
+    }
+
+    // Defer to next frame so the inner vertical ScrollView has measured its grid content
+    requestAnimationFrame(() => {
+      if (targetX > 0) {
+        horizontalScrollRef.current?.scrollTo({ x: targetX, animated: false });
+      }
+      verticalScrollRef.current?.scrollTo({ y: targetY, animated: false });
+      if (focusDate) {
+        dispatch({ type: 'SET_WEEK_VIEW_FOCUS_DATE', date: null });
+      }
+    });
+  }, [state.weekViewFocusDate, state.currentWeekStart, dayWidth, viewportWidth, hourHeight, findEarliestEventMinutes, dispatch]);
 
   // Keep refs for gesture callbacks (avoid stale closures)
   const animateToWeekRef = useRef(animateToWeek);
@@ -1759,6 +1825,7 @@ export default function WeekView() {
           onScroll={handleScroll}
           onScrollBeginDrag={handleHorizontalScrollBeginDrag}
           onScrollEndDrag={handleHorizontalScrollEndDrag}
+          onContentSizeChange={handleContentSizeChange}
           scrollEventThrottle={16}
           bounces={true}
           decelerationRate="fast"

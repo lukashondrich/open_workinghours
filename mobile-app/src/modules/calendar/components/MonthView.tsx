@@ -420,9 +420,10 @@ export default function MonthView() {
       return;
     }
 
-    // Not armed: navigate to week view
+    // Not armed: navigate to week view, focused on the tapped day
     const weekStart = startOfWeek(date, { weekStartsOn: 1 });
     dispatch({ type: 'SET_WEEK', date: weekStart });
+    dispatch({ type: 'SET_WEEK_VIEW_FOCUS_DATE', date: dateKey });
     dispatch({ type: 'SET_VIEW', view: 'week' });
   };
 
