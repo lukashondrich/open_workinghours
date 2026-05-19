@@ -18,6 +18,8 @@ import { X, Pencil } from 'lucide-react-native';
 import { format } from 'date-fns';
 import { de as deLocale } from 'date-fns/locale/de';
 
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
 import { t, getDateLocale } from '@/lib/i18n';
 import { useCalendar } from '@/lib/calendar/calendar-context';
@@ -31,12 +33,18 @@ interface Props {
 
 export default function NoteEditor({ visible, date, onClose }: Props) {
   const { state, dispatch } = useCalendar();
+  const insets = useSafeAreaInsets();
   const animValue = useRef(new Animated.Value(0)).current;
+  const inputRef = useRef<TextInput>(null);
 
   // Local text state
   const existingNote = date ? state.dayNotes[date] : null;
   const [text, setText] = useState(existingNote?.content ?? '');
   const [isEditing, setIsEditing] = useState(false);
+  // True after slide-up animation completes; gates auto-focus so the keyboard
+  // doesn't race with the slide and KAV padding adjustment (which crashes the
+  // panel into invisibility on iOS — see autoFocus diagnostic 2026-05-19).
+  const [panelReady, setPanelReady] = useState(false);
 
   // Sync text and reset editing mode when date changes or note editor opens
   useEffect(() => {
@@ -57,21 +65,35 @@ export default function NoteEditor({ visible, date, onClose }: Props) {
 
   // Animation
   useEffect(() => {
-    if (isTestMode()) {
-      animValue.setValue(visible ? 1 : 0);
+    if (!visible) {
+      setPanelReady(false);
+      animValue.setValue(0);
       return;
     }
-    if (visible) {
-      Animated.timing(animValue, {
-        toValue: 1,
-        duration: 180,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }).start();
-    } else {
-      animValue.setValue(0);
+    if (isTestMode()) {
+      animValue.setValue(1);
+      setPanelReady(true);
+      return;
     }
+    Animated.timing(animValue, {
+      toValue: 1,
+      duration: 180,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished) setPanelReady(true);
+    });
   }, [visible]);
+
+  // Focus the text input once the panel is fully visible. Gated on panelReady
+  // so the keyboard rises AFTER the slide animation completes (not during it).
+  // Covers both initial open (new note) and the Pencil → edit transition from
+  // an existing note's read-mode bubble.
+  useEffect(() => {
+    if (visible && isEditing && panelReady) {
+      inputRef.current?.focus();
+    }
+  }, [visible, isEditing, panelReady]);
 
   // Android back button
   useEffect(() => {
@@ -207,7 +229,7 @@ export default function NoteEditor({ visible, date, onClose }: Props) {
   });
 
   const wrapperProps = Platform.OS === 'ios'
-    ? { behavior: 'padding' as const, style: styles.flexWrapper, keyboardVerticalOffset: 80 }
+    ? { behavior: 'padding' as const, style: styles.flexWrapper }
     : { style: styles.flexWrapper };
 
   return (
@@ -225,7 +247,7 @@ export default function NoteEditor({ visible, date, onClose }: Props) {
         {/* Panel */}
         <Animated.View style={[styles.panelWrapper, { transform: [{ translateY }] }]}>
           <TouchableWithoutFeedback accessible={false} onPress={() => {}}>
-            <View style={styles.card}>
+            <View style={[styles.card, { paddingBottom: Math.max(insets.bottom, 64) }]}>
               {/* Header */}
               <View style={styles.header}>
                 <Text style={styles.title}>{formattedDate}</Text>
@@ -247,6 +269,7 @@ export default function NoteEditor({ visible, date, onClose }: Props) {
                 showsVerticalScrollIndicator={false}
               >
                 <TextInput
+                  ref={inputRef}
                   testID="note-editor-input"
                   style={styles.textInput}
                   multiline
@@ -254,7 +277,6 @@ export default function NoteEditor({ visible, date, onClose }: Props) {
                   placeholderTextColor={colors.text.tertiary}
                   value={text}
                   onChangeText={setText}
-                  autoFocus={visible}
                   textAlignVertical="top"
                   scrollEnabled
                 />
