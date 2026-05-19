@@ -1,5 +1,15 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Platform, AppState, TouchableOpacity, type AppStateStatus } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  Platform,
+  AppState,
+  TouchableOpacity,
+  Keyboard,
+  type AppStateStatus,
+} from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -74,10 +84,31 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 
 function MainTabs() {
   const insets = useSafeAreaInsets();
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    if (Platform.OS !== 'android') {
+      return undefined;
+    }
+
+    const showSubscription = Keyboard.addListener('keyboardDidShow', () => {
+      setKeyboardVisible(true);
+    });
+    const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardVisible(false);
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
+
   // Android 15+ enforces edge-to-edge: app draws behind system nav bar.
   // Use safe area insets (adapts to 3-button, gesture, or no nav bar).
   // Fallback to 48dp if insets report 0 (some Android versions/configurations).
-  const androidBottomPadding = Platform.OS === 'android'
+  // Disable the fallback while the keyboard is visible so it cannot lift the tabs above the keyboard.
+  const androidBottomPadding = Platform.OS === 'android' && !keyboardVisible
     ? Math.max(insets.bottom, 48)
     : 0;
 
@@ -92,6 +123,7 @@ function MainTabs() {
         tabBarActiveTintColor: colors.primary[500],
         tabBarInactiveTintColor: colors.grey[500],
         tabBarAllowFontScaling: false,
+        tabBarHideOnKeyboard: Platform.OS === 'android',
         tabBarStyle: {
           backgroundColor: colors.background.paper,
           ...(Platform.OS === 'android'
