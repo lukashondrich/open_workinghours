@@ -19,12 +19,14 @@ interface SettingsDetailLayoutProps {
   title: string;
   children: React.ReactNode;
   contentStyle?: StyleProp<ViewStyle>;
+  onBack?: () => void;
 }
 
 export function SettingsDetailLayout({
   title,
   children,
   contentStyle,
+  onBack,
 }: SettingsDetailLayoutProps) {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
@@ -49,6 +51,11 @@ export function SettingsDetailLayout({
             accessibilityLabel={t('navigation.back')}
             hitSlop={{ top: 12, right: 12, bottom: 12, left: 12 }}
             onPress={() => {
+              if (onBack) {
+                onBack();
+                return;
+              }
+
               if (navigation.canGoBack()) {
                 navigation.goBack();
               }
