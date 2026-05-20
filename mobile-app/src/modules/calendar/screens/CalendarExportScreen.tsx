@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   Linking,
   Platform,
+  Modal,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Calendar, Download } from 'lucide-react-native';
@@ -18,16 +19,20 @@ import { colors, spacing, fontSize, fontWeight } from '@/theme';
 import { t } from '@/lib/i18n';
 import { ListItem } from '@/components/ui';
 import { SettingsDetailLayout } from '@/components/ui/SettingsDetailLayout';
-import { getCalendarExportManager } from '@/modules/calendar/services/CalendarExportManager';
+import { getCalendarExportManager, type CalendarExportManager } from '@/modules/calendar/services/CalendarExportManager';
 import { getCalendarStorage } from '@/modules/calendar/services/CalendarStorage';
 import { buildDesiredManagedCalendarEvents } from '@/modules/calendar/services/CalendarExportNormalize';
 import { addLocalDays, formatDateKey, startOfLocalDay } from '@/modules/calendar/services/CalendarExportDateWindow';
 import { exportEventsToIcs } from '@/modules/calendar/services/IcsFileGenerator';
-import type { CalendarExportEventDTO } from '@/modules/calendar/services/CalendarExportTypes';
+import type { AndroidCalendarTarget, CalendarExportEventDTO } from '@/modules/calendar/services/CalendarExportTypes';
 
 const ICON_SIZE = 24;
 
 type ExportPreset = 'next4weeks' | 'next3months' | 'allFuture' | 'pastMonth';
+type AndroidTargetSelection = {
+  targetMode: 'android-account' | 'android-local';
+  targetSourceId: string | null;
+};
 
 function getPresetRange(preset: ExportPreset, now: Date): { startDate: Date; endDate: Date } {
   const today = startOfLocalDay(now);
@@ -48,7 +53,9 @@ export default function CalendarExportScreen() {
   const [calendarSyncLoading, setCalendarSyncLoading] = useState(true);
   const [calendarSyncWarning, setCalendarSyncWarning] = useState(false);
   const [exportingPreset, setExportingPreset] = useState<ExportPreset | null>(null);
+  const [androidTargetPickerTargets, setAndroidTargetPickerTargets] = useState<AndroidCalendarTarget[]>([]);
   const isMountedRef = useRef(true);
+  const androidTargetPickerResolveRef = useRef<((selection: AndroidTargetSelection | null) => void) | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -57,6 +64,8 @@ export default function CalendarExportScreen() {
 
       return () => {
         isMountedRef.current = false;
+        androidTargetPickerResolveRef.current?.(null);
+        androidTargetPickerResolveRef.current = null;
       };
     }, [])
   );
@@ -79,8 +88,9 @@ export default function CalendarExportScreen() {
     }
   };
 
-  const selectAndroidTarget = async () => {
-    const manager = await getCalendarExportManager();
+  const selectAndroidTarget = async (
+    manager: CalendarExportManager,
+  ): Promise<AndroidTargetSelection | null | undefined> => {
     const targets = await manager.getAndroidTargets();
 
     if (targets.length <= 1) {
@@ -93,26 +103,27 @@ export default function CalendarExportScreen() {
         : undefined;
     }
 
-    return new Promise<{ targetMode: 'android-account' | 'android-local'; targetSourceId: string | null } | null>((resolve) => {
-      Alert.alert(
-        t('settings.calendarSyncAndroidPickerTitle'),
-        t('settings.calendarSyncAndroidPickerMessage'),
-        [
-          ...targets.map((target) => ({
-            text: target.label,
-            onPress: () => resolve({
-              targetMode: target.mode,
-              targetSourceId: target.sourceKey,
-            }),
-          })),
-          {
-            text: t('common.cancel'),
-            style: 'cancel' as const,
-            onPress: () => resolve(null),
-          },
-        ],
-      );
+    return new Promise<AndroidTargetSelection | null>((resolve) => {
+      androidTargetPickerResolveRef.current = resolve;
+      setAndroidTargetPickerTargets(targets);
     });
+  };
+
+  const resolveAndroidTargetPicker = (selection: AndroidTargetSelection | null) => {
+    androidTargetPickerResolveRef.current?.(selection);
+    androidTargetPickerResolveRef.current = null;
+    setAndroidTargetPickerTargets([]);
+  };
+
+  const handleAndroidTargetSelect = (target: AndroidCalendarTarget) => {
+    resolveAndroidTargetPicker({
+      targetMode: target.mode,
+      targetSourceId: target.sourceKey,
+    });
+  };
+
+  const handleAndroidTargetCancel = () => {
+    resolveAndroidTargetPicker(null);
   };
 
   const handleDeleteBlocked = (onKeepEvents: () => Promise<void>) => {
@@ -196,9 +207,20 @@ export default function CalendarExportScreen() {
     setCalendarSyncLoading(true);
     try {
       const manager = await getCalendarExportManager();
-      const targetSelection = Platform.OS === 'android'
-        ? await selectAndroidTarget()
-        : undefined;
+      let targetSelection: AndroidTargetSelection | null | undefined;
+
+      if (Platform.OS === 'android') {
+        const permission = await manager.ensureCalendarPermission();
+        if (!permission.granted) {
+          Alert.alert(
+            t('settings.calendarSyncPermissionTitle'),
+            t('settings.calendarSyncPermissionMessage'),
+          );
+          return;
+        }
+
+        targetSelection = await selectAndroidTarget(manager);
+      }
 
       if (Platform.OS === 'android' && targetSelection === null) {
         return;
@@ -285,64 +307,112 @@ export default function CalendarExportScreen() {
 
   return (
     <SettingsDetailLayout title={t('settings.calendarExport')}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.section} testID="calendar-sync-section">
-          <Text style={styles.sectionTitle}>{t('settings.calendarSyncLiveSync')}</Text>
-          <ListItem
-            title={t('settings.calendarSyncTitle')}
-            subtitle={t('settings.calendarSyncDescription')}
-            icon={<Calendar size={ICON_SIZE} color={colors.primary[500]} />}
-            testID="calendar-sync-item"
-            rightElement={calendarSyncLoading ? (
-              <ActivityIndicator color={colors.primary[500]} size="small" testID="calendar-sync-loading" />
-            ) : (
-              <Switch
-                testID="calendar-sync-toggle"
-                value={calendarSyncEnabled}
-                onValueChange={handleCalendarSyncToggle}
-                trackColor={{ false: colors.grey[300], true: colors.primary[300] }}
-                thumbColor={calendarSyncEnabled ? colors.primary[500] : colors.grey[100]}
-              />
+      <>
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          <View style={styles.section} testID="calendar-sync-section">
+            <Text style={styles.sectionTitle}>{t('settings.calendarSyncLiveSync')}</Text>
+            <ListItem
+              title={t('settings.calendarSyncTitle')}
+              subtitle={t('settings.calendarSyncDescription')}
+              icon={<Calendar size={ICON_SIZE} color={colors.primary[500]} />}
+              testID="calendar-sync-item"
+              rightElement={calendarSyncLoading ? (
+                <ActivityIndicator color={colors.primary[500]} size="small" testID="calendar-sync-loading" />
+              ) : (
+                <Switch
+                  testID="calendar-sync-toggle"
+                  value={calendarSyncEnabled}
+                  onValueChange={handleCalendarSyncToggle}
+                  trackColor={{ false: colors.grey[300], true: colors.primary[300] }}
+                  thumbColor={calendarSyncEnabled ? colors.primary[500] : colors.grey[100]}
+                />
+              )}
+              showChevron={false}
+            />
+            {calendarSyncWarning && (
+              <Text style={styles.warningText} testID="calendar-sync-warning">
+                {t('settings.calendarSyncPermissionWarning')}
+              </Text>
             )}
-            showChevron={false}
-          />
-          {calendarSyncWarning && (
-            <Text style={styles.warningText} testID="calendar-sync-warning">
-              {t('settings.calendarSyncPermissionWarning')}
-            </Text>
-          )}
-        </View>
+          </View>
 
-        <View style={styles.section} testID="ics-export-section">
-          <Text style={styles.sectionTitle}>{t('settings.calendarExportDownload')}</Text>
-          <Text style={styles.descriptionText}>
-            {t('settings.calendarExportDownloadDescription')}
-          </Text>
-          <View style={styles.presetButtons}>
-            {presets.map((preset) => (
+          <View style={styles.section} testID="ics-export-section">
+            <Text style={styles.sectionTitle}>{t('settings.calendarExportDownload')}</Text>
+            <Text style={styles.descriptionText}>
+              {t('settings.calendarExportDownloadDescription')}
+            </Text>
+            <View style={styles.presetButtons}>
+              {presets.map((preset) => (
+                <TouchableOpacity
+                  key={preset.key}
+                  testID={preset.testID}
+                  accessible={true}
+                  accessibilityRole="button"
+                  style={[
+                    styles.presetButton,
+                    exportingPreset === preset.key && styles.presetButtonDisabled,
+                  ]}
+                  disabled={exportingPreset !== null}
+                  onPress={() => void handleExportPreset(preset.key)}
+                >
+                  {exportingPreset === preset.key ? (
+                    <ActivityIndicator color={colors.primary[500]} size="small" />
+                  ) : (
+                    <Download size={18} color={colors.primary[500]} />
+                  )}
+                  <Text style={styles.presetButtonText}>{preset.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </ScrollView>
+
+        <Modal
+          visible={androidTargetPickerTargets.length > 0}
+          animationType="fade"
+          transparent={true}
+          onRequestClose={handleAndroidTargetCancel}
+        >
+          <View style={styles.modalBackdrop}>
+            <View style={styles.targetPickerPanel}>
+              <Text style={styles.targetPickerTitle}>
+                {t('settings.calendarSyncAndroidPickerTitle')}
+              </Text>
+              <Text style={styles.targetPickerMessage}>
+                {t('settings.calendarSyncAndroidPickerMessage')}
+              </Text>
+              <View style={styles.targetOptions}>
+                {androidTargetPickerTargets.map((target, index) => (
+                  <TouchableOpacity
+                    key={target.sourceKey}
+                    testID={`android-calendar-target-${index}`}
+                    accessible={true}
+                    accessibilityRole="button"
+                    style={styles.targetOption}
+                    onPress={() => handleAndroidTargetSelect(target)}
+                  >
+                    <Text style={styles.targetOptionLabel}>{target.label}</Text>
+                    <Text style={styles.targetOptionMeta}>
+                      {target.mode === 'android-local'
+                        ? t('settings.calendarSyncAndroidDeviceOnly')
+                        : t('settings.calendarSyncAndroidAccount')}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
               <TouchableOpacity
-                key={preset.key}
-                testID={preset.testID}
+                testID="android-calendar-target-cancel"
                 accessible={true}
                 accessibilityRole="button"
-                style={[
-                  styles.presetButton,
-                  exportingPreset === preset.key && styles.presetButtonDisabled,
-                ]}
-                disabled={exportingPreset !== null}
-                onPress={() => void handleExportPreset(preset.key)}
+                style={styles.targetPickerCancel}
+                onPress={handleAndroidTargetCancel}
               >
-                {exportingPreset === preset.key ? (
-                  <ActivityIndicator color={colors.primary[500]} size="small" />
-                ) : (
-                  <Download size={18} color={colors.primary[500]} />
-                )}
-                <Text style={styles.presetButtonText}>{preset.label}</Text>
+                <Text style={styles.targetPickerCancelText}>{t('common.cancel')}</Text>
               </TouchableOpacity>
-            ))}
+            </View>
           </View>
-        </View>
-      </ScrollView>
+        </Modal>
+      </>
     </SettingsDetailLayout>
   );
 }
@@ -394,5 +464,58 @@ const styles = StyleSheet.create({
     fontSize: fontSize.md,
     fontWeight: fontWeight.medium,
     color: colors.text.primary,
+  },
+  modalBackdrop: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xl,
+    backgroundColor: 'rgba(17, 24, 39, 0.45)',
+  },
+  targetPickerPanel: {
+    padding: spacing.lg,
+    backgroundColor: colors.background.paper,
+    borderRadius: 8,
+  },
+  targetPickerTitle: {
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.semibold,
+    color: colors.text.primary,
+    marginBottom: spacing.sm,
+  },
+  targetPickerMessage: {
+    fontSize: fontSize.sm,
+    color: colors.text.secondary,
+    lineHeight: 20,
+    marginBottom: spacing.md,
+  },
+  targetOptions: {
+    gap: spacing.sm,
+  },
+  targetOption: {
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    borderRadius: 8,
+  },
+  targetOptionLabel: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.medium,
+    color: colors.text.primary,
+  },
+  targetOptionMeta: {
+    marginTop: spacing.xs,
+    fontSize: fontSize.sm,
+    color: colors.text.secondary,
+  },
+  targetPickerCancel: {
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    marginTop: spacing.md,
+  },
+  targetPickerCancelText: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.medium,
+    color: colors.primary[500],
   },
 });

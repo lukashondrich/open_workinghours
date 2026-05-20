@@ -78,6 +78,26 @@ function isAndroidLocalSource(source: DeviceCalendarSourceRecord | null | undefi
   return source.isLocalAccount === true || !source.type;
 }
 
+function getAndroidTargetLabel(source: DeviceCalendarSourceRecord, local: boolean): string {
+  if (local) {
+    return `${source.name} (Device only)`;
+  }
+
+  if (source.type === 'com.google') {
+    return `${source.name} (Google)`;
+  }
+
+  if (source.type === 'com.osp.app.signin') {
+    return `${source.name} (Samsung)`;
+  }
+
+  if (source.type && source.type !== source.name) {
+    return `${source.name} (${source.type})`;
+  }
+
+  return source.name;
+}
+
 export function getDeviceCalendarSourceKey(source: DeviceCalendarSourceRecord | null | undefined): string | null {
   if (!source) {
     return null;
@@ -188,7 +208,7 @@ export class DeviceCalendarService {
         mode: local ? 'android-local' : 'android-account',
         source,
         sourceKey,
-        label: local ? `${source.name} (Device only)` : source.name,
+        label: getAndroidTargetLabel(source, local),
         synced: calendar.isSynced === true && !local,
       });
     });

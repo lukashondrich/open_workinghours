@@ -37,6 +37,7 @@ describe('CalendarExportManager', () => {
   function createDeviceCalendarServiceMock() {
     return {
       getPermissionState: jest.fn(),
+      requestPermission: jest.fn(),
       findCalendarById: jest.fn(),
       findCalendarsByTitle: jest.fn(),
       getEvents: jest.fn(),
@@ -454,6 +455,120 @@ describe('CalendarExportManager', () => {
         }),
       );
     } finally {
+      platform.OS = originalOS;
+    }
+  });
+
+  it('requests calendar permission before Android target resolution needs calendar access', async () => {
+    const storage = createStorageMock();
+    const deviceCalendarService = createDeviceCalendarServiceMock();
+    deviceCalendarService.getPermissionState.mockResolvedValue({
+      status: 'denied',
+      granted: false,
+      canAskAgain: true,
+    });
+    deviceCalendarService.requestPermission.mockResolvedValue({
+      status: 'granted',
+      granted: true,
+      canAskAgain: true,
+    });
+
+    const manager = new CalendarExportManager(storage as any, deviceCalendarService as any);
+    await expect(manager.ensureCalendarPermission()).resolves.toEqual({
+      status: 'granted',
+      granted: true,
+      canAskAgain: true,
+    });
+    expect(deviceCalendarService.requestPermission).toHaveBeenCalledTimes(1);
+  });
+
+  it('falls back to an Android local calendar when account-backed calendar creation fails', async () => {
+    const platform = require('react-native').Platform as { OS: string };
+    const originalOS = platform.OS;
+    platform.OS = 'android';
+    const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    try {
+      const storage = createStorageMock();
+      const deviceCalendarService = createDeviceCalendarServiceMock();
+      const accountSourceKey = ':user@example.com:com.google:remote';
+      const localSourceKey = ':My calendar:LOCAL:local';
+      const targets = [
+        {
+          mode: 'android-account',
+          source: { name: 'user@example.com', type: 'com.google', isLocalAccount: false },
+          sourceKey: accountSourceKey,
+          label: 'user@example.com (Google)',
+          synced: true,
+        },
+        {
+          mode: 'android-local',
+          source: { name: 'My calendar', type: 'LOCAL', isLocalAccount: true },
+          sourceKey: localSourceKey,
+          label: 'My calendar (Device only)',
+          synced: false,
+        },
+      ];
+
+      storage.loadDeviceCalendarState
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({
+          enabled: true,
+          calendarId: null,
+          targetSourceId: accountSourceKey,
+          targetMode: 'android-account',
+          lastFullSyncAt: null,
+          lastSyncError: null,
+          updatedAt: '2026-04-27T08:00:00.000Z',
+        });
+      storage.getShiftInstancesForDateRange.mockResolvedValue([]);
+      storage.getAbsenceInstancesForDateRange.mockResolvedValue([]);
+      storage.loadDeviceCalendarMappings.mockResolvedValue({});
+      deviceCalendarService.getPermissionState.mockResolvedValue({
+        status: 'granted',
+        granted: true,
+        canAskAgain: true,
+      });
+      deviceCalendarService.resolveAndroidTargets.mockResolvedValue(targets);
+      deviceCalendarService.findCalendarsByTitle.mockResolvedValue([]);
+      deviceCalendarService.createManagedCalendar
+        .mockRejectedValueOnce(new Error('account calendar insert rejected'))
+        .mockResolvedValueOnce('calendar-local');
+      deviceCalendarService.getEvents.mockResolvedValue([]);
+
+      const manager = new CalendarExportManager(storage as any, deviceCalendarService as any);
+      const result = await manager.enableSync({
+        targetMode: 'android-account',
+        targetSourceId: accountSourceKey,
+      });
+
+      expect(result.status).toBe('ok');
+      expect(deviceCalendarService.createManagedCalendar).toHaveBeenNthCalledWith(1, {
+        title: 'Open Working Hours',
+        color: '#0F766E',
+        targetMode: 'android-account',
+        source: targets[0].source,
+      });
+      expect(deviceCalendarService.createManagedCalendar).toHaveBeenNthCalledWith(2, {
+        title: 'Open Working Hours',
+        color: '#0F766E',
+        targetMode: 'android-local',
+        source: targets[1].source,
+      });
+      expect(storage.saveDeviceCalendarState).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          calendarId: 'calendar-local',
+          targetMode: 'android-local',
+          targetSourceId: localSourceKey,
+          lastSyncError: null,
+        }),
+      );
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        '[CalendarExportManager] Failed to create Android account-backed calendar, falling back to device-only calendar:',
+        expect.any(Error),
+      );
+    } finally {
+      consoleWarnSpy.mockRestore();
       platform.OS = originalOS;
     }
   });

@@ -197,7 +197,7 @@ describe('DeviceCalendarService', () => {
         mode: 'android-account',
         source: { id: undefined, name: 'user@example.com', type: 'com.google', isLocalAccount: false },
         sourceKey: ':user@example.com:com.google:remote',
-        label: 'user@example.com',
+        label: 'user@example.com (Google)',
         synced: true,
       },
       {
