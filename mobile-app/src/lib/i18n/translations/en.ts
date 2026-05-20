@@ -434,6 +434,8 @@ export const en = {
     calendarSyncOpenSettings: 'Open Settings',
     calendarSyncAndroidPickerTitle: 'Choose calendar account',
     calendarSyncAndroidPickerMessage: 'Select which account to use for the exported calendar.',
+    calendarSyncAndroidAccount: 'Account calendar',
+    calendarSyncAndroidDeviceOnly: 'Device only',
     signOutCalendarTitle: 'Sign out and exported events',
     signOutCalendarMessage: 'You can keep exported calendar events or remove them before signing out.',
     signOutKeepEvents: 'Keep events',

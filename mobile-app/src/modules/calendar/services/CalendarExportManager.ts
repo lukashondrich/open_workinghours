@@ -7,6 +7,7 @@ import { MANAGED_EXPORT_CALENDAR_COLOR, MANAGED_EXPORT_CALENDAR_TITLE } from './
 import type {
   CalendarExportReconcileResult,
   CreateManagedCalendarInput,
+  DeviceCalendarPermissionState,
   DeviceCalendarRecord,
   DeviceCalendarStateRecord,
 } from './CalendarExportTypes';
@@ -98,16 +99,22 @@ export class CalendarExportManager {
     return this.deviceCalendarService.resolveAndroidTargets();
   }
 
+  async ensureCalendarPermission(): Promise<DeviceCalendarPermissionState> {
+    let permission = await this.deviceCalendarService.getPermissionState();
+    if (!permission.granted) {
+      permission = await this.deviceCalendarService.requestPermission();
+    }
+
+    return permission;
+  }
+
   async enableSync(options?: {
     targetMode?: DeviceCalendarStateRecord['targetMode'];
     targetSourceId?: string | null;
   }): Promise<CalendarExportSyncOutcome> {
-    let permission = await this.deviceCalendarService.getPermissionState();
+    const permission = await this.ensureCalendarPermission();
     if (!permission.granted) {
-      permission = await this.deviceCalendarService.requestPermission();
-      if (!permission.granted) {
-        return { status: 'blocked-permission' };
-      }
+      return { status: 'blocked-permission' };
     }
 
     const state = await this.storage.loadDeviceCalendarState();
@@ -209,13 +216,7 @@ export class CalendarExportManager {
     }
 
     const createInput = await this.resolveCreateCalendarInput(state);
-    const calendarId = await this.deviceCalendarService.createManagedCalendar(createInput);
-
-    return {
-      calendarId,
-      targetMode: createInput.targetMode,
-      targetSourceId: getDeviceCalendarSourceKey(createInput.source) ?? createInput.source?.id ?? null,
-    };
+    return this.createManagedCalendarWithFallback(createInput);
   }
 
   private async findRecoverableCalendar(now: Date): Promise<DeviceCalendarRecord | null> {
@@ -286,6 +287,46 @@ export class CalendarExportManager {
       targetMode: 'ios-default',
       source: null,
     };
+  }
+
+  private async resolveAndroidLocalCreateCalendarInput(): Promise<CreateManagedCalendarInput> {
+    const targets = await this.deviceCalendarService.resolveAndroidTargets();
+    const local = targets.find((target) => target.mode === 'android-local') ?? null;
+
+    return {
+      title: MANAGED_EXPORT_CALENDAR_TITLE,
+      color: MANAGED_EXPORT_CALENDAR_COLOR,
+      targetMode: 'android-local',
+      source: local?.source ?? null,
+    };
+  }
+
+  private async createManagedCalendarWithFallback(
+    createInput: CreateManagedCalendarInput,
+  ): Promise<{ calendarId: string; targetMode: DeviceCalendarStateRecord['targetMode']; targetSourceId: string | null }> {
+    try {
+      return {
+        calendarId: await this.deviceCalendarService.createManagedCalendar(createInput),
+        targetMode: createInput.targetMode,
+        targetSourceId: getDeviceCalendarSourceKey(createInput.source) ?? createInput.source?.id ?? null,
+      };
+    } catch (error) {
+      if (Platform.OS !== 'android' || createInput.targetMode !== 'android-account') {
+        throw error;
+      }
+
+      console.warn(
+        '[CalendarExportManager] Failed to create Android account-backed calendar, falling back to device-only calendar:',
+        error,
+      );
+
+      const fallbackInput = await this.resolveAndroidLocalCreateCalendarInput();
+      return {
+        calendarId: await this.deviceCalendarService.createManagedCalendar(fallbackInput),
+        targetMode: fallbackInput.targetMode,
+        targetSourceId: getDeviceCalendarSourceKey(fallbackInput.source) ?? fallbackInput.source?.id ?? null,
+      };
+    }
   }
 
   private async resolveEnableTarget(
