@@ -174,14 +174,14 @@ describe('DeviceCalendarService', () => {
         title: 'Google',
         allowsModifications: true,
         isSynced: true,
-        source: { id: 'google-1', name: 'Google', type: 'com.google' },
+        source: { name: 'user@example.com', type: 'com.google', isLocalAccount: false },
       },
       {
         id: 'calendar-2',
         title: 'Device Calendar',
         allowsModifications: true,
         isSynced: false,
-        source: { name: 'Local phone account', isLocalAccount: true },
+        source: { name: 'Local phone account', type: 'LOCAL', isLocalAccount: true },
       },
       {
         id: 'calendar-3',
@@ -195,17 +195,66 @@ describe('DeviceCalendarService', () => {
     await expect(service.resolveAndroidTargets()).resolves.toEqual([
       {
         mode: 'android-account',
-        source: { id: 'google-1', name: 'Google', type: 'com.google', isLocalAccount: undefined },
-        label: 'Google',
+        source: { id: undefined, name: 'user@example.com', type: 'com.google', isLocalAccount: false },
+        sourceKey: ':user@example.com:com.google:remote',
+        label: 'user@example.com',
         synced: true,
       },
       {
         mode: 'android-local',
-        source: { id: undefined, name: 'Local phone account', type: undefined, isLocalAccount: true },
+        source: { id: undefined, name: 'Local phone account', type: 'LOCAL', isLocalAccount: true },
+        sourceKey: ':Local phone account:LOCAL:local',
         label: 'Local phone account (Device only)',
         synced: false,
       },
     ]);
+  });
+
+  it('creates Android managed calendars as visible synced calendars', async () => {
+    expoCalendarMock.createCalendarAsync.mockResolvedValue('calendar-android');
+
+    const service = await loadService('android');
+    const id = await service.createManagedCalendar({
+      title: 'Open Working Hours',
+      color: '#0F766E',
+      targetMode: 'android-account',
+      source: { name: 'user@example.com', type: 'com.google', isLocalAccount: false },
+    });
+
+    expect(id).toBe('calendar-android');
+    expect(expoCalendarMock.createCalendarAsync).toHaveBeenCalledWith({
+      title: 'Open Working Hours',
+      color: '#0F766E',
+      name: 'Open Working Hours',
+      ownerAccount: 'user@example.com',
+      accessLevel: 'owner',
+      isVisible: true,
+      isSynced: true,
+      source: { name: 'user@example.com', type: 'com.google', isLocalAccount: false },
+    });
+  });
+
+  it('falls back to an Android local account when no target source is available', async () => {
+    expoCalendarMock.createCalendarAsync.mockResolvedValue('calendar-local');
+
+    const service = await loadService('android');
+    const id = await service.createManagedCalendar({
+      title: 'Open Working Hours',
+      color: '#0F766E',
+      targetMode: 'android-local',
+    });
+
+    expect(id).toBe('calendar-local');
+    expect(expoCalendarMock.createCalendarAsync).toHaveBeenCalledWith({
+      title: 'Open Working Hours',
+      color: '#0F766E',
+      name: 'Open Working Hours',
+      ownerAccount: 'Open Working Hours',
+      accessLevel: 'owner',
+      isVisible: true,
+      isSynced: true,
+      source: { isLocalAccount: true, name: 'Open Working Hours' },
+    });
   });
 
   it('maps native events into service event records', async () => {

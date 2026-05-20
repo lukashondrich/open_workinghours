@@ -88,7 +88,7 @@ export default function CalendarExportScreen() {
       return target
         ? {
             targetMode: target.mode,
-            targetSourceId: target.source.id ?? null,
+            targetSourceId: target.sourceKey,
           }
         : undefined;
     }
@@ -102,7 +102,7 @@ export default function CalendarExportScreen() {
             text: target.label,
             onPress: () => resolve({
               targetMode: target.mode,
-              targetSourceId: target.source.id ?? null,
+              targetSourceId: target.sourceKey,
             }),
           })),
           {

@@ -93,6 +93,7 @@ export interface DeviceCalendarRecord {
   ownerAccount?: string | null;
   name?: string | null;
   isPrimary?: boolean;
+  isVisible?: boolean;
   isSynced?: boolean;
   source?: DeviceCalendarSourceRecord | null;
   sourceId?: string | null;
@@ -111,6 +112,7 @@ export interface DeviceCalendarEventRecord {
 export interface AndroidCalendarTarget {
   mode: 'android-account' | 'android-local';
   source: DeviceCalendarSourceRecord;
+  sourceKey: string;
   label: string;
   synced: boolean;
 }

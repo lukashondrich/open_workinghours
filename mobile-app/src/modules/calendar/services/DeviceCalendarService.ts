@@ -51,6 +51,7 @@ function mapCalendarRecord(calendar: any): DeviceCalendarRecord {
     ownerAccount: calendar.ownerAccount ?? null,
     name: calendar.name ?? null,
     isPrimary: calendar.isPrimary,
+    isVisible: calendar.isVisible,
     isSynced: calendar.isSynced,
     source: mapSource(calendar.source),
     sourceId: calendar.sourceId ?? null,
@@ -77,7 +78,7 @@ function isAndroidLocalSource(source: DeviceCalendarSourceRecord | null | undefi
   return source.isLocalAccount === true || !source.type;
 }
 
-function getSourceKey(source: DeviceCalendarSourceRecord | null | undefined): string | null {
+export function getDeviceCalendarSourceKey(source: DeviceCalendarSourceRecord | null | undefined): string | null {
   if (!source) {
     return null;
   }
@@ -131,7 +132,7 @@ export class DeviceCalendarService {
     const candidates: DeviceCalendarSourceRecord[] = [];
     const seen = new Set<string>();
     const addCandidate = (source: DeviceCalendarSourceRecord | null | undefined) => {
-      const key = getSourceKey(source);
+      const key = getDeviceCalendarSourceKey(source);
       if (!key || seen.has(key) || !source?.id) {
         return;
       }
@@ -175,7 +176,10 @@ export class DeviceCalendarService {
       }
 
       const local = isAndroidLocalSource(source);
-      const sourceKey = `${source.id ?? ''}:${source.name}:${source.type ?? 'local'}`;
+      const sourceKey = getDeviceCalendarSourceKey(source);
+      if (!sourceKey) {
+        return;
+      }
       if (bySource.has(sourceKey)) {
         return;
       }
@@ -183,6 +187,7 @@ export class DeviceCalendarService {
       bySource.set(sourceKey, {
         mode: local ? 'android-local' : 'android-account',
         source,
+        sourceKey,
         label: local ? `${source.name} (Device only)` : source.name,
         synced: calendar.isSynced === true && !local,
       });
@@ -243,12 +248,16 @@ export class DeviceCalendarService {
       name: input.title,
       ownerAccount: source.name,
       accessLevel: Calendar.CalendarAccessLevel.OWNER,
+      isVisible: true,
+      isSynced: true,
       source: toExpoSource(source),
-      ...(input.targetMode === 'android-account' && input.source ? { isSynced: true } : {}),
     });
   }
 
-  async updateCalendar(id: string, updates: { title?: string; color?: string }): Promise<void> {
+  async updateCalendar(
+    id: string,
+    updates: { title?: string; color?: string; isVisible?: boolean; isSynced?: boolean },
+  ): Promise<void> {
     await Calendar.updateCalendarAsync(id, updates);
   }
 

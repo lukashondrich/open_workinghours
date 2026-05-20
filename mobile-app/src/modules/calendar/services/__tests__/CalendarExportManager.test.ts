@@ -42,6 +42,7 @@ describe('CalendarExportManager', () => {
       getEvents: jest.fn(),
       resolveAndroidTargets: jest.fn(),
       createManagedCalendar: jest.fn(),
+      updateCalendar: jest.fn(),
       createEvent: jest.fn(),
       updateEvent: jest.fn(),
       deleteEvent: jest.fn(),
@@ -361,5 +362,149 @@ describe('CalendarExportManager', () => {
     await expect(manager.runSyncIfEnabled(new Date(2026, 3, 27, 9, 0))).rejects.toThrow(
       'Multiple managed calendar candidates were found; refusing to guess.',
     );
+  });
+
+  it('uses stable Android source keys when enabling sync for a selected account', async () => {
+    const platform = require('react-native').Platform as { OS: string };
+    const originalOS = platform.OS;
+    platform.OS = 'android';
+
+    try {
+      const storage = createStorageMock();
+      const deviceCalendarService = createDeviceCalendarServiceMock();
+      const workSourceKey = ':work@example.com:com.google:remote';
+      const targets = [
+        {
+          mode: 'android-account',
+          source: { name: 'personal@example.com', type: 'com.google', isLocalAccount: false },
+          sourceKey: ':personal@example.com:com.google:remote',
+          label: 'personal@example.com',
+          synced: true,
+        },
+        {
+          mode: 'android-account',
+          source: { name: 'work@example.com', type: 'com.google', isLocalAccount: false },
+          sourceKey: workSourceKey,
+          label: 'work@example.com',
+          synced: true,
+        },
+      ];
+
+      storage.loadDeviceCalendarState
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({
+          enabled: true,
+          calendarId: null,
+          targetSourceId: workSourceKey,
+          targetMode: 'android-account',
+          lastFullSyncAt: null,
+          lastSyncError: null,
+          updatedAt: '2026-04-27T08:00:00.000Z',
+        });
+      storage.getShiftInstancesForDateRange.mockResolvedValue([]);
+      storage.getAbsenceInstancesForDateRange.mockResolvedValue([]);
+      storage.loadDeviceCalendarMappings.mockResolvedValue({});
+      deviceCalendarService.getPermissionState.mockResolvedValue({
+        status: 'granted',
+        granted: true,
+        canAskAgain: true,
+      });
+      deviceCalendarService.resolveAndroidTargets.mockResolvedValue(targets);
+      deviceCalendarService.findCalendarsByTitle.mockResolvedValue([]);
+      deviceCalendarService.createManagedCalendar.mockResolvedValue('calendar-android');
+      deviceCalendarService.getEvents.mockResolvedValue([]);
+
+      const manager = new CalendarExportManager(storage as any, deviceCalendarService as any);
+      const result = await manager.enableSync({
+        targetMode: 'android-account',
+        targetSourceId: workSourceKey,
+      });
+
+      expect(result).toEqual({
+        status: 'ok',
+        calendarId: 'calendar-android',
+        result: {
+          created: 0,
+          updated: 0,
+          deleted: 0,
+          unchanged: 0,
+          repairedMappings: 0,
+        },
+      });
+      expect(storage.saveDeviceCalendarState).toHaveBeenNthCalledWith(1, {
+        enabled: true,
+        calendarId: null,
+        targetSourceId: workSourceKey,
+        targetMode: 'android-account',
+        lastFullSyncAt: null,
+        lastSyncError: null,
+      });
+      expect(deviceCalendarService.createManagedCalendar).toHaveBeenCalledWith({
+        title: 'Open Working Hours',
+        color: '#0F766E',
+        targetMode: 'android-account',
+        source: targets[1].source,
+      });
+      expect(storage.saveDeviceCalendarState).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          calendarId: 'calendar-android',
+          targetSourceId: workSourceKey,
+          targetMode: 'android-account',
+          lastSyncError: null,
+        }),
+      );
+    } finally {
+      platform.OS = originalOS;
+    }
+  });
+
+  it('repairs an existing Android managed calendar that was created hidden', async () => {
+    const platform = require('react-native').Platform as { OS: string };
+    const originalOS = platform.OS;
+    platform.OS = 'android';
+
+    try {
+      const storage = createStorageMock();
+      const deviceCalendarService = createDeviceCalendarServiceMock();
+      storage.loadDeviceCalendarState.mockResolvedValue({
+        enabled: true,
+        calendarId: 'calendar-hidden',
+        targetSourceId: ':work@example.com:com.google:remote',
+        targetMode: 'android-account',
+        lastFullSyncAt: null,
+        lastSyncError: null,
+        updatedAt: '2026-04-27T08:00:00.000Z',
+      });
+      storage.getShiftInstancesForDateRange.mockResolvedValue([]);
+      storage.getAbsenceInstancesForDateRange.mockResolvedValue([]);
+      storage.loadDeviceCalendarMappings.mockResolvedValue({});
+      deviceCalendarService.getPermissionState.mockResolvedValue({
+        status: 'granted',
+        granted: true,
+        canAskAgain: true,
+      });
+      deviceCalendarService.findCalendarById.mockResolvedValue({
+        id: 'calendar-hidden',
+        title: 'Open Working Hours',
+        color: '#0F766E',
+        allowsModifications: true,
+        isVisible: false,
+        isSynced: false,
+        source: { name: 'work@example.com', type: 'com.google', isLocalAccount: false },
+        sourceId: null,
+      });
+      deviceCalendarService.getEvents.mockResolvedValue([]);
+
+      const manager = new CalendarExportManager(storage as any, deviceCalendarService as any);
+      await manager.runSyncIfEnabled(new Date(2026, 3, 27, 9, 0));
+
+      expect(deviceCalendarService.updateCalendar).toHaveBeenCalledWith('calendar-hidden', {
+        isVisible: true,
+        isSynced: true,
+      });
+      expect(deviceCalendarService.createManagedCalendar).not.toHaveBeenCalled();
+    } finally {
+      platform.OS = originalOS;
+    }
   });
 });
