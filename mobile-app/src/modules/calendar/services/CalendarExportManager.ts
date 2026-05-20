@@ -10,7 +10,7 @@ import type {
   DeviceCalendarRecord,
   DeviceCalendarStateRecord,
 } from './CalendarExportTypes';
-import { DeviceCalendarService } from './DeviceCalendarService';
+import { DeviceCalendarService, getDeviceCalendarSourceKey } from './DeviceCalendarService';
 import { CalendarStorage, getCalendarStorage } from './CalendarStorage';
 
 export class MultipleManagedCalendarsError extends Error {
@@ -189,6 +189,7 @@ export class CalendarExportManager {
     if (state.calendarId) {
       const existing = await this.deviceCalendarService.findCalendarById(state.calendarId);
       if (existing?.allowsModifications) {
+        await this.repairAndroidManagedCalendarVisibility(existing);
         return {
           calendarId: existing.id,
           targetMode: state.targetMode,
@@ -199,10 +200,11 @@ export class CalendarExportManager {
 
     const recovered = await this.findRecoverableCalendar(now);
     if (recovered) {
+      await this.repairAndroidManagedCalendarVisibility(recovered);
       return {
         calendarId: recovered.id,
         targetMode: state.targetMode,
-        targetSourceId: recovered.source?.id ?? state.targetSourceId,
+        targetSourceId: getDeviceCalendarSourceKey(recovered.source) ?? recovered.source?.id ?? state.targetSourceId,
       };
     }
 
@@ -212,7 +214,7 @@ export class CalendarExportManager {
     return {
       calendarId,
       targetMode: createInput.targetMode,
-      targetSourceId: createInput.source?.id ?? null,
+      targetSourceId: getDeviceCalendarSourceKey(createInput.source) ?? createInput.source?.id ?? null,
     };
   }
 
@@ -253,7 +255,7 @@ export class CalendarExportManager {
   ): Promise<CreateManagedCalendarInput> {
     if (state.targetMode === 'android-account') {
       const targets = await this.deviceCalendarService.resolveAndroidTargets();
-      const chosen = targets.find((target) => target.source.id === state.targetSourceId)
+      const chosen = targets.find((target) => this.isTargetSourceMatch(target, state.targetSourceId))
         ?? targets.find((target) => target.mode === 'android-account')
         ?? targets.find((target) => target.mode === 'android-local')
         ?? null;
@@ -299,7 +301,7 @@ export class CalendarExportManager {
       (!requestedTargetMode && Platform.OS === 'android')
     ) {
       const targets = await this.deviceCalendarService.resolveAndroidTargets();
-      const chosen = targets.find((target) => target.source.id === requestedTargetSourceId)
+      const chosen = targets.find((target) => this.isTargetSourceMatch(target, requestedTargetSourceId))
         ?? (requestedTargetMode ? targets.find((target) => target.mode === requestedTargetMode) : null)
         ?? targets.find((target) => target.mode === 'android-account')
         ?? targets.find((target) => target.mode === 'android-local')
@@ -307,7 +309,7 @@ export class CalendarExportManager {
 
       return {
         targetMode: chosen?.mode ?? 'android-local',
-        targetSourceId: chosen?.source.id ?? null,
+        targetSourceId: chosen?.sourceKey ?? chosen?.source.id ?? null,
       };
     }
 
@@ -329,6 +331,35 @@ export class CalendarExportManager {
       lastFullSyncAt: updates.lastFullSyncAt !== undefined ? updates.lastFullSyncAt : state.lastFullSyncAt,
       lastSyncError: updates.lastSyncError !== undefined ? updates.lastSyncError : state.lastSyncError,
     });
+  }
+
+  private async repairAndroidManagedCalendarVisibility(calendar: DeviceCalendarRecord): Promise<void> {
+    if (Platform.OS !== 'android') {
+      return;
+    }
+
+    const updates: { isVisible?: boolean; isSynced?: boolean } = {};
+    if (calendar.isVisible !== true) {
+      updates.isVisible = true;
+    }
+    if (calendar.isSynced !== true) {
+      updates.isSynced = true;
+    }
+
+    if (Object.keys(updates).length > 0) {
+      await this.deviceCalendarService.updateCalendar(calendar.id, updates);
+    }
+  }
+
+  private isTargetSourceMatch(
+    target: { sourceKey?: string; source: { id?: string } },
+    storedSourceId: string | null | undefined,
+  ): boolean {
+    if (!storedSourceId) {
+      return false;
+    }
+
+    return target.sourceKey === storedSourceId || target.source.id === storedSourceId;
   }
 }
 
