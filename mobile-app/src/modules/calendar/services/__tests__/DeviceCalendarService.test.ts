@@ -353,4 +353,54 @@ describe('DeviceCalendarService', () => {
       },
     ]);
   });
+
+  it('writes Android all-day events with UTC date boundaries', async () => {
+    expoCalendarMock.createEventAsync.mockResolvedValue('event-1');
+    const startDate = new Date(2026, 4, 23, 0, 0, 0, 0);
+    const endDate = new Date(2026, 4, 24, 0, 0, 0, 0);
+
+    const service = await loadService('android');
+    await service.createEvent('calendar-1', {
+      title: 'Sick Day',
+      startDate,
+      endDate,
+      allDay: true,
+      notes: 'owh:type=absence',
+    });
+
+    expect(expoCalendarMock.createEventAsync).toHaveBeenCalledWith('calendar-1', {
+      title: 'Sick Day',
+      startDate: new Date(Date.UTC(2026, 4, 23, 0, 0, 0, 0)),
+      endDate: new Date(Date.UTC(2026, 4, 24, 0, 0, 0, 0)),
+      allDay: true,
+      notes: 'owh:type=absence',
+    });
+    expect(expoCalendarMock.createEventAsync.mock.calls[0][1].startDate).not.toBe(startDate);
+    expect(expoCalendarMock.createEventAsync.mock.calls[0][1].endDate).not.toBe(endDate);
+  });
+
+  it('maps Android all-day UTC boundaries back to local date boundaries', async () => {
+    expoCalendarMock.getEventsAsync.mockResolvedValue([
+      {
+        id: 'event-1',
+        calendarId: 'calendar-1',
+        title: 'Vacation',
+        startDate: '2026-05-24T00:00:00.000Z',
+        endDate: '2026-05-25T00:00:00.000Z',
+        allDay: 1,
+        notes: 'owh:type=absence',
+      },
+    ]);
+
+    const service = await loadService('android');
+    const [event] = await service.getEvents(
+      'calendar-1',
+      new Date('2026-05-23T00:00:00.000Z'),
+      new Date('2026-05-26T00:00:00.000Z'),
+    );
+
+    expect(event.startDate).toEqual(new Date(2026, 4, 24, 0, 0, 0, 0));
+    expect(event.endDate).toEqual(new Date(2026, 4, 25, 0, 0, 0, 0));
+    expect(event.allDay).toBe(true);
+  });
 });
