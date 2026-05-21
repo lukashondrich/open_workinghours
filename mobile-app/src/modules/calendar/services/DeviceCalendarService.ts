@@ -59,14 +59,38 @@ function mapCalendarRecord(calendar: any): DeviceCalendarRecord {
   };
 }
 
+function isAllDayEvent(event: any): boolean {
+  return event.allDay === true || event.allDay === 1;
+}
+
+function toAndroidAllDayBoundary(date: Date): Date {
+  return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0));
+}
+
+function fromAndroidAllDayBoundary(date: Date): Date {
+  return new Date(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 0, 0, 0, 0);
+}
+
+function mapEventDate(date: Date, allDay: boolean): Date {
+  if (Platform.OS === 'android' && allDay) {
+    return fromAndroidAllDayBoundary(date);
+  }
+
+  return date;
+}
+
 function mapEventRecord(event: any): DeviceCalendarEventRecord {
+  const allDay = isAllDayEvent(event);
+  const startDate = new Date(event.startDate);
+  const endDate = new Date(event.endDate);
+
   return {
     id: event.id,
     calendarId: event.calendarId,
     title: event.title ?? '',
-    startDate: new Date(event.startDate),
-    endDate: new Date(event.endDate),
-    allDay: event.allDay === true,
+    startDate: mapEventDate(startDate, allDay),
+    endDate: mapEventDate(endDate, allDay),
+    allDay,
     notes: event.notes ?? null,
   };
 }
@@ -170,6 +194,18 @@ export function getDeviceCalendarSourceKey(source: DeviceCalendarSourceRecord | 
 
 function toExpoSource(source: DeviceCalendarSourceRecord): Calendar.Source {
   return source as unknown as Calendar.Source;
+}
+
+function toNativeEventInput(input: UpsertManagedEventInput): UpsertManagedEventInput {
+  if (Platform.OS !== 'android' || !input.allDay) {
+    return input;
+  }
+
+  return {
+    ...input,
+    startDate: toAndroidAllDayBoundary(input.startDate),
+    endDate: toAndroidAllDayBoundary(input.endDate),
+  };
 }
 
 export class DeviceCalendarService {
@@ -361,22 +397,26 @@ export class DeviceCalendarService {
   }
 
   async createEvent(calendarId: string, input: UpsertManagedEventInput): Promise<string> {
+    const nativeInput = toNativeEventInput(input);
+
     return Calendar.createEventAsync(calendarId, {
-      title: input.title,
-      startDate: input.startDate,
-      endDate: input.endDate,
-      allDay: input.allDay,
-      notes: input.notes,
+      title: nativeInput.title,
+      startDate: nativeInput.startDate,
+      endDate: nativeInput.endDate,
+      allDay: nativeInput.allDay,
+      notes: nativeInput.notes,
     });
   }
 
   async updateEvent(id: string, input: UpsertManagedEventInput): Promise<void> {
+    const nativeInput = toNativeEventInput(input);
+
     await Calendar.updateEventAsync(id, {
-      title: input.title,
-      startDate: input.startDate,
-      endDate: input.endDate,
-      allDay: input.allDay,
-      notes: input.notes,
+      title: nativeInput.title,
+      startDate: nativeInput.startDate,
+      endDate: nativeInput.endDate,
+      allDay: nativeInput.allDay,
+      notes: nativeInput.notes,
     });
   }
 
