@@ -1,16 +1,16 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   View,
   StyleSheet,
   ScrollView,
   Alert,
   ActivityIndicator,
+  BackHandler,
   Text,
   Switch,
   TouchableOpacity,
   Linking,
   Platform,
-  Modal,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Calendar, Download } from 'lucide-react-native';
@@ -143,22 +143,37 @@ export default function CalendarExportScreen() {
     });
   };
 
-  const resolveAndroidTargetPicker = (selection: AndroidTargetSelection | null) => {
+  const resolveAndroidTargetPicker = useCallback((selection: AndroidTargetSelection | null) => {
     androidTargetPickerResolveRef.current?.(selection);
     androidTargetPickerResolveRef.current = null;
     setAndroidTargetPickerTargets([]);
-  };
+  }, []);
 
-  const handleAndroidTargetSelect = (target: AndroidCalendarTarget) => {
+  const handleAndroidTargetSelect = useCallback((target: AndroidCalendarTarget) => {
     resolveAndroidTargetPicker({
       targetMode: target.mode,
       targetSourceId: target.sourceKey,
     });
-  };
+  }, [resolveAndroidTargetPicker]);
 
-  const handleAndroidTargetCancel = () => {
+  const handleAndroidTargetCancel = useCallback(() => {
     resolveAndroidTargetPicker(null);
-  };
+  }, [resolveAndroidTargetPicker]);
+
+  useEffect(() => {
+    if (androidTargetPickerTargets.length === 0) {
+      return undefined;
+    }
+
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      handleAndroidTargetCancel();
+      return true;
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [androidTargetPickerTargets.length, handleAndroidTargetCancel]);
 
   const handleDeleteBlocked = (onKeepEvents: () => Promise<void>) => {
     Alert.alert(
@@ -401,13 +416,8 @@ export default function CalendarExportScreen() {
           </View>
         </ScrollView>
 
-        <Modal
-          visible={androidTargetPickerTargets.length > 0}
-          animationType="fade"
-          transparent={true}
-          onRequestClose={handleAndroidTargetCancel}
-        >
-          <View style={styles.modalBackdrop}>
+        {androidTargetPickerTargets.length > 0 && (
+          <View style={styles.targetPickerBackdrop}>
             <View style={styles.targetPickerPanel}>
               <Text style={styles.targetPickerTitle}>
                 {t('settings.calendarSyncAndroidPickerTitle')}
@@ -446,7 +456,7 @@ export default function CalendarExportScreen() {
               </TouchableOpacity>
             </View>
           </View>
-        </Modal>
+        )}
       </>
     </SettingsDetailLayout>
   );
@@ -500,8 +510,8 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.medium,
     color: colors.text.primary,
   },
-  modalBackdrop: {
-    flex: 1,
+  targetPickerBackdrop: {
+    ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
     paddingHorizontal: spacing.xl,
     backgroundColor: 'rgba(17, 24, 39, 0.45)',

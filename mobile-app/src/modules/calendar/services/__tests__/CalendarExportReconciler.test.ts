@@ -184,6 +184,74 @@ describe('CalendarExportReconciler', () => {
     });
   });
 
+  it('does not update when provider-normalized notes keep the same managed fingerprint', async () => {
+    const storage = createStorageMock();
+    const deviceCalendarService = createDeviceCalendarServiceMock();
+    const now = new Date(2026, 3, 27, 9, 0);
+    const [desiredShift] = buildDesiredManagedCalendarEvents({
+      shifts: [
+        {
+          id: 'shift-1',
+          templateId: 'template-1',
+          date: '2026-04-27',
+          startTime: '08:00',
+          duration: 480,
+          endTime: '16:00',
+          color: 'teal',
+          name: 'Early Shift',
+        },
+      ],
+      absences: [],
+      window: createCalendarExportWindow(now),
+    });
+
+    storage.getShiftInstancesForDateRange.mockResolvedValue([
+      {
+        id: 'shift-1',
+        templateId: 'template-1',
+        date: '2026-04-27',
+        startTime: '08:00',
+        duration: 480,
+        endTime: '16:00',
+        color: 'teal',
+        name: 'Early Shift',
+      },
+    ]);
+    storage.getAbsenceInstancesForDateRange.mockResolvedValue([]);
+    storage.loadDeviceCalendarMappings.mockResolvedValue({
+      'shift:shift-1': {
+        appId: 'shift:shift-1',
+        nativeEventId: 'native-event-1',
+        entityType: 'shift',
+        fingerprint: desiredShift.fingerprint,
+        updatedAt: '2026-04-27T08:00:00.000Z',
+      },
+    });
+    deviceCalendarService.getEvents.mockResolvedValue([
+      {
+        id: 'native-event-1',
+        calendarId: 'calendar-1',
+        title: 'Early Shift',
+        startDate: new Date(2026, 3, 27, 8, 0),
+        endDate: new Date(2026, 3, 27, 16, 0),
+        allDay: false,
+        notes: `${desiredShift.notes}\n`,
+      },
+    ]);
+
+    const reconciler = new CalendarExportReconciler(storage as any, deviceCalendarService as any);
+    const result = await reconciler.reconcileManagedCalendar('calendar-1', now);
+
+    expect(result).toEqual({
+      created: 0,
+      updated: 0,
+      deleted: 0,
+      unchanged: 1,
+      repairedMappings: 0,
+    });
+    expect(deviceCalendarService.updateEvent).not.toHaveBeenCalled();
+  });
+
   it('deletes stale future managed events but keeps past ones during normal reconciliation', async () => {
     const storage = createStorageMock();
     const deviceCalendarService = createDeviceCalendarServiceMock();
