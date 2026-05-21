@@ -1,11 +1,13 @@
 import { Platform } from 'react-native';
 
 import { addLocalDays, createCalendarExportWindow } from './CalendarExportDateWindow';
+import { CalendarExportSyncError, getCalendarExportSyncIssueCode } from './CalendarExportErrors';
 import { parseManagedEventMarker } from './CalendarExportMarker';
 import { CalendarExportReconciler } from './CalendarExportReconciler';
 import { MANAGED_EXPORT_CALENDAR_COLOR, MANAGED_EXPORT_CALENDAR_TITLE } from './CalendarExportConfig';
 import type {
   CalendarExportReconcileResult,
+  CalendarExportSyncIssueCode,
   CreateManagedCalendarInput,
   DeviceCalendarPermissionState,
   DeviceCalendarRecord,
@@ -24,7 +26,12 @@ export class MultipleManagedCalendarsError extends Error {
 export type CalendarExportSyncOutcome =
   | { status: 'disabled' }
   | { status: 'blocked-permission' }
-  | { status: 'ok'; calendarId: string; result: CalendarExportReconcileResult };
+  | {
+      status: 'ok';
+      calendarId: string;
+      result: CalendarExportReconcileResult;
+      syncIssue: CalendarExportSyncIssueCode | null;
+    };
 
 export type CalendarExportDeleteOutcome =
   | { status: 'noop' }
@@ -75,17 +82,19 @@ export class CalendarExportManager {
         targetMode: calendarResolution.targetMode ?? state.targetMode ?? null,
         targetSourceId: calendarResolution.targetSourceId ?? state.targetSourceId ?? null,
         lastFullSyncAt: now.toISOString(),
-        lastSyncError: null,
+        lastSyncError: calendarResolution.syncIssue
+          ?? (state.lastSyncError === 'calendar-create-fallback-local' ? state.lastSyncError : null),
       });
 
       return {
         status: 'ok',
         calendarId: calendarResolution.calendarId,
         result,
+        syncIssue: calendarResolution.syncIssue,
       };
     } catch (error) {
       await this.persistState(state, {
-        lastSyncError: error instanceof Error ? error.message : 'unknown',
+        lastSyncError: getCalendarExportSyncIssueCode(error),
       });
       throw error;
     }
@@ -96,7 +105,7 @@ export class CalendarExportManager {
   }
 
   async getAndroidTargets() {
-    return this.deviceCalendarService.resolveAndroidTargets();
+    return this.resolveAndroidTargets();
   }
 
   async ensureCalendarPermission(): Promise<DeviceCalendarPermissionState> {
@@ -192,7 +201,12 @@ export class CalendarExportManager {
   private async ensureManagedCalendar(
     state: DeviceCalendarStateRecord,
     now: Date,
-  ): Promise<{ calendarId: string; targetMode: DeviceCalendarStateRecord['targetMode']; targetSourceId: string | null }> {
+  ): Promise<{
+    calendarId: string;
+    targetMode: DeviceCalendarStateRecord['targetMode'];
+    targetSourceId: string | null;
+    syncIssue: CalendarExportSyncIssueCode | null;
+  }> {
     if (state.calendarId) {
       const existing = await this.deviceCalendarService.findCalendarById(state.calendarId);
       if (existing?.allowsModifications) {
@@ -201,6 +215,7 @@ export class CalendarExportManager {
           calendarId: existing.id,
           targetMode: state.targetMode,
           targetSourceId: state.targetSourceId,
+          syncIssue: null,
         };
       }
     }
@@ -212,6 +227,7 @@ export class CalendarExportManager {
         calendarId: recovered.id,
         targetMode: state.targetMode,
         targetSourceId: getDeviceCalendarSourceKey(recovered.source) ?? recovered.source?.id ?? state.targetSourceId,
+        syncIssue: null,
       };
     }
 
@@ -255,7 +271,7 @@ export class CalendarExportManager {
     state: DeviceCalendarStateRecord,
   ): Promise<CreateManagedCalendarInput> {
     if (state.targetMode === 'android-account') {
-      const targets = await this.deviceCalendarService.resolveAndroidTargets();
+      const targets = await this.resolveAndroidTargets();
       const chosen = targets.find((target) => this.isTargetSourceMatch(target, state.targetSourceId))
         ?? targets.find((target) => target.mode === 'android-account')
         ?? targets.find((target) => target.mode === 'android-local')
@@ -270,7 +286,7 @@ export class CalendarExportManager {
     }
 
     if (state.targetMode === 'android-local') {
-      const targets = await this.deviceCalendarService.resolveAndroidTargets();
+      const targets = await this.resolveAndroidTargets();
       const local = targets.find((target) => target.mode === 'android-local') ?? null;
 
       return {
@@ -290,7 +306,7 @@ export class CalendarExportManager {
   }
 
   private async resolveAndroidLocalCreateCalendarInput(): Promise<CreateManagedCalendarInput> {
-    const targets = await this.deviceCalendarService.resolveAndroidTargets();
+    const targets = await this.resolveAndroidTargets();
     const local = targets.find((target) => target.mode === 'android-local') ?? null;
 
     return {
@@ -303,12 +319,19 @@ export class CalendarExportManager {
 
   private async createManagedCalendarWithFallback(
     createInput: CreateManagedCalendarInput,
-  ): Promise<{ calendarId: string; targetMode: DeviceCalendarStateRecord['targetMode']; targetSourceId: string | null }> {
+  ): Promise<{
+    calendarId: string;
+    targetMode: DeviceCalendarStateRecord['targetMode'];
+    targetSourceId: string | null;
+    syncIssue: CalendarExportSyncIssueCode | null;
+  }> {
     try {
+      const calendarId = await this.createAndValidateManagedCalendar(createInput);
       return {
-        calendarId: await this.deviceCalendarService.createManagedCalendar(createInput),
+        calendarId,
         targetMode: createInput.targetMode,
         targetSourceId: getDeviceCalendarSourceKey(createInput.source) ?? createInput.source?.id ?? null,
+        syncIssue: null,
       };
     } catch (error) {
       if (Platform.OS !== 'android' || createInput.targetMode !== 'android-account') {
@@ -321,11 +344,115 @@ export class CalendarExportManager {
       );
 
       const fallbackInput = await this.resolveAndroidLocalCreateCalendarInput();
+      const fallbackCalendarId = await this.createAndValidateManagedCalendar(fallbackInput);
       return {
-        calendarId: await this.deviceCalendarService.createManagedCalendar(fallbackInput),
+        calendarId: fallbackCalendarId,
         targetMode: fallbackInput.targetMode,
         targetSourceId: getDeviceCalendarSourceKey(fallbackInput.source) ?? fallbackInput.source?.id ?? null,
+        syncIssue: 'calendar-create-fallback-local',
       };
+    }
+  }
+
+  private async createAndValidateManagedCalendar(createInput: CreateManagedCalendarInput): Promise<string> {
+    let calendarId: string;
+    try {
+      calendarId = await this.deviceCalendarService.createManagedCalendar(createInput);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : 'unknown';
+      throw new CalendarExportSyncError(
+        'calendar-create-failed',
+        `Failed to create managed calendar: ${reason}`,
+        error,
+      );
+    }
+
+    await this.validateManagedCalendarAfterCreate(calendarId, createInput);
+    return calendarId;
+  }
+
+  private async validateManagedCalendarAfterCreate(
+    calendarId: string,
+    createInput: CreateManagedCalendarInput,
+  ): Promise<void> {
+    const calendar = await this.deviceCalendarService.findCalendarById(calendarId);
+    if (!calendar) {
+      throw new CalendarExportSyncError(
+        'calendar-validation-failed',
+        'Managed calendar was not readable after creation.',
+      );
+    }
+
+    if (!calendar.allowsModifications) {
+      throw new CalendarExportSyncError(
+        'calendar-validation-failed',
+        'Managed calendar is not writable after creation.',
+      );
+    }
+
+    await this.repairAndroidManagedCalendarVisibility(calendar);
+    this.validateCreatedCalendarSource(calendar, createInput);
+    await this.probeManagedCalendarWrites(calendarId);
+  }
+
+  private validateCreatedCalendarSource(
+    calendar: DeviceCalendarRecord,
+    createInput: CreateManagedCalendarInput,
+  ): void {
+    if (Platform.OS !== 'android') {
+      return;
+    }
+
+    const expectedSourceKey = getDeviceCalendarSourceKey(createInput.source);
+    const actualSourceKey = getDeviceCalendarSourceKey(calendar.source);
+    if (!expectedSourceKey || !actualSourceKey || expectedSourceKey === actualSourceKey) {
+      return;
+    }
+
+    throw new CalendarExportSyncError(
+      'calendar-validation-failed',
+      'Managed calendar was created on a different Android calendar source than requested.',
+    );
+  }
+
+  private async probeManagedCalendarWrites(calendarId: string): Promise<void> {
+    const startDate = new Date(2000, 0, 1, 12, 0, 0, 0);
+    const endDate = new Date(2000, 0, 1, 12, 5, 0, 0);
+    let nativeEventId: string | null = null;
+
+    try {
+      nativeEventId = await this.deviceCalendarService.createEvent(calendarId, {
+        title: 'Open Working Hours setup check',
+        startDate,
+        endDate,
+        allDay: false,
+        notes: 'Temporary setup check. This event should be removed automatically.',
+      });
+      await this.deviceCalendarService.updateEvent(nativeEventId, {
+        title: 'Open Working Hours setup check',
+        startDate,
+        endDate,
+        allDay: false,
+        notes: 'Temporary setup check completed. This event should be removed automatically.',
+      });
+    } catch (error) {
+      if (nativeEventId) {
+        try {
+          await this.deviceCalendarService.deleteEvent(nativeEventId);
+        } catch {
+          // Keep the original write failure; cleanup is best effort for this probe.
+        }
+      }
+      throw new CalendarExportSyncError('event-write-failed', 'Managed calendar did not accept event writes.', error);
+    }
+
+    try {
+      if (!nativeEventId) {
+        throw new Error('Calendar write probe did not create an event.');
+      }
+      await this.deviceCalendarService.deleteEvent(nativeEventId);
+    } catch (error) {
+      throw new CalendarExportSyncError('event-write-failed', 'Managed calendar did not allow probe cleanup.', error);
     }
   }
 
@@ -341,7 +468,7 @@ export class CalendarExportManager {
       requestedTargetMode === 'android-local' ||
       (!requestedTargetMode && Platform.OS === 'android')
     ) {
-      const targets = await this.deviceCalendarService.resolveAndroidTargets();
+      const targets = await this.resolveAndroidTargets();
       const chosen = targets.find((target) => this.isTargetSourceMatch(target, requestedTargetSourceId))
         ?? (requestedTargetMode ? targets.find((target) => target.mode === requestedTargetMode) : null)
         ?? targets.find((target) => target.mode === 'android-account')
@@ -401,6 +528,18 @@ export class CalendarExportManager {
     }
 
     return target.sourceKey === storedSourceId || target.source.id === storedSourceId;
+  }
+
+  private async resolveAndroidTargets() {
+    try {
+      return await this.deviceCalendarService.resolveAndroidTargets();
+    } catch (error) {
+      throw new CalendarExportSyncError(
+        'target-read-failed',
+        'Failed to read Android calendar targets.',
+        error,
+      );
+    }
   }
 }
 
