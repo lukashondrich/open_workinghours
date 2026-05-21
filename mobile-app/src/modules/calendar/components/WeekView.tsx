@@ -56,6 +56,7 @@ import { OnboardingPreferences } from '@/lib/storage/OnboardingPreferences';
 import OnboardingTooltip from '@/components/OnboardingTooltip';
 // ShiftEditModal removed - using native time picker for start time only
 import { persistDailyActualForDate } from '../services/DailyAggregator';
+import { calendarEvents } from '@/lib/events/calendarEvents';
 
 // Base dimensions (now imported from zoom-context, kept here for reference)
 const DEFAULT_HOUR_HEIGHT = BASE_HOUR_HEIGHT; // 48
@@ -731,7 +732,6 @@ export default function WeekView() {
   const [activeAbsenceId, setActiveAbsenceId] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isPinching, setIsPinching] = useState(false);
-  const [confirmationMessage, setConfirmationMessage] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
 
   // Time picker state for editing shift start time
@@ -1396,8 +1396,9 @@ export default function WeekView() {
 
       const locale = getDateLocale() === 'de' ? deLocale : undefined;
       const formatted = formatDate(new Date(dateKey), 'EEEE', { locale });
-      setConfirmationMessage(t('calendar.week.dayConfirmed', { day: formatted }));
-      setTimeout(() => setConfirmationMessage(null), 2000);
+      calendarEvents.emit('day-confirmation-message', {
+        message: t('calendar.week.dayConfirmed', { day: formatted }),
+      });
 
       // Haptic feedback for successful submission
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -2190,12 +2191,6 @@ export default function WeekView() {
         </View>
       )}
 
-      {confirmationMessage && (
-        <View style={styles.toast}>
-          <Text style={styles.toastText}>{confirmationMessage}</Text>
-        </View>
-      )}
-
       <OnboardingTooltip
         visible={showSubmitTooltip}
         title={t('calendar.week.submitTooltipTitle')}
@@ -2574,21 +2569,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: fontWeight.semibold,
     color: colors.error.main,
-  },
-  toast: {
-    position: 'absolute',
-    top: spacing.md,
-    left: spacing.xl,
-    right: spacing.xl,
-    paddingVertical: spacing.md,
-    borderRadius: borderRadius.lg,
-    backgroundColor: colors.primary[500],
-    alignItems: 'center',
-    ...shadows.md,
-  },
-  toastText: {
-    color: colors.white,
-    fontWeight: fontWeight.semibold,
   },
   currentTimeLine: {
     position: 'absolute',
