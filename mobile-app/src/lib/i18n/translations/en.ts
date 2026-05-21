@@ -423,6 +423,7 @@ export const en = {
     calendarSyncDescription: 'Shifts and absences are written to a calendar on this device. If that calendar syncs with iCloud/Google or is shared, those events may appear there too. GPS-tracked hours are never exported.',
     calendarSyncPermissionWarning: 'Calendar access is currently unavailable. Re-enable permission to resume sync. If you choose to delete exported events while access is off, you may need to remove them manually.',
     calendarSyncFallbackWarning: 'Calendar sync is using a device-only calendar because the selected account calendar could not be created or validated.',
+    calendarSyncIosFallbackWarning: 'Calendar sync uses your default iPhone calendar because the selected account does not allow apps to create new calendars on iPhone. To add events to that account, use the Download buttons below to export an .ics file and import it manually.',
     calendarSyncIssueWarning: 'Calendar sync needs attention. Try reconnecting calendar access or selecting a different calendar target.',
     calendarSyncEnableFailed: 'Calendar sync could not be enabled. Please try again.',
     calendarSyncPermissionTitle: 'Calendar permission required',

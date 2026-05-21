@@ -14,6 +14,7 @@ export type CalendarExportSyncIssueCode =
   | 'target-read-failed'
   | 'calendar-create-failed'
   | 'calendar-create-fallback-local'
+  | 'calendar-create-fallback-ios-default'
   | 'calendar-validation-failed'
   | 'event-write-failed'
   | 'ambiguous-recovery'

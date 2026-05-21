@@ -84,7 +84,10 @@ export class CalendarExportManager {
         targetSourceId: calendarResolution.targetSourceId,
         lastFullSyncAt: now.toISOString(),
         lastSyncError: calendarResolution.syncIssue
-          ?? (state.lastSyncError === 'calendar-create-fallback-local' ? state.lastSyncError : null),
+          ?? (state.lastSyncError === 'calendar-create-fallback-local'
+            || state.lastSyncError === 'calendar-create-fallback-ios-default'
+            ? state.lastSyncError
+            : null),
       });
 
       return {
@@ -406,7 +409,7 @@ export class CalendarExportManager {
           calendarId: fallbackCalendarId,
           targetMode: fallbackInput.targetMode,
           targetSourceId: null,
-          syncIssue: 'calendar-create-fallback-local',
+          syncIssue: 'calendar-create-fallback-ios-default',
         };
       }
 

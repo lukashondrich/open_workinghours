@@ -42,6 +42,8 @@ function getCalendarSyncWarningMessage(issue: string | null | undefined): string
       return t('settings.calendarSyncPermissionWarning');
     case 'calendar-create-fallback-local':
       return t('settings.calendarSyncFallbackWarning');
+    case 'calendar-create-fallback-ios-default':
+      return t('settings.calendarSyncIosFallbackWarning');
     case 'target-read-failed':
     case 'calendar-create-failed':
     case 'calendar-validation-failed':
