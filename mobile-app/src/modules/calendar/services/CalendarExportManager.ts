@@ -8,6 +8,7 @@ import { MANAGED_EXPORT_CALENDAR_COLOR, MANAGED_EXPORT_CALENDAR_TITLE } from './
 import type {
   CalendarExportReconcileResult,
   CalendarExportSyncIssueCode,
+  CalendarTarget,
   CreateManagedCalendarInput,
   DeviceCalendarPermissionState,
   DeviceCalendarRecord,
@@ -79,8 +80,8 @@ export class CalendarExportManager {
 
       await this.persistState(state, {
         calendarId: calendarResolution.calendarId,
-        targetMode: calendarResolution.targetMode ?? state.targetMode ?? null,
-        targetSourceId: calendarResolution.targetSourceId ?? state.targetSourceId ?? null,
+        targetMode: calendarResolution.targetMode,
+        targetSourceId: calendarResolution.targetSourceId,
         lastFullSyncAt: now.toISOString(),
         lastSyncError: calendarResolution.syncIssue
           ?? (state.lastSyncError === 'calendar-create-fallback-local' ? state.lastSyncError : null),
@@ -106,6 +107,22 @@ export class CalendarExportManager {
 
   async getAndroidTargets() {
     return this.resolveAndroidTargets();
+  }
+
+  async getIosTargets() {
+    return this.resolveIosTargets();
+  }
+
+  async getCalendarTargets(): Promise<CalendarTarget[]> {
+    if (Platform.OS === 'ios') {
+      return this.resolveIosTargets();
+    }
+
+    if (Platform.OS === 'android') {
+      return this.resolveAndroidTargets();
+    }
+
+    return [];
   }
 
   async ensureCalendarPermission(): Promise<DeviceCalendarPermissionState> {
@@ -297,6 +314,28 @@ export class CalendarExportManager {
       };
     }
 
+    if (state.targetMode === 'ios-account') {
+      const targets = await this.resolveIosTargets();
+      const chosen = targets.find((target) => this.isTargetSourceMatch(target, state.targetSourceId))
+        ?? null;
+
+      if (chosen) {
+        return {
+          title: MANAGED_EXPORT_CALENDAR_TITLE,
+          color: MANAGED_EXPORT_CALENDAR_COLOR,
+          targetMode: 'ios-account',
+          source: chosen.source,
+        };
+      }
+
+      return {
+        title: MANAGED_EXPORT_CALENDAR_TITLE,
+        color: MANAGED_EXPORT_CALENDAR_COLOR,
+        targetMode: 'ios-default',
+        source: null,
+      };
+    }
+
     return {
       title: MANAGED_EXPORT_CALENDAR_TITLE,
       color: MANAGED_EXPORT_CALENDAR_COLOR,
@@ -334,23 +373,44 @@ export class CalendarExportManager {
         syncIssue: null,
       };
     } catch (error) {
-      if (Platform.OS !== 'android' || createInput.targetMode !== 'android-account') {
-        throw error;
+      if (Platform.OS === 'android' && createInput.targetMode === 'android-account') {
+        console.warn(
+          '[CalendarExportManager] Failed to create Android account-backed calendar, falling back to device-only calendar:',
+          error,
+        );
+
+        const fallbackInput = await this.resolveAndroidLocalCreateCalendarInput();
+        const fallbackCalendarId = await this.createAndValidateManagedCalendar(fallbackInput);
+        return {
+          calendarId: fallbackCalendarId,
+          targetMode: fallbackInput.targetMode,
+          targetSourceId: getDeviceCalendarSourceKey(fallbackInput.source) ?? fallbackInput.source?.id ?? null,
+          syncIssue: 'calendar-create-fallback-local',
+        };
       }
 
-      console.warn(
-        '[CalendarExportManager] Failed to create Android account-backed calendar, falling back to device-only calendar:',
-        error,
-      );
+      if (Platform.OS === 'ios' && createInput.targetMode === 'ios-account') {
+        console.warn(
+          '[CalendarExportManager] Failed to create iOS account-backed calendar, falling back to default source:',
+          error,
+        );
 
-      const fallbackInput = await this.resolveAndroidLocalCreateCalendarInput();
-      const fallbackCalendarId = await this.createAndValidateManagedCalendar(fallbackInput);
-      return {
-        calendarId: fallbackCalendarId,
-        targetMode: fallbackInput.targetMode,
-        targetSourceId: getDeviceCalendarSourceKey(fallbackInput.source) ?? fallbackInput.source?.id ?? null,
-        syncIssue: 'calendar-create-fallback-local',
-      };
+        const fallbackInput: CreateManagedCalendarInput = {
+          title: MANAGED_EXPORT_CALENDAR_TITLE,
+          color: MANAGED_EXPORT_CALENDAR_COLOR,
+          targetMode: 'ios-default',
+          source: null,
+        };
+        const fallbackCalendarId = await this.createAndValidateManagedCalendar(fallbackInput);
+        return {
+          calendarId: fallbackCalendarId,
+          targetMode: fallbackInput.targetMode,
+          targetSourceId: null,
+          syncIssue: 'calendar-create-fallback-local',
+        };
+      }
+
+      throw error;
     }
   }
 
@@ -399,7 +459,7 @@ export class CalendarExportManager {
     calendar: DeviceCalendarRecord,
     createInput: CreateManagedCalendarInput,
   ): void {
-    if (Platform.OS !== 'android') {
+    if (Platform.OS !== 'android' && createInput.targetMode !== 'ios-account') {
       return;
     }
 
@@ -411,7 +471,7 @@ export class CalendarExportManager {
 
     throw new CalendarExportSyncError(
       'calendar-validation-failed',
-      'Managed calendar was created on a different Android calendar source than requested.',
+      'Managed calendar was created on a different calendar source than requested.',
     );
   }
 
@@ -481,6 +541,26 @@ export class CalendarExportManager {
       };
     }
 
+    if (
+      requestedTargetMode === 'ios-account' ||
+      (!requestedTargetMode && Platform.OS === 'ios')
+    ) {
+      const targets = await this.resolveIosTargets();
+      const chosen = targets.find((target) => this.isTargetSourceMatch(target, requestedTargetSourceId)) ?? null;
+
+      if (chosen) {
+        return {
+          targetMode: 'ios-account',
+          targetSourceId: chosen.sourceKey,
+        };
+      }
+
+      return {
+        targetMode: 'ios-default',
+        targetSourceId: null,
+      };
+    }
+
     return {
       targetMode: 'ios-default',
       targetSourceId: null,
@@ -537,6 +617,18 @@ export class CalendarExportManager {
       throw new CalendarExportSyncError(
         'target-read-failed',
         'Failed to read Android calendar targets.',
+        error,
+      );
+    }
+  }
+
+  private async resolveIosTargets() {
+    try {
+      return await this.deviceCalendarService.resolveIosTargets();
+    } catch (error) {
+      throw new CalendarExportSyncError(
+        'target-read-failed',
+        'Failed to read iOS calendar targets.',
         error,
       );
     }

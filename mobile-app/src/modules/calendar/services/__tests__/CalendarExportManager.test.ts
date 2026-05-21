@@ -42,6 +42,7 @@ describe('CalendarExportManager', () => {
       findCalendarsByTitle: jest.fn(),
       getEvents: jest.fn(),
       resolveAndroidTargets: jest.fn(),
+      resolveIosTargets: jest.fn(),
       createManagedCalendar: jest.fn(),
       updateCalendar: jest.fn(),
       createEvent: jest.fn(),
@@ -793,6 +794,216 @@ describe('CalendarExportManager', () => {
         isSynced: true,
       });
       expect(deviceCalendarService.createManagedCalendar).not.toHaveBeenCalled();
+    } finally {
+      platform.OS = originalOS;
+    }
+  });
+
+  it('enables iOS sync against a user-selected source key', async () => {
+    const storage = createStorageMock();
+    const deviceCalendarService = createDeviceCalendarServiceMock();
+    const icloudSourceKey = 'icloud-1:iCloud:CalDAV:remote';
+    const googleSourceKey = 'google-1:user@gmail.com:CalDAV:remote';
+    const targets = [
+      {
+        mode: 'ios-account',
+        source: { id: 'icloud-1', name: 'iCloud', type: 'CalDAV' },
+        sourceKey: icloudSourceKey,
+        provider: 'icloud',
+        providerLabel: 'iCloud',
+        accountName: 'iCloud',
+        accountType: 'CalDAV',
+        label: 'iCloud',
+        isDefault: true,
+        recommended: true,
+      },
+      {
+        mode: 'ios-account',
+        source: { id: 'google-1', name: 'user@gmail.com', type: 'CalDAV' },
+        sourceKey: googleSourceKey,
+        provider: 'google',
+        providerLabel: 'Google',
+        accountName: 'user@gmail.com',
+        accountType: 'CalDAV',
+        label: 'user@gmail.com (Google)',
+        isDefault: false,
+        recommended: false,
+      },
+    ];
+
+    storage.loadDeviceCalendarState
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        enabled: true,
+        calendarId: null,
+        targetSourceId: googleSourceKey,
+        targetMode: 'ios-account',
+        lastFullSyncAt: null,
+        lastSyncError: null,
+        updatedAt: '2026-04-27T08:00:00.000Z',
+      });
+    storage.getShiftInstancesForDateRange.mockResolvedValue([]);
+    storage.getAbsenceInstancesForDateRange.mockResolvedValue([]);
+    storage.loadDeviceCalendarMappings.mockResolvedValue({});
+    deviceCalendarService.getPermissionState.mockResolvedValue({
+      status: 'granted',
+      granted: true,
+      canAskAgain: true,
+    });
+    deviceCalendarService.resolveIosTargets.mockResolvedValue(targets);
+    deviceCalendarService.findCalendarsByTitle.mockResolvedValue([]);
+    deviceCalendarService.createManagedCalendar.mockResolvedValue('calendar-ios');
+    deviceCalendarService.findCalendarById.mockResolvedValue({
+      id: 'calendar-ios',
+      title: 'Open Working Hours',
+      color: '#0F766E',
+      allowsModifications: true,
+      source: targets[1].source,
+      sourceId: null,
+    });
+    deviceCalendarService.createEvent.mockResolvedValue('probe-event');
+    deviceCalendarService.getEvents.mockResolvedValue([]);
+
+    const manager = new CalendarExportManager(storage as any, deviceCalendarService as any);
+    const result = await manager.enableSync({
+      targetMode: 'ios-account',
+      targetSourceId: googleSourceKey,
+    });
+
+    expect(result.status).toBe('ok');
+    expect(deviceCalendarService.createManagedCalendar).toHaveBeenCalledWith({
+      title: 'Open Working Hours',
+      color: '#0F766E',
+      targetMode: 'ios-account',
+      source: targets[1].source,
+    });
+    expect(storage.saveDeviceCalendarState).toHaveBeenNthCalledWith(1, {
+      enabled: true,
+      calendarId: null,
+      targetSourceId: googleSourceKey,
+      targetMode: 'ios-account',
+      lastFullSyncAt: null,
+      lastSyncError: null,
+    });
+    expect(storage.saveDeviceCalendarState).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        calendarId: 'calendar-ios',
+        targetMode: 'ios-account',
+        targetSourceId: googleSourceKey,
+        lastSyncError: null,
+      }),
+    );
+  });
+
+  it('falls back to the iOS default source when account-backed creation fails', async () => {
+    const platform = require('react-native').Platform as { OS: string };
+    const originalOS = platform.OS;
+    platform.OS = 'ios';
+    const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    try {
+      const storage = createStorageMock();
+      const deviceCalendarService = createDeviceCalendarServiceMock();
+      const googleSourceKey = 'google-1:user@gmail.com:CalDAV:remote';
+      const targets = [
+        {
+          mode: 'ios-account',
+          source: { id: 'google-1', name: 'user@gmail.com', type: 'CalDAV' },
+          sourceKey: googleSourceKey,
+          provider: 'google',
+          providerLabel: 'Google',
+          accountName: 'user@gmail.com',
+          accountType: 'CalDAV',
+          label: 'user@gmail.com (Google)',
+          isDefault: false,
+          recommended: true,
+        },
+      ];
+
+      storage.loadDeviceCalendarState
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({
+          enabled: true,
+          calendarId: null,
+          targetSourceId: googleSourceKey,
+          targetMode: 'ios-account',
+          lastFullSyncAt: null,
+          lastSyncError: null,
+          updatedAt: '2026-04-27T08:00:00.000Z',
+        });
+      storage.getShiftInstancesForDateRange.mockResolvedValue([]);
+      storage.getAbsenceInstancesForDateRange.mockResolvedValue([]);
+      storage.loadDeviceCalendarMappings.mockResolvedValue({});
+      deviceCalendarService.getPermissionState.mockResolvedValue({
+        status: 'granted',
+        granted: true,
+        canAskAgain: true,
+      });
+      deviceCalendarService.resolveIosTargets.mockResolvedValue(targets);
+      deviceCalendarService.findCalendarsByTitle.mockResolvedValue([]);
+      deviceCalendarService.createManagedCalendar
+        .mockRejectedValueOnce(new Error('iOS Google CalDAV source rejected calendar creation'))
+        .mockResolvedValueOnce('calendar-fallback');
+      deviceCalendarService.findCalendarById.mockResolvedValue({
+        id: 'calendar-fallback',
+        title: 'Open Working Hours',
+        color: '#0F766E',
+        allowsModifications: true,
+        source: { id: 'icloud-1', name: 'iCloud', type: 'CalDAV' },
+        sourceId: null,
+      });
+      deviceCalendarService.createEvent.mockResolvedValue('probe-event');
+      deviceCalendarService.getEvents.mockResolvedValue([]);
+
+      const manager = new CalendarExportManager(storage as any, deviceCalendarService as any);
+      const result = await manager.enableSync({
+        targetMode: 'ios-account',
+        targetSourceId: googleSourceKey,
+      });
+
+      expect(result).toEqual(expect.objectContaining({
+        status: 'ok',
+        calendarId: 'calendar-fallback',
+        syncIssue: 'calendar-create-fallback-local',
+      }));
+      expect(deviceCalendarService.createManagedCalendar).toHaveBeenNthCalledWith(2, {
+        title: 'Open Working Hours',
+        color: '#0F766E',
+        targetMode: 'ios-default',
+        source: null,
+      });
+      expect(storage.saveDeviceCalendarState).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          calendarId: 'calendar-fallback',
+          targetMode: 'ios-default',
+          targetSourceId: null,
+          lastSyncError: 'calendar-create-fallback-local',
+        }),
+      );
+    } finally {
+      consoleWarnSpy.mockRestore();
+      platform.OS = originalOS;
+    }
+  });
+
+  it('exposes platform-agnostic getCalendarTargets that delegates to iOS resolver on iOS', async () => {
+    const platform = require('react-native').Platform as { OS: string };
+    const originalOS = platform.OS;
+    platform.OS = 'ios';
+
+    try {
+      const storage = createStorageMock();
+      const deviceCalendarService = createDeviceCalendarServiceMock();
+      deviceCalendarService.resolveIosTargets.mockResolvedValue([
+        { mode: 'ios-account', sourceKey: 'src', source: {}, provider: 'icloud', providerLabel: 'iCloud', accountName: 'iCloud', accountType: null, label: 'iCloud', isDefault: true, recommended: true },
+      ]);
+
+      const manager = new CalendarExportManager(storage as any, deviceCalendarService as any);
+      const targets = await manager.getCalendarTargets();
+
+      expect(deviceCalendarService.resolveIosTargets).toHaveBeenCalled();
+      expect(deviceCalendarService.resolveAndroidTargets).not.toHaveBeenCalled();
+      expect(targets).toHaveLength(1);
     } finally {
       platform.OS = originalOS;
     }
