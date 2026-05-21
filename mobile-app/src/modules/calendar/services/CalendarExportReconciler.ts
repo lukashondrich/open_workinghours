@@ -47,7 +47,6 @@ function needsUpdate(
     actual.startDate.getTime() !== desired.startDate.getTime() ||
     actual.endDate.getTime() !== desired.endDate.getTime() ||
     actual.allDay !== desired.allDay ||
-    actual.notes !== desired.notes ||
     markerFingerprint !== desired.fingerprint
   );
 }
