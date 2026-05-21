@@ -8,6 +8,23 @@ export const DEVICE_CALENDAR_TARGET_MODES = [
 
 export type DeviceCalendarTargetMode = (typeof DEVICE_CALENDAR_TARGET_MODES)[number];
 export type ManagedCalendarEntityType = 'shift' | 'absence';
+export type CalendarExportSyncIssueCode =
+  | 'permission-denied'
+  | 'target-read-failed'
+  | 'calendar-create-failed'
+  | 'calendar-create-fallback-local'
+  | 'calendar-validation-failed'
+  | 'event-write-failed'
+  | 'ambiguous-recovery'
+  | 'sync-failed'
+  | 'unknown';
+export type AndroidCalendarProvider =
+  | 'google'
+  | 'samsung'
+  | 'exchange'
+  | 'caldav'
+  | 'local'
+  | 'other';
 
 export interface DeviceCalendarStateRecord {
   enabled: boolean;
@@ -15,7 +32,7 @@ export interface DeviceCalendarStateRecord {
   targetSourceId: string | null;
   targetMode: DeviceCalendarTargetMode | null;
   lastFullSyncAt: string | null;
-  lastSyncError: string | null;
+  lastSyncError: CalendarExportSyncIssueCode | string | null;
   updatedAt: string;
 }
 
@@ -113,8 +130,13 @@ export interface AndroidCalendarTarget {
   mode: 'android-account' | 'android-local';
   source: DeviceCalendarSourceRecord;
   sourceKey: string;
+  provider: AndroidCalendarProvider;
+  providerLabel: string;
+  accountName: string;
+  accountType: string | null;
   label: string;
   synced: boolean;
+  recommended: boolean;
 }
 
 export interface CreateManagedCalendarInput {

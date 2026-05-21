@@ -1,4 +1,5 @@
 import { addLocalDays, createCalendarExportWindow } from './CalendarExportDateWindow';
+import { CalendarExportSyncError } from './CalendarExportErrors';
 import { buildDesiredManagedCalendarEvents } from './CalendarExportNormalize';
 import { parseManagedEventMarker } from './CalendarExportMarker';
 import type {
@@ -110,10 +111,7 @@ export class CalendarExportReconciler {
       const actualEvent = mappedEvent ?? markerEvent;
 
       if (!actualEvent) {
-        const createdId = await this.deviceCalendarService.createEvent(
-          calendarId,
-          toUpsertInput(desiredEvent),
-        );
+        const createdId = await this.createEvent(calendarId, desiredEvent);
         await this.storage.saveDeviceCalendarMapping({
           appId: desiredEvent.appId,
           nativeEventId: createdId,
@@ -127,7 +125,7 @@ export class CalendarExportReconciler {
       usedActualIds.add(actualEvent.id);
 
       if (needsUpdate(actualEvent, desiredEvent)) {
-        await this.deviceCalendarService.updateEvent(actualEvent.id, toUpsertInput(desiredEvent));
+        await this.updateEvent(actualEvent.id, desiredEvent);
         result.updated += 1;
       } else {
         result.unchanged += 1;
@@ -157,7 +155,7 @@ export class CalendarExportReconciler {
         continue;
       }
 
-      await this.deviceCalendarService.deleteEvent(actualEvent.id);
+      await this.deleteEvent(actualEvent.id);
       await this.storage.deleteDeviceCalendarMapping(appId);
       result.deleted += 1;
     }
@@ -189,7 +187,7 @@ export class CalendarExportReconciler {
         continue;
       }
 
-      await this.deviceCalendarService.deleteEvent(event.id);
+      await this.deleteEvent(event.id);
       await this.storage.deleteDeviceCalendarMapping(marker.marker.appId);
       deleted += 1;
     }
@@ -208,5 +206,35 @@ export class CalendarExportReconciler {
       mapping.entityType !== desiredEvent.entityType ||
       mapping.fingerprint !== desiredEvent.fingerprint
     );
+  }
+
+  private async createEvent(
+    calendarId: string,
+    desiredEvent: DesiredManagedCalendarEvent,
+  ): Promise<string> {
+    try {
+      return await this.deviceCalendarService.createEvent(calendarId, toUpsertInput(desiredEvent));
+    } catch (error) {
+      throw new CalendarExportSyncError('event-write-failed', 'Failed to create exported calendar event.', error);
+    }
+  }
+
+  private async updateEvent(
+    nativeEventId: string,
+    desiredEvent: DesiredManagedCalendarEvent,
+  ): Promise<void> {
+    try {
+      await this.deviceCalendarService.updateEvent(nativeEventId, toUpsertInput(desiredEvent));
+    } catch (error) {
+      throw new CalendarExportSyncError('event-write-failed', 'Failed to update exported calendar event.', error);
+    }
+  }
+
+  private async deleteEvent(nativeEventId: string): Promise<void> {
+    try {
+      await this.deviceCalendarService.deleteEvent(nativeEventId);
+    } catch (error) {
+      throw new CalendarExportSyncError('event-write-failed', 'Failed to delete exported calendar event.', error);
+    }
   }
 }

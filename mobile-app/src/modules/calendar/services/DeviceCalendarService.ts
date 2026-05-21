@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 
 import type {
   AndroidCalendarTarget,
+  AndroidCalendarProvider,
   CreateManagedCalendarInput,
   DeviceCalendarEventRecord,
   DeviceCalendarPermissionState,
@@ -75,27 +76,83 @@ function isAndroidLocalSource(source: DeviceCalendarSourceRecord | null | undefi
     return false;
   }
 
-  return source.isLocalAccount === true || !source.type;
+  return source.isLocalAccount === true || !source.type || source.type.toLowerCase() === 'local';
 }
 
-function getAndroidTargetLabel(source: DeviceCalendarSourceRecord, local: boolean): string {
+function getAndroidCalendarProvider(
+  source: DeviceCalendarSourceRecord,
+  local: boolean,
+): AndroidCalendarProvider {
   if (local) {
-    return `${source.name} (Device only)`;
+    return 'local';
   }
 
-  if (source.type === 'com.google') {
-    return `${source.name} (Google)`;
+  const type = source.type?.toLowerCase() ?? '';
+
+  if (type === 'com.google') {
+    return 'google';
   }
 
-  if (source.type === 'com.osp.app.signin') {
-    return `${source.name} (Samsung)`;
+  if (type === 'com.osp.app.signin') {
+    return 'samsung';
   }
 
-  if (source.type && source.type !== source.name) {
-    return `${source.name} (${source.type})`;
+  if (type.includes('exchange')) {
+    return 'exchange';
   }
 
-  return source.name;
+  if (type.includes('caldav')) {
+    return 'caldav';
+  }
+
+  return 'other';
+}
+
+function getAndroidProviderLabel(
+  provider: AndroidCalendarProvider,
+  source: DeviceCalendarSourceRecord,
+): string {
+  switch (provider) {
+    case 'google':
+      return 'Google';
+    case 'samsung':
+      return 'Samsung';
+    case 'exchange':
+      return 'Exchange';
+    case 'caldav':
+      return 'CalDAV';
+    case 'local':
+      return 'Device only';
+    case 'other':
+      return source.type && source.type !== source.name ? source.type : 'Account';
+  }
+}
+
+function getAndroidTargetSortRank(
+  provider: AndroidCalendarProvider,
+  synced: boolean,
+): number {
+  if (provider === 'local') {
+    return 90;
+  }
+
+  const providerRank: Record<AndroidCalendarProvider, number> = {
+    google: 10,
+    exchange: 20,
+    caldav: 25,
+    samsung: 30,
+    other: 50,
+    local: 90,
+  };
+
+  return providerRank[provider] + (synced ? 0 : 15);
+}
+
+function getAndroidTargetLabel(
+  source: DeviceCalendarSourceRecord,
+  providerLabel: string,
+): string {
+  return `${source.name} (${providerLabel})`;
 }
 
 export function getDeviceCalendarSourceKey(source: DeviceCalendarSourceRecord | null | undefined): string | null {
@@ -187,7 +244,7 @@ export class DeviceCalendarService {
 
   async resolveAndroidTargets(): Promise<AndroidCalendarTarget[]> {
     const calendars = await this.getWritableCalendars();
-    const bySource = new Map<string, AndroidCalendarTarget>();
+    const bySource = new Map<string, AndroidCalendarTarget & { sortRank: number }>();
 
     calendars.forEach((calendar) => {
       const source = calendar.source;
@@ -204,22 +261,31 @@ export class DeviceCalendarService {
         return;
       }
 
+      const synced = calendar.isSynced === true && !local;
+      const provider = getAndroidCalendarProvider(source, local);
+      const providerLabel = getAndroidProviderLabel(provider, source);
+
       bySource.set(sourceKey, {
         mode: local ? 'android-local' : 'android-account',
         source,
         sourceKey,
-        label: getAndroidTargetLabel(source, local),
-        synced: calendar.isSynced === true && !local,
+        provider,
+        providerLabel,
+        accountName: source.name,
+        accountType: source.type ?? null,
+        label: getAndroidTargetLabel(source, providerLabel),
+        synced,
+        recommended: false,
+        sortRank: getAndroidTargetSortRank(provider, synced),
       });
     });
 
-    return [...bySource.values()].sort((left, right) => {
-      if (left.mode !== right.mode) {
-        return left.mode === 'android-account' ? -1 : 1;
-      }
-
-      return left.label.localeCompare(right.label);
-    });
+    return [...bySource.values()]
+      .sort((left, right) => left.sortRank - right.sortRank || left.label.localeCompare(right.label))
+      .map(({ sortRank: _sortRank, ...target }, index) => ({
+        ...target,
+        recommended: index === 0,
+      }));
   }
 
   async createManagedCalendar(input: CreateManagedCalendarInput): Promise<string> {

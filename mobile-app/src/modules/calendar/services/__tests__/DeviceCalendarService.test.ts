@@ -197,16 +197,80 @@ describe('DeviceCalendarService', () => {
         mode: 'android-account',
         source: { id: undefined, name: 'user@example.com', type: 'com.google', isLocalAccount: false },
         sourceKey: ':user@example.com:com.google:remote',
+        provider: 'google',
+        providerLabel: 'Google',
+        accountName: 'user@example.com',
+        accountType: 'com.google',
         label: 'user@example.com (Google)',
         synced: true,
+        recommended: true,
       },
       {
         mode: 'android-local',
         source: { id: undefined, name: 'Local phone account', type: 'LOCAL', isLocalAccount: true },
         sourceKey: ':Local phone account:LOCAL:local',
+        provider: 'local',
+        providerLabel: 'Device only',
+        accountName: 'Local phone account',
+        accountType: 'LOCAL',
         label: 'Local phone account (Device only)',
         synced: false,
+        recommended: false,
       },
+    ]);
+  });
+
+  it('keeps Samsung and Google calendars distinct when they use the same email address', async () => {
+    expoCalendarMock.getCalendarsAsync.mockResolvedValue([
+      {
+        id: 'calendar-local',
+        title: 'My calendar',
+        allowsModifications: true,
+        isSynced: true,
+        source: { name: 'My calendar', type: 'LOCAL', isLocalAccount: true },
+      },
+      {
+        id: 'calendar-samsung',
+        title: 'Samsung Calendar',
+        allowsModifications: true,
+        isSynced: true,
+        source: { name: 'lukashondrich@googlemail.com', type: 'com.osp.app.signin', isLocalAccount: false },
+      },
+      {
+        id: 'calendar-google',
+        title: 'lukashondrich@googlemail.com',
+        allowsModifications: true,
+        isSynced: true,
+        source: { name: 'lukashondrich@googlemail.com', type: 'com.google', isLocalAccount: false },
+      },
+    ]);
+
+    const service = await loadService('android');
+    await expect(service.resolveAndroidTargets()).resolves.toEqual([
+      expect.objectContaining({
+        mode: 'android-account',
+        sourceKey: ':lukashondrich@googlemail.com:com.google:remote',
+        provider: 'google',
+        providerLabel: 'Google',
+        label: 'lukashondrich@googlemail.com (Google)',
+        recommended: true,
+      }),
+      expect.objectContaining({
+        mode: 'android-account',
+        sourceKey: ':lukashondrich@googlemail.com:com.osp.app.signin:remote',
+        provider: 'samsung',
+        providerLabel: 'Samsung',
+        label: 'lukashondrich@googlemail.com (Samsung)',
+        recommended: false,
+      }),
+      expect.objectContaining({
+        mode: 'android-local',
+        sourceKey: ':My calendar:LOCAL:local',
+        provider: 'local',
+        providerLabel: 'Device only',
+        label: 'My calendar (Device only)',
+        recommended: false,
+      }),
     ]);
   });
 

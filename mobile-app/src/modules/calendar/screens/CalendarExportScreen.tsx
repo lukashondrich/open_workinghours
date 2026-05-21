@@ -34,6 +34,38 @@ type AndroidTargetSelection = {
   targetSourceId: string | null;
 };
 
+function getCalendarSyncWarningMessage(issue: string | null | undefined): string | null {
+  switch (issue) {
+    case null:
+    case undefined:
+      return null;
+    case 'permission-denied':
+      return t('settings.calendarSyncPermissionWarning');
+    case 'calendar-create-fallback-local':
+      return t('settings.calendarSyncFallbackWarning');
+    case 'target-read-failed':
+    case 'calendar-create-failed':
+    case 'calendar-validation-failed':
+    case 'event-write-failed':
+    case 'ambiguous-recovery':
+    case 'sync-failed':
+    case 'unknown':
+      return t('settings.calendarSyncIssueWarning');
+    default:
+      return t('settings.calendarSyncIssueWarning');
+  }
+}
+
+function getAndroidTargetMeta(target: AndroidCalendarTarget): string {
+  const base = target.mode === 'android-local'
+    ? t('settings.calendarSyncAndroidDeviceOnly')
+    : `${target.providerLabel} - ${t('settings.calendarSyncAndroidAccount')}`;
+
+  return target.recommended
+    ? `${base} - ${t('settings.calendarSyncRecommended')}`
+    : base;
+}
+
 function getPresetRange(preset: ExportPreset, now: Date): { startDate: Date; endDate: Date } {
   const today = startOfLocalDay(now);
   switch (preset) {
@@ -51,7 +83,7 @@ function getPresetRange(preset: ExportPreset, now: Date): { startDate: Date; end
 export default function CalendarExportScreen() {
   const [calendarSyncEnabled, setCalendarSyncEnabled] = useState(false);
   const [calendarSyncLoading, setCalendarSyncLoading] = useState(true);
-  const [calendarSyncWarning, setCalendarSyncWarning] = useState(false);
+  const [calendarSyncWarningMessage, setCalendarSyncWarningMessage] = useState<string | null>(null);
   const [exportingPreset, setExportingPreset] = useState<ExportPreset | null>(null);
   const [androidTargetPickerTargets, setAndroidTargetPickerTargets] = useState<AndroidCalendarTarget[]>([]);
   const isMountedRef = useRef(true);
@@ -76,8 +108,10 @@ export default function CalendarExportScreen() {
       const exportState = await manager.getState();
       if (!isMountedRef.current) return;
       setCalendarSyncEnabled(exportState?.enabled === true);
-      setCalendarSyncWarning(
-        exportState?.enabled === true && exportState.lastSyncError === 'permission-denied'
+      setCalendarSyncWarningMessage(
+        exportState?.enabled === true
+          ? getCalendarSyncWarningMessage(exportState.lastSyncError)
+          : null,
       );
     } catch (error) {
       console.error('[CalendarExportScreen] Failed to load calendar sync state:', error);
@@ -329,9 +363,9 @@ export default function CalendarExportScreen() {
               )}
               showChevron={false}
             />
-            {calendarSyncWarning && (
+            {calendarSyncWarningMessage && (
               <Text style={styles.warningText} testID="calendar-sync-warning">
-                {t('settings.calendarSyncPermissionWarning')}
+                {calendarSyncWarningMessage}
               </Text>
             )}
           </View>
@@ -388,14 +422,15 @@ export default function CalendarExportScreen() {
                     testID={`android-calendar-target-${index}`}
                     accessible={true}
                     accessibilityRole="button"
-                    style={styles.targetOption}
+                    style={[
+                      styles.targetOption,
+                      target.recommended && styles.targetOptionRecommended,
+                    ]}
                     onPress={() => handleAndroidTargetSelect(target)}
                   >
                     <Text style={styles.targetOptionLabel}>{target.label}</Text>
                     <Text style={styles.targetOptionMeta}>
-                      {target.mode === 'android-local'
-                        ? t('settings.calendarSyncAndroidDeviceOnly')
-                        : t('settings.calendarSyncAndroidAccount')}
+                      {getAndroidTargetMeta(target)}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -497,6 +532,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border.default,
     borderRadius: 8,
+  },
+  targetOptionRecommended: {
+    borderColor: colors.primary[300],
+    backgroundColor: colors.primary[50],
   },
   targetOptionLabel: {
     fontSize: fontSize.md,
