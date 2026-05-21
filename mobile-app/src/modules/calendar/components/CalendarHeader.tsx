@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Switch } from 'react-native';
 import { addDays, format, startOfWeek, startOfMonth, addMonths, subMonths, getISOWeek } from 'date-fns';
 import { de as deLocale } from 'date-fns/locale/de';
@@ -6,10 +6,35 @@ import { ChevronLeft, ChevronRight, Eye, EyeOff } from 'lucide-react-native';
 
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/theme';
 import { useCalendar } from '@/lib/calendar/calendar-context';
+import { calendarEvents } from '@/lib/events/calendarEvents';
 import { t, getDateLocale } from '@/lib/i18n';
 
 export default function CalendarHeader() {
   const { state, dispatch } = useCalendar();
+  const [confirmationMessage, setConfirmationMessage] = useState<string | null>(null);
+  const confirmationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const handleMessage = ({ message }: { message: string }) => {
+      if (confirmationTimerRef.current) {
+        clearTimeout(confirmationTimerRef.current);
+      }
+      setConfirmationMessage(message);
+      confirmationTimerRef.current = setTimeout(() => {
+        setConfirmationMessage(null);
+        confirmationTimerRef.current = null;
+      }, 2000);
+    };
+    calendarEvents.on('day-confirmation-message', handleMessage);
+    return () => {
+      calendarEvents.off('day-confirmation-message', handleMessage);
+      if (confirmationTimerRef.current) {
+        clearTimeout(confirmationTimerRef.current);
+        confirmationTimerRef.current = null;
+      }
+    };
+  }, []);
+
   const weekStart = startOfWeek(state.currentWeekStart, { weekStartsOn: 1 });
   const weekEnd = addDays(weekStart, 6);
   const weekNumber = getISOWeek(weekStart);
@@ -147,9 +172,29 @@ export default function CalendarHeader() {
         )}
       </View>
 
-      {/* Submit hint when GPS mode is active */}
+      {/* Confirmation message (after submitting a day) takes priority over the hint */}
       {state.view === 'week' && state.reviewMode && (
-        <Text style={styles.submitHint}>{t('calendar.header.submitHint')}</Text>
+        confirmationMessage ? (
+          <Text
+            style={styles.confirmationMessage}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.85}
+            testID="calendar-header-confirmation"
+          >
+            {confirmationMessage}
+          </Text>
+        ) : (
+          <Text
+            style={styles.submitHint}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.85}
+            testID="calendar-header-submit-hint"
+          >
+            {t('calendar.header.submitHint')}
+          </Text>
+        )
       )}
     </View>
   );
@@ -271,6 +316,13 @@ const styles = StyleSheet.create({
   submitHint: {
     fontSize: fontSize.xs,
     color: colors.text.tertiary,
+    marginTop: spacing.sm,
+    textAlign: 'center',
+  },
+  confirmationMessage: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    color: colors.success.dark,
     marginTop: spacing.sm,
     textAlign: 'center',
   },

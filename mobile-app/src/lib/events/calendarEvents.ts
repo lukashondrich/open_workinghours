@@ -2,12 +2,15 @@
  * Event emitter for calendar state refresh signals coming from other modules.
  */
 
-type CalendarEventType = 'confirmed-days-updated';
+type CalendarEventType = 'confirmed-days-updated' | 'day-confirmation-message';
 
 interface CalendarEventPayloadMap {
   'confirmed-days-updated': {
     dates: string[];
     submissionId: string;
+  };
+  'day-confirmation-message': {
+    message: string;
   };
 }
 
