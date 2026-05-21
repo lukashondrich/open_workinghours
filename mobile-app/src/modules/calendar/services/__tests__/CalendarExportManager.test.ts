@@ -964,7 +964,7 @@ describe('CalendarExportManager', () => {
       expect(result).toEqual(expect.objectContaining({
         status: 'ok',
         calendarId: 'calendar-fallback',
-        syncIssue: 'calendar-create-fallback-local',
+        syncIssue: 'calendar-create-fallback-ios-default',
       }));
       expect(deviceCalendarService.createManagedCalendar).toHaveBeenNthCalledWith(2, {
         title: 'Open Working Hours',
@@ -977,7 +977,7 @@ describe('CalendarExportManager', () => {
           calendarId: 'calendar-fallback',
           targetMode: 'ios-default',
           targetSourceId: null,
-          lastSyncError: 'calendar-create-fallback-local',
+          lastSyncError: 'calendar-create-fallback-ios-default',
         }),
       );
     } finally {

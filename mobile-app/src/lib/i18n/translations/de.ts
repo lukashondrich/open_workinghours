@@ -423,6 +423,7 @@ export const de = {
     calendarSyncDescription: 'Dienste und Abwesenheiten werden in einen Kalender auf diesem Gerät geschrieben. Wenn dieser Kalender mit iCloud/Google synchronisiert oder geteilt wird, können diese Einträge dort ebenfalls erscheinen. GPS-erfasste Stunden werden nie exportiert.',
     calendarSyncPermissionWarning: 'Der Kalenderzugriff ist derzeit nicht verfügbar. Aktivieren Sie die Berechtigung erneut, um die Synchronisierung fortzusetzen. Wenn Sie exportierte Ereignisse löschen möchten, während der Zugriff deaktiviert ist, müssen Sie sie möglicherweise manuell entfernen.',
     calendarSyncFallbackWarning: 'Kalender-Sync verwendet einen Kalender nur auf diesem Gerät, weil der ausgewählte Kontokalender nicht erstellt oder geprüft werden konnte.',
+    calendarSyncIosFallbackWarning: 'Kalender-Sync verwendet Ihren Standardkalender, weil das ausgewählte Konto auf dem iPhone keine neuen Kalender durch Apps zulässt. Verwenden Sie die Download-Schaltflächen unten, um eine .ics-Datei zu exportieren und in das gewünschte Konto manuell zu importieren.',
     calendarSyncIssueWarning: 'Kalender-Sync benötigt Aufmerksamkeit. Verbinden Sie den Kalenderzugriff erneut oder wählen Sie ein anderes Kalenderziel.',
     calendarSyncEnableFailed: 'Kalender-Sync konnte nicht aktiviert werden. Bitte versuchen Sie es erneut.',
     calendarSyncPermissionTitle: 'Kalenderberechtigung erforderlich',
