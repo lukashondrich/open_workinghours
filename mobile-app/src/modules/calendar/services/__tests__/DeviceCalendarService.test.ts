@@ -274,6 +274,77 @@ describe('DeviceCalendarService', () => {
     ]);
   });
 
+  it('resolves iOS targets with iCloud, Google CalDAV, and local sources distinct', async () => {
+    expoCalendarMock.getDefaultCalendarAsync.mockResolvedValue({
+      id: 'calendar-default',
+      title: 'Home',
+      allowsModifications: true,
+      source: { id: 'icloud-1', name: 'iCloud', type: 'CalDAV' },
+    });
+    expoCalendarMock.getCalendarsAsync.mockResolvedValue([
+      {
+        id: 'calendar-icloud',
+        title: 'Home',
+        allowsModifications: true,
+        source: { id: 'icloud-1', name: 'iCloud', type: 'CalDAV' },
+      },
+      {
+        id: 'calendar-google',
+        title: 'Work',
+        allowsModifications: true,
+        source: { id: 'google-1', name: 'user@gmail.com', type: 'CalDAV' },
+      },
+      {
+        id: 'calendar-local',
+        title: 'On My iPhone',
+        allowsModifications: true,
+        source: { id: 'local-1', name: 'On My iPhone', type: 'Local', isLocalAccount: true },
+      },
+      {
+        id: 'calendar-readonly',
+        title: 'US Holidays',
+        allowsModifications: false,
+        source: { id: 'sub-1', name: 'Subscriptions', type: 'Subscribed' },
+      },
+    ]);
+
+    const service = await loadService('ios');
+    const targets = await service.resolveIosTargets();
+
+    expect(targets).toEqual([
+      expect.objectContaining({
+        mode: 'ios-account',
+        provider: 'icloud',
+        providerLabel: 'iCloud',
+        sourceKey: 'icloud-1:iCloud:CalDAV:remote',
+        isDefault: true,
+        recommended: true,
+      }),
+      expect.objectContaining({
+        mode: 'ios-account',
+        provider: 'google',
+        providerLabel: 'Google',
+        sourceKey: 'google-1:user@gmail.com:CalDAV:remote',
+        isDefault: false,
+        recommended: false,
+      }),
+      expect.objectContaining({
+        mode: 'ios-account',
+        provider: 'local',
+        providerLabel: 'On this iPhone',
+        sourceKey: 'local-1:On My iPhone:Local:local',
+        isDefault: false,
+        recommended: false,
+      }),
+    ]);
+    expect(targets.find((target: any) => target.id === 'sub-1')).toBeUndefined();
+  });
+
+  it('returns no iOS targets on Android', async () => {
+    const service = await loadService('android');
+    await expect(service.resolveIosTargets()).resolves.toEqual([]);
+  });
+
   it('creates Android managed calendars as visible synced calendars', async () => {
     expoCalendarMock.createCalendarAsync.mockResolvedValue('calendar-android');
 

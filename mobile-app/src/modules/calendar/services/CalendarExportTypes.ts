@@ -2,6 +2,7 @@ import type { AbsenceInstance, ShiftInstance } from '@/lib/calendar/types';
 
 export const DEVICE_CALENDAR_TARGET_MODES = [
   'ios-default',
+  'ios-account',
   'android-account',
   'android-local',
 ] as const;
@@ -21,6 +22,13 @@ export type CalendarExportSyncIssueCode =
 export type AndroidCalendarProvider =
   | 'google'
   | 'samsung'
+  | 'exchange'
+  | 'caldav'
+  | 'local'
+  | 'other';
+export type IosCalendarProvider =
+  | 'icloud'
+  | 'google'
   | 'exchange'
   | 'caldav'
   | 'local'
@@ -138,6 +146,21 @@ export interface AndroidCalendarTarget {
   synced: boolean;
   recommended: boolean;
 }
+
+export interface IosCalendarTarget {
+  mode: 'ios-account';
+  source: DeviceCalendarSourceRecord;
+  sourceKey: string;
+  provider: IosCalendarProvider;
+  providerLabel: string;
+  accountName: string;
+  accountType: string | null;
+  label: string;
+  isDefault: boolean;
+  recommended: boolean;
+}
+
+export type CalendarTarget = AndroidCalendarTarget | IosCalendarTarget;
 
 export interface CreateManagedCalendarInput {
   title: string;

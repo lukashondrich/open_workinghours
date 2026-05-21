@@ -10,7 +10,6 @@ import {
   Switch,
   TouchableOpacity,
   Linking,
-  Platform,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Calendar, Download } from 'lucide-react-native';
@@ -24,13 +23,13 @@ import { getCalendarStorage } from '@/modules/calendar/services/CalendarStorage'
 import { buildDesiredManagedCalendarEvents } from '@/modules/calendar/services/CalendarExportNormalize';
 import { addLocalDays, formatDateKey, startOfLocalDay } from '@/modules/calendar/services/CalendarExportDateWindow';
 import { exportEventsToIcs } from '@/modules/calendar/services/IcsFileGenerator';
-import type { AndroidCalendarTarget, CalendarExportEventDTO } from '@/modules/calendar/services/CalendarExportTypes';
+import type { CalendarExportEventDTO, CalendarTarget } from '@/modules/calendar/services/CalendarExportTypes';
 
 const ICON_SIZE = 24;
 
 type ExportPreset = 'next4weeks' | 'next3months' | 'allFuture' | 'pastMonth';
-type AndroidTargetSelection = {
-  targetMode: 'android-account' | 'android-local';
+type CalendarTargetSelection = {
+  targetMode: 'android-account' | 'android-local' | 'ios-account';
   targetSourceId: string | null;
 };
 
@@ -56,10 +55,20 @@ function getCalendarSyncWarningMessage(issue: string | null | undefined): string
   }
 }
 
-function getAndroidTargetMeta(target: AndroidCalendarTarget): string {
-  const base = target.mode === 'android-local'
-    ? t('settings.calendarSyncAndroidDeviceOnly')
-    : `${target.providerLabel} - ${t('settings.calendarSyncAndroidAccount')}`;
+function getCalendarTargetMeta(target: CalendarTarget): string {
+  let base: string;
+
+  if (target.mode === 'android-local') {
+    base = t('settings.calendarSyncAndroidDeviceOnly');
+  } else if (target.mode === 'android-account') {
+    base = `${target.providerLabel} - ${t('settings.calendarSyncAndroidAccount')}`;
+  } else if (target.mode === 'ios-account') {
+    base = target.provider === 'local'
+      ? t('settings.calendarSyncIosLocal')
+      : target.providerLabel;
+  } else {
+    base = target.providerLabel;
+  }
 
   return target.recommended
     ? `${base} - ${t('settings.calendarSyncRecommended')}`
@@ -85,9 +94,9 @@ export default function CalendarExportScreen() {
   const [calendarSyncLoading, setCalendarSyncLoading] = useState(true);
   const [calendarSyncWarningMessage, setCalendarSyncWarningMessage] = useState<string | null>(null);
   const [exportingPreset, setExportingPreset] = useState<ExportPreset | null>(null);
-  const [androidTargetPickerTargets, setAndroidTargetPickerTargets] = useState<AndroidCalendarTarget[]>([]);
+  const [calendarTargetPickerTargets, setCalendarTargetPickerTargets] = useState<CalendarTarget[]>([]);
   const isMountedRef = useRef(true);
-  const androidTargetPickerResolveRef = useRef<((selection: AndroidTargetSelection | null) => void) | null>(null);
+  const calendarTargetPickerResolveRef = useRef<((selection: CalendarTargetSelection | null) => void) | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -96,8 +105,8 @@ export default function CalendarExportScreen() {
 
       return () => {
         isMountedRef.current = false;
-        androidTargetPickerResolveRef.current?.(null);
-        androidTargetPickerResolveRef.current = null;
+        calendarTargetPickerResolveRef.current?.(null);
+        calendarTargetPickerResolveRef.current = null;
       };
     }, [])
   );
@@ -122,58 +131,52 @@ export default function CalendarExportScreen() {
     }
   };
 
-  const selectAndroidTarget = async (
+  const selectCalendarTarget = async (
     manager: CalendarExportManager,
-  ): Promise<AndroidTargetSelection | null | undefined> => {
-    const targets = await manager.getAndroidTargets();
+  ): Promise<CalendarTargetSelection | null | undefined> => {
+    const targets = await manager.getCalendarTargets();
 
-    if (targets.length <= 1) {
-      const target = targets[0] ?? null;
-      return target
-        ? {
-            targetMode: target.mode,
-            targetSourceId: target.sourceKey,
-          }
-        : undefined;
+    if (targets.length === 0) {
+      return undefined;
     }
 
-    return new Promise<AndroidTargetSelection | null>((resolve) => {
-      androidTargetPickerResolveRef.current = resolve;
-      setAndroidTargetPickerTargets(targets);
+    return new Promise<CalendarTargetSelection | null>((resolve) => {
+      calendarTargetPickerResolveRef.current = resolve;
+      setCalendarTargetPickerTargets(targets);
     });
   };
 
-  const resolveAndroidTargetPicker = useCallback((selection: AndroidTargetSelection | null) => {
-    androidTargetPickerResolveRef.current?.(selection);
-    androidTargetPickerResolveRef.current = null;
-    setAndroidTargetPickerTargets([]);
+  const resolveCalendarTargetPicker = useCallback((selection: CalendarTargetSelection | null) => {
+    calendarTargetPickerResolveRef.current?.(selection);
+    calendarTargetPickerResolveRef.current = null;
+    setCalendarTargetPickerTargets([]);
   }, []);
 
-  const handleAndroidTargetSelect = useCallback((target: AndroidCalendarTarget) => {
-    resolveAndroidTargetPicker({
+  const handleCalendarTargetSelect = useCallback((target: CalendarTarget) => {
+    resolveCalendarTargetPicker({
       targetMode: target.mode,
       targetSourceId: target.sourceKey,
     });
-  }, [resolveAndroidTargetPicker]);
+  }, [resolveCalendarTargetPicker]);
 
-  const handleAndroidTargetCancel = useCallback(() => {
-    resolveAndroidTargetPicker(null);
-  }, [resolveAndroidTargetPicker]);
+  const handleCalendarTargetCancel = useCallback(() => {
+    resolveCalendarTargetPicker(null);
+  }, [resolveCalendarTargetPicker]);
 
   useEffect(() => {
-    if (androidTargetPickerTargets.length === 0) {
+    if (calendarTargetPickerTargets.length === 0) {
       return undefined;
     }
 
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
-      handleAndroidTargetCancel();
+      handleCalendarTargetCancel();
       return true;
     });
 
     return () => {
       subscription.remove();
     };
-  }, [androidTargetPickerTargets.length, handleAndroidTargetCancel]);
+  }, [calendarTargetPickerTargets.length, handleCalendarTargetCancel]);
 
   const handleDeleteBlocked = (onKeepEvents: () => Promise<void>) => {
     Alert.alert(
@@ -256,22 +259,18 @@ export default function CalendarExportScreen() {
     setCalendarSyncLoading(true);
     try {
       const manager = await getCalendarExportManager();
-      let targetSelection: AndroidTargetSelection | null | undefined;
-
-      if (Platform.OS === 'android') {
-        const permission = await manager.ensureCalendarPermission();
-        if (!permission.granted) {
-          Alert.alert(
-            t('settings.calendarSyncPermissionTitle'),
-            t('settings.calendarSyncPermissionMessage'),
-          );
-          return;
-        }
-
-        targetSelection = await selectAndroidTarget(manager);
+      const permission = await manager.ensureCalendarPermission();
+      if (!permission.granted) {
+        Alert.alert(
+          t('settings.calendarSyncPermissionTitle'),
+          t('settings.calendarSyncPermissionMessage'),
+        );
+        return;
       }
 
-      if (Platform.OS === 'android' && targetSelection === null) {
+      const targetSelection = await selectCalendarTarget(manager);
+
+      if (targetSelection === null) {
         return;
       }
 
@@ -416,41 +415,41 @@ export default function CalendarExportScreen() {
           </View>
         </ScrollView>
 
-        {androidTargetPickerTargets.length > 0 && (
+        {calendarTargetPickerTargets.length > 0 && (
           <View style={styles.targetPickerBackdrop}>
             <View style={styles.targetPickerPanel}>
               <Text style={styles.targetPickerTitle}>
-                {t('settings.calendarSyncAndroidPickerTitle')}
+                {t('settings.calendarSyncPickerTitle')}
               </Text>
               <Text style={styles.targetPickerMessage}>
-                {t('settings.calendarSyncAndroidPickerMessage')}
+                {t('settings.calendarSyncPickerMessage')}
               </Text>
               <View style={styles.targetOptions}>
-                {androidTargetPickerTargets.map((target, index) => (
+                {calendarTargetPickerTargets.map((target, index) => (
                   <TouchableOpacity
                     key={target.sourceKey}
-                    testID={`android-calendar-target-${index}`}
+                    testID={`calendar-target-${index}`}
                     accessible={true}
                     accessibilityRole="button"
                     style={[
                       styles.targetOption,
                       target.recommended && styles.targetOptionRecommended,
                     ]}
-                    onPress={() => handleAndroidTargetSelect(target)}
+                    onPress={() => handleCalendarTargetSelect(target)}
                   >
                     <Text style={styles.targetOptionLabel}>{target.label}</Text>
                     <Text style={styles.targetOptionMeta}>
-                      {getAndroidTargetMeta(target)}
+                      {getCalendarTargetMeta(target)}
                     </Text>
                   </TouchableOpacity>
                 ))}
               </View>
               <TouchableOpacity
-                testID="android-calendar-target-cancel"
+                testID="calendar-target-cancel"
                 accessible={true}
                 accessibilityRole="button"
                 style={styles.targetPickerCancel}
-                onPress={handleAndroidTargetCancel}
+                onPress={handleCalendarTargetCancel}
               >
                 <Text style={styles.targetPickerCancelText}>{t('common.cancel')}</Text>
               </TouchableOpacity>
