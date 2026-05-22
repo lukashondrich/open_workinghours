@@ -350,7 +350,6 @@ class FeedbackReport(Base):
 
     # User info (optional - may be unauthenticated)
     user_id = Column(String(255), nullable=True)
-    user_email = Column(String(255), nullable=True)
     hospital_id = Column(String(255), nullable=True)
     specialty = Column(String(100), nullable=True)
     role_level = Column(String(50), nullable=True)

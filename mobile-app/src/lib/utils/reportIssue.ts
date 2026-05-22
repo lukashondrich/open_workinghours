@@ -144,7 +144,6 @@ export async function reportIssue(user: User | null, description?: string): Prom
     // Prepare API payload
     const payload = {
       user_id: user?.userId || null,
-      user_email: user?.email || null,
       hospital_id: user?.hospitalId || null,
       specialty: user?.specialty || null,
       role_level: user?.roleLevel || null,
