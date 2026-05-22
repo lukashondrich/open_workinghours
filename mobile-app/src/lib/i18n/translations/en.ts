@@ -115,6 +115,7 @@ export const en = {
       updateFutureMessage: 'This will also update {{count}} future shifts.',
       update: 'Update',
       deleteTitle: 'Delete Shift Template?',
+      deleteMessage: 'Delete this shift template?',
       deleteWithFuture: 'This will also remove {{count}} future shifts.',
       deleteEmpty: 'This template has no future shifts scheduled.',
       shiftsTab: 'Shifts',
@@ -124,6 +125,7 @@ export const en = {
       createAndAdd: 'Create & Add',
       createAndArm: 'Create & Select',
       createError: 'Failed to create template',
+      saveError: 'Failed to save shift template. Please try again.',
       manage: 'Manage templates...',
       // Accessibility
       panelLabel: 'Template panel',
@@ -151,6 +153,7 @@ export const en = {
       createAndAdd: 'Create & Add',
       createAndArm: 'Create & Select',
       createError: 'Failed to create absence',
+      saveError: 'Failed to save absence template. Please try again.',
       namePlaceholder: 'Absence name',
       manage: 'Manage absences...',
     },
@@ -557,6 +560,7 @@ export const en = {
     geofenceRadius: 'Geofence Radius: {{radius}}m',
     mapHint: 'Position the circle over your workplace entrance. The app will detect when you enter and leave this area.',
     saveLocation: 'Save Location',
+    selectLocationPrompt: 'Please choose a location on the map first.',
     // 3-step wizard
     stepOf: 'Step {{current}} of {{total}}',
     step1Title: 'Find Your Workplace',

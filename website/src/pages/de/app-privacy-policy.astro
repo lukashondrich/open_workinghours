@@ -38,7 +38,7 @@ import LayoutDE from '../../layouts/LayoutDE.astro';
         <p>
           Open Working Hours ist eine datenschutzfreundliche Plattform für Beschäftigte im Gesundheitswesen
           zur Erfassung und Meldung von Arbeitszeiten. Wir verarbeiten personenbezogene Daten nur, um den
-          Dienst bereitzustellen und anonyme, aggregierte Statistiken über Arbeitsbedingungen im
+          Dienst bereitzustellen und anonymisierte, aggregierte Statistiken über Arbeitsbedingungen im
           Gesundheitswesen zu erstellen.
         </p>
         <p class="mt-3">
@@ -63,17 +63,21 @@ import LayoutDE from '../../layouts/LayoutDE.astro';
           <li>Schichtvorlagen und geplante Arbeitszeiten</li>
           <li>Krankheits- und Urlaubseinträge</li>
           <li>Namen und Koordinaten von Arbeitsorten</li>
-          <li>Unbestätigte Erfassungssitzungen</li>
+          <li>Unbestätigte Zeiterfassungen</li>
         </ul>
 
-        <h3 class="text-lg font-medium text-stone-800 mt-6 mb-3">3.2 Daten, die an unsere Server übertragen werden</h3>
-        <p>Wenn Sie die Arbeitszeit eines Tages bestätigen, werden folgende Daten übertragen:</p>
+        <h3 class="text-lg font-medium text-stone-800 mt-6 mb-3">3.2 Daten, die an unsere Server übertragen und dort verarbeitet werden</h3>
+        <p>
+          Wenn Sie eine vollständige, bestätigte Woche übermitteln oder automatisches Senden aktiviert ist,
+          überträgt die App die Kalenderwoche sowie geplante und tatsächlich gearbeitete Gesamtstunden.
+          Serverseitig wird dieser Wochenbeitrag mit Ihrem bestehenden Konto und den gespeicherten Profilinformationen verknüpft.
+        </p>
         <ul class="mt-2 space-y-1">
           <li><strong>E-Mail-Hash:</strong> Ein kryptografischer Einweg-Hash Ihrer E-Mail-Adresse (die ursprüngliche E-Mail wird nicht gespeichert)</li>
-          <li><strong>Bestätigte Arbeitszeiten:</strong> Datum, geplante Minuten, tatsächlich gearbeitete Minuten</li>
+          <li><strong>Bestätigte Wochensumme:</strong> Kalenderwoche, geplante Gesamtstunden, tatsächlich gearbeitete Gesamtstunden</li>
           <li><strong>Profilinformationen:</strong> Bundesland, Berufsgruppe (Arzt/Ärztin oder Pflegekraft), Erfahrungsstufe, Abteilungsgruppe, Fachrichtung</li>
-          <li><strong>Krankenhauszugehörigkeit (optional):</strong> Sie können Ihr Krankenhaus aus einer Liste deutscher Krankenhäuser auswählen. Dies ermöglicht einrichtungsbezogene Statistiken, wenn genügend Nutzende teilnehmen.</li>
-          <li><strong>Anonyme Nutzer-ID:</strong> Ein zufällig generierter Identifikator</li>
+          <li><strong>Krankenhauszugehörigkeit:</strong> Falls Sie Ihr Krankenhaus aus der Liste auswählen, speichern wir diese Zuordnung. Alternativ können Sie "Sonstige" wählen.</li>
+          <li><strong>Serverseitige pseudonyme Kontokennung:</strong> Eine technische Kennung, mit der Wochenbeiträge Ihrem Konto zugeordnet werden können.</li>
         </ul>
 
         <h3 class="text-lg font-medium text-stone-800 mt-6 mb-3">3.3 Daten, die wir NICHT erheben</h3>
