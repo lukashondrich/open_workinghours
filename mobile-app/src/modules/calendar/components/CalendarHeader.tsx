@@ -2,15 +2,21 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Switch } from 'react-native';
 import { addDays, format, startOfWeek, startOfMonth, addMonths, subMonths, getISOWeek } from 'date-fns';
 import { de as deLocale } from 'date-fns/locale/de';
-import { ChevronLeft, ChevronRight, Eye, EyeOff } from 'lucide-react-native';
+import { ArrowRight, ChevronLeft, ChevronRight, Eye, EyeOff } from 'lucide-react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/theme';
 import { useCalendar } from '@/lib/calendar/calendar-context';
 import { calendarEvents } from '@/lib/events/calendarEvents';
 import { t, getDateLocale } from '@/lib/i18n';
+import type { MainTabParamList } from '@/navigation/AppNavigator';
+
+type CalendarNavigationProp = BottomTabNavigationProp<MainTabParamList, 'Calendar'>;
 
 export default function CalendarHeader() {
   const { state, dispatch } = useCalendar();
+  const navigation = useNavigation<CalendarNavigationProp>();
   const [confirmationMessage, setConfirmationMessage] = useState<string | null>(null);
   const confirmationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -38,6 +44,10 @@ export default function CalendarHeader() {
   const weekStart = startOfWeek(state.currentWeekStart, { weekStartsOn: 1 });
   const weekEnd = addDays(weekStart, 6);
   const weekNumber = getISOWeek(weekStart);
+  const weekConfirmedCount = Array.from({ length: 7 }, (_, i) =>
+    format(addDays(weekStart, i), 'yyyy-MM-dd')
+  ).filter((dateKey) => state.confirmedDates.has(dateKey)).length;
+  const weekComplete = weekConfirmedCount === 7;
   const locale = getDateLocale() === 'de' ? deLocale : undefined;
   const sameMonth = weekStart.getMonth() === weekEnd.getMonth();
   const weekRangeLabel = sameMonth
@@ -172,7 +182,7 @@ export default function CalendarHeader() {
         )}
       </View>
 
-      {/* Confirmation message (after submitting a day) takes priority over the hint */}
+      {/* Slot priority: day-confirmation flash → week-complete prompt → submit hint */}
       {state.view === 'week' && state.reviewMode && (
         confirmationMessage ? (
           <Text
@@ -184,6 +194,25 @@ export default function CalendarHeader() {
           >
             {confirmationMessage}
           </Text>
+        ) : weekComplete ? (
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Reports')}
+            style={styles.weekCompleteRow}
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel={t('calendar.header.weekComplete')}
+            testID="calendar-header-week-complete"
+          >
+            <Text
+              style={styles.weekCompleteText}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.85}
+            >
+              {t('calendar.header.weekComplete')}
+            </Text>
+            <ArrowRight size={14} color={colors.success.dark} />
+          </TouchableOpacity>
         ) : (
           <Text
             style={styles.submitHint}
@@ -325,5 +354,18 @@ const styles = StyleSheet.create({
     color: colors.success.dark,
     marginTop: spacing.sm,
     textAlign: 'center',
+  },
+  weekCompleteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    marginTop: spacing.sm,
+  },
+  weekCompleteText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    color: colors.success.dark,
+    flexShrink: 1,
   },
 });

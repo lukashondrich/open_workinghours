@@ -87,6 +87,7 @@ export const en = {
       submissionsHint: 'Submissions are sent automatically when you confirm each day.',
       reviewHint: 'Enter GPS mode to confirm days. Each confirmed day is submitted immediately.',
       submitHint: 'Submit each day to finalize your hours',
+      weekComplete: 'Week complete — finalize in Reports',
       // Accessibility
       previousWeek: 'Previous week',
       nextWeek: 'Next week',
