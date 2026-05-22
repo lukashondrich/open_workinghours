@@ -596,7 +596,7 @@ def get_dashboard_page(username: str = Depends(verify_admin), _rl: None = Depend
 
                 reportsList.innerHTML = data.reports.map(report => {
                     const timestamp = new Date(report.created_at).toLocaleString();
-                    const userInfo = escapeHtml(report.user_email) || 'Anonymous';
+                    const userInfo = report.user_id ? escapeHtml(report.user_id).slice(0, 8) : 'Anonymous';
                     const statusClass = escapeHtml(report.resolved);
 
                     return `
@@ -606,7 +606,7 @@ def get_dashboard_page(username: str = Depends(verify_admin), _rl: None = Depend
                                 <span class="report-status ${statusClass}">${statusClass}</span>
                             </div>
                             <div class="report-user">
-                                📧 ${userInfo}
+                                👤 ${userInfo}
                                 ${report.specialty ? `| ${escapeHtml(report.specialty)}` : ''}
                                 ${report.hospital_id ? `| ${escapeHtml(report.hospital_id)}` : ''}
                             </div>
@@ -816,7 +816,6 @@ def get_feedback_reports(
             "report_id": str(report.report_id),
             "created_at": report.created_at.isoformat(),
             "user_id": report.user_id,
-            "user_email": report.user_email,
             "hospital_id": report.hospital_id,
             "specialty": report.specialty,
             "role_level": report.role_level,

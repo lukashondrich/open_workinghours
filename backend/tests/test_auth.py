@@ -447,7 +447,6 @@ class TestAccountDeletion:
         # Create a feedback report directly in DB
         feedback = FeedbackReport(
             user_id=user_id,
-            user_email="test@example.com",
             app_state={"version": "1.0"},
         )
         test_db.add(feedback)

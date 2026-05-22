@@ -604,7 +604,6 @@ class GpsTelemetry(BaseModel):
 class FeedbackIn(BaseModel):
     """Bug report / feedback submission from mobile app"""
     user_id: str | None = None
-    user_email: str | None = None
     hospital_id: str | None = None
     specialty: str | None = None
     role_level: str | None = None
