@@ -404,3 +404,98 @@ describe('reconcileAutoSendQueue — Sunday-evening auto-queue', () => {
     expect(db.upsertReportsWeekQueue).not.toHaveBeenCalled();
   });
 });
+
+describe('getWeekState — single-week lookup', () => {
+  beforeEach(() => {
+    mockedGetDatabase.mockReset();
+  });
+
+  it('returns confirmed for a past week with 7/7 confirmed and no queue record', async () => {
+    const db = createMockDatabase({
+      getDailyActualsForRange: jest.fn().mockResolvedValue(
+        createWeekDailyActuals('2026-03-23', 7),
+      ),
+      getReportsWeekByStart: jest.fn().mockResolvedValue(null),
+    });
+    mockedGetDatabase.mockResolvedValue(db as any);
+
+    // Reference date is in week 2026-04-06 (later than 2026-03-23 → past week)
+    const result = await WeekStateService.getWeekState('2026-03-23', new Date(2026, 3, 8, 12, 0, 0));
+
+    expect(db.getDailyActualsForRange).toHaveBeenCalledWith('2026-03-23', '2026-03-29');
+    expect(db.getReportsWeekByStart).toHaveBeenCalledWith('2026-03-23');
+    expect(result).toBe('confirmed');
+  });
+
+  it('returns queued when the queue row says queued and 7/7 confirmed', async () => {
+    const db = createMockDatabase({
+      getDailyActualsForRange: jest.fn().mockResolvedValue(
+        createWeekDailyActuals('2026-03-23', 7),
+      ),
+      getReportsWeekByStart: jest.fn().mockResolvedValue(createQueueRow('2026-03-23', 'queued')),
+    });
+    mockedGetDatabase.mockResolvedValue(db as any);
+
+    const result = await WeekStateService.getWeekState('2026-03-23', new Date(2026, 3, 8, 12, 0, 0));
+
+    expect(result).toBe('queued');
+  });
+
+  it('returns sent when the queue row says sent', async () => {
+    const db = createMockDatabase({
+      getDailyActualsForRange: jest.fn().mockResolvedValue(
+        createWeekDailyActuals('2026-03-23', 7),
+      ),
+      getReportsWeekByStart: jest.fn().mockResolvedValue(createQueueRow('2026-03-23', 'sent')),
+    });
+    mockedGetDatabase.mockResolvedValue(db as any);
+
+    const result = await WeekStateService.getWeekState('2026-03-23', new Date(2026, 3, 8, 12, 0, 0));
+
+    expect(result).toBe('sent');
+  });
+
+  it('returns unconfirmed for the current week before Sunday 18:00 even with 7/7 confirmed', async () => {
+    const db = createMockDatabase({
+      getDailyActualsForRange: jest.fn().mockResolvedValue(
+        createWeekDailyActuals('2026-04-27', 7),
+      ),
+      getReportsWeekByStart: jest.fn().mockResolvedValue(null),
+    });
+    mockedGetDatabase.mockResolvedValue(db as any);
+
+    // Saturday 15:00 — week of 2026-04-27 is the current week, eligibility gate not yet open
+    const result = await WeekStateService.getWeekState('2026-04-27', new Date(2026, 4, 2, 15, 0, 0));
+
+    expect(result).toBe('unconfirmed');
+  });
+
+  it('returns confirmed for the current week on Sunday 18:00+ with 7/7 confirmed', async () => {
+    const db = createMockDatabase({
+      getDailyActualsForRange: jest.fn().mockResolvedValue(
+        createWeekDailyActuals('2026-04-27', 7),
+      ),
+      getReportsWeekByStart: jest.fn().mockResolvedValue(null),
+    });
+    mockedGetDatabase.mockResolvedValue(db as any);
+
+    // Sunday 18:30 — current week is now eligible
+    const result = await WeekStateService.getWeekState('2026-04-27', new Date(2026, 4, 3, 18, 30, 0));
+
+    expect(result).toBe('confirmed');
+  });
+
+  it('returns unconfirmed for a past week with <7 confirmed days', async () => {
+    const db = createMockDatabase({
+      getDailyActualsForRange: jest.fn().mockResolvedValue(
+        createWeekDailyActuals('2026-03-23', 4),
+      ),
+      getReportsWeekByStart: jest.fn().mockResolvedValue(null),
+    });
+    mockedGetDatabase.mockResolvedValue(db as any);
+
+    const result = await WeekStateService.getWeekState('2026-03-23', new Date(2026, 3, 8, 12, 0, 0));
+
+    expect(result).toBe('unconfirmed');
+  });
+});

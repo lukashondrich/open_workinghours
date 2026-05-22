@@ -2,7 +2,7 @@
  * Event emitter for calendar state refresh signals coming from other modules.
  */
 
-type CalendarEventType = 'confirmed-days-updated' | 'day-confirmation-message';
+type CalendarEventType = 'confirmed-days-updated' | 'day-confirmation-message' | 'week-state-changed';
 
 interface CalendarEventPayloadMap {
   'confirmed-days-updated': {
@@ -11,6 +11,10 @@ interface CalendarEventPayloadMap {
   };
   'day-confirmation-message': {
     message: string;
+  };
+  // weekStart === null means a global change (e.g. auto-send toggle) — refetch for any week
+  'week-state-changed': {
+    weekStart: string | null;
   };
 }
 

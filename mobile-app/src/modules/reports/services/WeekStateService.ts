@@ -226,6 +226,32 @@ export class WeekStateService {
     return queuedRows.map((row) => row.weekStart);
   }
 
+  /**
+   * Focused lookup for a single week's state — avoids the full-table scan of loadWeekState.
+   * Used by CalendarHeader to show the post-finalization status without depending on Reports.
+   */
+  static async getWeekState(
+    weekStart: string,
+    referenceDate: Date = new Date(),
+  ): Promise<WeekState> {
+    const db = await getDatabase();
+    const normalizedWeekStart = normalizeWeekStartKey(weekStart);
+    const weekEnd = formatDateKey(addDays(parseISO(normalizedWeekStart), WEEK_DAYS - 1));
+    const currentWeekStart = formatDateKey(getWeekStartDate(startOfDay(referenceDate)));
+
+    const [dailyActuals, queueRecord] = await Promise.all([
+      db.getDailyActualsForRange(normalizedWeekStart, weekEnd),
+      db.getReportsWeekByStart(normalizedWeekStart),
+    ]);
+
+    return this.resolveWeekState({
+      isCurrentWeek: normalizedWeekStart === currentWeekStart,
+      confirmedDays: dailyActuals.length,
+      queueRecord: queueRecord ?? undefined,
+      referenceDate,
+    });
+  }
+
   static async setAutoSend(enabled: boolean): Promise<void> {
     const db = await getDatabase();
     await db.setPreference(PREF_AUTO_SEND, enabled ? '1' : '0');
