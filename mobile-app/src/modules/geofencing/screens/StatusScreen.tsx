@@ -33,6 +33,7 @@ import PermissionWarningBanner from '@/modules/geofencing/components/PermissionW
 import HoursSummaryWidget from '@/modules/geofencing/components/HoursSummaryWidget';
 import NextShiftWidget from '@/modules/geofencing/components/NextShiftWidget';
 import OnboardingTooltip from '@/components/OnboardingTooltip';
+import HoursExplainerSheet from '@/components/HoursExplainerSheet';
 import { OnboardingPreferences } from '@/lib/storage/OnboardingPreferences';
 import type { UserLocation } from '@/modules/geofencing/types';
 import type { RootStackParamList, MainTabParamList } from '@/navigation/AppNavigator';
@@ -178,6 +179,7 @@ export default function StatusScreen() {
   const [hasBackgroundPermission, setHasBackgroundPermission] = useState(true);
   const [permissionPromptDecision, setPermissionPromptDecision] = useState<PermissionPromptDecision | null>(null);
   const [showTrackedSessionTooltip, setShowTrackedSessionTooltip] = useState(false);
+  const [hoursExplainerVisible, setHoursExplainerVisible] = useState(false);
 
   const loadAllData = useCallback(async () => {
     try {
@@ -521,6 +523,7 @@ export default function StatusScreen() {
             data={dashboardData.hoursSummary}
             isLive={dashboardData.isLive}
             onPress={handleNavigateToCalendar}
+            onInfoPress={() => setHoursExplainerVisible(true)}
           />
         )}
 
@@ -542,6 +545,10 @@ export default function StatusScreen() {
         body={t('onboardingTooltips.trackedSession.body')}
         onDismiss={handleDismissTrackedSessionTooltip}
         testIDPrefix="tracked-session-tooltip"
+      />
+      <HoursExplainerSheet
+        visible={hoursExplainerVisible}
+        onClose={() => setHoursExplainerVisible(false)}
       />
     </View>
   );

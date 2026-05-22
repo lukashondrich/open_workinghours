@@ -2,7 +2,7 @@ import React, { useMemo, useRef, useState, useCallback } from 'react';
 import { View, StyleSheet, TouchableOpacity, PanResponder, Animated, useWindowDimensions } from 'react-native';
 import { AppText as Text } from '@/components/ui/AppText';
 import { format, startOfMonth, endOfMonth, startOfWeek, addDays, isSameDay, addMonths, subMonths } from 'date-fns';
-import { TreePalm, Thermometer, Check, CircleHelp, X, ChevronDown, ChevronUp, StickyNote } from 'lucide-react-native';
+import { TreePalm, Thermometer, Check, CircleHelp, X, ChevronDown, ChevronUp, StickyNote, Info } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/theme';
@@ -18,6 +18,7 @@ import {
   findOverlappingShift,
 } from '@/lib/calendar/calendar-utils';
 import { getCalendarStorage } from '@/modules/calendar/services/CalendarStorage';
+import HoursExplainerSheet from '@/components/HoursExplainerSheet';
 import type { AbsenceInstance } from '@/lib/calendar/types';
 import { computePlannedMinutesForDate, getInstanceWindow, getDayBounds, computeOverlapMinutes } from '@/lib/calendar/time-calculations';
 import { t } from '@/lib/i18n';
@@ -155,6 +156,7 @@ interface MonthlySummaryFooterProps {
   sickDays: number;
   confirmedOvertimeMinutes: number;
   totalOvertimeMinutes: number;
+  onInfoPress: () => void;
 }
 
 function MonthlySummaryFooter({
@@ -164,6 +166,7 @@ function MonthlySummaryFooter({
   sickDays,
   confirmedOvertimeMinutes,
   totalOvertimeMinutes,
+  onInfoPress,
 }: MonthlySummaryFooterProps) {
   const [expanded, setExpanded] = useState(false);
   const expandAnim = useRef(new Animated.Value(0)).current;
@@ -216,6 +219,17 @@ function MonthlySummaryFooter({
           {overtimeDisplay}
         </Text>
         <Text style={styles.summaryCollapsedLabel}>{t('calendar.month.overtime')}</Text>
+        <TouchableOpacity
+          onPress={onInfoPress}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          style={styles.summaryInfoButton}
+          accessible={true}
+          accessibilityRole="button"
+          accessibilityLabel={t('calendar.month.explainerA11yLabel')}
+          testID="month-summary-info"
+        >
+          <Info size={14} color={colors.text.tertiary} />
+        </TouchableOpacity>
         {expanded ? (
           <ChevronUp size={16} color={colors.text.tertiary} />
         ) : (
@@ -272,6 +286,7 @@ export default function MonthView() {
 
   // Flash feedback for place/remove actions
   const [flashCell, setFlashCell] = useState<{ dateKey: string; type: 'place' | 'remove'; counter: number } | null>(null);
+  const [explainerVisible, setExplainerVisible] = useState(false);
 
   const triggerFlash = (dateKey: string, type: 'place' | 'remove') => {
     setFlashCell(prev => ({ dateKey, type, counter: (prev?.counter ?? 0) + 1 }));
@@ -611,6 +626,12 @@ export default function MonthView() {
         sickDays={summary.sickDays}
         confirmedOvertimeMinutes={summary.confirmedOvertimeMinutes}
         totalOvertimeMinutes={totalOvertimeMinutes}
+        onInfoPress={() => setExplainerVisible(true)}
+      />
+
+      <HoursExplainerSheet
+        visible={explainerVisible}
+        onClose={() => setExplainerVisible(false)}
       />
     </View>
   );
@@ -721,6 +742,9 @@ const styles = StyleSheet.create({
   summaryCollapsedLabel: {
     fontSize: fontSize.xs,
     color: colors.text.tertiary,
+  },
+  summaryInfoButton: {
+    padding: 2,
   },
   summaryRow: {
     flexDirection: 'row',
