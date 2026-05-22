@@ -18,7 +18,7 @@ import {
   TouchableOpacity,
   Animated,
 } from 'react-native';
-import { ChevronRight, TreePalm, Thermometer } from 'lucide-react-native';
+import { ChevronRight, TreePalm, Thermometer, Info } from 'lucide-react-native';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
 import { t } from '@/lib/i18n';
 import { formatDuration } from '@/lib/calendar/calendar-utils';
@@ -36,6 +36,7 @@ interface HoursSummaryWidgetProps {
   };
   isLive: boolean;
   onPress: () => void;
+  onInfoPress: () => void;
 }
 
 function formatHours(minutes: number): string {
@@ -156,7 +157,7 @@ function Bar({ day, maxHours, chartHeight, isLive }: BarProps) {
   );
 }
 
-export default function HoursSummaryWidget({ data, isLive, onPress }: HoursSummaryWidgetProps) {
+export default function HoursSummaryWidget({ data, isLive, onPress, onInfoPress }: HoursSummaryWidgetProps) {
   const deviationColor = data.deviation >= 0 ? colors.primary[500] : colors.error.main;
   const { maxHours, ticks, chartHeight } = getScaleConfig(data.days);
 
@@ -188,7 +189,20 @@ export default function HoursSummaryWidget({ data, isLive, onPress }: HoursSumma
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>{t('dashboard.hoursSummary.title')}</Text>
-        <ChevronRight size={20} color={colors.text.tertiary} />
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            onPress={onInfoPress}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            style={styles.infoButton}
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel={t('dashboard.hoursSummary.explainerA11yLabel')}
+            testID="hours-summary-info"
+          >
+            <Info size={16} color={colors.text.tertiary} />
+          </TouchableOpacity>
+          <ChevronRight size={20} color={colors.text.tertiary} />
+        </View>
       </View>
 
       {/* Chart area with Y-axis - marked as not accessible to prevent tree enumeration errors */}
@@ -269,6 +283,14 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     fontWeight: fontWeight.semibold,
     color: colors.text.primary,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  infoButton: {
+    padding: 2,
   },
   chartWrapper: {
     flexDirection: 'row',

@@ -221,6 +221,7 @@ export const en = {
       planned: 'Planned',
       overtime: 'Overtime',
       confirmed: 'confirmed',
+      explainerA11yLabel: 'How hours are calculated',
     },
     gps: {
       hint: 'Log hours manually when GPS tracking failed',
@@ -388,6 +389,7 @@ export const en = {
       title: 'Last 14 Days',
       plan: 'Plan',
       actual: 'Actual',
+      explainerA11yLabel: 'How hours are calculated',
       // Accessibility
       accessibilitySummary: 'Last 14 days: {{planned}} planned, {{actual}} tracked, {{deviation}} deviation. {{unconfirmed}} days to confirm.',
       accessibilityHint: 'Double tap to view calendar',
@@ -399,6 +401,20 @@ export const en = {
       today: 'Today',
       tomorrow: 'Tomorrow',
     },
+  },
+
+  // Explainer sheet — shared by MonthView footer and HoursSummaryWidget
+  hoursExplainer: {
+    title: 'How your hours are calculated',
+    plannedTitle: 'Planned',
+    plannedBody: 'Your shifts, minus absences (vacation, sick).',
+    trackedTitle: 'Tracked',
+    trackedBody: 'GPS and manual sessions, minus logged breaks.',
+    overtimeTitle: 'Overtime',
+    overtimeBody: 'Tracked minus Planned, summed across days.',
+    confirmedTitle: 'Confirmed',
+    confirmedBody: "Days you've marked as final. Only confirmed days count toward Confirmed overtime.",
+    close: 'Got it',
   },
 
   // Settings screen

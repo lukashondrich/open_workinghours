@@ -221,6 +221,7 @@ export const de = {
       planned: 'Geplant',
       overtime: 'Überstunden',
       confirmed: 'bestätigt',
+      explainerA11yLabel: 'Wie Stunden berechnet werden',
     },
     gps: {
       hint: 'Arbeitszeit manuell erfassen, wenn GPS nicht funktioniert hat',
@@ -388,6 +389,7 @@ export const de = {
       title: 'Letzte 14 Tage',
       plan: 'Soll',
       actual: 'Ist',
+      explainerA11yLabel: 'Wie Stunden berechnet werden',
       // Accessibility
       accessibilitySummary: 'Letzte 14 Tage: {{planned}} geplant, {{actual}} erfasst, {{deviation}} Abweichung. {{unconfirmed}} Tage zu bestätigen.',
       accessibilityHint: 'Doppeltippen um Kalender anzuzeigen',
@@ -399,6 +401,20 @@ export const de = {
       today: 'Heute',
       tomorrow: 'Morgen',
     },
+  },
+
+  // Erklärungs-Sheet — geteilt von MonthView-Footer und HoursSummaryWidget
+  hoursExplainer: {
+    title: 'Wie deine Stunden berechnet werden',
+    plannedTitle: 'Geplant',
+    plannedBody: 'Deine Schichten, minus Abwesenheiten (Urlaub, Krankheit).',
+    trackedTitle: 'Erfasst',
+    trackedBody: 'GPS- und manuelle Sitzungen, minus eingetragene Pausen.',
+    overtimeTitle: 'Überstunden',
+    overtimeBody: 'Erfasst minus Geplant, pro Tag aufsummiert.',
+    confirmedTitle: 'Bestätigt',
+    confirmedBody: 'Tage, die du als final markiert hast. Nur bestätigte Tage fließen in die Bestätigten Überstunden ein.',
+    close: 'Verstanden',
   },
 
   // Settings screen
