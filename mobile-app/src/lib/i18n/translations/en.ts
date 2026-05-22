@@ -88,6 +88,7 @@ export const en = {
       reviewHint: 'Enter GPS mode to confirm days. Each confirmed day is submitted immediately.',
       submitHint: 'Submit each day to finalize your hours',
       weekComplete: 'Week complete — finalize in Reports',
+      weekFinalized: 'Week finalized ✓ — view in Reports',
       // Accessibility
       previousWeek: 'Previous week',
       nextWeek: 'Next week',

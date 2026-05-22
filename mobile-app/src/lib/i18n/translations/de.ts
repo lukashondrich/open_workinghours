@@ -88,6 +88,7 @@ export const de = {
       reviewHint: 'GPS-Modus aktivieren, um Tage zu bestätigen. Jeder bestätigte Tag wird sofort übermittelt.',
       submitHint: 'Jeden Tag einreichen, um die Stunden abzuschließen',
       weekComplete: 'Woche abgeschlossen — in Berichten einreichen',
+      weekFinalized: 'Woche eingereicht ✓ — in Berichten ansehen',
       // Accessibility
       previousWeek: 'Vorherige Woche',
       nextWeek: 'Nächste Woche',

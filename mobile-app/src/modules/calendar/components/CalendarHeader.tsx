@@ -11,6 +11,7 @@ import { useCalendar } from '@/lib/calendar/calendar-context';
 import { calendarEvents } from '@/lib/events/calendarEvents';
 import { t, getDateLocale } from '@/lib/i18n';
 import type { MainTabParamList } from '@/navigation/AppNavigator';
+import { WeekStateService, type WeekState } from '@/modules/reports/services/WeekStateService';
 
 type CalendarNavigationProp = BottomTabNavigationProp<MainTabParamList, 'Calendar'>;
 
@@ -44,10 +45,54 @@ export default function CalendarHeader() {
   const weekStart = startOfWeek(state.currentWeekStart, { weekStartsOn: 1 });
   const weekEnd = addDays(weekStart, 6);
   const weekNumber = getISOWeek(weekStart);
+  const weekStartKey = format(weekStart, 'yyyy-MM-dd');
   const weekConfirmedCount = Array.from({ length: 7 }, (_, i) =>
     format(addDays(weekStart, i), 'yyyy-MM-dd')
   ).filter((dateKey) => state.confirmedDates.has(dateKey)).length;
   const weekComplete = weekConfirmedCount === 7;
+
+  const [weekState, setWeekState] = useState<WeekState | null>(null);
+  const [autoSend, setAutoSend] = useState(false);
+  const weekIsFinalized =
+    weekState === 'queued' ||
+    weekState === 'sent' ||
+    (weekState === 'confirmed' && autoSend);
+
+  useEffect(() => {
+    if (!weekComplete) {
+      setWeekState(null);
+      return;
+    }
+
+    let cancelled = false;
+    const fetchState = async () => {
+      try {
+        const [nextState, autoSendValue] = await Promise.all([
+          WeekStateService.getWeekState(weekStartKey),
+          WeekStateService.getAutoSend(),
+        ]);
+        if (!cancelled) {
+          setWeekState(nextState);
+          setAutoSend(autoSendValue);
+        }
+      } catch (error) {
+        console.error('[CalendarHeader] Failed to load week state:', error);
+      }
+    };
+    fetchState();
+
+    const handleChanged = ({ weekStart: changedWeek }: { weekStart: string | null }) => {
+      if (changedWeek === null || changedWeek === weekStartKey) {
+        fetchState();
+      }
+    };
+    calendarEvents.on('week-state-changed', handleChanged);
+
+    return () => {
+      cancelled = true;
+      calendarEvents.off('week-state-changed', handleChanged);
+    };
+  }, [weekStartKey, weekComplete]);
   const locale = getDateLocale() === 'de' ? deLocale : undefined;
   const sameMonth = weekStart.getMonth() === weekEnd.getMonth();
   const weekRangeLabel = sameMonth
@@ -182,7 +227,7 @@ export default function CalendarHeader() {
         )}
       </View>
 
-      {/* Slot priority: day-confirmation flash → week-complete prompt → submit hint */}
+      {/* Slot priority: day-confirmation flash → finalized → week-complete prompt → submit hint */}
       {state.view === 'week' && state.reviewMode && (
         confirmationMessage ? (
           <Text
@@ -194,7 +239,28 @@ export default function CalendarHeader() {
           >
             {confirmationMessage}
           </Text>
-        ) : weekComplete ? (
+        ) : weekComplete && weekIsFinalized ? (
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Reports')}
+            style={styles.weekCompleteRow}
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel={t('calendar.header.weekFinalized')}
+            testID="calendar-header-week-finalized"
+          >
+            <Text
+              style={styles.weekCompleteText}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.85}
+            >
+              {t('calendar.header.weekFinalized')}
+            </Text>
+          </TouchableOpacity>
+        ) : weekComplete && weekState === 'confirmed' ? (
+          // Only show the action prompt once we've *confirmed* the week isn't already
+          // queued/sent — avoids briefly asking the user to finalize a week they
+          // already finalized when reopening the app.
           <TouchableOpacity
             onPress={() => navigation.navigate('Reports')}
             style={styles.weekCompleteRow}

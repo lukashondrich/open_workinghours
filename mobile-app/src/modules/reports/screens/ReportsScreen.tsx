@@ -34,6 +34,7 @@ import {
 } from '../services/CollectiveInsightsService';
 import { useAuth } from '@/lib/auth/auth-context';
 import { SundayNotificationService } from '../services/SundayNotificationService';
+import { calendarEvents } from '@/lib/events/calendarEvents';
 
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList, MainTabParamList } from '@/navigation/AppNavigator';
@@ -674,6 +675,7 @@ export default function ReportsScreen() {
         const snapshot = await loadSnapshot(autoSend);
         applySnapshot(snapshot);
         await SundayNotificationService.scheduleWeeklyNotifications();
+        calendarEvents.emit('week-state-changed', { weekStart });
       } catch (error) {
         console.error('[ReportsScreen] Failed to update queue toggle:', error);
         Alert.alert(t('common.error'), t('reports.errors.updateFailed'));
@@ -707,6 +709,7 @@ export default function ReportsScreen() {
         const snapshot = await loadSnapshot(value);
         applySnapshot(snapshot);
         await SundayNotificationService.scheduleWeeklyNotifications();
+        calendarEvents.emit('week-state-changed', { weekStart: null });
       } catch (error) {
         console.error('[ReportsScreen] Failed to update auto-send preference:', error);
         Alert.alert(t('common.error'), t('reports.errors.updateFailed'));

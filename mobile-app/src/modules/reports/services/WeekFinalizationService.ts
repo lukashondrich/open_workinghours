@@ -140,6 +140,9 @@ export class WeekFinalizationService {
     const db = await getDatabase();
     const now = new Date().toISOString();
 
+    // Intentionally no `week-state-changed` emit here: CalendarHeader's "Week
+    // finalized" copy already covers both `queued` and `sent` states, so flipping
+    // queued→sent in the background doesn't require a UI refresh.
     await db.upsertReportsWeekQueue({
       weekStart: queuedWeek.weekStart,
       status: 'sent',
