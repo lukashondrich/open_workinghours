@@ -87,6 +87,7 @@ export const de = {
       submissionsHint: 'Übermittlungen erfolgen automatisch, wenn Sie jeden Tag bestätigen.',
       reviewHint: 'GPS-Modus aktivieren, um Tage zu bestätigen. Jeder bestätigte Tag wird sofort übermittelt.',
       submitHint: 'Jeden Tag einreichen, um die Stunden abzuschließen',
+      weekComplete: 'Woche abgeschlossen — in Berichten einreichen',
       // Accessibility
       previousWeek: 'Vorherige Woche',
       nextWeek: 'Nächste Woche',
