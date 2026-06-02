@@ -5,10 +5,15 @@
  */
 
 import * as SecureStore from 'expo-secure-store';
+import { isTestMode } from '@/lib/testing/mockApi';
 import type { User } from './auth-types';
 
-// In-memory fallback when SecureStore is unavailable (unsigned simulator builds)
-let useMemoryFallback = false;
+// In-memory fallback when SecureStore is unavailable (unsigned simulator builds).
+// TEST_MODE forces this unconditionally — xcodebuild without signing produces
+// Keychain errors whose strings drift between iOS/Xcode versions; rather than
+// chase the error-pattern list, we just bypass SecureStore entirely under
+// TEST_MODE since persistence across launches isn't needed for E2E.
+let useMemoryFallback = isTestMode();
 const memoryStore: Record<string, string> = {};
 
 function isSecureStoreUnavailableError(error: unknown): boolean {

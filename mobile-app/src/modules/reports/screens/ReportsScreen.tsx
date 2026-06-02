@@ -33,6 +33,7 @@ import {
   type CollectiveInsightsData,
 } from '../services/CollectiveInsightsService';
 import { useAuth } from '@/lib/auth/auth-context';
+import { isTestMode } from '@/lib/testing/mockApi';
 import { SundayNotificationService } from '../services/SundayNotificationService';
 import { calendarEvents } from '@/lib/events/calendarEvents';
 
@@ -599,7 +600,8 @@ export default function ReportsScreen() {
     );
     let insightsData: CollectiveInsightsData | null = null;
 
-    if (model.sentWeeks.length > 0 && authState.user?.stateCode && authState.user.specialty) {
+    // TEST_MODE: bypass the sentWeeks gate so the screenshot shows real insights data.
+    if ((isTestMode() || model.sentWeeks.length > 0) && authState.user?.stateCode && authState.user.specialty) {
       try {
         insightsData = await CollectiveInsightsService.getLatestPublishedStateSpecialtyInsights({
           stateCode: authState.user.stateCode,

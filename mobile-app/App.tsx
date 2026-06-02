@@ -19,6 +19,7 @@ import { syncKeepaliveState } from '@/modules/geofencing/services/ForegroundKeep
 import { handleKeepaliveTaskPayload } from '@/modules/geofencing/services/KeepaliveHealthCheckService';
 import { AccuracySource, GeofenceEventData } from '@/modules/geofencing/types';
 import { seedTestDeviceDataIfEnabled } from '@/test-utils/deviceDbSeed';
+import { seedDashboardTestData } from '@/test-utils/seedDashboardData';
 console.log('SUBMISSION URL', process.env.EXPO_PUBLIC_SUBMISSION_BASE_URL);
 
 // ============================================================================
@@ -260,6 +261,13 @@ export default function App() {
       if (Constants.expoConfig?.extra?.TEST_DB_SEED || (process as any)?.env?.TEST_DB_SEED) {
         await seedTestDeviceDataIfEnabled();
         console.log('[App] Seeded test data');
+      }
+
+      // Rich seed for App Store screenshots: 14 days of varied shifts,
+      // overtime tracking, vacation/sick days, future "Next Shift" entries.
+      if (Constants.expoConfig?.extra?.TEST_SCREENSHOT_SEED) {
+        await seedDashboardTestData();
+        console.log('[App] Seeded screenshot dashboard data');
       }
 
       // Initialize geofencing
