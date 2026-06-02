@@ -1,4 +1,5 @@
 import Constants from 'expo-constants';
+import { isTestMode } from '@/lib/testing/mockApi';
 
 const BASE_URL =
   Constants.expoConfig?.extra?.submissionBaseUrl ||
@@ -74,6 +75,22 @@ export class CollectiveInsightsService {
 
     if (!stateCode || !specialty) {
       return null;
+    }
+
+    // TEST_MODE returns realistic mock insights for App Store screenshots.
+    // Production has too few users for k-anonymity to release real data yet.
+    if (isTestMode()) {
+      return {
+        plannedMeanHours: 40.2,
+        actualMeanHours: 47.8,
+        overtimeMeanHours: 7.6,
+        plannedCiHalf: 1.1,
+        actualCiHalf: 1.4,
+        overtimeCiHalf: 0.9,
+        nDisplay: 25,
+        periodStart: '2026-05-25',
+        periodEnd: '2026-05-31',
+      };
     }
 
     const searchParams = new URLSearchParams({

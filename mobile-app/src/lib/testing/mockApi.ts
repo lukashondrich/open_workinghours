@@ -81,10 +81,12 @@ export const mockResponses = {
     seniority: 'assistenzarzt',
     departmentGroup: 'innere_medizin',
     hospitalRefId: 6, // Sana Klinik München (BY)
-    createdAt: new Date().toISOString(),
+    // 30 days ago so dashboard's "Last 14 Days" chart shows historical data
+    // (DashboardDataService treats days before createdAt as isPreAccount=true → zeroed).
+    createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
     termsAcceptedVersion: '1.0.0',
     privacyAcceptedVersion: '1.0.0',
-    consentAcceptedAt: new Date().toISOString(),
+    consentAcceptedAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
   }),
 
   /**

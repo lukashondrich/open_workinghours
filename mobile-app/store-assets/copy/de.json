@@ -1,0 +1,20 @@
+{
+  "01-geofence": {
+    "headline": "Ankommen – schon eingestempelt."
+  },
+  "02-calendar-week-template": {
+    "headline": "Schichten in Sekunden."
+  },
+  "03-status-dashboard": {
+    "headline": "Deine Stunden auf einen Blick."
+  },
+  "04-calendar-month-overtime": {
+    "headline": "Erfasse, was wirklich passiert."
+  },
+  "05-privacy": {
+    "headline": "Deine Daten, deine Kontrolle."
+  },
+  "06-collective-insights": {
+    "headline": "Freiwillig. Anonym. Wirksam."
+  }
+}

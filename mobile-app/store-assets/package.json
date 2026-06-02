@@ -1,0 +1,16 @@
+{
+  "name": "open-working-hours-store-assets",
+  "version": "1.0.0",
+  "private": true,
+  "description": "App Store screenshot capture + composition pipeline",
+  "scripts": {
+    "capture": "node capture-all.js",
+    "capture:en": "LOCALES=en node capture-all.js",
+    "capture:de": "LOCALES=de node capture-all.js",
+    "compose": "node compose.js",
+    "flow": "node"
+  },
+  "dependencies": {
+    "sharp": "^0.33.5"
+  }
+}
