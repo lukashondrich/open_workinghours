@@ -95,6 +95,7 @@ See `docs/DOCUMENTATION_STRUCTURE.md` for full documentation guidelines.
 | `docs/deployment.md` | Docker, Hetzner, production deployment |
 | `docs/debugging.md` | Mobile debugging (iOS + **Android**), backend logs, known gotchas |
 | **`docs/WORKFLOW_PATTERNS.md`** | **How to do work: subagents, testing workflows** → `docs/testing/` |
+| `mobile-app/store-assets/README.md` | App Store screenshot pipeline (see `app-store-metadata.md` next to it for submission payload) |
 | `archive/ISSUE_PLANNING_2026-02-05.md` | Archived: UX feedback issues (Groups A/B/C complete, D dropped) |
 
 ### Document Lifecycle
