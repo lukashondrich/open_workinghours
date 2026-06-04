@@ -2,9 +2,9 @@
 
 **Organization:** Open Working Hours
 **Controller:** Lukas Jonathan Hondrich
-**Version:** 1.0 (Draft)
-**Date:** January 2026
-**Status:** Draft - Pending Legal Review
+**Version:** 1.1
+**Date:** May 2026 (extended with bug reports, calendar export, and social auth as separate processing activities; processor list expanded with Komoot/Photon, Apple, Google)
+**Status:** Self-reviewed; legal review pending
 
 ---
 
@@ -18,7 +18,7 @@
 |-------|-------|
 | **Controller Name** | Lukas Jonathan Hondrich |
 | **Address** | Karl-Marx-Straße 182, 12043 Berlin, Germany |
-| **Contact Email** | privacy@openworkinghours.org |
+| **Contact Email** | lukashondrich@googlemail.com |
 | **Data Protection Officer** | Not appointed (not required based on processing scale) |
 | **EU Representative** | N/A (Controller is in EU) |
 
@@ -122,6 +122,54 @@
 
 ---
 
+### 2.7 Bug Reports (Optional, User-Initiated)
+
+| Field | Description |
+|-------|-------------|
+| **Processing Activity** | Bug Reports / "Report Issue" Feature |
+| **Purpose** | Diagnose technical problems — especially geofencing reliability on Android — using real-world telemetry submitted voluntarily by users |
+| **Legal Basis** | Art. 6(1)(a) - Consent (each report is user-initiated) |
+| **Categories of Data Subjects** | Users who tap "Report Issue", review the confirmation sheet, and submit a report |
+| **Categories of Personal Data** | Default report: optional user description, user_id if signed in, device model, OS name/version, app version/build, work-location/work-event counts, last ~100 geofence events with timestamps, event type, GPS accuracy, ignored flag/reason, and aggregate counts; no saved workplace names or coordinates by default. Optional location diagnostics: saved workplace names, approximate saved coordinates rounded to 3 decimals, and recent geofence events with workplace names. Hospital affiliation, specialty, role, and state are not stored with bug reports. |
+| **Recipients** | Hetzner Online GmbH (hosting); the controller (for review in admin dashboard) |
+| **Third Country Transfers** | None |
+| **Retention Period** | 90 days, then auto-purged; deleted immediately on account deletion |
+| **Technical/Organizational Measures** | Explicit confirmation before submission; optional location diagnostics checkbox unchecked by default; backend strips location details unless location diagnostics were selected; rate-limited submission (10/min/IP); structured JSON storage; daily retention cleanup; manual review by controller only |
+
+---
+
+### 2.8 Calendar Export (Optional, User-Initiated)
+
+| Field | Description |
+|-------|-------------|
+| **Processing Activity** | Calendar Export to Device Calendar |
+| **Purpose** | Allow users to sync their planned shifts and absences to their device's native calendar app for convenience |
+| **Legal Basis** | Art. 6(1)(a) - Consent (user activates a toggle in Settings) |
+| **Categories of Data Subjects** | Users who enable the calendar export toggle |
+| **Categories of Personal Data** | Shift name, start/end time, color, absence type (vacation/sick) — written to the device's calendar app |
+| **Recipients** | The user's device calendar (iOS Calendar / Android Calendar). If the user's calendar syncs with iCloud, Google Calendar, or another service, those events follow that sync. The controller never receives this data. |
+| **Third Country Transfers** | Possible — but determined by the user's own calendar sync configuration, not by the controller. iCloud syncs to Apple Inc. (USA); Google Calendar syncs to Google LLC (USA). Both operate under the EU-US Data Privacy Framework. |
+| **Retention Period** | Controlled by the user via the device calendar app (no controller-side retention) |
+| **Technical/Organizational Measures** | Disclosed at toggle (`settings.calendarSyncDescription`); user-revocable in Settings |
+
+---
+
+### 2.9 Identity Verification (Social Sign-In, Optional)
+
+| Field | Description |
+|-------|-------------|
+| **Processing Activity** | Identity Verification via Apple Sign-In or Google Sign-In |
+| **Purpose** | Allow users to authenticate using Apple ID or Google account instead of email/code |
+| **Legal Basis** | Art. 6(1)(b) - Necessary for performance of contract (account creation) when user chose the social-auth path |
+| **Categories of Data Subjects** | Users who choose Apple or Google Sign-In |
+| **Categories of Personal Data** | Identity token (JWT) from Apple/Google containing an opaque `sub` identifier; email is discarded by the controller for social-auth users |
+| **Recipients** | Apple Inc. (USA) for Apple Sign-In; Google LLC (USA) for Google Sign-In. Backend fetches their public JWKS to verify the token signature. |
+| **Third Country Transfers** | USA (Apple Inc. and/or Google LLC) under the EU-US Data Privacy Framework adequacy decision |
+| **Retention Period** | Provider sub identifier stored until account deletion |
+| **Technical/Organizational Measures** | Token signature verification against provider JWKS; provider sub stored only as an opaque string; email discarded |
+
+---
+
 ## 3. Processors
 
 ### 3.1 Hetzner Online GmbH
@@ -147,6 +195,42 @@
 | **Location** | EU |
 | **DPA Status** | Signed (part of ToS) |
 | **DPA Reference** | Brevo standard DPA |
+
+### 3.3 Komoot GmbH (Photon)
+
+| Field | Value |
+|-------|-------|
+| **Processor Name** | Komoot GmbH |
+| **Address** | Potsdam, Germany |
+| **Processing Activities** | Workplace geocoding (search query → place candidates) during user setup |
+| **Data Processed** | Free-text search query; optionally the user's current GPS coordinates as proximity bias (no user identifier transmitted) |
+| **Location** | Germany (Photon is hosted by Komoot) |
+| **DPA Status** | Standard public-API usage; no individual DPA required given no user identifiers transmitted |
+| **Notes** | Code reference: `mobile-app/src/modules/geofencing/services/GeocodingService.ts` L105 |
+
+### 3.4 Apple Inc. (Sign in with Apple)
+
+| Field | Value |
+|-------|-------|
+| **Processor Name** | Apple Inc. (and EU subsidiaries) |
+| **Address** | One Apple Park Way, Cupertino, CA 95014, USA |
+| **Processing Activities** | Identity-token issuance and JWKS endpoint for token verification |
+| **Data Processed** | Apple ID authentication state; opaque `sub` identifier returned to the controller |
+| **Location** | USA |
+| **DPA Status** | Apple's developer agreement and EU-US Data Privacy Framework participation |
+| **Notes** | Only invoked if a user chooses "Sign in with Apple". Code reference: `backend/app/social_auth.py` L24-25 |
+
+### 3.5 Google LLC (Sign in with Google)
+
+| Field | Value |
+|-------|-------|
+| **Processor Name** | Google LLC |
+| **Address** | 1600 Amphitheatre Parkway, Mountain View, CA 94043, USA |
+| **Processing Activities** | Identity-token issuance and JWKS endpoint for token verification |
+| **Data Processed** | Google account authentication state; opaque `sub` identifier returned to the controller |
+| **Location** | USA |
+| **DPA Status** | Google's developer agreement and EU-US Data Privacy Framework participation |
+| **Notes** | Only invoked if a user chooses "Sign in with Google". Code reference: `backend/app/social_auth.py` L26 |
 
 ---
 
@@ -181,9 +265,9 @@
 
 | Measure | Implementation |
 |---------|----------------|
-| Local-only data | GPS coordinates, sick days, schedules |
-| Transmitted data | Only confirmed hours and profile |
-| No collection | Names, device IDs, IP addresses. Hospital affiliation is optional. |
+| Local-first data | GPS coordinates, sick days, schedules, and work-location coordinates stay on device during routine tracking/submission |
+| Transmitted data | Confirmed hours and profile for core service; optional bug-report diagnostics only after explicit confirmation; workplace search may send a proximity coordinate to Komoot/Photon |
+| No collection by default | Names, device IDs, IP addresses. Hospital affiliation is optional for profile/aggregation and is not stored with bug reports. |
 
 ### 4.5 Backup and Recovery
 

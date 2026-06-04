@@ -32,6 +32,26 @@ export interface SearchOptions {
   lang?: string;
 }
 
+interface PhotonFeature {
+  properties?: {
+    name?: string;
+    street?: string;
+    housenumber?: string;
+    city?: string;
+    postcode?: string;
+    country?: string;
+    state?: string;
+    osm_value?: string;
+  };
+  geometry?: {
+    coordinates?: [number, number];
+  };
+}
+
+interface PhotonResponse {
+  features?: PhotonFeature[];
+}
+
 /**
  * Healthcare-related OSM types to prioritize in search results
  * These will be sorted to the top of results
@@ -45,6 +65,10 @@ const HEALTHCARE_TYPES = [
   'nursing_home',
   'healthcare',
 ];
+
+function roundProximityCoordinate(value: number): number {
+  return Math.round(value * 100) / 100;
+}
 
 /**
  * Format address from Photon properties
@@ -110,7 +134,9 @@ export async function searchLocations(
     // Add proximity bias if user location is provided
     // location_bias_scale: 0.1 = weak, 0.2 = default, 1.0+ = strong
     if (options?.proximity) {
-      url += `&lat=${options.proximity.latitude}&lon=${options.proximity.longitude}`;
+      const lat = roundProximityCoordinate(options.proximity.latitude);
+      const lon = roundProximityCoordinate(options.proximity.longitude);
+      url += `&lat=${lat}&lon=${lon}`;
       url += `&location_bias_scale=0.6`; // Moderate bias toward user's location
     }
 
@@ -121,13 +147,13 @@ export async function searchLocations(
       return [];
     }
 
-    const data = await response.json();
+    const data: PhotonResponse = await response.json();
 
     if (!data.features || !Array.isArray(data.features)) {
       return [];
     }
 
-    const results = data.features.map((feature: any) => {
+    const results: GeocodingResult[] = data.features.map((feature) => {
       const props = feature.properties || {};
       const coords = feature.geometry?.coordinates || [0, 0];
 

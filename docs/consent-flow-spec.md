@@ -1,8 +1,8 @@
 # In-App Consent & Terms Acceptance Flow
 
-**Version:** 1.0 (Draft)
-**Date:** January 2026
-**Status:** Specification for Implementation
+**Version:** 1.1
+**Date:** January 2026; updated 2026-06-04
+**Status:** Implemented; retained as behavior specification
 
 ---
 
@@ -27,6 +27,7 @@ This document specifies how the mobile app should collect user consent for Terms
 The consent screen must appear:
 1. **During registration** - After email verification, before profile completion
 2. **On policy update** - When Terms or Privacy Policy materially change
+3. **For legacy records** - When the backend user has missing consent versions or no consent timestamp
 
 ### 2.3 What User Must Agree To
 
@@ -210,19 +211,20 @@ await AsyncStorage.setItem('consentRecord', JSON.stringify(consentRecord));
 
 ### 5.3 Backend Integration
 
-Option A: **Store consent on backend** (Recommended)
-- Add `terms_accepted_at` and `terms_version` to `users` table
+Implemented behavior: **Store consent on backend**
+- Store `terms_accepted_version`, `privacy_accepted_version`, and `consent_accepted_at` in `users`
 - Update on registration and on policy updates
-- Provides audit trail
+- Provides the audit trail required to demonstrate consent
 
 ```sql
-ALTER TABLE users ADD COLUMN terms_accepted_at TIMESTAMP;
-ALTER TABLE users ADD COLUMN terms_version TEXT;
+ALTER TABLE users ADD COLUMN terms_accepted_version TEXT;
+ALTER TABLE users ADD COLUMN privacy_accepted_version TEXT;
+ALTER TABLE users ADD COLUMN consent_accepted_at TIMESTAMP;
 ```
 
-Option B: **Local only**
+Rejected alternative: **Local only**
 - Store consent record on device
-- Simpler but no server-side audit trail
+- Simpler but no server-side audit trail, so it does not satisfy the current compliance posture
 
 ### 5.4 Navigation Logic
 
@@ -245,7 +247,7 @@ function getInitialRoute(authState: AuthState): string {
 }
 
 function needsTermsUpdate(userVersion: string | null): boolean {
-  const CURRENT_TERMS_VERSION = '2026-03'; // Bumped from '2026-01' for v2 taxonomy (hospital affiliation, new profile fields)
+  const CURRENT_TERMS_VERSION = '2026-05';
   return userVersion !== CURRENT_TERMS_VERSION;
 }
 ```
@@ -271,7 +273,7 @@ export function ConsentScreen() {
     // Store locally
     await AsyncStorage.setItem('consentRecord', JSON.stringify(consentRecord));
 
-    // Update backend (if implementing Option A)
+    // Update backend audit record
     await api.updateConsent(consentRecord);
 
     // Navigate to profile setup
@@ -387,11 +389,12 @@ consent: {
 When Terms or Privacy Policy are updated:
 
 1. Increment version constant in app
-2. On app launch, check if user's consent version matches current
-3. If mismatch, show consent screen again
-4. User must re-accept before continuing
+2. After login, token restore, or biometric unlock, check whether backend consent versions and `consentAcceptedAt` match the current versions
+3. If consent is missing, stale, or missing the audit timestamp, show the consent bottom sheet again
+4. Keep normal app screens and queued finalization blocked until the user re-accepts
+5. On acceptance, call `POST /auth/consent`, then refresh `/auth/me` before rendering the app
 
-**v2 taxonomy update (March 2026):** The consent version must be bumped from `"2026-01"` to `"2026-03"` before shipping the v2 taxonomy. The data collected has materially changed (hospital affiliation, new profile fields). Users with `termsVersion: "2026-01"` will see the consent screen again on app update. Update both `CURRENT_TERMS_VERSION` and `CURRENT_PRIVACY_VERSION` in `mobile-app/src/lib/auth/consent-types.ts`.
+**May 2026 consolidated policy update:** The consent versions are `CURRENT_TERMS_VERSION = "2026-05"` and `CURRENT_PRIVACY_VERSION = "2026-05"`. This corresponds to the consolidated privacy-policy rewrite and profile/hospital-affiliation disclosure changes. Users with older versions, null versions, or no `consentAcceptedAt` timestamp see the re-acceptance bottom sheet on next authenticated app open.
 
 ---
 
@@ -412,9 +415,11 @@ Use WebView or system browser to open.
 - [ ] Links to Terms and Privacy work correctly
 - [ ] Correct language shown based on device locale
 - [ ] Consent record is stored locally
-- [ ] Consent record is stored on backend (if Option A)
+- [ ] Consent record is stored on backend
 - [ ] Returning user with valid consent skips consent screen
 - [ ] User with outdated consent version sees consent screen again
+- [ ] User with null backend consent fields sees consent screen again
+- [ ] App main UI and queued finalization remain blocked until re-acceptance
 - [ ] Checkbox state persists during navigation/rotation
 
 ---

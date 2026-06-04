@@ -581,7 +581,7 @@ class GpsTelemetryEvent(BaseModel):
     accuracy_source: str | None = None  # "event" | "active_fetch" | null
     ignored: bool = False
     ignore_reason: str | None = None
-    location_name: str = "Unknown"
+    location_name: str | None = None
 
 
 class GpsAccuracyStats(BaseModel):
@@ -609,9 +609,14 @@ class FeedbackIn(BaseModel):
     role_level: str | None = None
     state_code: str | None = None
 
+    # Diagnostic consent/scope
+    include_location_diagnostics: bool = False
+    diagnostics_scope: Literal["standard", "location"] = "standard"
+    feature_area: str | None = Field(default=None, max_length=100)
+
     # Location info
     locations_count: int = 0
-    locations_details: list[dict] = Field(default_factory=list)
+    locations_details: list[dict] | None = None
 
     # Work events info
     work_events_total: int = 0

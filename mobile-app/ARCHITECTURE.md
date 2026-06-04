@@ -1,6 +1,6 @@
 # Mobile App Architecture
 
-**Last Updated:** 2026-05-13
+**Last Updated:** 2026-06-04
 **Platform:** React Native + Expo
 **Current Build:** #52 (TestFlight)
 
@@ -40,6 +40,8 @@ Quick reference for common tasks:
 | **Add a new screen** | `src/modules/[module]/screens/` + update `AppNavigator` |
 | **Modify 14-day dashboard** | `src/modules/geofencing/services/DashboardDataService.ts` |
 | **Edit location setup** | `src/modules/geofencing/screens/SetupScreen.tsx` |
+| **Change how hours are computed** (planned / tracked / overtime, overnight splits, break subtraction, absence handling) | `src/lib/calendar/time-calculations.ts`, `src/lib/calendar/calendar-utils.ts` |
+| **Edit the in-app calculation explainer** | `src/components/HoursExplainerSheet.tsx` + `hoursExplainer.*` in `src/lib/i18n/translations/{en,de}.ts` |
 
 **Can't find something?** Check `CLAUDE.md` → `docs/debugging.md` for help.
 
@@ -254,6 +256,8 @@ Biometric enabled? → No → Restore session → MainTabs
 
 **GDPR Consent:**
 - Shown as bottom sheet modal during registration
+- Shown again at app root when backend consent is missing, stale, or missing its audit timestamp
+- Main app and queued finalization stay blocked until current consent is accepted
 - Links to Terms of Service and Privacy Policy
 - Key points summary visible without internet
 - Checkbox + "I Agree" button required
@@ -639,6 +643,14 @@ useEffect(() => {
 - **Backend integration**: Consent version sent with registration, `/auth/consent` endpoint for updates
 - **Translations**: Full EN + DE support
 - **Pre-announcement**: "By continuing, you'll review our Terms" text before button
+
+### Consent Re-Acceptance Gate (2026-06-04)
+- **Current versions**: `CURRENT_TERMS_VERSION` and `CURRENT_PRIVACY_VERSION` are `2026-05`
+- **Root guard**: `AppNavigator` checks authenticated user consent before rendering main app screens
+- **Trigger**: Missing, stale, or unauditable backend consent (`termsAcceptedVersion`, `privacyAcceptedVersion`, `consentAcceptedAt`) opens `ConsentBottomSheet` in `update` mode
+- **Blocking behavior**: Normal app UI, calendar export orchestration, and queued finalization remain unmounted until consent is accepted
+- **Accept flow**: `AuthService.updateConsent()` posts current versions to `/auth/consent`, refreshes `/auth/me`, then updates auth state
+- **Manual smoke**: Passed on iOS simulator with a local legacy/null-consent user; Data & Privacy showed accepted consent after re-acceptance
 
 ### Geofence Robustness Improvements (2026-01-15)
 - **Exit hysteresis**: 5-min pending state before confirming clock-out

@@ -1,11 +1,34 @@
+import asyncio
+from contextlib import suppress
+import logging
+
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 
+from .cleanup import purge_old_feedback_reports_once
 from .config import get_settings
 from .database import init_db
 from .routers import admin, analytics, auth, dashboard, feedback, finalized_weeks, reports, stats, submissions, taxonomy, verification, work_events
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
+FEEDBACK_REPORT_CLEANUP_INTERVAL_SECONDS = 24 * 60 * 60
+_feedback_report_cleanup_task: asyncio.Task[None] | None = None
+
+
+def _run_feedback_report_cleanup() -> None:
+    try:
+        deleted_count = purge_old_feedback_reports_once()
+        if deleted_count:
+            logger.info("Purged %s old feedback reports", deleted_count)
+    except Exception:
+        logger.exception("Failed to purge old feedback reports")
+
+
+async def _feedback_report_cleanup_loop() -> None:
+    while True:
+        await asyncio.sleep(FEEDBACK_REPORT_CLEANUP_INTERVAL_SECONDS)
+        _run_feedback_report_cleanup()
 
 app = FastAPI(
     title="Open Working Hours API",
@@ -17,8 +40,23 @@ app = FastAPI(
 
 
 @app.on_event("startup")
-def on_startup() -> None:
+async def on_startup() -> None:
+    global _feedback_report_cleanup_task
     init_db()
+    _run_feedback_report_cleanup()
+    _feedback_report_cleanup_task = asyncio.create_task(_feedback_report_cleanup_loop())
+
+
+@app.on_event("shutdown")
+async def on_shutdown() -> None:
+    global _feedback_report_cleanup_task
+    if _feedback_report_cleanup_task is None:
+        return
+
+    _feedback_report_cleanup_task.cancel()
+    with suppress(asyncio.CancelledError):
+        await _feedback_report_cleanup_task
+    _feedback_report_cleanup_task = None
 
 
 @app.get("/healthz", tags=["meta"])

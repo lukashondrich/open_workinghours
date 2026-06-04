@@ -31,7 +31,9 @@ export default function ProfileScreen() {
 
   const [stateCode, setStateCode] = useState<string | null>(user?.stateCode || null);
   const [hospitalValue, setHospitalValue] = useState<string | null>(
-    user?.hospitalRefId === 0 ? 'other' : (user?.hospitalRefId ? String(user.hospitalRefId) : null),
+    user?.hospitalRefId === null || user?.hospitalRefId === 0
+      ? 'other'
+      : (user?.hospitalRefId ? String(user.hospitalRefId) : null),
   );
   const [profession, setProfession] = useState<string | null>(user?.profession || null);
   const [seniority, setSeniority] = useState<string | null>(user?.seniority || null);
@@ -102,7 +104,7 @@ export default function ProfileScreen() {
 
   const hasChanges = useMemo(() => {
     if (!user) return false;
-    const currentHospitalValue = user.hospitalRefId === 0
+    const currentHospitalValue = user.hospitalRefId === null || user.hospitalRefId === 0
       ? 'other'
       : (user.hospitalRefId ? String(user.hospitalRefId) : null);
     // Skip seniority comparison when profession is 'other' — backend
@@ -123,7 +125,7 @@ export default function ProfileScreen() {
     try {
       setSaving(true);
       const hospitalRefId = hospitalValue === 'other'
-        ? 0
+        ? null
         : (hospitalValue ? parseInt(hospitalValue, 10) : undefined);
 
       const updatedUser = await AuthService.updateProfile(

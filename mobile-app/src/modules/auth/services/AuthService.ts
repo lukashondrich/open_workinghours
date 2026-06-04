@@ -21,8 +21,58 @@ import type {
   UserDataExport,
 } from '@/lib/auth/auth-types';
 import { mockResponses, isValidTestCode, isTestMode } from '@/lib/testing/mockApi';
+import { CURRENT_TERMS_VERSION, CURRENT_PRIVACY_VERSION } from '@/lib/auth/consent-types';
 
 const BASE_URL = Constants.expoConfig?.extra?.authBaseUrl || 'http://localhost:8000';
+
+interface BackendUserResponse {
+  user_id: string;
+  hospital_id: string;
+  specialty: string;
+  role_level: string;
+  state_code?: string | null;
+  created_at?: string | null;
+  profession?: string | null;
+  seniority?: string | null;
+  department_group?: string | null;
+  specialization_code?: string | null;
+  hospital_ref_id?: number | null;
+  terms_accepted_version?: string | null;
+  privacy_accepted_version?: string | null;
+  consent_accepted_at?: string | null;
+}
+
+function mapBackendUser(data: BackendUserResponse, email?: string): User {
+  return {
+    userId: data.user_id,
+    email,
+    hospitalId: data.hospital_id,
+    specialty: data.specialty,
+    roleLevel: data.role_level,
+    stateCode: data.state_code ?? undefined,
+    createdAt: data.created_at ?? undefined,
+    profession: data.profession ?? undefined,
+    seniority: data.seniority ?? undefined,
+    departmentGroup: data.department_group ?? undefined,
+    specializationCode: data.specialization_code ?? undefined,
+    hospitalRefId: data.hospital_ref_id,
+    termsAcceptedVersion: data.terms_accepted_version ?? undefined,
+    privacyAcceptedVersion: data.privacy_accepted_version ?? undefined,
+    consentAcceptedAt: data.consent_accepted_at ?? undefined,
+  };
+}
+
+async function getErrorMessage(response: Response, fallback: string): Promise<string> {
+  const text = await response.text();
+  if (!text) return fallback;
+
+  try {
+    const error = JSON.parse(text);
+    return error.detail || fallback;
+  } catch {
+    return text;
+  }
+}
 
 export class AuthService {
   /**
@@ -269,27 +319,8 @@ export class AuthService {
 
       const data = await response.json();
 
-      // Backend returns snake_case: user_id, hospital_id, role_level, state_code, created_at
-      // Backend doesn't include email, so we use the provided one
-      return {
-        userId: data.user_id,
-        email: email,
-        hospitalId: data.hospital_id,
-        specialty: data.specialty,
-        roleLevel: data.role_level,
-        stateCode: data.state_code,
-        createdAt: data.created_at, // ISO 8601 format from backend
-        // v2 taxonomy fields
-        profession: data.profession,
-        seniority: data.seniority,
-        departmentGroup: data.department_group,
-        specializationCode: data.specialization_code,
-        hospitalRefId: data.hospital_ref_id,
-        // GDPR consent fields
-        termsAcceptedVersion: data.terms_accepted_version,
-        privacyAcceptedVersion: data.privacy_accepted_version,
-        consentAcceptedAt: data.consent_accepted_at,
-      };
+      // Backend returns snake_case and does not include email, so keep the known email.
+      return mapBackendUser(data, email);
     } catch (error) {
       console.error('[AuthService] Failed to get current user:', error);
       throw error;
@@ -343,25 +374,50 @@ export class AuthService {
       }
 
       const data = await response.json();
-      return {
-        userId: data.user_id,
-        email,
-        hospitalId: data.hospital_id,
-        specialty: data.specialty,
-        roleLevel: data.role_level,
-        stateCode: data.state_code,
-        createdAt: data.created_at,
-        profession: data.profession,
-        seniority: data.seniority,
-        departmentGroup: data.department_group,
-        specializationCode: data.specialization_code,
-        hospitalRefId: data.hospital_ref_id,
-        termsAcceptedVersion: data.terms_accepted_version,
-        privacyAcceptedVersion: data.privacy_accepted_version,
-        consentAcceptedAt: data.consent_accepted_at,
-      };
+      return mapBackendUser(data, email);
     } catch (error) {
       console.error('[AuthService] Failed to update profile:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update GDPR consent for current Terms and Privacy Policy versions.
+   * POST /auth/consent
+   */
+  static async updateConsent(token: string, email?: string): Promise<User> {
+    if (isTestMode()) {
+      console.log('[AuthService] TEST_MODE: Returning mock consent update');
+      const mockUser = email ? mockResponses.authMe(email) : mockResponses.authMeSocial();
+      mockUser.termsAcceptedVersion = CURRENT_TERMS_VERSION;
+      mockUser.privacyAcceptedVersion = CURRENT_PRIVACY_VERSION;
+      mockUser.consentAcceptedAt = new Date().toISOString();
+      return mockUser;
+    }
+
+    try {
+      const response = await fetch(`${BASE_URL}/auth/consent`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          terms_version: CURRENT_TERMS_VERSION,
+          privacy_version: CURRENT_PRIVACY_VERSION,
+        }),
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Authentication expired. Please login again.');
+        }
+        throw new Error(await getErrorMessage(response, 'Failed to update consent'));
+      }
+
+      return await this.getCurrentUser(token, email);
+    } catch (error) {
+      console.error('[AuthService] Failed to update consent:', error);
       throw error;
     }
   }

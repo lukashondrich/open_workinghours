@@ -2,236 +2,484 @@
 import LayoutDE from '../../layouts/LayoutDE.astro';
 ---
 
-<LayoutDE title="Datenschutzerklärung App" description="Datenschutzerklärung für die Open Working Hours Mobile App.">
-  <div class="max-w-3xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
+<LayoutDE title="Datenschutzerklärung der App" description="Datenschutzerklärung für die Open Working Hours App. Jede Aussage verlinkt zum Quellcode, der sie umsetzt.">
+  <div class="max-w-4xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
     <header class="mb-8">
-      <h1 class="text-stone-900">Datenschutzerklärung für die Open Working Hours App</h1>
-      <p class="text-stone-500 text-sm mt-2">Stand: März 2026</p>
+      <h1 class="text-stone-900">Datenschutzerklärung</h1>
+      <p class="text-stone-500 text-sm mt-2">Stand: Mai 2026</p>
       <p class="text-stone-500 text-sm mt-1">
-        <a href="/app-privacy-policy" class="text-teal-600 hover:text-teal-700">English Version</a>
+        <a href="/app-privacy-policy" class="text-teal-600 hover:text-teal-700">English version</a>
+      </p>
+      <p class="text-stone-600 text-sm mt-4">
+        Diese Erklärung gilt für Nutzer:innen der Open Working Hours App. Jede konkrete Aussage verlinkt zur Codezeile, die sie umsetzt — der vollständige Quellcode ist öffentlich unter
+        <a href="https://github.com/lukashondrich/open_workinghours" class="text-teal-600 hover:text-teal-700">github.com/lukashondrich/open_workinghours</a>.
       </p>
     </header>
 
-    <div class="prose prose-stone max-w-none">
-      <!-- Hinweis für rechtliche Prüfung -->
-      <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-8 not-prose">
-        <p class="text-amber-800 text-sm">
-          <strong>Hinweis:</strong> Dieses Dokument ist ein Entwurf zur rechtlichen Prüfung. Die endgültige Fassung steht unter dem Vorbehalt der Genehmigung durch qualifizierte Rechtsberatung.
+    <!-- Quick nav -->
+    <nav class="mb-10 bg-stone-50 rounded-lg p-4 border border-stone-200 text-sm">
+      <p class="text-stone-500 mb-2 uppercase tracking-wider text-xs">Inhalt</p>
+      <ol class="grid sm:grid-cols-2 gap-x-6 gap-y-1 text-stone-700">
+        <li><a href="#summary" class="text-teal-600 hover:text-teal-700">1. Auf einen Blick</a></li>
+        <li><a href="#collect" class="text-teal-600 hover:text-teal-700">2. Was wir erfassen und warum</a></li>
+        <li><a href="#device" class="text-teal-600 hover:text-teal-700">3. Was auf Ihrem Gerät bleibt</a></li>
+        <li><a href="#recipients" class="text-teal-600 hover:text-teal-700">4. Datenempfänger</a></li>
+        <li><a href="#retention" class="text-teal-600 hover:text-teal-700">5. Speicherdauer</a></li>
+        <li><a href="#rights" class="text-teal-600 hover:text-teal-700">6. Ihre Rechte</a></li>
+        <li><a href="#transfers" class="text-teal-600 hover:text-teal-700">7. Internationale Übermittlungen</a></li>
+        <li><a href="#security" class="text-teal-600 hover:text-teal-700">8. Sicherheitsmaßnahmen</a></li>
+        <li><a href="#contact" class="text-teal-600 hover:text-teal-700">9. Verantwortliche Person</a></li>
+      </ol>
+    </nav>
+
+    <!-- §1 Auf einen Blick -->
+    <section id="summary" class="mb-12 scroll-mt-8">
+      <h2 class="text-2xl font-semibold text-stone-900 mb-6">1. Auf einen Blick</h2>
+      <div class="grid md:grid-cols-2 gap-4">
+        <div class="bg-teal-50 border border-teal-200 rounded-lg p-5">
+          <h3 class="text-teal-900 font-semibold mb-3">Erfasst — mit einem Namen, den Sie gewählt haben</h3>
+          <ul class="space-y-2 text-teal-900 text-sm">
+            <li>Ihre <strong>Krankenhauszugehörigkeit</strong> — nur wenn Sie ein Krankenhaus aus der Liste von ~1.220 deutschen Krankenhäusern wählen. Mit <em>„Lieber nicht angeben"</em> können Sie sich abmelden — Ihre Stunden fließen dann in keine veröffentlichte Statistik mehr.</li>
+            <li>Die Kategorien, die Sie gewählt haben (Fachgebiet, Rolle, Seniorität, Bundesland, Beruf)</li>
+          </ul>
+          <p class="text-teal-700 text-xs mt-3">→ Details und Code: §2</p>
+        </div>
+
+        <div class="bg-amber-50 border border-amber-200 rounded-lg p-5">
+          <h3 class="text-amber-900 font-semibold mb-3">Erfasst — pseudonym (kein Name daran)</h3>
+          <ul class="space-y-2 text-amber-900 text-sm">
+            <li>Eine zufällige Nutzer-ID (UUID)</li>
+            <li>Ein Hash Ihrer E-Mail (bei E-Mail-Anmeldung) — mit einem geheimen Schlüssel berechnet</li>
+            <li>Ihre Apple- oder Google-Kennung (nur bei Social Login)</li>
+            <li>Bestätigte Wochenstunden: nur geplante + tatsächliche Summen (keine Tagesdetails)</li>
+            <li>Optional: Gerätemodell, OS-Version, letzte Standortereignisse — nur wenn Sie „Problem melden" antippen</li>
+          </ul>
+          <p class="text-amber-700 text-xs mt-3">→ Details und Code: §2</p>
+        </div>
+
+        <div class="bg-red-50 border border-red-200 rounded-lg p-5">
+          <h3 class="text-red-900 font-semibold mb-3">Nicht erfasst</h3>
+          <ul class="space-y-2 text-red-900 text-sm">
+            <li>Ihr Name oder Ihre Adresse</li>
+            <li>Ihr Tagesplan (wir sehen nur Wochensummen)</li>
+            <li>GPS-Koordinaten (Geofence läuft auf Ihrem Gerät; Koordinaten erreichen unser Backend nie)</li>
+            <li>Krankheitstage (bleiben auf Ihrem Gerät)</li>
+            <li>Frei eingegebene Arbeitgebernamen (Auswahl nur aus der Liste)</li>
+            <li>Biometrische Daten (Face ID / Fingerabdruck bleiben im sicheren Speicher Ihres Geräts)</li>
+            <li>Werbe- oder Analyse-IDs (haben wir nicht)</li>
+            <li>IP-Adressen in unserer Anwendungsdatenbank (Hosting-Logs können sie kurz speichern — siehe §7)</li>
+            <li>Krankenhauszugehörigkeit — wenn Sie „Lieber nicht angeben" wählten</li>
+          </ul>
+        </div>
+
+        <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-5">
+          <h3 class="text-indigo-900 font-semibold mb-3">Wie es geschützt wird</h3>
+          <ul class="space-y-2 text-indigo-900 text-sm">
+            <li>K-Anonymität (Gruppen brauchen ≥ 5 Nutzer:innen) + Dominanzregel</li>
+            <li>Differential Privacy (Laplace-Rauschen auf veröffentlichte Statistiken)</li>
+            <li>Ausschließlich EU-Datenstandort (Server in Deutschland)</li>
+            <li>Pseudonymisierung (zufällige Nutzer-IDs; E-Mails nur als gesalzener Hash mit serverseitigem geheimen Schlüssel)</li>
+            <li>Verschlüsselung bei Übertragung (TLS) und im Ruhezustand</li>
+          </ul>
+          <p class="text-indigo-700 text-xs mt-3">→ Code-Verweise: §2 und §8</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- §2 Was wir erfassen -->
+    <section id="collect" class="mb-12 scroll-mt-8">
+      <h2 class="text-2xl font-semibold text-stone-900 mb-6">2. Was wir erfassen und warum</h2>
+
+      <h3 class="text-lg font-semibold text-stone-800 mb-2">2.1 Kontoidentität</h3>
+      <div class="bg-stone-50 border border-stone-200 rounded-lg p-5 mb-6 text-sm text-stone-700 space-y-2">
+        <p><strong>Was wir erfassen:</strong></p>
+        <ul class="list-disc list-outside ml-5 space-y-1">
+          <li>Eine zufällige Nutzer-ID (UUID) — interne Kennung, wird nie angezeigt</li>
+          <li>Ein Hash Ihrer E-Mail-Adresse (HMAC-SHA256 mit einem serverseitigen geheimen Schlüssel) — nur bei Registrierung per E-Mail</li>
+          <li>Die Apple- oder Google-Nutzerkennung für Sie — nur bei Social Login (Ihre tatsächliche E-Mail-Adresse wird verworfen)</li>
+        </ul>
+        <p><strong>Warum:</strong> Damit wir Sie sitzungsübergreifend erkennen und Ihre gespeicherten Daten Ihrem Konto zuordnen können. Der Hash erlaubt uns, Sie bei der Anmeldung wiederzufinden, ohne Ihre eigentliche E-Mail jemals zu speichern; die Apple-/Google-Kennung übernimmt diese Aufgabe bei Social Login.</p>
+        <p><strong>Wann:</strong> Wird bei der Kontoerstellung angelegt, bleibt bis zur Löschung Ihres Kontos bestehen.</p>
+        <p><strong>Rechtsgrundlage:</strong> Art. 6 Abs. 1 lit. b DSGVO — zur Erfüllung unseres Vertrags mit Ihnen erforderlich (Kontonutzung).</p>
+        <p><strong>Im Code nachprüfen:</strong>
+          <a href="https://github.com/lukashondrich/open_workinghours/blob/49ea57b/backend/app/models.py#L76-L96" class="text-teal-600 hover:text-teal-700"><code>models.py</code> Z. 76-96</a> ·
+          <a href="https://github.com/lukashondrich/open_workinghours/blob/49ea57b/backend/app/security.py#L25-L28" class="text-teal-600 hover:text-teal-700"><code>security.py</code> Z. 25-28</a>
         </p>
       </div>
 
-      <!-- 1. Verantwortlicher -->
-      <section class="mb-8">
-        <h2 class="text-xl font-semibold text-stone-900 mb-4">1. Verantwortlicher</h2>
-        <p>Verantwortlicher für die Datenverarbeitung ist:</p>
-        <address class="not-italic mt-2 text-stone-700">
-          Lukas Jonathan Hondrich<br />
-          Karl-Marx-Straße 182<br />
-          12043 Berlin<br />
-          E-Mail: <a href="mailto:privacy@openworkinghours.org" class="text-teal-600">privacy@openworkinghours.org</a>
-        </address>
-      </section>
-
-      <!-- 2. Überblick -->
-      <section class="mb-8">
-        <h2 class="text-xl font-semibold text-stone-900 mb-4">2. Überblick über die Datenverarbeitung</h2>
-        <p>
-          Open Working Hours ist eine datenschutzfreundliche Plattform für Beschäftigte im Gesundheitswesen
-          zur Erfassung und Meldung von Arbeitszeiten. Wir verarbeiten personenbezogene Daten nur, um den
-          Dienst bereitzustellen und anonymisierte, aggregierte Statistiken über Arbeitsbedingungen im
-          Gesundheitswesen zu erstellen.
-        </p>
-        <p class="mt-3">
-          <strong>Grundprinzipien:</strong>
-        </p>
-        <ul class="mt-2 space-y-1">
-          <li>Datenminimierung: Wir erheben nur das Notwendige</li>
-          <li>Lokale Speicherung: Die meisten Daten bleiben auf Ihrem Gerät</li>
-          <li>Pseudonymisierung: Ihre Identität wird durch technische Maßnahmen geschützt</li>
-          <li>K-Anonymität: Statistiken werden nur für Gruppen ab 5 Beitragenden veröffentlicht (k=5)</li>
+      <h3 class="text-lg font-semibold text-stone-800 mb-2">2.2 Profilkategorien</h3>
+      <div class="bg-stone-50 border border-stone-200 rounded-lg p-5 mb-6 text-sm text-stone-700 space-y-2">
+        <p><strong>Was wir erfassen:</strong></p>
+        <ul class="list-disc list-outside ml-5 space-y-1">
+          <li>Krankenhauszugehörigkeit — <em>optional; mit „Lieber nicht angeben" wird nichts gespeichert</em></li>
+          <li>Fachgebiet / Abteilungsgruppe</li>
+          <li>Rolle / Seniorität</li>
+          <li>Bundesland</li>
+          <li>Beruf</li>
         </ul>
-      </section>
-
-      <!-- 3. Welche Daten wir erheben -->
-      <section class="mb-8">
-        <h2 class="text-xl font-semibold text-stone-900 mb-4">3. Welche Daten wir erheben</h2>
-
-        <h3 class="text-lg font-medium text-stone-800 mt-6 mb-3">3.1 Daten, die nur auf Ihrem Gerät gespeichert werden (nicht übertragen)</h3>
-        <p>Folgende Daten werden lokal auf Ihrem Gerät gespeichert und niemals an unsere Server gesendet:</p>
-        <ul class="mt-2 space-y-1">
-          <li>GPS-Koordinaten für Geofencing (nur zur Erkennung, wann Sie Arbeitsorte betreten/verlassen)</li>
-          <li>Schichtvorlagen und geplante Arbeitszeiten</li>
-          <li>Krankheits- und Urlaubseinträge</li>
-          <li>Namen und Koordinaten von Arbeitsorten</li>
-          <li>Unbestätigte Zeiterfassungen</li>
-        </ul>
-
-        <h3 class="text-lg font-medium text-stone-800 mt-6 mb-3">3.2 Daten, die an unsere Server übertragen und dort verarbeitet werden</h3>
-        <p>
-          Wenn Sie eine vollständige, bestätigte Woche übermitteln oder automatisches Senden aktiviert ist,
-          überträgt die App die Kalenderwoche sowie geplante und tatsächlich gearbeitete Gesamtstunden.
-          Serverseitig wird dieser Wochenbeitrag mit Ihrem bestehenden Konto und den gespeicherten Profilinformationen verknüpft.
+        <p><strong>Warum:</strong> Um Ihre Beiträge mit ähnlichen Nutzer:innen zu gruppieren, wenn wir K-anonyme Statistiken erstellen. Ohne diese Felder wären die veröffentlichten Statistiken nicht möglich.</p>
+        <p><strong>Wann:</strong> Bei der Kontoerstellung; in Ihrem Profil später änderbar.</p>
+        <p><strong>Rechtsgrundlage:</strong> Art. 6 Abs. 1 lit. b DSGVO für die Speicherung als Teil Ihres Kontos; Art. 6 Abs. 1 lit. a DSGVO (Einwilligung) für den Beitrag zu aggregierten Statistiken.</p>
+        <p><strong>Im Code nachprüfen:</strong>
+          <a href="https://github.com/lukashondrich/open_workinghours/blob/49ea57b/backend/app/models.py#L85-L103" class="text-teal-600 hover:text-teal-700"><code>models.py</code> Z. 85-103</a>
         </p>
-        <ul class="mt-2 space-y-1">
-          <li><strong>E-Mail-Hash:</strong> Ein kryptografischer Einweg-Hash Ihrer E-Mail-Adresse (die ursprüngliche E-Mail wird nicht gespeichert)</li>
-          <li><strong>Bestätigte Wochensumme:</strong> Kalenderwoche, geplante Gesamtstunden, tatsächlich gearbeitete Gesamtstunden</li>
-          <li><strong>Profilinformationen:</strong> Bundesland, Berufsgruppe (Arzt/Ärztin oder Pflegekraft), Erfahrungsstufe, Abteilungsgruppe, Fachrichtung</li>
-          <li><strong>Krankenhauszugehörigkeit:</strong> Falls Sie Ihr Krankenhaus aus der Liste auswählen, speichern wir diese Zuordnung. Alternativ können Sie "Sonstige" wählen.</li>
-          <li><strong>Serverseitige pseudonyme Kontokennung:</strong> Eine technische Kennung, mit der Wochenbeiträge Ihrem Konto zugeordnet werden können.</li>
+      </div>
+
+      <h3 class="text-lg font-semibold text-stone-800 mb-2">2.3 Bestätigte Wochenstunden</h3>
+      <div class="bg-stone-50 border border-stone-200 rounded-lg p-5 mb-6 text-sm text-stone-700 space-y-2">
+        <p><strong>Was wir erfassen:</strong></p>
+        <ul class="list-disc list-outside ml-5 space-y-1">
+          <li>Pro abgeschlossener Woche: geplante Gesamtstunden + tatsächliche Gesamtstunden (keine Tagesaufschlüsselung)</li>
+          <li>Das Startdatum der Woche</li>
+          <li>Ihr Land, Bundesland, Fachgebiet, Krankenhauszugehörigkeit (oder NULL bei Opt-out)</li>
         </ul>
+        <p><strong>Warum:</strong> Um K-anonyme, differentially-private Statistiken über Arbeitsstunden nach Gruppen zu erstellen. Tagesdaten werden nie übertragen — nur Wochensummen nach Ihrer Bestätigung.</p>
+        <p><strong>Wann:</strong> Wenn Sie alle 7 Tage einer Woche bestätigen und die Woche abgeschlossen wird.</p>
+        <p><strong>Rechtsgrundlage:</strong> Art. 6 Abs. 1 lit. a DSGVO (Einwilligung speziell für den statistischen Beitrag).</p>
+        <p><strong>Im Code nachprüfen:</strong>
+          <a href="https://github.com/lukashondrich/open_workinghours/blob/49ea57b/backend/app/models.py#L147-L185" class="text-teal-600 hover:text-teal-700"><code>models.py</code> Z. 147-185</a> ·
+          <a href="https://github.com/lukashondrich/open_workinghours/blob/49ea57b/backend/app/aggregation.py#L54-L90" class="text-teal-600 hover:text-teal-700"><code>aggregation.py</code> Z. 54-90</a>
+        </p>
+      </div>
 
-        <h3 class="text-lg font-medium text-stone-800 mt-6 mb-3">3.3 Daten, die wir NICHT erheben</h3>
-        <ul class="mt-2 space-y-1">
-          <li>Ihren Namen</li>
-          <li>Genaue GPS-Koordinaten (diese verlassen Ihr Gerät nicht)</li>
-          <li>IP-Adressen (werden nicht protokolliert)</li>
-          <li>Geräte-IDs</li>
-          <li>Gesundheitsdaten (Krankheitstage bleiben auf Ihrem Gerät)</li>
+      <h3 class="text-lg font-semibold text-stone-800 mb-2">2.4 Optional — Kalenderexport</h3>
+      <div class="bg-stone-50 border border-stone-200 rounded-lg p-5 mb-6 text-sm text-stone-700 space-y-2">
+        <p><strong>Was wir erfassen:</strong> Nichts. Der Kalenderexport schreibt in den Kalender <em>Ihres Geräts</em>; keine Schichtdaten erreichen unser Backend.</p>
+        <p><strong>Was an den Kalender Ihres Geräts übergeben wird:</strong> Schichtname, Start-/Endzeit, Farbe, Abwesenheitsart (Urlaub/Krankheit).</p>
+        <p><strong>Wohin es danach geht:</strong> Die Kalender-App Ihres Geräts. <strong>Wenn Ihr Kalender mit iCloud, Google Kalender oder anderen synchronisiert oder geteilt ist, erscheinen die Einträge auch dort.</strong> Sie steuern dies in den Einstellungen Ihres Geräts.</p>
+        <p><strong>Wann:</strong> Nur wenn Sie den Schalter „In Kalender exportieren" in den Einstellungen aktivieren.</p>
+        <p><strong>Rechtsgrundlage:</strong> Art. 6 Abs. 1 lit. a DSGVO (Einwilligung — von Ihnen aktiviert).</p>
+        <p><strong>Im Code nachprüfen:</strong>
+          <a href="https://github.com/lukashondrich/open_workinghours/blob/49ea57b/mobile-app/src/modules/calendar/services/CalendarExportManager.ts#L42" class="text-teal-600 hover:text-teal-700"><code>CalendarExportManager.ts</code> Z. 42</a>
+        </p>
+      </div>
+
+      <h3 class="text-lg font-semibold text-stone-800 mb-2">2.5 Optional — Fehlerberichte</h3>
+      <div class="bg-stone-50 border border-stone-200 rounded-lg p-5 mb-6 text-sm text-stone-700 space-y-2">
+        <p><strong>Was wir erfassen (nur wenn Sie „Problem melden" und danach „Bericht senden" antippen):</strong></p>
+        <ul class="list-disc list-outside ml-5 space-y-1">
+          <li>Ihre optionale Textbeschreibung des Problems</li>
+          <li>Gerätemodell (z. B. „iPhone 15 Pro")</li>
+          <li>Betriebssystem-Name und -Version</li>
+          <li>App-Version und Build-Nummer</li>
+          <li>Anzahl der gespeicherten Arbeitsorte und Arbeitsereignisse</li>
+          <li>Die letzten ~100 Geofence-Ereignisse auf Ihrem Gerät — Zeitstempel, Ereignistyp, GPS-Genauigkeit in Metern, Ignoriert-Status/-Grund und aggregierte Genauigkeitswerte. Standardmäßig enthält dies <strong>keine</strong> Namen oder Koordinaten gespeicherter Arbeitsorte.</li>
+          <li>Wenn Sie angemeldet sind: Ihre Nutzer-ID, damit wir den Bericht Ihrem Konto zuordnen und bei Kontolöschung ebenfalls löschen können. Krankenhauszugehörigkeit, Fachgebiet, Rolle und Bundesland speichern wir nicht mit Fehlerberichten.</li>
         </ul>
-      </section>
-
-      <!-- 4. Rechtsgrundlage -->
-      <section class="mb-8">
-        <h2 class="text-xl font-semibold text-stone-900 mb-4">4. Rechtsgrundlage der Verarbeitung</h2>
-        <p>Wir verarbeiten Ihre Daten auf folgenden Rechtsgrundlagen gemäß Art. 6 Abs. 1 DSGVO:</p>
-
-        <h3 class="text-lg font-medium text-stone-800 mt-6 mb-3">4.1 Vertrag (Art. 6 Abs. 1 lit. b DSGVO)</h3>
-        <p>
-          Verarbeitung, die zur Erbringung des von Ihnen angeforderten Dienstes erforderlich ist:
-          Kontoerstellung, Authentifizierung, Speicherung Ihrer Arbeitszeiteinträge sowie
-          Ermöglichung von Datenexport und -löschung.
+        <p><strong>Optionale Standortdiagnose:</strong> Der Bestätigungsdialog enthält ein nicht vorausgewähltes Kontrollkästchen „Standortdiagnose einschließen". Wenn Sie es aktivieren, enthält der Bericht zusätzlich Namen gespeicherter Arbeitsorte, ungefähre gespeicherte Koordinaten auf 3 Dezimalstellen gerundet (etwa 100 m Genauigkeit) und aktuelle Geofence-Ereignisse mit Namen der Arbeitsorte.</p>
+        <p><strong>Was das Backend erzwingt:</strong> Wenn Standortdiagnosen nicht ausdrücklich aktiviert sind, entfernt das Backend gespeicherte Arbeitsortdetails und Geofence-Standortnamen auch dann, wenn eine ältere App-Version sie sendet.</p>
+        <p><strong>Warum:</strong> Zur Diagnose technischer Probleme — besonders der Geofencing-Zuverlässigkeit auf Android, wo wir auf reale Telemetriedaten angewiesen sind, um Fehler zu finden und zu beheben.</p>
+        <p><strong>Wann:</strong> Nur wenn Sie in den Einstellungen „Problem melden" antippen und die Übermittlung bestätigen.</p>
+        <p><strong>Aufbewahrung:</strong> Fehlerberichte werden 90 Tage aufbewahrt und danach automatisch gelöscht. Fehlerberichte werden außerdem sofort gelöscht, wenn Sie Ihr Konto löschen.</p>
+        <p><strong>Rechtsgrundlage:</strong> Art. 6 Abs. 1 lit. a DSGVO (Einwilligung — jedes Mal von Ihnen ausgelöst).</p>
+        <p><strong>Im Code nachprüfen:</strong>
+          <a href="https://github.com/lukashondrich/open_workinghours/blob/49ea57b/mobile-app/src/lib/utils/reportIssue.ts" class="text-teal-600 hover:text-teal-700"><code>reportIssue.ts</code></a> ·
+          <a href="https://github.com/lukashondrich/open_workinghours/blob/49ea57b/backend/app/routers/feedback.py#L19-L81" class="text-teal-600 hover:text-teal-700"><code>feedback.py</code> Z. 19-81</a> ·
+          <a href="https://github.com/lukashondrich/open_workinghours/blob/49ea57b/backend/app/models.py#L342-L367" class="text-teal-600 hover:text-teal-700"><code>models.py</code> Z. 342-367</a>
         </p>
+      </div>
 
-        <h3 class="text-lg font-medium text-stone-800 mt-6 mb-3">4.2 Einwilligung (Art. 6 Abs. 1 lit. a DSGVO)</h3>
-        <p>
-          Ihr Beitrag zu aggregierten, anonymisierten Statistiken über Arbeitsbedingungen im Gesundheitswesen.
-          Diese Einwilligung erteilen Sie bei Annahme der Nutzungsbedingungen. Sie können die Einwilligung
-          jederzeit widerrufen, indem Sie Ihr Konto löschen – damit werden Ihre Daten aus zukünftigen
-          Aggregationen entfernt.
-        </p>
-      </section>
-
-      <!-- 5. Empfänger -->
-      <section class="mb-8">
-        <h2 class="text-xl font-semibold text-stone-900 mb-4">5. Empfänger Ihrer Daten</h2>
-
-        <h3 class="text-lg font-medium text-stone-800 mt-6 mb-3">5.1 Dienstleister (Auftragsverarbeiter)</h3>
-        <p>Wir nutzen folgende Dienstleister, die Daten in unserem Auftrag auf Basis von Auftragsverarbeitungsverträgen verarbeiten:</p>
-        <ul class="mt-2 space-y-2">
-          <li>
-            <strong>Hetzner Online GmbH</strong> (Deutschland) — Server-Hosting<br />
-            <span class="text-stone-500 text-sm">Ihre Daten werden auf Servern in Deutschland gespeichert.</span>
-          </li>
-          <li>
-            <strong>Brevo (Sendinblue)</strong> (EU) — E-Mail-Versand<br />
-            <span class="text-stone-500 text-sm">Wird nur zum Versand von Verifizierungscodes verwendet. E-Mail-Adressen werden nach der Verifizierung nicht gespeichert.</span>
-          </li>
+      <h3 class="text-lg font-semibold text-stone-800 mb-2">2.6 Einwilligungsdokumentation</h3>
+      <div class="bg-stone-50 border border-stone-200 rounded-lg p-5 mb-6 text-sm text-stone-700 space-y-2">
+        <p><strong>Was wir erfassen:</strong></p>
+        <ul class="list-disc list-outside ml-5 space-y-1">
+          <li>Welche Version der Nutzungsbedingungen Sie akzeptiert haben</li>
+          <li>Welche Version der Datenschutzerklärung Sie akzeptiert haben</li>
+          <li>Den Zeitstempel Ihrer Zustimmung</li>
         </ul>
-
-        <h3 class="text-lg font-medium text-stone-800 mt-6 mb-3">5.2 Öffentliche Statistiken</h3>
-        <p>
-          Aggregierte, anonymisierte Statistiken können öffentlich zugänglich gemacht oder mit
-          Gewerkschaften, Berufsverbänden und Forschenden geteilt werden. Statistiken können
-          Aggregationen auf Landesebene oder, wenn die Gruppengrößen es erlauben, auf
-          Einrichtungsebene umfassen. Diese Statistiken:
+        <p><strong>Warum:</strong> Art. 7 DSGVO verpflichtet uns nachzuweisen, dass Sie eingewilligt haben. Diese drei Felder sind der rechtliche Nachweis dafür.</p>
+        <p><strong>Wann:</strong> Bei der Kontoerstellung; erneut, wenn ein wesentliches Update der Richtlinien eine Neu-Zustimmung erfordert.</p>
+        <p><strong>Rechtsgrundlage:</strong> Art. 6 Abs. 1 lit. c DSGVO — rechtliche Verpflichtung (Art. 7 schreibt die Dokumentation vor).</p>
+        <p><strong>Im Code nachprüfen:</strong>
+          <a href="https://github.com/lukashondrich/open_workinghours/blob/49ea57b/backend/app/models.py#L106-L108" class="text-teal-600 hover:text-teal-700"><code>models.py</code> Z. 106-108</a>
         </p>
-        <ul class="mt-2 space-y-1">
-          <li>Enthalten keine personenbezogenen Daten</li>
-          <li>Werden nur veröffentlicht, wenn sie auf mindestens 5 Beitragenden basieren (k-Anonymität, k=5)</li>
-          <li>Enthalten kalibriertes statistisches Rauschen (Differential Privacy, Laplace-Mechanismus) mit einem nutzerbezogenen jährlichen Privatsphäre-Budget zur Verhinderung von Re-Identifikation</li>
-        </ul>
+      </div>
+    </section>
 
-        <h3 class="text-lg font-medium text-stone-800 mt-6 mb-3">5.3 Kein Arbeitgeberzugriff</h3>
-        <p>
-          <strong>Ihr Arbeitgeber hat keinen Zugriff auf Ihre Daten.</strong> Open Working Hours ist kein Arbeitgeber-Tool.
-          Arbeitgeber können keinen Zugang zu individuellen Nutzerdaten beantragen, und wir werden diese nicht bereitstellen.
-        </p>
-      </section>
+    <!-- §3 Was auf dem Gerät bleibt -->
+    <section id="device" class="mb-12 scroll-mt-8">
+      <h2 class="text-2xl font-semibold text-stone-900 mb-6">3. Was auf Ihrem Gerät bleibt</h2>
+      <p class="text-stone-700 mb-4">Diese Datenkategorien werden ausschließlich auf Ihrem Gerät verarbeitet und erreichen unser Backend nie.</p>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm border-collapse">
+          <thead>
+            <tr class="bg-stone-100 text-stone-800">
+              <th class="text-left p-3 border border-stone-200">Was</th>
+              <th class="text-left p-3 border border-stone-200">Wo auf dem Gerät</th>
+              <th class="text-left p-3 border border-stone-200">Nachprüfen</th>
+            </tr>
+          </thead>
+          <tbody class="text-stone-700">
+            <tr>
+              <td class="p-3 border border-stone-200">GPS-Koordinaten</td>
+              <td class="p-3 border border-stone-200">Geofence-Dienst (im Arbeitsspeicher) — Erkennung läuft lokal; übertragen werden nur die resultierenden Wochenstunden-Summen</td>
+              <td class="p-3 border border-stone-200"><a href="https://github.com/lukashondrich/open_workinghours/blob/49ea57b/mobile-app/src/modules/geofencing/services/GeofenceService.ts" class="text-teal-600 hover:text-teal-700"><code>GeofenceService.ts</code></a></td>
+            </tr>
+            <tr>
+              <td class="p-3 border border-stone-200">Schichtvorlagen, geplante Schichten, Abwesenheiten</td>
+              <td class="p-3 border border-stone-200">Lokale SQLite-Datenbank (<code>calendar.db</code>)</td>
+              <td class="p-3 border border-stone-200"><a href="https://github.com/lukashondrich/open_workinghours/blob/49ea57b/mobile-app/src/modules/calendar/services/CalendarStorage.ts" class="text-teal-600 hover:text-teal-700"><code>CalendarStorage.ts</code></a></td>
+            </tr>
+            <tr>
+              <td class="p-3 border border-stone-200">Tracking-Datensätze (unbestätigte Sitzungen)</td>
+              <td class="p-3 border border-stone-200">Lokale SQLite (<code>tracking_records</code>) — nach Ihrer Bestätigung werden nur Wochensummen übermittelt</td>
+              <td class="p-3 border border-stone-200"><a href="https://github.com/lukashondrich/open_workinghours/blob/49ea57b/mobile-app/src/modules/calendar/services/CalendarStorage.ts" class="text-teal-600 hover:text-teal-700"><code>CalendarStorage.ts</code></a></td>
+            </tr>
+            <tr>
+              <td class="p-3 border border-stone-200">Krankheitstage</td>
+              <td class="p-3 border border-stone-200">Lokale SQLite (<code>absence_instances</code> mit <code>type='sick'</code>) — werden nie übertragen</td>
+              <td class="p-3 border border-stone-200"><a href="https://github.com/lukashondrich/open_workinghours/blob/49ea57b/mobile-app/src/modules/calendar/services/CalendarStorage.ts#L139" class="text-teal-600 hover:text-teal-700"><code>CalendarStorage.ts</code> Z. 139</a></td>
+            </tr>
+            <tr>
+              <td class="p-3 border border-stone-200">Biometrische Daten (Face ID / Fingerabdruck)</td>
+              <td class="p-3 border border-stone-200">iOS Secure Enclave / Android Keystore — wird vom Betriebssystem verwaltet; wir sehen nichts davon</td>
+              <td class="p-3 border border-stone-200">Verwaltet durch <code>expo-local-authentication</code></td>
+            </tr>
+            <tr>
+              <td class="p-3 border border-stone-200">Onboarding-Status, weggeklickte Hinweise</td>
+              <td class="p-3 border border-stone-200">AsyncStorage — lokale UI-Einstellungen</td>
+              <td class="p-3 border border-stone-200">–</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
 
-      <!-- 6. Speicherdauer -->
-      <section class="mb-8">
-        <h2 class="text-xl font-semibold text-stone-900 mb-4">6. Speicherdauer</h2>
-        <ul class="mt-2 space-y-2">
-          <li><strong>Kontodaten und Arbeitszeiteinträge:</strong> Gespeichert bis zur Löschung Ihres Kontos</li>
-          <li><strong>Verifizierungscodes:</strong> Automatische Löschung nach 15 Minuten</li>
-          <li><strong>Aggregierte Statistiken:</strong> Unbefristete Speicherung (enthalten keine personenbezogenen Daten)</li>
-          <li><strong>Server-Backups:</strong> 30 Tage Aufbewahrung, danach automatische Löschung</li>
-        </ul>
-      </section>
+    <!-- §4 Datenempfänger -->
+    <section id="recipients" class="mb-12 scroll-mt-8">
+      <h2 class="text-2xl font-semibold text-stone-900 mb-6">4. Datenempfänger</h2>
+      <p class="text-stone-700 mb-4">
+        Wenn Sie Open Working Hours nutzen, können Ihre Daten diese Dienste durchlaufen. Die meisten sind immer beteiligt (Hosting, Geocoding); andere nur, wenn Sie bestimmte Funktionen wählen (Social Login, Kalenderexport). Jede Aussage verlinkt zur Codezeile, die sie umsetzt.
+      </p>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm border-collapse">
+          <thead>
+            <tr class="bg-stone-100 text-stone-800">
+              <th class="text-left p-3 border border-stone-200">Zweck</th>
+              <th class="text-left p-3 border border-stone-200">Immer oder optional</th>
+              <th class="text-left p-3 border border-stone-200">Empfänger</th>
+              <th class="text-left p-3 border border-stone-200">Standort</th>
+              <th class="text-left p-3 border border-stone-200">Ausgelöst durch</th>
+              <th class="text-left p-3 border border-stone-200">Quelle</th>
+            </tr>
+          </thead>
+          <tbody class="text-stone-700">
+            <tr>
+              <td class="p-3 border border-stone-200">Backend-Hosting, Datenbank, Backups</td>
+              <td class="p-3 border border-stone-200">Immer</td>
+              <td class="p-3 border border-stone-200">Hetzner Online GmbH</td>
+              <td class="p-3 border border-stone-200">Deutschland</td>
+              <td class="p-3 border border-stone-200">Jede App-Nutzung</td>
+              <td class="p-3 border border-stone-200">
+                <a href="https://www.hetzner.com/AV/DPA_de.pdf" class="text-teal-600 hover:text-teal-700">Hetzner AVV (Standardbedingungen)</a> ·
+                <a href="https://github.com/lukashondrich/open_workinghours/blob/49ea57b/docs/GDPR_COMPLIANCE.md#processors" class="text-teal-600 hover:text-teal-700">unterzeichnet 2026-01-13</a>
+              </td>
+            </tr>
+            <tr>
+              <td class="p-3 border border-stone-200">E-Mail-Verifizierungscodes</td>
+              <td class="p-3 border border-stone-200">Nur bei E-Mail-Anmeldung</td>
+              <td class="p-3 border border-stone-200">Brevo (Sendinblue)</td>
+              <td class="p-3 border border-stone-200">EU</td>
+              <td class="p-3 border border-stone-200">Registrierung / Anmeldung per E-Mail</td>
+              <td class="p-3 border border-stone-200">
+                <a href="https://www.brevo.com/legal/termsofuse/#data-processing-agreement" class="text-teal-600 hover:text-teal-700">Brevo AVV (Standardbedingungen)</a> ·
+                <a href="https://github.com/lukashondrich/open_workinghours/blob/49ea57b/backend/app/email.py#L28" class="text-teal-600 hover:text-teal-700"><code>email.py</code> Z. 28</a>
+              </td>
+            </tr>
+            <tr>
+              <td class="p-3 border border-stone-200">Suche nach Ihrem Arbeitsplatz</td>
+              <td class="p-3 border border-stone-200">Immer (nur bei Suche)</td>
+              <td class="p-3 border border-stone-200">Komoot GmbH (Photon)</td>
+              <td class="p-3 border border-stone-200">Deutschland</td>
+              <td class="p-3 border border-stone-200">Suche eines Arbeitsplatzes im Setup</td>
+              <td class="p-3 border border-stone-200">
+                <a href="https://github.com/lukashondrich/open_workinghours/blob/49ea57b/mobile-app/src/modules/geofencing/services/GeocodingService.ts#L105" class="text-teal-600 hover:text-teal-700"><code>GeocodingService.ts</code> Z. 105</a>
+              </td>
+            </tr>
+            <tr>
+              <td class="p-3 border border-stone-200">Identitätsprüfung (Apple)</td>
+              <td class="p-3 border border-stone-200">Optional</td>
+              <td class="p-3 border border-stone-200">Apple Inc.</td>
+              <td class="p-3 border border-stone-200">USA (EU-US-Datenschutzrahmen)</td>
+              <td class="p-3 border border-stone-200">Wahl von „Mit Apple anmelden"</td>
+              <td class="p-3 border border-stone-200">
+                <a href="https://github.com/lukashondrich/open_workinghours/blob/49ea57b/backend/app/social_auth.py#L24-L25" class="text-teal-600 hover:text-teal-700"><code>social_auth.py</code> Z. 24-25</a>
+              </td>
+            </tr>
+            <tr>
+              <td class="p-3 border border-stone-200">Identitätsprüfung (Google)</td>
+              <td class="p-3 border border-stone-200">Optional</td>
+              <td class="p-3 border border-stone-200">Google LLC</td>
+              <td class="p-3 border border-stone-200">USA (EU-US-Datenschutzrahmen)</td>
+              <td class="p-3 border border-stone-200">Wahl von „Mit Google anmelden"</td>
+              <td class="p-3 border border-stone-200">
+                <a href="https://github.com/lukashondrich/open_workinghours/blob/49ea57b/backend/app/social_auth.py#L26" class="text-teal-600 hover:text-teal-700"><code>social_auth.py</code> Z. 26</a>
+              </td>
+            </tr>
+            <tr>
+              <td class="p-3 border border-stone-200">Kalenderexport</td>
+              <td class="p-3 border border-stone-200">Optional</td>
+              <td class="p-3 border border-stone-200">iOS Kalender (Apple) oder Google Kalender</td>
+              <td class="p-3 border border-stone-200">Ihr Gerät + dem Sync-Dienst, den Sie selbst eingerichtet haben (z. B. iCloud, Google)</td>
+              <td class="p-3 border border-stone-200">Aktivieren des Schalters „In Gerätekalender exportieren"</td>
+              <td class="p-3 border border-stone-200">
+                <a href="https://github.com/lukashondrich/open_workinghours/blob/49ea57b/mobile-app/src/modules/calendar/services/CalendarExportManager.ts#L42" class="text-teal-600 hover:text-teal-700"><code>CalendarExportManager.ts</code> Z. 42</a>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="text-stone-500 text-xs mt-3 italic">
+        Alle Quellverweise auf Stand Commit <code>49ea57b</code>. Der vollständige Quellcode ist öffentlich unter
+        <a href="https://github.com/lukashondrich/open_workinghours" class="text-teal-600 hover:text-teal-700">github.com/lukashondrich/open_workinghours</a>.
+      </p>
+    </section>
 
-      <!-- 7. Ihre Rechte -->
-      <section class="mb-8">
-        <h2 class="text-xl font-semibold text-stone-900 mb-4">7. Ihre Rechte nach DSGVO</h2>
-        <p>Sie haben folgende Rechte bezüglich Ihrer personenbezogenen Daten:</p>
-        <ul class="mt-2 space-y-2">
-          <li><strong>Auskunftsrecht (Art. 15):</strong> Fordern Sie eine Kopie Ihrer Daten über die Export-Funktion der App an</li>
-          <li><strong>Recht auf Berichtigung (Art. 16):</strong> Korrigieren Sie fehlerhafte Daten in der App</li>
-          <li><strong>Recht auf Löschung (Art. 17):</strong> Löschen Sie Ihr Konto und alle zugehörigen Daten über die App</li>
-          <li><strong>Recht auf Datenübertragbarkeit (Art. 20):</strong> Exportieren Sie Ihre Daten im JSON-Format über die App</li>
-          <li><strong>Recht auf Widerruf der Einwilligung (Art. 7):</strong> Widerrufen Sie Ihre Einwilligung durch Löschung Ihres Kontos</li>
-          <li><strong>Beschwerderecht:</strong> Sie können Beschwerde bei der Berliner Beauftragten für Datenschutz und Informationsfreiheit einreichen</li>
-        </ul>
+    <!-- §5 Speicherdauer -->
+    <section id="retention" class="mb-12 scroll-mt-8">
+      <h2 class="text-2xl font-semibold text-stone-900 mb-6">5. Wie lange wir Ihre Daten speichern</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm border-collapse">
+          <thead>
+            <tr class="bg-stone-100 text-stone-800">
+              <th class="text-left p-3 border border-stone-200">Daten</th>
+              <th class="text-left p-3 border border-stone-200">Aufbewahrung</th>
+            </tr>
+          </thead>
+          <tbody class="text-stone-700">
+            <tr><td class="p-3 border border-stone-200">Kontodaten (Nutzer-ID, E-Mail-Hash oder Social-Auth-Kennung, Profilfelder, Einwilligungsdaten)</td><td class="p-3 border border-stone-200">Bis Sie Ihr Konto löschen</td></tr>
+            <tr><td class="p-3 border border-stone-200">Bestätigte Wochenstunden</td><td class="p-3 border border-stone-200">Bis zur Kontolöschung, plus bis zu 30 Tage in unveränderlichen Backups</td></tr>
+            <tr><td class="p-3 border border-stone-200">Fehlerberichte</td><td class="p-3 border border-stone-200">90 Tage, dann automatisch gelöscht. Sofortige Löschung bei Kontolöschung.</td></tr>
+            <tr><td class="p-3 border border-stone-200">Veröffentlichte aggregierte Statistiken aus Ihren Beiträgen</td><td class="p-3 border border-stone-200">Unbegrenzt — diese sind anonym, keine personenbezogenen Daten</td></tr>
+            <tr><td class="p-3 border border-stone-200">Anwendungs-Logs (Backend)</td><td class="p-3 border border-stone-200">7 Tage</td></tr>
+            <tr><td class="p-3 border border-stone-200">Datenbank-Backups (Hetzner Object Storage, COMPLIANCE-Mode Object Lock)</td><td class="p-3 border border-stone-200">30 Tage, unveränderlich</td></tr>
+            <tr><td class="p-3 border border-stone-200">Hosting-Logs (Hetzner, können IP-Adressen enthalten)</td><td class="p-3 border border-stone-200">Gemäß Hetzner-Standardaufbewahrung; wir haben keinen Anwendungs-Zugriff darauf</td></tr>
+            <tr><td class="p-3 border border-stone-200">Verifizierungscodes (E-Mail-Anmeldung)</td><td class="p-3 border border-stone-200">Nach Verwendung oder Ablauf gelöscht (typischerweise Minuten)</td></tr>
+            <tr><td class="p-3 border border-stone-200">Social-Registration-Tokens</td><td class="p-3 border border-stone-200">30 Minuten</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="text-stone-700 text-sm mt-4">
+        Bei Kontolöschung werden die zugehörigen Datensätze innerhalb von Sekunden entfernt. Das 30-Tage-Backup-Fenster bedeutet, dass Daten eines gelöschten Kontos in verschlüsselten Backups verbleiben können, bis das Backup ausrotiert — dokumentiert in
+        <a href="https://github.com/lukashondrich/open_workinghours/blob/49ea57b/docs/data-retention-policy.md" class="text-teal-600 hover:text-teal-700"><code>data-retention-policy.md</code></a>.
+      </p>
+    </section>
 
-        <h3 class="text-lg font-medium text-stone-800 mt-6 mb-3">Wichtiger Hinweis zu aggregierten Statistiken</h3>
-        <p>
-          Wenn Sie Ihr Konto löschen, werden alle Ihre personenbezogenen Daten dauerhaft entfernt.
-          Aggregierte Statistiken, die vor Ihrer Löschung berechnet wurden, bleiben jedoch erhalten.
-          Diese Statistiken können nicht mit Ihnen in Verbindung gebracht werden, da sie:
-        </p>
-        <ul class="mt-2 space-y-1">
-          <li>Nur Gruppeninformationen enthalten (z.B. „Ärzte in der Inneren Medizin in Bayern")</li>
-          <li>Auf Gruppen von mindestens 5 Beitragenden basieren (k-Anonymität)</li>
-          <li>Kalibriertes statistisches Rauschen enthalten (Differential Privacy, ε=1,0), das einzelne Beiträge verschleiert</li>
-        </ul>
-        <p class="mt-2">
-          Nach DSGVO gelten solche ordnungsgemäß anonymisierten Daten nicht als personenbezogene Daten
-          und unterliegen daher nicht dem Recht auf Löschung.
-        </p>
-      </section>
+    <!-- §6 Ihre Rechte -->
+    <section id="rights" class="mb-12 scroll-mt-8">
+      <h2 class="text-2xl font-semibold text-stone-900 mb-6">6. Ihre Rechte nach DSGVO</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm border-collapse">
+          <thead>
+            <tr class="bg-stone-100 text-stone-800">
+              <th class="text-left p-3 border border-stone-200">Recht</th>
+              <th class="text-left p-3 border border-stone-200">So nutzen Sie es</th>
+            </tr>
+          </thead>
+          <tbody class="text-stone-700">
+            <tr>
+              <td class="p-3 border border-stone-200"><strong>Auskunft</strong> (Art. 15)</td>
+              <td class="p-3 border border-stone-200">In der App: Einstellungen → Daten &amp; Datenschutz → Daten exportieren. Gibt JSON aller Ihrer Datensätze zurück. <a href="https://github.com/lukashondrich/open_workinghours/blob/49ea57b/mobile-app/src/modules/geofencing/screens/DataPrivacyScreen.tsx" class="text-teal-600 hover:text-teal-700"><code>DataPrivacyScreen.tsx</code></a></td>
+            </tr>
+            <tr>
+              <td class="p-3 border border-stone-200"><strong>Berichtigung</strong> (Art. 16)</td>
+              <td class="p-3 border border-stone-200">In der App: Einstellungen → Profil. Alle Profilfelder sind editierbar.</td>
+            </tr>
+            <tr>
+              <td class="p-3 border border-stone-200"><strong>Löschung</strong> (Art. 17)</td>
+              <td class="p-3 border border-stone-200">In der App: Einstellungen → Daten &amp; Datenschutz → Konto löschen. <a href="https://github.com/lukashondrich/open_workinghours/blob/49ea57b/backend/app/routers/auth.py#L406-L457" class="text-teal-600 hover:text-teal-700"><code>auth.py</code> Z. 406-457</a></td>
+            </tr>
+            <tr>
+              <td class="p-3 border border-stone-200"><strong>Einschränkung</strong> (Art. 18)</td>
+              <td class="p-3 border border-stone-200">Schreiben Sie uns per E-Mail (siehe unten).</td>
+            </tr>
+            <tr>
+              <td class="p-3 border border-stone-200"><strong>Datenübertragbarkeit</strong> (Art. 20)</td>
+              <td class="p-3 border border-stone-200">In der App: Einstellungen → Daten &amp; Datenschutz → Daten exportieren. JSON-Format.</td>
+            </tr>
+            <tr>
+              <td class="p-3 border border-stone-200"><strong>Widerspruch</strong> (Art. 21)</td>
+              <td class="p-3 border border-stone-200">Wählen Sie „Lieber nicht angeben" als Krankenhauszugehörigkeit — Ihre Wochenstunden fließen in keine veröffentlichte Statistik mehr ein. Oder schreiben Sie uns für umfassenderen Widerspruch.</td>
+            </tr>
+            <tr>
+              <td class="p-3 border border-stone-200"><strong>Beschwerderecht</strong></td>
+              <td class="p-3 border border-stone-200">Sie können jederzeit Beschwerde bei einer Aufsichtsbehörde einlegen. Für Berlin ist das die Berliner Beauftragte für Datenschutz und Informationsfreiheit (<a href="https://www.datenschutz-berlin.de" class="text-teal-600 hover:text-teal-700">www.datenschutz-berlin.de</a>).</td>
+            </tr>
+            <tr>
+              <td class="p-3 border border-stone-200"><strong>Privacy-Budget-Transparenz</strong> (Art. 15)</td>
+              <td class="p-3 border border-stone-200">Authentifizierter Endpoint zeigt Ihren ε-Verbrauch: <code>GET /auth/me/privacy-budget</code>. <a href="https://github.com/lukashondrich/open_workinghours/blob/49ea57b/backend/app/routers/auth.py#L390-L403" class="text-teal-600 hover:text-teal-700"><code>auth.py</code> Z. 390-403</a></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="text-stone-700 text-sm mt-4">Wir treffen keine automatisierten Entscheidungen über Sie und führen kein Profiling durch (Art. 22 — nicht anwendbar).</p>
+    </section>
 
-      <!-- 8. Sicherheit -->
-      <section class="mb-8">
-        <h2 class="text-xl font-semibold text-stone-900 mb-4">8. Sicherheitsmaßnahmen</h2>
-        <ul class="mt-2 space-y-1">
-          <li><strong>Verschlüsselung bei Übertragung:</strong> Alle Datenübertragungen verwenden TLS 1.3</li>
-          <li><strong>Verschlüsselung bei Speicherung:</strong> Serverdaten sind auf Infrastrukturebene verschlüsselt</li>
-          <li><strong>Pseudonymisierung:</strong> E-Mail-Adressen werden gehasht; Nutzer werden durch zufällige IDs identifiziert</li>
-          <li><strong>Zugriffskontrolle:</strong> Strikte Zugangsbeschränkungen für Produktionssysteme</li>
-          <li><strong>Rate Limiting:</strong> Authentifizierungsendpunkte sind ratenbegrenzt zum Schutz vor Missbrauch</li>
-          <li><strong>Sicherheitsheader:</strong> HSTS, X-Content-Type-Options, X-Frame-Options und Referrer-Policy werden erzwungen</li>
-          <li><strong>CORS-Beschränkungen:</strong> Cross-Origin-Anfragen sind auf autorisierte Ursprünge beschränkt</li>
-          <li><strong>Schutz vor E-Mail-Enumeration:</strong> Authentifizierungsantworten geben nicht preis, ob ein Konto existiert</li>
-          <li><strong>EU-Datenresidenz:</strong> Alle Daten werden in Deutschland gespeichert</li>
-        </ul>
-      </section>
+    <!-- §7 Internationale Übermittlungen -->
+    <section id="transfers" class="mb-12 scroll-mt-8">
+      <h2 class="text-2xl font-semibold text-stone-900 mb-6">7. Wohin Ihre Daten gehen</h2>
+      <p class="text-stone-700 mb-4">
+        <strong>Ihr Konto, Ihre Stunden, unsere Analytik — alles in Deutschland.</strong> Backend, Datenbank und Backups laufen auf Hetzner-Servern in Deutschland. E-Mail-Codes laufen über Brevo (EU). Arbeitsplatzsuche nutzt Komoot (Deutschland). Siehe §4 für die vollständige Empfängermatrix.
+      </p>
+      <p class="text-stone-700 mb-2"><strong>Zwei Situationen beinhalten Übermittlungen in Länder außerhalb des EU/EWR — beide sind optional und durch Ihre Wahl ausgelöst:</strong></p>
+      <ul class="list-disc list-outside ml-5 space-y-3 text-stone-700 text-sm mb-4">
+        <li><strong>Wenn Sie Apple- oder Google-Anmeldung wählen:</strong> Die Identitätsprüfung beteiligt Apple Inc. (USA) oder Google LLC (USA). Diese Übermittlungen erfolgen unter dem EU-US-Datenschutzrahmen (Angemessenheitsbeschluss). Die bei der Anmeldung gesendeten Daten dienen Apple/Google zur Überprüfung des Identitäts-Tokens; wir erhalten im Gegenzug nur eine undurchsichtige Kennung. Ihre E-Mail wird bei Social Login von uns nicht gespeichert.</li>
+        <li><strong>Wenn Sie Kalenderexport aktivieren und Ihr Gerätekalender mit iCloud oder Google Calendar synchronisiert:</strong> Die Kalendereinträge folgen der Sync-Konfiguration Ihres Geräts, was US-Server einschließen kann. Das liegt zwischen Ihnen und Ihrem Kalender-Anbieter; wir sehen und steuern das nicht.</li>
+      </ul>
+      <p class="text-stone-700 text-sm">
+        <strong>Zu Hosting-Logs / IP-Adressen:</strong> Wie bei jedem Webserver sieht die Infrastruktur von Hetzner Ihre IP-Adresse kurz, wenn Ihr Gerät eine Anfrage stellt, und protokolliert sie. Unsere Anwendungs-Datenbank speichert keine IPs. Hetzner sitzt in Deutschland; deren Infrastruktur-Logs bleiben in Deutschland.
+      </p>
+    </section>
 
-      <!-- 9. Internationale Übermittlungen -->
-      <section class="mb-8">
-        <h2 class="text-xl font-semibold text-stone-900 mb-4">9. Internationale Datenübermittlungen</h2>
-        <p>
-          Ihre Daten werden ausschließlich innerhalb der Europäischen Union (Deutschland) verarbeitet und gespeichert.
-          Wir übermitteln keine personenbezogenen Daten in Länder außerhalb der EU/des EWR.
-        </p>
-      </section>
+    <!-- §8 Sicherheit -->
+    <section id="security" class="mb-12 scroll-mt-8">
+      <h2 class="text-2xl font-semibold text-stone-900 mb-6">8. Sicherheitsmaßnahmen</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm border-collapse">
+          <thead>
+            <tr class="bg-stone-100 text-stone-800">
+              <th class="text-left p-3 border border-stone-200">Ebene</th>
+              <th class="text-left p-3 border border-stone-200">Was wir tun</th>
+              <th class="text-left p-3 border border-stone-200">Nachprüfen</th>
+            </tr>
+          </thead>
+          <tbody class="text-stone-700">
+            <tr><td class="p-3 border border-stone-200">Transportverschlüsselung</td><td class="p-3 border border-stone-200">TLS 1.2+ für gesamten Client-Server-Verkehr</td><td class="p-3 border border-stone-200"><a href="https://github.com/lukashondrich/open_workinghours/blob/49ea57b/backend/docker-compose.yml" class="text-teal-600 hover:text-teal-700"><code>docker-compose.yml</code></a> (Caddy Reverse-Proxy mit Auto-TLS)</td></tr>
+            <tr><td class="p-3 border border-stone-200">Verschlüsselung im Ruhezustand</td><td class="p-3 border border-stone-200">Von Hetzner verwaltete Festplattenverschlüsselung + unveränderliche Backups (COMPLIANCE-Mode Object Lock)</td><td class="p-3 border border-stone-200"><a href="https://github.com/lukashondrich/open_workinghours/blob/49ea57b/docs/data-retention-policy.md" class="text-teal-600 hover:text-teal-700"><code>data-retention-policy.md</code></a></td></tr>
+            <tr><td class="p-3 border border-stone-200">Pseudonymisierung</td><td class="p-3 border border-stone-200">Zufällige UUID-Nutzer-IDs; E-Mails nur als HMAC-SHA256-Hashes mit serverseitigem geheimen Schlüssel gespeichert</td><td class="p-3 border border-stone-200"><a href="https://github.com/lukashondrich/open_workinghours/blob/49ea57b/backend/app/security.py#L25-L28" class="text-teal-600 hover:text-teal-700"><code>security.py</code> Z. 25-28</a></td></tr>
+            <tr><td class="p-3 border border-stone-200">K-Anonymität in veröffentlichten Statistiken</td><td class="p-3 border border-stone-200">Zellen mit weniger als 5 Beitragenden werden nicht veröffentlicht; Dominanzregel verhindert, dass eine einzelne Person mehr als 30 % zum Gruppenbeitrag stellt</td><td class="p-3 border border-stone-200"><a href="https://github.com/lukashondrich/open_workinghours/blob/49ea57b/backend/app/dp_group_stats/config.py" class="text-teal-600 hover:text-teal-700"><code>dp_group_stats/config.py</code></a></td></tr>
+            <tr><td class="p-3 border border-stone-200">Differential Privacy</td><td class="p-3 border border-stone-200">Laplace-Rauschen auf veröffentlichte Werte; jährliches ε-Budget pro Nutzer:in von 150</td><td class="p-3 border border-stone-200"><a href="https://github.com/lukashondrich/open_workinghours/blob/49ea57b/backend/app/dp_group_stats/mechanisms.py" class="text-teal-600 hover:text-teal-700"><code>mechanisms.py</code></a> · <a href="https://github.com/lukashondrich/open_workinghours/blob/49ea57b/backend/app/dp_group_stats/accounting.py" class="text-teal-600 hover:text-teal-700"><code>accounting.py</code></a></td></tr>
+            <tr><td class="p-3 border border-stone-200">Authentifizierungs-Tokens</td><td class="p-3 border border-stone-200">JWT mit 30-Tage-Ablauf; im hardwaregesicherten Gerätespeicher (iOS Keychain / Android Keystore)</td><td class="p-3 border border-stone-200"><a href="https://github.com/lukashondrich/open_workinghours/blob/49ea57b/mobile-app/src/lib/auth/AuthStorage.ts" class="text-teal-600 hover:text-teal-700"><code>AuthStorage.ts</code></a></td></tr>
+            <tr><td class="p-3 border border-stone-200">Rate-Limiting</td><td class="p-3 border border-stone-200">5 Auth-Anfragen pro Minute pro IP; 10 Feedback-Einreichungen pro Minute pro IP</td><td class="p-3 border border-stone-200"><a href="https://github.com/lukashondrich/open_workinghours/blob/49ea57b/backend/app/rate_limit.py" class="text-teal-600 hover:text-teal-700"><code>rate_limit.py</code></a></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="text-stone-700 text-sm mt-4">
+        <strong>Ehrlich zu Grenzen:</strong> Pseudonymisierung reduziert das Re-Identifikationsrisiko, eliminiert es aber nicht. An kleineren Krankenhäusern könnte die Kombination der Profilfelder (Krankenhaus + Fachgebiet + Seniorität) grundsätzlich eine Identifikation durch jemanden ermöglichen, der bereits weiß, dass Sie dort arbeiten. Die oben beschriebene K-Anonymitätsschwelle und Differential Privacy verhindern dies in veröffentlichten Statistiken; die zugrundeliegenden operativen Daten bleiben jedoch pseudonyme personenbezogene Daten — nicht anonym — und unterliegen allen Schutzmaßnahmen dieser Erklärung. Diese Bewertung findet sich in unserer
+        <a href="https://github.com/lukashondrich/open_workinghours/blob/49ea57b/docs/DPIA.md" class="text-teal-600 hover:text-teal-700">Datenschutz-Folgenabschätzung</a>, Risiko R7.
+      </p>
+    </section>
 
-      <!-- 10. Änderungen -->
-      <section class="mb-8">
-        <h2 class="text-xl font-semibold text-stone-900 mb-4">10. Änderungen dieser Datenschutzerklärung</h2>
-        <p>
-          Wir können diese Datenschutzerklärung aktualisieren, um Änderungen unserer Praktiken oder rechtlicher
-          Anforderungen widerzuspiegeln. Wesentliche Änderungen werden über die App kommuniziert.
-          Die aktuelle Version ist stets unter dieser URL verfügbar.
-        </p>
-      </section>
-
-      <!-- 11. Kontakt -->
-      <section class="mb-8">
-        <h2 class="text-xl font-semibold text-stone-900 mb-4">11. Kontakt</h2>
-        <p>Für datenschutzbezogene Fragen oder zur Ausübung Ihrer Rechte kontaktieren Sie:</p>
-        <address class="not-italic mt-2 text-stone-700">
-          E-Mail: <a href="mailto:privacy@openworkinghours.org" class="text-teal-600">privacy@openworkinghours.org</a>
-        </address>
-      </section>
-    </div>
+    <!-- §9 Kontakt -->
+    <section id="contact" class="mb-12 scroll-mt-8">
+      <h2 class="text-2xl font-semibold text-stone-900 mb-6">9. Verantwortliche Person</h2>
+      <address class="not-italic text-stone-800">
+        <strong>Lukas Hondrich</strong><br />
+        Karl-Marx-Str. 182<br />
+        12043 Berlin<br />
+        Deutschland<br />
+        <br />
+        E-Mail: <a href="mailto:lukashondrich@googlemail.com" class="text-teal-600 hover:text-teal-700">lukashondrich@googlemail.com</a>
+      </address>
+      <p class="text-stone-500 text-sm mt-4 italic">
+        Für die rechtliche Compliance in Deutschland muss dies dem Impressum auf der Website entsprechen. Aktualisieren Sie beide Seiten gemeinsam.
+      </p>
+      <p class="text-stone-700 text-sm mt-4">
+        <strong>Datenschutzbeauftragter:</strong> Nicht erforderlich — Einzelunternehmer unterhalb der Schwellen aus Art. 37 Abs. 1 DSGVO.
+      </p>
+      <p class="text-stone-700 text-sm mt-2">
+        <strong>Aufsichtsbehörde:</strong> Berliner Beauftragte für Datenschutz und Informationsfreiheit, Friedrichstraße 219, 10969 Berlin, <a href="https://www.datenschutz-berlin.de" class="text-teal-600 hover:text-teal-700">www.datenschutz-berlin.de</a>
+      </p>
+    </section>
   </div>
 </LayoutDE>

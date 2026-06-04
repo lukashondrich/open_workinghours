@@ -8,6 +8,7 @@ import {
   AppState,
   TouchableOpacity,
   Keyboard,
+  Alert,
   type AppStateStatus,
 } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
@@ -43,8 +44,11 @@ import LoginScreen from '@/modules/auth/screens/LoginScreen';
 import LockScreen from '@/modules/auth/screens/LockScreen';
 import SocialRegistrationScreen from '@/modules/auth/screens/SocialRegistrationScreen';
 import ProfileScreen from '@/modules/auth/screens/ProfileScreen';
+import { ConsentBottomSheet } from '@/modules/auth/components/ConsentBottomSheet';
 
 import { useAuth } from '@/lib/auth/auth-context';
+import { userNeedsConsentUpdate } from '@/lib/auth/consent-types';
+import { AuthService } from '@/modules/auth/services/AuthService';
 import { WeekFinalizationService } from '@/modules/reports/services/WeekFinalizationService';
 import { WeekStateService } from '@/modules/reports/services/WeekStateService';
 import { SundayNotificationService } from '@/modules/reports/services/SundayNotificationService';
@@ -346,10 +350,12 @@ function AuthStack() {
 }
 
 export default function AppNavigator() {
-  const { state: authState, unlock, signOut } = useAuth();
+  const { state: authState, unlock, signIn, signOut } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
+  const [isUpdatingConsent, setIsUpdatingConsent] = useState(false);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   const finalizationInFlightRef = useRef(false);
+  const requiresConsentUpdate = authState.status === 'authenticated' && userNeedsConsentUpdate(authState.user);
 
   const runQueuedFinalization = useCallback(async () => {
     if (finalizationInFlightRef.current) {
@@ -374,6 +380,32 @@ export default function AppNavigator() {
     }
   }, []);
 
+  const handleConsentUpdateAccepted = useCallback(async () => {
+    if (authState.status !== 'authenticated' || !authState.token || !authState.expiresAt) {
+      return;
+    }
+
+    try {
+      setIsUpdatingConsent(true);
+      const updatedUser = await AuthService.updateConsent(authState.token, authState.user?.email);
+      await signIn(updatedUser, authState.token, authState.expiresAt);
+    } catch (error) {
+      console.error('[AppNavigator] Failed to update consent:', error);
+      Alert.alert(
+        t('common.error'),
+        error instanceof Error ? error.message : t('consent.updateFailed')
+      );
+    } finally {
+      setIsUpdatingConsent(false);
+    }
+  }, [
+    authState.status,
+    authState.token,
+    authState.expiresAt,
+    authState.user?.email,
+    signIn,
+  ]);
+
   useEffect(() => {
     // Just check if auth is loaded, don't wait for location check
     if (authState.status === 'authenticated' || authState.status === 'unauthenticated' || authState.status === 'locked') {
@@ -382,18 +414,19 @@ export default function AppNavigator() {
   }, [authState.status]);
 
   useEffect(() => {
-    if (authState.status !== 'authenticated') {
+    if (authState.status !== 'authenticated' || requiresConsentUpdate) {
       return;
     }
     void runQueuedFinalization();
-  }, [authState.status, runQueuedFinalization]);
+  }, [authState.status, requiresConsentUpdate, runQueuedFinalization]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextState) => {
       if (
         appStateRef.current.match(/background|inactive/) &&
         nextState === 'active' &&
-        authState.status === 'authenticated'
+        authState.status === 'authenticated' &&
+        !requiresConsentUpdate
       ) {
         void runQueuedFinalization();
       }
@@ -401,7 +434,7 @@ export default function AppNavigator() {
     });
 
     return () => subscription.remove();
-  }, [authState.status, runQueuedFinalization]);
+  }, [authState.status, requiresConsentUpdate, runQueuedFinalization]);
 
   // Show loading while auth state is being restored
   if (authState.status === 'idle' || authState.status === 'loading' || isLoading) {
@@ -429,6 +462,23 @@ export default function AppNavigator() {
     return (
       <NavigationContainer>
         <AuthStack />
+      </NavigationContainer>
+    );
+  }
+
+  if (requiresConsentUpdate) {
+    return (
+      <NavigationContainer>
+        <>
+          <LoadingScreen />
+          <ConsentBottomSheet
+            visible
+            onAccept={handleConsentUpdateAccepted}
+            onCancel={signOut}
+            mode="update"
+            loading={isUpdatingConsent}
+          />
+        </>
       </NavigationContainer>
     );
   }

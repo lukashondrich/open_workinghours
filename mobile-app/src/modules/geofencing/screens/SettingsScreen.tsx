@@ -9,6 +9,9 @@ import {
   Switch,
   Linking,
   Platform,
+  Modal,
+  TouchableOpacity,
+  TextInput,
 } from 'react-native';
 import { SettingsDetailLayout } from '@/components/ui';
 import { useNavigation } from '@react-navigation/native';
@@ -28,10 +31,10 @@ import {
   UserCircle,
 } from 'lucide-react-native';
 
-import { colors, spacing, fontSize, fontWeight } from '@/theme';
+import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/theme';
 import { t } from '@/lib/i18n';
 import { ListItem } from '@/components/ui';
-import { Button } from '@/components/ui';
+import { Button, Checkbox } from '@/components/ui';
 import type { RootStackParamList } from '@/navigation/AppNavigator';
 import { useAuth } from '@/lib/auth/auth-context';
 import { BiometricService } from '@/lib/auth/BiometricService';
@@ -96,6 +99,9 @@ export default function SettingsScreen() {
   const navigation = useNavigation<SettingsScreenNavigationProp>();
   const { signOut, state } = useAuth();
   const [isReporting, setIsReporting] = useState(false);
+  const [showReportDialog, setShowReportDialog] = useState(false);
+  const [includeLocationDiagnostics, setIncludeLocationDiagnostics] = useState(false);
+  const [reportDescription, setReportDescription] = useState('');
   const [isSeeding, setIsSeeding] = useState(false);
 
   // Biometric state
@@ -199,11 +205,22 @@ export default function SettingsScreen() {
     }
   };
 
-  const handleReportIssue = async () => {
+  const handleReportIssue = () => {
+    setIncludeLocationDiagnostics(false);
+    setReportDescription('');
+    setShowReportDialog(true);
+  };
+
+  const handleSubmitReportIssue = async () => {
     console.log('[SettingsScreen] Starting bug report submission...');
     try {
+      setShowReportDialog(false);
       setIsReporting(true);
-      await reportIssue(state.user);
+      await reportIssue(state.user, {
+        includeLocationDiagnostics,
+        featureArea: 'settings',
+        description: reportDescription.trim() || undefined,
+      });
       console.log('[SettingsScreen] Bug report submitted successfully');
       // Use fallback strings in case translations fail
       const title = t('settings.reportSent') || 'Report Sent';
@@ -217,6 +234,7 @@ export default function SettingsScreen() {
     } finally {
       console.log('[SettingsScreen] Resetting isReporting state');
       setIsReporting(false);
+      setReportDescription('');
     }
   };
 
@@ -453,6 +471,92 @@ export default function SettingsScreen() {
             </Button>
           </View>
         </ScrollView>
+      <Modal
+        visible={showReportDialog}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowReportDialog(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.reportDialog}>
+            <ScrollView
+              contentContainerStyle={styles.reportDialogContent}
+              keyboardShouldPersistTaps="handled"
+            >
+              <Text style={styles.reportTitle}>{t('settings.reportIssueTitle')}</Text>
+              <Text style={styles.reportIntro}>{t('settings.reportIssueIntro')}</Text>
+
+              <TextInput
+                style={styles.reportDescriptionInput}
+                value={reportDescription}
+                onChangeText={setReportDescription}
+                placeholder={t('settings.reportIssueDescriptionPlaceholder')}
+                placeholderTextColor={colors.text.tertiary}
+                multiline
+                maxLength={1000}
+                textAlignVertical="top"
+                testID="report-description-input"
+              />
+
+              <View style={styles.reportInfoBox}>
+                <Text style={styles.reportInfoTitle}>
+                  {t('settings.reportIssueDefaultDataTitle')}
+                </Text>
+                <Text style={styles.reportInfoBody}>
+                  {t('settings.reportIssueDefaultDataBody')}
+                </Text>
+              </View>
+
+              <View
+                style={styles.reportCheckboxRow}
+                testID="report-location-diagnostics-row"
+              >
+                <Checkbox
+                  checked={includeLocationDiagnostics}
+                  onPress={() => setIncludeLocationDiagnostics(value => !value)}
+                  testID="report-location-diagnostics-checkbox"
+                />
+                <TouchableOpacity
+                  style={styles.reportCheckboxText}
+                  onPress={() => setIncludeLocationDiagnostics(value => !value)}
+                  activeOpacity={0.8}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: includeLocationDiagnostics }}
+                >
+                  <Text style={styles.reportCheckboxTitle}>
+                    {t('settings.reportIssueLocationDiagnostics')}
+                  </Text>
+                  <Text style={styles.reportCheckboxBody}>
+                    {t('settings.reportIssueLocationDiagnosticsBody')}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.reportRetention}>
+                {t('settings.reportIssueRetention')}
+              </Text>
+
+              <View style={styles.reportActions}>
+                <Button
+                  variant="ghost"
+                  onPress={() => setShowReportDialog(false)}
+                  fullWidth
+                >
+                  {t('common.cancel')}
+                </Button>
+                <Button
+                  variant="primary"
+                  onPress={handleSubmitReportIssue}
+                  fullWidth
+                  testID="report-send-button"
+                >
+                  {t('settings.reportIssueSend')}
+                </Button>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SettingsDetailLayout>
   );
 }
@@ -497,6 +601,91 @@ const styles = StyleSheet.create({
   },
   signOutSection: {
     marginTop: spacing.xxl,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+  },
+  reportDialog: {
+    backgroundColor: colors.background.paper,
+    borderRadius: borderRadius.lg,
+    maxHeight: '90%',
+  },
+  reportDialogContent: {
+    padding: spacing.xl,
+  },
+  reportTitle: {
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.semibold,
+    color: colors.text.primary,
+    marginBottom: spacing.sm,
+  },
+  reportIntro: {
+    fontSize: fontSize.md,
+    color: colors.text.secondary,
+    lineHeight: 22,
+    marginBottom: spacing.lg,
+  },
+  reportDescriptionInput: {
+    minHeight: 96,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+    fontSize: fontSize.md,
+    color: colors.text.primary,
+    backgroundColor: colors.background.paper,
+  },
+  reportInfoBox: {
+    backgroundColor: colors.grey[50],
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+  },
+  reportInfoTitle: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    color: colors.text.primary,
+    marginBottom: spacing.xs,
+  },
+  reportInfoBody: {
+    fontSize: fontSize.sm,
+    color: colors.text.secondary,
+    lineHeight: 20,
+  },
+  reportCheckboxRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: spacing.md,
+  },
+  reportCheckboxText: {
+    flex: 1,
+    marginLeft: spacing.md,
+  },
+  reportCheckboxTitle: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.medium,
+    color: colors.text.primary,
+    marginBottom: spacing.xs,
+  },
+  reportCheckboxBody: {
+    fontSize: fontSize.sm,
+    color: colors.text.secondary,
+    lineHeight: 20,
+  },
+  reportRetention: {
+    fontSize: fontSize.xs,
+    color: colors.text.tertiary,
+    lineHeight: 18,
+    marginBottom: spacing.lg,
+  },
+  reportActions: {
+    gap: spacing.sm,
   },
   biometricSection: {
     marginTop: spacing.xxl,

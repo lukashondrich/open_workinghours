@@ -23,7 +23,7 @@ export interface User {
   seniority?: string;
   departmentGroup?: string;
   specializationCode?: string;
-  hospitalRefId?: number;
+  hospitalRefId?: number | null;
   // GDPR consent fields
   termsAcceptedVersion?: string;
   privacyAcceptedVersion?: string;
@@ -60,7 +60,7 @@ export interface RegisterRequest {
   seniority?: string;
   departmentGroup?: string;
   specializationCode?: string;
-  hospitalRefId?: number;
+  hospitalRefId?: number | null;
   // GDPR consent
   termsVersion?: string;
   privacyVersion?: string;
@@ -71,7 +71,7 @@ export interface ProfileUpdateRequest {
   seniority?: string;
   departmentGroup?: string;
   specializationCode?: string;
-  hospitalRefId?: number;
+  hospitalRefId?: number | null;
   stateCode?: string;
   hospitalId?: string;
   specialty?: string;
@@ -128,7 +128,7 @@ export interface SocialAuthStartResponse {
     seniority?: string;
     department_group?: string;
     specialization_code?: string;
-    hospital_ref_id?: number;
+    hospital_ref_id?: number | null;
     terms_accepted_version?: string;
     privacy_accepted_version?: string;
     consent_accepted_at?: string;
@@ -146,7 +146,7 @@ export interface SocialRegisterRequest {
   seniority?: string;
   departmentGroup?: string;
   specializationCode?: string;
-  hospitalRefId?: number;
+  hospitalRefId?: number | null;
   termsVersion?: string;
   privacyVersion?: string;
 }

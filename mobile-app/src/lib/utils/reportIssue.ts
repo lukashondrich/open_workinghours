@@ -18,7 +18,7 @@ interface GpsTelemetry {
     accuracy_source: string | null;
     ignored: boolean;
     ignore_reason: string | null;
-    location_name: string;
+    location_name?: string | null;
   }>;
   accuracy_stats: {
     min: number;
@@ -35,7 +35,7 @@ interface AppStateSnapshot {
   user: User | null;
   locations: {
     total: number;
-    details: Array<{ name: string; latitude: number; longitude: number }>;
+    details: Array<{ name: string; latitude: number; longitude: number }> | null;
   };
   workEvents: {
     total: number;
@@ -52,10 +52,20 @@ interface AppStateSnapshot {
   gps_telemetry: GpsTelemetry;
 }
 
+interface ReportIssueOptions {
+  description?: string;
+  featureArea?: string;
+  includeLocationDiagnostics?: boolean;
+}
+
+function roundCoordinate(value: number): number {
+  return Number(value.toFixed(3));
+}
+
 /**
  * Collect GPS telemetry for parameter tuning
  */
-async function collectGpsTelemetry(): Promise<GpsTelemetry> {
+async function collectGpsTelemetry(includeLocationDiagnostics: boolean): Promise<GpsTelemetry> {
   const db = await getDatabase();
 
   // Get last 100 geofence events with accuracy data
@@ -76,15 +86,25 @@ async function collectGpsTelemetry(): Promise<GpsTelemetry> {
   };
 
   return {
-    recent_events: recentEvents.map(e => ({
-      timestamp: e.timestamp,
-      event_type: e.eventType,
-      accuracy_meters: e.accuracy ?? null,
-      accuracy_source: e.accuracySource ?? null,
-      ignored: e.ignored,
-      ignore_reason: e.ignoreReason,
-      location_name: e.locationName ?? 'Unknown',
-    })),
+    recent_events: recentEvents.map(e => {
+      const event: GpsTelemetry['recent_events'][number] = {
+        timestamp: e.timestamp,
+        event_type: e.eventType,
+        accuracy_meters: e.accuracy ?? null,
+        accuracy_source: e.accuracySource ?? null,
+        ignored: e.ignored,
+        ignore_reason: e.ignoreReason,
+      };
+
+      if (!includeLocationDiagnostics) {
+        return event;
+      }
+
+      return {
+        ...event,
+        location_name: e.locationName ?? 'Unknown',
+      };
+    }),
     accuracy_stats: accuracyStats,
     ignored_events_count: recentEvents.filter(e => e.ignored).length,
     signal_degradation_count: recentEvents.filter(e => e.ignoreReason === 'signal_degradation').length,
@@ -95,7 +115,10 @@ async function collectGpsTelemetry(): Promise<GpsTelemetry> {
 /**
  * Collect app state snapshot for bug report
  */
-export async function collectAppState(user: User | null): Promise<AppStateSnapshot> {
+export async function collectAppState(
+  user: User | null,
+  includeLocationDiagnostics = false,
+): Promise<AppStateSnapshot> {
   const db = await getDatabase();
 
   // Get active locations
@@ -105,17 +128,19 @@ export async function collectAppState(user: User | null): Promise<AppStateSnapsh
   const allSessions = await db.getAllSessions();
 
   // Collect GPS telemetry for parameter tuning
-  const gpsTelemetry = await collectGpsTelemetry();
+  const gpsTelemetry = await collectGpsTelemetry(includeLocationDiagnostics);
 
   return {
     user,
     locations: {
       total: locations.length,
-      details: locations.map(loc => ({
-        name: loc.name,
-        latitude: loc.latitude,
-        longitude: loc.longitude,
-      })),
+      details: includeLocationDiagnostics
+        ? locations.map(loc => ({
+          name: loc.name,
+          latitude: roundCoordinate(loc.latitude),
+          longitude: roundCoordinate(loc.longitude),
+        }))
+        : null,
     },
     workEvents: {
       total: allSessions.length,
@@ -136,18 +161,26 @@ export async function collectAppState(user: User | null): Promise<AppStateSnapsh
 /**
  * Submit bug report to backend API
  */
-export async function reportIssue(user: User | null, description?: string): Promise<void> {
+export async function reportIssue(
+  user: User | null,
+  options: ReportIssueOptions = {},
+): Promise<void> {
   try {
+    const includeLocationDiagnostics = options.includeLocationDiagnostics === true;
+
     // Collect app state
-    const appState = await collectAppState(user);
+    const appState = await collectAppState(user, includeLocationDiagnostics);
 
     // Prepare API payload
     const payload = {
       user_id: user?.userId || null,
-      hospital_id: user?.hospitalId || null,
-      specialty: user?.specialty || null,
-      role_level: user?.roleLevel || null,
-      state_code: user?.stateCode || null,
+      hospital_id: null,
+      specialty: null,
+      role_level: null,
+      state_code: null,
+      include_location_diagnostics: includeLocationDiagnostics,
+      diagnostics_scope: includeLocationDiagnostics ? 'location' : 'standard',
+      feature_area: options.featureArea || null,
 
       locations_count: appState.locations.total,
       locations_details: appState.locations.details,
@@ -165,7 +198,7 @@ export async function reportIssue(user: User | null, description?: string): Prom
       // GPS telemetry for parameter tuning
       gps_telemetry: appState.gps_telemetry,
 
-      description: description || null,
+      description: options.description || null,
     };
 
     // Submit to backend

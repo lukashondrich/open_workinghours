@@ -16,6 +16,24 @@ from ..schemas import FeedbackIn, FeedbackOut
 router = APIRouter(prefix="/feedback", tags=["feedback"])
 
 
+def _round_coordinate(value: object) -> float | None:
+    try:
+        return round(float(value), 3)
+    except (TypeError, ValueError):
+        return None
+
+
+def _sanitize_location_details(location_details: list[dict] | None) -> list[dict]:
+    sanitized_locations: list[dict] = []
+    for location in location_details or []:
+        sanitized_locations.append({
+            "name": location.get("name"),
+            "latitude": _round_coordinate(location.get("latitude")),
+            "longitude": _round_coordinate(location.get("longitude")),
+        })
+    return sanitized_locations
+
+
 @router.post("", response_model=FeedbackOut, status_code=status.HTTP_201_CREATED)
 def submit_feedback(
     payload: FeedbackIn,
@@ -33,12 +51,31 @@ def submit_feedback(
     No authentication required - we want users to report issues easily
     Reports can be viewed in the admin dashboard at /admin
     """
+    include_location_diagnostics = (
+        payload.include_location_diagnostics
+        and payload.diagnostics_scope == "location"
+    )
+
+    gps_telemetry = payload.gps_telemetry.model_dump() if payload.gps_telemetry else None
+    if gps_telemetry and not include_location_diagnostics:
+        for event in gps_telemetry.get("recent_events", []):
+            event.pop("location_name", None)
+    location_details = (
+        _sanitize_location_details(payload.locations_details)
+        if include_location_diagnostics
+        else None
+    )
 
     # Build app_state JSON
     app_state = {
+        "diagnostics": {
+            "scope": "location" if include_location_diagnostics else "standard",
+            "include_location_diagnostics": include_location_diagnostics,
+            "feature_area": payload.feature_area,
+        },
         "locations": {
             "count": payload.locations_count,
-            "details": payload.locations_details,
+            "details": location_details,
         },
         "work_events": {
             "total": payload.work_events_total,
@@ -53,17 +90,17 @@ def submit_feedback(
             "os_version": payload.os_version,
         },
         # GPS telemetry for geofence parameter tuning
-        "gps_telemetry": payload.gps_telemetry.model_dump() if payload.gps_telemetry else None,
+        "gps_telemetry": gps_telemetry,
     }
 
     # Create feedback report
     # user_id is sufficient to identify the user if needed; email is not collected.
     report = FeedbackReport(
         user_id=payload.user_id,
-        hospital_id=payload.hospital_id,
-        specialty=payload.specialty,
-        role_level=payload.role_level,
-        state_code=payload.state_code,
+        hospital_id=None,
+        specialty=None,
+        role_level=None,
+        state_code=None,
         description=payload.description,
         app_state=app_state,
         created_at=datetime.now(timezone.utc),

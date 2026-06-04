@@ -1,6 +1,6 @@
 # Backend Architecture
 
-**Last Updated:** 2026-05-13
+**Last Updated:** 2026-06-04
 **Framework:** FastAPI + PostgreSQL
 **Status:** Production (Hetzner, Germany)
 
@@ -92,6 +92,8 @@ backend/
 - Registration accepts `terms_version`, `privacy_version` fields
 - `/auth/me` returns `terms_accepted_version`, `privacy_accepted_version`, `consent_accepted_at`
 - `/auth/consent` allows existing users to re-consent after policy updates
+- `/auth/consent` re-fetches the authenticated user in the endpoint DB session before updating consent, so token/auth dependency sessions do not leak ORM state into writes
+- Mobile app gates authenticated use until consent fields match the current published policy versions (`2026-05`) and `consent_accepted_at` is present
 
 **GDPR Data Rights:**
 - `/auth/me/export` returns JSON with profile + all work events (Art. 20 - Data Portability)

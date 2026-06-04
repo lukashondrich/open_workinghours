@@ -1,6 +1,6 @@
 # GDPR Compliance Status
 
-**Last Updated:** 2026-03-23
+**Last Updated:** 2026-06-04
 **Status:** Draft - Pending Legal Review
 **Audience:** Controller (internal) + Legal Counsel
 
@@ -16,7 +16,7 @@
 | DPIA | Draft | Needs legal review |
 | RoPA | Draft | Needs legal review |
 | Data Retention Policy | Draft | Needs legal review |
-| Consent Flow | Deployed | Tested on device 2026-01-12 |
+| Consent Flow | Deployed | Initial flow tested on device 2026-01-12; re-acceptance gate smoke-tested on simulator 2026-06-04 |
 | Consent Withdrawal | Deployed | Tested 2026-01-12; see `CONSENT_WITHDRAWAL_PLAN.md` |
 | Hetzner DPA | Signed | 2026-01-13 |
 | Brevo DPA | Signed | Part of ToS (exported PDF) |
@@ -86,10 +86,11 @@ Website source files: `website/src/pages/`
   - App Privacy Policy (EN + DE)
   - Terms of Service (EN + DE)
 
-- [ ] **Bump consent version to "2026-03"**
-  - v2 taxonomy materially changes data collected (hospital affiliation, new profile fields)
-  - Update `CURRENT_TERMS_VERSION` and `CURRENT_PRIVACY_VERSION` in `consent-types.ts`
-  - Existing users will see re-consent screen on app update
+- [x] **Bump consent version to "2026-05" and gate legacy consent**
+  - Consolidated privacy-policy rewrite and profile/hospital-affiliation disclosure changes required renewed acceptance
+  - Updated `CURRENT_TERMS_VERSION` and `CURRENT_PRIVACY_VERSION` in `consent-types.ts`
+  - Existing users with missing, stale, or unauditable consent see the re-acceptance bottom sheet on app open
+  - Manual simulator smoke passed 2026-06-04 with a local legacy/null-consent user
 
 - [ ] **Remove "Draft" banners from policies**
   - After lawyer approval, remove yellow warning banners from website pages
@@ -221,6 +222,7 @@ When engaging legal counsel, provide:
 | 2026-01-12 | Consent flow deployed and tested; added consent withdrawal plan |
 | 2026-03-21 | Updated DP parameters to simulation-validated values (K_MIN=5, annual cap 150); updated privacy architecture with substitution neighboring relation |
 | 2026-03-25 | v2 taxonomy: hospital affiliation added to Key Decisions; lawyer question on hospital risk; consent version bump added to checklist |
+| 2026-06-04 | Consent versions bumped to 2026-05; root-level re-acceptance gate implemented and smoke-tested on simulator |
 
 ---
 

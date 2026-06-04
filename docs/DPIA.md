@@ -1,10 +1,10 @@
 # Data Protection Impact Assessment (DPIA)
 
 **Project:** Open Working Hours
-**Version:** 1.2 (Draft)
-**Date:** March 2026
+**Version:** 1.3
+**Date:** May 2026 (added bug reports, calendar export, and social-auth as distinct purposes; added R8/R9; updated R7 with hospital opt-out mitigation)
 **Author:** Lukas Jonathan Hondrich
-**Status:** Draft - Pending Legal Review
+**Status:** Self-reviewed; legal review pending
 
 ---
 
@@ -125,18 +125,21 @@ Out of scope:
 
 ### 3.1 Purpose Limitation
 
-The data is processed for two clear purposes:
+The data is processed for these purposes:
 1. **Primary:** Enable users to track their own working hours
 2. **Secondary:** Generate anonymized statistics for transparency reporting
+3. **Optional, user-initiated:** Diagnose technical problems via voluntary bug reports (each report consented to individually at the moment of submission)
+4. **Optional, user-initiated:** Export shifts and absences to the user's own device calendar (controller does not receive this data)
+5. **Optional, user-initiated:** Authentication via Apple Sign-In or Google Sign-In as an alternative to email/code
 
-No other purposes are pursued. Data is not used for marketing, profiling, or sold to third parties.
+Data is not used for marketing, profiling, automated decision-making, or sold to third parties. The optional purposes (3–5) are activated only by an explicit user action and can be declined or revoked at any time.
 
 ### 3.2 Data Minimization
 
 | Principle | Implementation |
 |-----------|----------------|
-| **Collect only necessary data** | No names, no precise locations transmitted. Hospital affiliation is optional and collected only to enable facility-level aggregation when privacy thresholds are met. |
-| **Local-first architecture** | GPS coordinates, sick days, schedules stay on device |
+| **Collect only necessary data** | Routine time submissions transmit no names or precise locations. Optional bug-report location diagnostics require a separate unchecked opt-in and use saved coordinates rounded to 3 decimals. Hospital affiliation is optional and collected only to enable facility-level aggregation when privacy thresholds are met. |
+| **Local-first architecture** | GPS coordinates, sick days, schedules, and work-location coordinates stay on device during routine tracking/submission |
 | **Pseudonymization** | Email hashed; users identified by random UUID |
 | **Aggregation** | Individual data contributes to groups, not published individually |
 | **Closed taxonomies** | Profile fields use predefined categories (not free text), ensuring consistent grouping and reducing cell sparsity for k-anonymity |
@@ -254,16 +257,46 @@ No other purposes are pursued. Data is not used for marketing, profiling, or sol
 **Description:** In the event of a database breach, the combination of hospital affiliation, profession, seniority, and department group could narrow down to a small number of individuals, particularly at smaller hospitals.
 
 **Existing Controls:**
-- Hospital affiliation is optional (users can decline to provide it)
+- Hospital affiliation is genuinely optional — users can pick "Prefer not to share", which stores `hospital_ref_id = NULL` and excludes them from all aggregated statistics
 - Pseudonymous identifiers (UUID, no name stored)
-- Email hashed with secret salt (no plaintext)
+- Email stored only as HMAC-SHA256 with a server-side secret key (no plaintext, not vulnerable to rainbow tables)
 - Infrastructure-level encryption at rest (Hetzner)
 - No direct database exposure (API-only access)
 - EU data residency (Hetzner Germany)
 
-**Residual Risk:** LOW-MEDIUM — The quasi-identifier is narrower than state-level profile data alone. However, a breach would first need to overcome access controls and encryption, and the data contains no direct identifiers (no name, no plaintext email). The optional nature of hospital affiliation further limits exposure.
+**Residual Risk:** LOW-MEDIUM — The quasi-identifier is narrower than state-level profile data alone. However, a breach would first need to overcome access controls and encryption, and the data contains no direct identifiers (no name, no plaintext email). The genuine opt-out via "Prefer not to share" gives the most privacy-sensitive users a meaningful way to participate in personal tracking without contributing identifying profile combinations.
 
 **Planned additional control:** Application-level encryption at rest (see `project-mgmt/ticket-postgres-encryption-at-rest.md`).
+
+---
+
+#### R8: Calendar Export — Onward Disclosure via Device Sync
+
+**Description:** When a user enables Calendar Export, shift and absence events are written to the device's calendar app. If that calendar syncs to iCloud, Google Calendar, or is shared with other parties (employer, family member, calendar-sharing extensions), the shift schedule may become visible to those third parties.
+
+**Existing Controls:**
+- Disclosed at the toggle itself (`settings.calendarSyncDescription` warns: "If that calendar syncs with iCloud/Google or is shared, those events may appear there too")
+- Feature is opt-in via a Settings toggle; not active by default
+- User can revoke at any time
+- Shift data sent to the device calendar is limited (name, times, color, absence type) — no profile fields, no aggregated stats
+- The controller never receives or stores any calendar-export data
+
+**Residual Risk:** LOW — The user is informed at the point of activation, the feature is opt-in, and revocation is one tap. Onward disclosure depends entirely on the user's own calendar setup, which is outside the controller's control by design.
+
+---
+
+#### R9: Social Sign-In — Identity Provider Transfer to USA
+
+**Description:** When a user chooses Apple Sign-In or Google Sign-In instead of email/code authentication, identity-token verification involves Apple Inc. (USA) or Google LLC (USA). The opaque `sub` identifier returned by the provider is stored long-term.
+
+**Existing Controls:**
+- Feature is opt-in: the email/code path remains fully EU-only and is presented prominently
+- Transfers occur under the EU-US Data Privacy Framework adequacy decision (Apple and Google are both Framework participants)
+- The controller discards the user's email address entirely for social-auth users
+- Only the opaque provider `sub` is stored — Apple/Google cannot be queried to deanonymize a `sub` without the user's account credentials
+- JWKS-based token verification is cryptographic; no continuous data flow to Apple/Google after sign-in
+
+**Residual Risk:** LOW — Adequacy framework provides legal basis; data minimization (email discarded) limits exposure; opt-in nature respects user choice.
 
 ### 4.3 Risk Matrix Summary
 
@@ -271,7 +304,7 @@ No other purposes are pursued. Data is not used for marketing, profiling, or sol
 |------------|-------|-------|
 | HIGH | 0 | — |
 | MEDIUM | 2 | R3 (Employer discovery), R7 (Stored profile re-identification) |
-| LOW | 5 | R1, R2, R4, R5, R6 |
+| LOW | 7 | R1, R2, R4, R5, R6, R8, R9 |
 
 ---
 
