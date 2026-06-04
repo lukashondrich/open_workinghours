@@ -86,6 +86,14 @@ DEMO__EMAIL=<your-demo-email>
 DEMO__CODE=<your-6-digit-code>
 ```
 
+### App Review demo account bypass
+
+`DEMO__EMAIL` + `DEMO__CODE` together activate a login-flow bypass at `backend/app/routers/auth.py:163-186`. When `POST /auth/login` receives that exact email + code pair, the backend skips email verification entirely and returns a JWT — no SMTP delivery needed, no inbox required for Apple's reviewer. The User row for that email must already exist in the production DB (returns `404 Demo user not found` otherwise); register it once via the normal flow on the production app.
+
+Both keys must be set together — if either is missing, the demo block in `auth.py` is silently inactive and login falls through to the normal verification path. A second protection at `auth.py:432-433` prevents the demo user from being deleted via the normal account-deletion cascade, so the row is durable across releases.
+
+**Current production values are documented in `mobile-app/store-assets/app-store-metadata.md` § 5** (Reviewer notes) — that's the file you paste into App Store Connect at submission time.
+
 ---
 
 ## Common Issues
