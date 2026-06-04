@@ -1,20 +1,20 @@
 {
   "01-geofence": {
-    "headline": "Ankommen – schon eingestempelt."
+    "headline": "Automatisch einstempeln."
   },
   "02-calendar-week-template": {
-    "headline": "Schichten in Sekunden."
+    "headline": "Schichten eintragen in Sekunden."
   },
   "03-status-dashboard": {
-    "headline": "Deine Stunden auf einen Blick."
+    "headline": "Deine Arbeitszeit auf einen Blick."
   },
   "04-calendar-month-overtime": {
-    "headline": "Erfasse, was wirklich passiert."
+    "headline": "Sieh, wie viel du wirklich arbeitest."
   },
   "05-privacy": {
     "headline": "Deine Daten, deine Kontrolle."
   },
   "06-collective-insights": {
-    "headline": "Freiwillig. Anonym. Wirksam."
+    "headline": "Trage freiwillig und anonym zu Statistiken bei."
   }
 }

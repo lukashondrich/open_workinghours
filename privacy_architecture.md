@@ -1,6 +1,8 @@
 # Data Protection & Privacy Architecture
 
 > **Note:** This document explains how we *design* data protection and privacy in the system. It is not legal advice. Final decisions should be reviewed by a qualified GDPR lawyer.
+>
+> **Last updated:** May 2026 — added §3.3 (optional third-party data flows) and hospital opt-out mechanism.
 
 ---
 
@@ -120,6 +122,21 @@ Under this model, `stats_*` tables are intended to be **effectively anonymous**:
 
 ---
 
+### 3.3 Optional Third-Party Data Flows
+
+In addition to the two-layer model above, three opt-in features involve external recipients. None of these are active by default; each requires a deliberate user action and is disclosed at the point of activation. The canonical user-facing description is the third-party recipients matrix in `/app-privacy-policy#recipients`.
+
+| Feature | Recipient | Location | When triggered | Data sent |
+|---|---|---|---|---|
+| Workplace search | Komoot GmbH (Photon) | Germany (EU) | User searches for a workplace during setup | Free-text query, optionally proximity coordinates (no user identifier) |
+| Sign in with Apple | Apple Inc. | USA (Data Privacy Framework) | User chooses "Sign in with Apple" | OIDC authentication flow; controller stores only opaque `sub` |
+| Sign in with Google | Google LLC | USA (Data Privacy Framework) | User chooses "Sign in with Google" | OIDC authentication flow; controller stores only opaque `sub` |
+| Calendar export | Device calendar (iOS/Android) | Device + user's chosen sync target (potentially iCloud or Google) | User enables the toggle in Settings | Shift name, start/end time, color, absence type |
+
+**Hospital opt-out** (added 2026-05): users can pick "Prefer not to share" as their hospital, which stores `hospital_ref_id = NULL` on the user record. The aggregation pipeline filters out NULL-hospital rows, so opt-out users never appear in any published statistic. This is the user-controlled lever that complements the K-anonymity + DP protections in the analytics layer.
+
+---
+
 ## 4. Right to Erasure (Art. 17 GDPR)
 
 ### 4.1 What can be deleted
@@ -163,6 +180,36 @@ This must be clearly explained in the privacy notice, e.g.:
 - **Documentation & DPIA**
   - Data Protection Impact Assessment for high-risk processing (e.g. health/work data).
   - Records of processing activities describing controllers, processors, and purposes.
+
+### iOS Privacy Manifest (`PrivacyInfo.xcprivacy`)
+
+Apple requires iOS apps to declare both the privacy-relevant APIs they call and the data they collect. The manifest is verified at App Store submission and cross-checked against the Privacy Nutrition Labels filled in via App Store Connect.
+
+**Source of truth:** `mobile-app/app.json` → `ios.privacyManifests`. Expo writes the resolved manifest into `ios/mobileapp/PrivacyInfo.xcprivacy` on every `prebuild`. Do **not** edit the generated file — the `ios/` directory is gitignored and any direct edit is wiped on the next prebuild.
+
+**Declared API access reasons:** `FileTimestamp`, `UserDefaults`, `SystemBootTime`, `DiskSpace` — the standard set from Expo's RN runtime plus our local persistence. Reason codes (`C617.1`, `CA92.1`, etc.) are Apple's documented values for each API category.
+
+**Declared collected data types** (all `Linked` to the user account except where noted, none used for `Tracking`, all serving `AppFunctionality`):
+
+| Type | Linked | What it covers | Source |
+|---|---|---|---|
+| `UserID` | ✓ | The backend account UUID. Pseudonymous; not linked to plaintext email. | `users.user_id` |
+| `EmailAddress` | ✓ | Email-sign-in only. Hashed (HMAC-SHA256 with server-side secret) at rest. `NULL` for Apple/Google sign-in users. | `users.email_hash` (when set) |
+| `CoarseLocation` | ✗ | Optional proximity bias on workplace search, rounded to 2 decimals (≈1.1 km) before transmission. Sent to Photon (Komoot, Germany). No user identifier accompanies the request. **Geofencing GPS never leaves the device** — that's why this is `Coarse`, not `Precise`. | `GeocodingService.ts:134` |
+| `OtherDiagnosticData` | ✓ | User-initiated bug reports only. Includes device model, OS version, app state snapshot, last 100 geofence event metadata. No crash data (no Crashlytics / Sentry / Firebase). | `reportIssue.ts` payload |
+| `OtherDataTypes` ("Work profile and hours") | ✓ | Hospital affiliation, specialty, role, seniority + weekly planned/actual hour totals. Submitted only when the user confirms a week. | `work_events` + `finalized_user_weeks` |
+
+**Deliberately NOT declared:**
+- `Name`, `PhoneNumber`, `PhysicalAddress` — not collected anywhere.
+- `PreciseLocation` — defensible because the only outbound location data is the rounded coarse coords above; geofencing detection runs entirely on-device.
+- `Health` / `Fitness` — the app is a working-hours tracker, not a health app. Declaring `Health` would imply medical-app obligations under both Apple's review and German HWG.
+- `CrashData` / `PerformanceData` — verified by audit: no crash or performance SDK is present in the bundle.
+- `DeviceID` / `AdvertisingData` — deliberately excluded (no IDFA, no SDKs that collect either).
+- `BrowsingHistory`, `SearchHistory`, `ProductInteraction`, `OtherUsageData` — no analytics.
+
+**Tracking question (App Store Connect):** answer "No." Verified by `docs/audit/data-inventory-2026-05-22.md` — no third-party SDKs, no advertising, no cross-app/website identifier linking.
+
+The reasoning above survived a structured legal review (see decisions log in `mobile-app/store-assets/app-store-metadata.md` § 6).
 
 ---
 

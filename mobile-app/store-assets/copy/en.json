@@ -1,20 +1,20 @@
 {
   "01-geofence": {
-    "headline": "Arrive at work — you're clocked in."
+    "headline": "Clock in automatically."
   },
   "02-calendar-week-template": {
-    "headline": "Plan shifts in seconds."
+    "headline": "Log shifts in seconds."
   },
   "03-status-dashboard": {
-    "headline": "Your hours, at a glance."
+    "headline": "Your hours at a glance."
   },
   "04-calendar-month-overtime": {
-    "headline": "Capture what really happens."
+    "headline": "See how much you really work."
   },
   "05-privacy": {
     "headline": "Your data, your control."
   },
   "06-collective-insights": {
-    "headline": "Voluntary. Anonymous. Powerful."
+    "headline": "Contribute anonymously to public statistics."
   }
 }
