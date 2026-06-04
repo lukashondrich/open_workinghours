@@ -62,24 +62,63 @@ appium driver install xcuitest
 ## Run
 
 ```bash
-# 1. Start infra (Appium + simulator + Metro)
+# 1. Start infra (Appium + simulator)
 cd mobile-app/e2e
 npm run infra:ios
 
-# 2. Build the app in TEST_MODE (once, or after testID changes)
-npm run build:ios
+# 2. Build the app in TEST_MODE with the screenshot seed (once per code change)
+#    See "Build flags" below for what TEST_SCREENSHOT_SEED triggers.
+cd ..
+TEST_MODE=true TEST_SCREENSHOT_SEED=true npm run build:ios
+# If `expo run:ios` fails with "No code signing certificates" on Xcode 26+,
+# use the direct xcodebuild fallback documented in "Build pitfalls" below.
 
 # 3. Capture all screenshots (both locales)
-cd ../store-assets
+cd store-assets
 npm run capture        # ~5 min total, 12 PNGs
 
 # Or one locale at a time
 npm run capture:en
 npm run capture:de
 
-# Or re-compose without re-capturing (after headline copy edit)
+# Or re-compose without re-capturing (after headline copy edit only)
 npm run compose
 ```
+
+## Build flags
+
+| Env var | What it does |
+|---|---|
+| `TEST_MODE=true` | Mocks auth (code `123456`), mocks geocoding (returns Charité Berlin), skips animations. Required for the capture flows to navigate deterministically. Wired via `app.config.js` → `Constants.expoConfig.extra.TEST_MODE` → checked by `mockApi.ts:isTestMode()`. |
+| `TEST_SCREENSHOT_SEED=true` | At app startup, `App.tsx` calls `seedDashboardTestData()` from `src/test-utils/seedDashboardData.ts`. Wipes existing state and seeds 14 days of varied shifts (Frühdienst / Spätdienst / Nachtdienst), one vacation day, one sick day, one location ("Klinikum München"), and two future shifts. Required for flows 03 + 04 to look populated. |
+
+Verify the flag is baked into a freshly built `.app`:
+```bash
+plutil -p "$APP_PATH/EXConstants.bundle/app.config" | grep TEST_
+```
+
+## Build pitfalls
+
+**Xcode 26 + devicectl bug:** `npx expo run:ios --configuration Release` may misdetect a booted iOS Simulator as a physical device and fail with "No code signing certificates are available." When that happens, fall back to a direct xcodebuild against the simulator destination — no signing required:
+
+```bash
+cd mobile-app/ios
+TEST_MODE=true TEST_SCREENSHOT_SEED=true xcodebuild \
+  -workspace mobileapp.xcworkspace \
+  -scheme mobileapp \
+  -configuration Release \
+  -destination "platform=iOS Simulator,id=<sim-UDID>" \
+  -derivedDataPath ./build \
+  CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+  build
+
+xcrun simctl uninstall <sim-UDID> com.openworkinghours.mobileapp
+xcrun simctl install   <sim-UDID> ./build/Build/Products/Release-iphonesimulator/OpenWorkingHours.app
+```
+
+Get the booted sim's UDID via `xcrun simctl list devices booted`.
+
+**`expo prebuild` regenerates `ios/`:** The `ios/` directory is gitignored. Anything you edit there directly (e.g., `Info.plist`, `PrivacyInfo.xcprivacy`) will be overwritten on the next prebuild. Edit `mobile-app/app.json` instead — Expo bakes those fields in. The iOS privacy manifest lives at `app.json` → `ios.privacyManifests`; see `privacy_architecture.md` § "iOS Privacy Manifest" for the rationale.
 
 ## File layout
 
@@ -123,40 +162,26 @@ Tunables live in `compose.js` (constants at top of file).
 
 - Each flow is a standalone Node script: `node flows/01-geofence.js` runs it directly.
 - Flows read `process.env.LOCALE` to know where to save (`raw/en/` or `raw/de/`).
-- `ensureAuthenticated()` + `ensureLocationConfigured()` are reused from `../e2e/helpers/actions.js`.
-- TEST_MODE must be enabled in the build (auth code `123456`, mock geocoding).
+- `ensureAuthenticatedForScreenshots()` (in `lib/seed.js`) bridges the new WelcomeScreen → LoginScreen, since the older e2e helpers only knew the legacy direct-to-login flow.
+- TEST_MODE must be enabled in the build (auth code `123456`, mock geocoding). `TEST_SCREENSHOT_SEED=true` populates the dashboard data shown in flows 03 + 04.
+- German shift names (`Frühdienst`, `Spätdienst`, `Nachtdienst`) and a German location (`Klinikum München`) are deliberately used in **both** locale runs. The primary audience is German healthcare workers; using the industry-standard shift terminology in the EN screenshots signals the target audience to anyone reviewing them.
 
-## V1 status — what works, what's stubbed
+## App Store metadata
 
-| Flow | Captures | Status |
-|------|----------|--------|
-| 01 geofence | LocationsListScreen with map + geofence circle around the mocked "Charité Berlin" location | ✅ Should work fully |
-| 02 calendar-week-template | Week view + Shifts InlinePicker open with "Frühschicht" template | ✅ Seeded via `lib/seed.js` |
-| 03 status-dashboard | 14-day status view | ⚠ Empty unless shifts placed (see below) |
-| 04 calendar-month-overtime | Month view | ⚠ Empty unless shifts placed (see below) |
-| 05 privacy | DataPrivacyScreen | ✅ Should work fully |
-| 06 collective-insights | Reports tab | ⚠ Empty unless backend returns published data for this user's state+specialty (see below) |
+The actual text submitted to App Store Connect (subtitle, promo, description, keywords, Nutrition Labels, reviewer notes, decisions log) lives in [`app-store-metadata.md`](./app-store-metadata.md). The headlines on the screenshots are in `copy/{en,de}.json`; the rest of the submission payload is in that doc.
 
-**Seed model (v1):** `lib/seed.js → ensureMinimalSeed()` ensures one shift template exists. It does **not** place shifts on the calendar — so flows 03 and 04 will show an empty status dashboard / empty month view.
+## Flow status
 
-### Phase 2 work to fully populate screenshots
+| Flow | Captures | Populated by |
+|---|---|---|
+| 01 geofence | LocationsListScreen with map + geofence circle around the mocked Charité location | `ensureOneLocation` in `lib/seed.js` (searches for "Charité" via mocked geocoding) |
+| 02 calendar-week-template | Week view + Shifts InlinePicker open with Frühdienst template | `ensureMinimalSeed` + the Shifts panel opened in the flow |
+| 03 status-dashboard | 14-day Status chart with mixed planned/tracked/overtime + 2 future shifts in NextShiftWidget | `seedDashboardTestData()` at app startup (gated on `TEST_SCREENSHOT_SEED`) |
+| 04 calendar-month-overtime | Month view with shifts + vacation + sick markers across the current month | same seed |
+| 05 privacy | DataPrivacyScreen with consent versions + privacy budget | runs against the mocked `auth/me` response in `mockApi.ts` |
+| 06 collective-insights | Reports tab → state×specialty stats card | `CollectiveInsightsService` returns canned values when `isTestMode()` |
 
-1. **Place shifts on the current week** (for flows 03 + 04 to look populated). Add to `lib/seed.js`:
-   ```js
-   async function placeShiftsOnCurrentWeek(driver) {
-     // arm template-row-0, then double-tap a few week-day-column-{dateKey} elements
-     // idempotency: skip if month-day-{dateKey}-shifts already exists
-   }
-   ```
-   Pattern lives in `e2e/flows/shifts.test.js` (test "should double-tap day column...").
-
-2. **Place an absence on one day** (for flow 04's "sick day visible" framing). Pattern in `e2e/flows/absences.test.js`.
-
-3. **Mock CollectiveInsightsService for flow 06.** The Reports tab fetches from `/stats/by-state-specialty` on the real backend — with one active user, no published data exists. Options:
-   - Add `isTestMode()` check to `CollectiveInsightsService.getLatestPublishedStateSpecialtyInsights()` returning canned data.
-   - Or insert a published row into the prod DB for a synthetic state+specialty used only in TEST_MODE.
-
-4. **Tweak TEST_MODE seed data origin.** If you'd rather seed via a baked-in app routine than via UI actions, add a `SCREENSHOT_MODE=true` flag (sibling to `TEST_MODE`) that triggers in-app seeding on first launch — faster than UI-driven seed, but requires app code changes.
+If a flow comes back empty, the most likely cause is the build wasn't installed with `TEST_SCREENSHOT_SEED=true` baked in — re-verify with the `plutil` command above before debugging the flow itself.
 
 ## Apple requirements reference
 
