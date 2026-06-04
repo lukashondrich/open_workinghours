@@ -174,13 +174,13 @@ The demo credentials are served by a backend bypass in `backend/app/routers/auth
 
 Copy went through two structured revision rounds before submission. Capturing the load-bearing decisions so the rationale survives the next revision cycle.
 
-**Round 1 → v2 (post-legal review):**
+**Round 1 → v2 (post-review pass):**
 - Dropped "evidence in collective bargaining, policy debates, or legal disputes" — reframed around documenting working conditions. Reason: leaning on "evidence in legal disputes" felt adversarial for marketing copy aimed at a healthcare audience.
 - Removed all "closed beta" language. Reason: this is an open public launch on the App Store, not a closed beta.
 - Removed "Built by an independent developer" line. Reason: solo-dev attribution shouldn't be a marketing line; copyright owner is named in the legal field instead.
 - Removed `union`, `gewerkschaft`, `verdi` keywords. Reason: no official union affiliation; implying one would be misleading.
 
-**Round 2 → v3 (post second legal pass):**
+**Round 2 → v3 (post second review pass):**
 - "no GPS coordinates are transmitted" → acknowledged Photon proximity bias. Reason: the published privacy policy (commit `c1691e9`) was rewritten to disclose this; App Store description had to match.
 - "Not an employer tool. No third-party access. EU-only infrastructure." → split + qualified with Apple/Google JWKS being the US touchpoint. Reason: same — policy disclosure had to match App Store text.
 - "Your hours stay on your device" → "Your daily detail stays on your device." Reason: weekly totals ARE submitted; the original wording could read as misleading to a regulator.
@@ -189,7 +189,7 @@ Copy went through two structured revision rounds before submission. Capturing th
 - Added "No analytics SDKs. No advertising. No third-party trackers." Reason: the audit (`docs/audit/data-inventory-2026-05-22.md`) verified this; surfacing it adds a defensible differentiator.
 
 **Kept "GDPR compliant" (not "GDPR-aligned"):**
-- Lawyer's review accepted "compliant" as a defensible self-attestation for a project at this stage. "Aligned" was offered as a softer alternative; the harder claim was retained.
+- Self-review confirmed "compliant" is defensible as self-attestation given the implemented compliance posture (DPIA, RoPA, signed Hetzner+Brevo DPAs, retention policy, K-anonymity + DP, in-app rights endpoints, code-cited privacy notice). "Aligned" was offered as a softer alternative; the harder claim was retained.
 
 **Screenshot copy v2 (post-launch UX iteration):**
 - Shifted from noun-phrase headlines ("Schichten in Sekunden.") to imperative/action-instructional ("Schichten eintragen in Sekunden."). Reason: more directly tells the viewer what the app *does* rather than asserting an abstract benefit. Applied across 01-04 and 06; 05 kept its noun-phrase form because "Deine Daten, deine Kontrolle." is the privacy-statement framing the screen actually delivers.
