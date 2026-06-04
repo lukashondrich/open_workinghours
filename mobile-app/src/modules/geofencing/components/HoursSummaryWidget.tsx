@@ -230,16 +230,16 @@ export default function HoursSummaryWidget({ data, isLive, onPress, onInfoPress 
         <View style={styles.legend}>
           <View style={styles.legendItem}>
             <View style={[styles.legendDot, { backgroundColor: colors.primary[500] }]} />
-            <Text style={styles.legendText}>Planned</Text>
+            <Text style={styles.legendText}>{t('dashboard.hoursSummary.legendPlanned')}</Text>
           </View>
           <View style={styles.legendItem}>
             <View style={[styles.legendDot, { backgroundColor: colors.shift.rose.dot }]} />
-            <Text style={styles.legendText}>Tracked</Text>
+            <Text style={styles.legendText}>{t('dashboard.hoursSummary.legendTracked')}</Text>
           </View>
         </View>
         {unconfirmedCount > 0 && (
           <Text style={styles.unconfirmedNudge}>
-            {unconfirmedCount} to confirm
+            {t('dashboard.hoursSummary.unconfirmedNudge', { count: unconfirmedCount })}
           </Text>
         )}
       </View>
