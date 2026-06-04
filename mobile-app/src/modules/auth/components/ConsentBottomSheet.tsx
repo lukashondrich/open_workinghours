@@ -196,7 +196,7 @@ export function ConsentBottomSheet({
           {/* Buttons */}
           <Button
             onPress={handleAccept}
-            disabled={!accepted}
+            disabled={!accepted || loading}
             loading={loading}
             fullWidth
             size="lg"
@@ -211,7 +211,9 @@ export function ConsentBottomSheet({
             activeOpacity={0.7}
             testID="consent-cancel-button"
           >
-            <Text style={styles.cancelText}>{t('common.cancel')}</Text>
+            <Text style={styles.cancelText}>
+              {mode === 'update' ? t('settings.signOut') : t('common.cancel')}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>

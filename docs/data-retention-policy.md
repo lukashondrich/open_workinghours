@@ -23,6 +23,7 @@ This policy defines how long personal data is retained and the procedures for da
 | **Email Hash** | Until account deletion | Account integrity/deduplication | Cascades with account |
 | **Profile Data** (state, profession, seniority, department group, specialization code, hospital affiliation) | Until account deletion | Necessary for aggregation consent | Cascades with account |
 | **Work Events** | Until account deletion | User's own records | Cascades with account |
+| **Feedback Reports / Bug Reports** | 90 days maximum | Diagnose user-submitted technical issues | Automatic purge; also deleted immediately on account deletion |
 | **Verification Codes** | 15 minutes | Security best practice | Automatic expiry |
 
 ### 2.2 Transient Data
@@ -71,6 +72,7 @@ When a user requests account deletion:
 | Process | Schedule | What is Deleted |
 |---------|----------|-----------------|
 | Verification code cleanup | Every 15 minutes | Expired codes |
+| Feedback report cleanup | Daily | Bug reports older than 90 days |
 | Backup rotation | Daily | Backups older than 30 days |
 | Log rotation | Daily | Logs older than retention period |
 
@@ -131,9 +133,9 @@ If a backup restoration is necessary:
 
 ## 5. Special Categories
 
-### 5.1 Data Never Stored on Backend
+### 5.1 Local-First Data and Explicit Exceptions
 
-The following data is stored only on user devices and is never transmitted:
+The following data is stored on user devices and is not transmitted as part of routine time tracking or weekly submission:
 
 - GPS coordinates
 - Sick day records
@@ -141,7 +143,11 @@ The following data is stored only on user devices and is never transmitted:
 - Shift templates and schedules
 - Work location coordinates
 
-Retention of this data is controlled entirely by the user through the mobile app.
+Explicit exceptions:
+- Optional bug-report location diagnostics may transmit saved work-location names and approximate coordinates rounded to 3 decimals, but only when the user enables the unchecked "Include location diagnostics" option for that report. These reports are deleted after 90 days, or immediately on account deletion.
+- Workplace search may transmit a current coordinate as proximity bias to Komoot/Photon when the user searches for a workplace on the setup map.
+
+Routine local data retention is controlled by the user through the mobile app. Exception data is retained under the specific windows above.
 
 ### 5.2 Anonymous Statistics
 

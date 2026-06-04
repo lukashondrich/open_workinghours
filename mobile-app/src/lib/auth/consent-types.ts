@@ -4,14 +4,20 @@
  */
 
 export interface ConsentRecord {
-  termsVersion: string;      // e.g., "2026-01"
-  privacyVersion: string;    // e.g., "2026-01"
+  termsVersion: string;      // e.g., "2026-05"
+  privacyVersion: string;    // e.g., "2026-05"
   acceptedAt: string;        // ISO 8601 timestamp
 }
 
 // Current versions - increment when policies are updated
-export const CURRENT_TERMS_VERSION = '2026-01';
-export const CURRENT_PRIVACY_VERSION = '2026-01';
+export const CURRENT_TERMS_VERSION = '2026-05';
+export const CURRENT_PRIVACY_VERSION = '2026-05';
+
+export interface UserConsentStatus {
+  termsAcceptedVersion?: string | null;
+  privacyAcceptedVersion?: string | null;
+  consentAcceptedAt?: string | null;
+}
 
 /**
  * Check if user needs to provide consent (new user or policy update)
@@ -32,6 +38,18 @@ export function isPolicyUpdate(record: ConsentRecord | null): boolean {
   return (
     record.termsVersion !== CURRENT_TERMS_VERSION ||
     record.privacyVersion !== CURRENT_PRIVACY_VERSION
+  );
+}
+
+/**
+ * Check if the authenticated backend user needs policy consent re-acceptance.
+ */
+export function userNeedsConsentUpdate(user: UserConsentStatus | null): boolean {
+  if (!user) return true;
+  return (
+    user.termsAcceptedVersion !== CURRENT_TERMS_VERSION ||
+    user.privacyAcceptedVersion !== CURRENT_PRIVACY_VERSION ||
+    !user.consentAcceptedAt
   );
 }
 

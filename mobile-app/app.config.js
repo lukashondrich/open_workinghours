@@ -28,6 +28,8 @@ export default {
     },
     extra: {
       ...appJson.expo.extra,
+      authBaseUrl: process.env.EXPO_PUBLIC_AUTH_BASE_URL || appJson.expo.extra.authBaseUrl,
+      submissionBaseUrl: process.env.EXPO_PUBLIC_SUBMISSION_BASE_URL || appJson.expo.extra.submissionBaseUrl,
       // Use env var if set, otherwise use app.json value
       TEST_MODE: process.env.TEST_MODE !== undefined
         ? process.env.TEST_MODE === 'true'

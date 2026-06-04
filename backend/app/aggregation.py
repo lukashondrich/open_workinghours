@@ -120,7 +120,10 @@ def _build_weekly_query(period_start: date, *, use_department_group: bool = Fals
                 else_=FinalizedUserWeek.actual_hours,
             )).label('clipped_actual_sum'),
         )
-        .where(FinalizedUserWeek.week_start == period_start)
+        .where(
+            FinalizedUserWeek.week_start == period_start,
+            FinalizedUserWeek.hospital_ref_id.isnot(None),
+        )
     )
     if use_department_group:
         q = q.where(FinalizedUserWeek.department_group.isnot(None))
@@ -143,6 +146,7 @@ def _build_multi_week_query(period_start: date, period_end: date, *, use_departm
     cte_where = [
         FinalizedUserWeek.week_start >= period_start,
         FinalizedUserWeek.week_start <= period_end,
+        FinalizedUserWeek.hospital_ref_id.isnot(None),
     ]
     if use_department_group:
         cte_where.append(FinalizedUserWeek.department_group.isnot(None))
@@ -250,6 +254,7 @@ def _get_per_user_actual_hours(
                 FinalizedUserWeek.state_code == cell_key[1],
                 FinalizedUserWeek.specialty == cell_key[2],
                 FinalizedUserWeek.week_start == period_start,
+                FinalizedUserWeek.hospital_ref_id.isnot(None),
             )
             .all()
         )
@@ -267,6 +272,7 @@ def _get_per_user_actual_hours(
             FinalizedUserWeek.specialty == cell_key[2],
             FinalizedUserWeek.week_start >= period_start,
             FinalizedUserWeek.week_start <= period_end,
+            FinalizedUserWeek.hospital_ref_id.isnot(None),
         )
         .group_by(FinalizedUserWeek.user_id)
         .all()

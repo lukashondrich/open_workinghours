@@ -30,12 +30,13 @@ export function getPrivacyUrl(): string {
 
 /**
  * Get the privacy explainer URL for the current locale.
+ * Anchored to the "at a glance" summary panels at the top of the consolidated policy.
  */
 export function getPrivacyExplainerUrl(): string {
   const locale = getDateLocale();
   return locale === 'de'
-    ? `${BASE_URL}/de/privacy`
-    : `${BASE_URL}/privacy`;
+    ? `${BASE_URL}/de/app-privacy-policy#summary`
+    : `${BASE_URL}/app-privacy-policy#summary`;
 }
 
 /**

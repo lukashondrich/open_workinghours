@@ -4,6 +4,7 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
+from uuid import UUID
 
 from app.models import User
 
@@ -326,6 +327,59 @@ class TestAuthMe:
 
 
 @pytest.mark.integration
+class TestConsentUpdate:
+    """Test POST /auth/consent — auditable policy re-acceptance."""
+
+    def test_update_consent_persists_versions_and_timestamp(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        test_db: Session,
+    ):
+        """Re-acceptance writes both current policy versions and consent timestamp."""
+        me_response = client.get("/auth/me", headers=auth_headers)
+        assert me_response.status_code == 200
+        user_id = me_response.json()["user_id"]
+
+        user = test_db.query(User).filter(User.user_id == UUID(user_id)).one()
+        user.terms_accepted_version = None
+        user.privacy_accepted_version = None
+        user.consent_accepted_at = None
+        test_db.commit()
+
+        response = client.post(
+            "/auth/consent",
+            json={
+                "terms_version": "2026-05",
+                "privacy_version": "2026-05",
+            },
+            headers=auth_headers,
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["terms_accepted_version"] == "2026-05"
+        assert data["privacy_accepted_version"] == "2026-05"
+        assert data["consent_accepted_at"] is not None
+
+        test_db.refresh(user)
+        assert user.terms_accepted_version == "2026-05"
+        assert user.privacy_accepted_version == "2026-05"
+        assert user.consent_accepted_at is not None
+
+    def test_update_consent_requires_auth(self, client: TestClient):
+        """Test POST /auth/consent requires authentication."""
+        response = client.post(
+            "/auth/consent",
+            json={
+                "terms_version": "2026-05",
+                "privacy_version": "2026-05",
+            },
+        )
+        assert response.status_code == 401
+
+
+@pytest.mark.integration
 class TestProfileUpdate:
     """Test PATCH /auth/me/profile — GDPR Art. 16 right to rectification."""
 
@@ -389,6 +443,24 @@ class TestProfileUpdate:
         data = response.json()
         assert data["profession"] == "physician"
         assert data["seniority"] == "assistenzarzt"
+
+    def test_update_profile_can_clear_hospital_ref_id(self, client: TestClient, auth_headers: dict[str, str]):
+        """Explicit null hospital_ref_id is persisted for hospital opt-out."""
+        response = client.patch(
+            "/auth/me/profile",
+            json={"hospital_ref_id": 123},
+            headers=auth_headers,
+        )
+        assert response.status_code == 200
+        assert response.json()["hospital_ref_id"] == 123
+
+        response = client.patch(
+            "/auth/me/profile",
+            json={"hospital_ref_id": None},
+            headers=auth_headers,
+        )
+        assert response.status_code == 200
+        assert response.json()["hospital_ref_id"] is None
 
 
 @pytest.mark.integration

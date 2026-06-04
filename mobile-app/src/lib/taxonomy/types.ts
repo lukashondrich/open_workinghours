@@ -22,7 +22,7 @@ export interface TaxonomyProfile {
   stateCode: string;
   departmentGroup?: DepartmentGroup;
   specializationCode?: string;
-  hospitalRefId?: number;
+  hospitalRefId?: number | null;
 }
 
 export interface LabeledOption<T extends string = string> {

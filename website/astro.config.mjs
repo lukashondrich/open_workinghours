@@ -11,5 +11,12 @@ export default defineConfig({
     plugins: [tailwindcss()]
   },
 
-  integrations: [react()]
+  integrations: [react()],
+
+  // The plain-language explainer pages (/privacy, /de/privacy) were retired in May 2026 and
+  // consolidated into the formal /app-privacy-policy page (with a new at-a-glance summary).
+  redirects: {
+    '/privacy': '/app-privacy-policy#summary',
+    '/de/privacy': '/de/app-privacy-policy#summary',
+  },
 });

@@ -16,7 +16,7 @@ function resolveExtra(): ExtraConfig {
 function getSubmissionBaseUrl() {
   const envUrl = process.env.EXPO_PUBLIC_SUBMISSION_BASE_URL;
   const extraUrl = resolveExtra()?.submissionBaseUrl;
-  return envUrl ?? extraUrl ?? null;
+  return extraUrl ?? envUrl ?? null;
 }
 
 function getSubmissionEndpoint() {

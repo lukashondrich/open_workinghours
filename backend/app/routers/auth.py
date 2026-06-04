@@ -330,17 +330,18 @@ def update_consent(
     - Valid JWT token in Authorization header
     """
     now = datetime.now(timezone.utc)
+    user = db.query(User).filter(User.user_id == current_user.user_id).one()
 
-    current_user.terms_accepted_version = payload.terms_version
-    current_user.privacy_accepted_version = payload.privacy_version
-    current_user.consent_accepted_at = now
+    user.terms_accepted_version = payload.terms_version
+    user.privacy_accepted_version = payload.privacy_version
+    user.consent_accepted_at = now
 
     db.commit()
-    db.refresh(current_user)
+    db.refresh(user)
 
-    logger.info(f"User {current_user.user_id} updated consent to terms={payload.terms_version}, privacy={payload.privacy_version}")
+    logger.info(f"User {user.user_id} updated consent to terms={payload.terms_version}, privacy={payload.privacy_version}")
 
-    return UserOut.from_orm(current_user)
+    return UserOut.from_orm(user)
 
 
 @router.patch("/me/profile", response_model=UserOut)
@@ -368,7 +369,7 @@ def update_profile(
 
     update_fields = payload.dict(exclude_unset=True)
     for field_name, value in update_fields.items():
-        if value is not None:
+        if value is not None or field_name == "hospital_ref_id":
             setattr(user, field_name, value)
 
     # Clear seniority when profession changes to 'other' — no valid

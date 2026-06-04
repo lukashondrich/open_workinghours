@@ -40,7 +40,7 @@ import type { Profession, Seniority, DepartmentGroup } from '@/lib/taxonomy';
 export interface ProfileFormData {
   stateCode: string | undefined;
   hospitalValue: string;
-  hospitalRefId: number | undefined;
+  hospitalRefId: number | null | undefined;
   profession: Profession;
   seniority: Seniority | undefined;
   departmentGroup: DepartmentGroup | undefined;
@@ -171,7 +171,7 @@ export default function ProfileForm({ onSubmit, email, submitLabel, footer }: Pr
 
       const consentRecord = createConsentRecord();
       const hospitalRefId = hospitalValue === 'other'
-        ? 0
+        ? null
         : (hospitalValue ? parseInt(hospitalValue, 10) : undefined);
 
       await onSubmit({

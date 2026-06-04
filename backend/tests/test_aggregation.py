@@ -31,6 +31,7 @@ def _add_finalized_weeks(test_db, users, week_start: date, *, planned: str = "56
             role_level=user.role_level,
             state_code=user.state_code,
             country_code=user.country_code,
+            hospital_ref_id=user.hospital_ref_id if user.hospital_ref_id is not None else 1,
         )
         test_db.add(finalized_week)
 
@@ -53,6 +54,7 @@ def _add_single_finalized_week(test_db, user, week_start: date, *, planned: str 
         role_level=user.role_level,
         state_code=user.state_code,
         country_code=user.country_code,
+        hospital_ref_id=user.hospital_ref_id if user.hospital_ref_id is not None else 1,
     ))
     test_db.flush()
 
@@ -196,6 +198,7 @@ class TestAggregationIntegration:
                 role_level=user.role_level,
                 state_code=user.state_code,
                 country_code=user.country_code,
+                hospital_ref_id=1,
             )
         )
         test_db.commit()
@@ -204,6 +207,50 @@ class TestAggregationIntegration:
 
         assert stats_created == 0
         assert test_db.query(StatsByStateSpecialty).count() == 0
+
+    def test_aggregation_excludes_hospital_opt_out_users(self, test_db):
+        """Finalized weeks with NULL hospital_ref_id are excluded from published stats."""
+        from app.models import FinalizedUserWeek, StateSpecialtyReleaseCell, StatsByStateSpecialty, User
+
+        test_db.add(StateSpecialtyReleaseCell(country_code="DEU", state_code="BY", specialty="surgery"))
+        test_db.flush()
+
+        week_start = date(2025, 12, 1)
+        week_end = date(2025, 12, 7)
+        for i in range(6):
+            user = User(
+                email_hash=f"hash_opt_out_{i}",
+                hospital_id="test-hospital",
+                specialty="surgery",
+                role_level="specialist",
+                state_code="BY",
+                hospital_ref_id=100 + i if i < 4 else None,
+            )
+            test_db.add(user)
+            test_db.flush()
+            test_db.add(
+                FinalizedUserWeek(
+                    user_id=user.user_id,
+                    week_start=week_start,
+                    week_end=week_end,
+                    planned_hours=Decimal("56.0"),
+                    actual_hours=Decimal("63.0"),
+                    hospital_id=user.hospital_id,
+                    specialty=user.specialty,
+                    role_level=user.role_level,
+                    state_code=user.state_code,
+                    country_code=user.country_code,
+                    hospital_ref_id=user.hospital_ref_id,
+                )
+            )
+        test_db.commit()
+
+        stats_created = compute_aggregates_by_state_specialty(test_db, date(2025, 12, 5))
+
+        assert stats_created == 0
+        stat = test_db.query(StatsByStateSpecialty).one()
+        assert stat.n_users == 4
+        assert stat.publication_status == PublicationStatus.suppressed.value
 
     def test_aggregation_uses_activation_window_before_first_publication(
         self, test_db, sample_users

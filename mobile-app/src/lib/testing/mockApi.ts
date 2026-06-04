@@ -15,6 +15,7 @@ import type {
   SocialAuthStartResponse,
   User,
 } from '@/lib/auth/auth-types';
+import { CURRENT_TERMS_VERSION, CURRENT_PRIVACY_VERSION } from '@/lib/auth/consent-types';
 import type { GeocodingResult } from '@/modules/geofencing/services/GeocodingService';
 
 /**
@@ -84,8 +85,8 @@ export const mockResponses = {
     // 30 days ago so dashboard's "Last 14 Days" chart shows historical data
     // (DashboardDataService treats days before createdAt as isPreAccount=true → zeroed).
     createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-    termsAcceptedVersion: '1.0.0',
-    privacyAcceptedVersion: '1.0.0',
+    termsAcceptedVersion: CURRENT_TERMS_VERSION,
+    privacyAcceptedVersion: CURRENT_PRIVACY_VERSION,
     consentAcceptedAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
   }),
 
@@ -141,8 +142,8 @@ export const mockResponses = {
     departmentGroup: 'innere_medizin',
     hospitalRefId: 6,
     createdAt: new Date().toISOString(),
-    termsAcceptedVersion: '1.0.0',
-    privacyAcceptedVersion: '1.0.0',
+    termsAcceptedVersion: CURRENT_TERMS_VERSION,
+    privacyAcceptedVersion: CURRENT_PRIVACY_VERSION,
     consentAcceptedAt: new Date().toISOString(),
   }),
 
