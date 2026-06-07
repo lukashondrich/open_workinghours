@@ -195,7 +195,11 @@ export class GeofenceService {
         const event: GeofenceEventData = {
           eventType: eventType === Location.GeofencingEventType.Enter ? 'enter' : 'exit',
           locationId: region.identifier ?? '',
-          timestamp: new Date().toISOString(),
+          // Prefer the triggering fix's own timestamp so a delayed/batched callback
+          // records when the transition happened, not when it was delivered.
+          timestamp: gpsReading?.timestamp
+            ? new Date(gpsReading.timestamp).toISOString()
+            : new Date().toISOString(),
           latitude: gpsReading?.coords?.latitude ?? region.latitude,
           longitude: gpsReading?.coords?.longitude ?? region.longitude,
           accuracy: gpsReading?.coords?.accuracy ?? undefined,

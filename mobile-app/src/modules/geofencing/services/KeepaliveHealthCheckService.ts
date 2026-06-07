@@ -118,14 +118,19 @@ async function fetchFallbackLocation(): Promise<Location.LocationObject | null> 
  * This runs only when Android foreground keepalive is active.
  */
 export async function runKeepaliveHealthCheck(
-  location: Location.LocationObject
+  location: Location.LocationObject,
+  options?: { bypassRateLimit?: boolean }
 ): Promise<void> {
   const now = Date.now();
 
   if (isHealthCheckRunning) {
     return;
   }
-  if (now - lastHealthCheckAtMs < MIN_HEALTH_CHECK_INTERVAL_MS) {
+  // The 30s rate limit guards against high-frequency LIVE callbacks. When replaying
+  // a delayed/batched delivery (see handleKeepaliveTaskPayload) we bypass it so every
+  // historical fix is evaluated in order; the monotonic timestamp guard below still
+  // prevents reprocessing the same point twice.
+  if (!options?.bypassRateLimit && now - lastHealthCheckAtMs < MIN_HEALTH_CHECK_INTERVAL_MS) {
     return;
   }
 
@@ -206,8 +211,20 @@ export async function handleKeepaliveTaskPayload(
   const locations = payload?.locations;
 
   if (locations && locations.length > 0) {
-    const latestLocation = locations[locations.length - 1];
-    await runKeepaliveHealthCheck(latestLocation);
+    // Reconstruct the true transition time from a delayed/batched delivery.
+    // Android delivers deferred location updates as a batch, each fix carrying its
+    // ORIGINAL timestamp. Replaying them in chronological order means the EARLIEST
+    // state-changing fix drives the transition (e.g. clock-in stamped at the first
+    // "inside" ping), instead of the previous behaviour which used only the latest
+    // fix and therefore stamped the transition at delivery time (≈ now). This is what
+    // makes a late/throttled re-entry still record the correct clock-in time without
+    // relying on the user disabling battery optimization.
+    const ordered = [...locations].sort(
+      (a, b) => (a.timestamp ?? 0) - (b.timestamp ?? 0)
+    );
+    for (const location of ordered) {
+      await runKeepaliveHealthCheck(location, { bypassRateLimit: true });
+    }
     return;
   }
 
@@ -237,4 +254,14 @@ export async function handleKeepaliveTaskPayload(
   } catch (error) {
     console.error('[LocationKeepalive] Fallback payload handling failed:', error);
   }
+}
+
+/**
+ * Test-only: reset the module-level throttle / dedup state between tests.
+ */
+export function __resetKeepaliveStateForTests(): void {
+  isHealthCheckRunning = false;
+  lastHealthCheckAtMs = 0;
+  lastProcessedLocationTimestampMs = 0;
+  lastFallbackFetchAtMs = 0;
 }

@@ -146,7 +146,12 @@ TaskManager.defineTask(GEOFENCE_TASK_NAME, async ({ data, error }) => {
       const event: GeofenceEventData = {
         eventType: eventType === Location.GeofencingEventType.Enter ? 'enter' : 'exit',
         locationId: region.identifier ?? '',
-        timestamp: new Date().toISOString(),
+        // Prefer the triggering fix's own timestamp so a delayed/batched geofence
+        // callback records when the transition actually happened, not when Android
+        // finally delivered it. Falls back to now when no GPS reading is available.
+        timestamp: gpsReading?.timestamp
+          ? new Date(gpsReading.timestamp).toISOString()
+          : new Date().toISOString(),
         latitude: gpsReading?.coords?.latitude ?? region.latitude,
         longitude: gpsReading?.coords?.longitude ?? region.longitude,
         accuracy: gpsReading?.coords?.accuracy ?? undefined,
