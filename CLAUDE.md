@@ -1,7 +1,7 @@
 # Claude Context: Open Working Hours
 
-**Last Updated:** 2026-05-13
-**Current Build:** #54 (TestFlight)
+**Last Updated:** 2026-06-12
+**Current Build:** #61 / v2.1.0 (in EAS build queue for App Store submission; #60 on TestFlight)
 
 ---
 
@@ -44,7 +44,9 @@
 
 ## Current State
 
-All core features complete. User test feedback (Clusters A-F) fully implemented. Build #52 on TestFlight. 3-4 active users.
+All core features complete. User test feedback (Clusters A-F) fully implemented. TestFlight has 3-4 active users.
+
+**App Store submission in progress.** Build #60 / v2.1.0 was uploaded 2026-06-04 but failed to enter App Review due to four pre-review blockers from App Store Connect (category, content rights, price tier, iPad screenshots). Three were resolved in App Store Connect; the iPad one required code (`supportsTablet: false`). Build #61 is in the EAS build queue with that change. After it processes and auto-submits, the App Store Connect version needs the build attachment swapped from #60 → #61, then "Add for Review" — pending the lawyer's HWG sweep + GDPR jargon final call (task #31).
 
 **What's working:**
 - Geofencing with automatic clock-in/out

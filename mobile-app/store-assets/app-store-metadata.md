@@ -136,7 +136,8 @@ Apple's web UI prompt is structured: *what data → linked to user? → used for
 | Support URL | `mailto:lukashondrich@googlemail.com` |
 | Marketing URL | `https://openworkinghours.org` |
 | Primary category | Productivity |
-| Secondary category | Health & Fitness |
+| Secondary category | *(none — deliberately omitted, see § 6)* |
+| iPad support | No (`supportsTablet: false`) — see § 6 |
 | Age rating | 4+ (walk the questionnaire to confirm) |
 | Copyright | `2026 Lukas Hondrich` |
 
@@ -196,3 +197,7 @@ Copy went through two structured revision rounds before submission. Capturing th
 
 **Open: "burnout" DE keyword.**
 - Discoverability term, not a clinical claim. Lawyer cleared it under HWG (Heilmittelwerbegesetz) on the grounds that a working-time app isn't a medical product. Final HWG sweep was deferred to a later lawyer pass (task #31).
+
+**Pre-submission iterations (2026-06-12):**
+- **Dropped secondary App Store category.** Originally planned Health & Fitness as secondary; later considered Medical. Decided to omit secondary entirely for v1. Reason: Medical category invites Apple Guideline 1.4.1 scrutiny and amplifies HWG exposure right before the lawyer's HWG sweep — strictly riskier than just shipping with Productivity alone. Health & Fitness was also a category mismatch (OWH isn't fitness or wellness). Secondary is optional and can be added later (Business is the safer adjacent option if needed).
+- **Dropped iPad support (`supportsTablet: false`).** Apple required iPad screenshots for the 13" iPad Pro to even enter review. The app is genuinely phone-only — geofencing for on-the-go workplace arrival, calendar designed for one-handed phone use. Adding iPad screenshots showing phone-sized UI on a large canvas would look unprofessional and could draw a "design doesn't fit the form factor" rejection. Cleaner to declare iPhone-only now and add iPad support deliberately later once iPad-specific layouts exist.
