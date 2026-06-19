@@ -127,7 +127,18 @@
       "expo-secure-store",
       "expo-local-authentication",
       "expo-mail-composer",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "extraPods": [
+              { "name": "GoogleUtilities", "modular_headers": true },
+              { "name": "RecaptchaInterop", "modular_headers": true }
+            ]
+          }
+        }
+      ]
     ],
     "extra": {
       "authBaseUrl": "https://api.openworkinghours.org",
