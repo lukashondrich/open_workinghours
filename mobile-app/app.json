@@ -2,7 +2,7 @@
   "expo": {
     "name": "Open Working Hours",
     "slug": "mobile-app",
-    "version": "2.0.0",
+    "version": "2.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -13,10 +13,10 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "usesAppleSignIn": true,
       "bundleIdentifier": "com.openworkinghours.mobileapp",
-      "buildNumber": "59",
+      "buildNumber": "61",
       "config": {
         "usesNonExemptEncryption": false
       },
