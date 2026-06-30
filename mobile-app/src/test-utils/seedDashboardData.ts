@@ -36,25 +36,27 @@ const TEST_DATA: Array<[number, number, boolean, ShiftType, number, AbsenceType]
   [480, 150, false, 'day', 8, 'none'],      // Day 0 (today): 8h planned, 2.5h so far
 ];
 
-// Shift templates
+// Shift templates. German shift names are deliberately used in both locales
+// — they're the standard healthcare-industry terms and signal the target
+// audience to anyone reviewing the EN screenshots too.
 const TEMPLATES: ShiftTemplate[] = [
   {
     id: 'template-day-shift',
-    name: 'Day Shift',
+    name: 'Frühdienst',
     startTime: '08:00',
     duration: 480, // 8 hours
     color: 'teal',
   },
   {
     id: 'template-late-shift',
-    name: 'Late Shift',
+    name: 'Spätdienst',
     startTime: '14:00',
     duration: 480,
     color: 'purple',
   },
   {
     id: 'template-night-shift',
-    name: 'Night Shift',
+    name: 'Nachtdienst',
     startTime: '22:00',
     duration: 600, // 10 hours (overnight)
     color: 'amber',
@@ -75,11 +77,12 @@ export async function seedDashboardTestData() {
   await storage.replaceTrackingRecords([]);
   await storage.replaceConfirmedDays({});
 
-  // Create a test location
+  // Create a test location — German hospital name matches the audience
   const locationId = Crypto.randomUUID();
+  const locationName = 'Klinikum München';
   await db.insertLocation({
     id: locationId,
-    name: 'City Hospital',
+    name: locationName,
     latitude: 52.52,
     longitude: 13.405,
     radiusMeters: 200,
@@ -87,7 +90,7 @@ export async function seedDashboardTestData() {
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   });
-  console.log('[SeedDashboard] Created test location: City Hospital');
+  console.log(`[SeedDashboard] Created test location: ${locationName}`);
 
   // Save templates
   await storage.replaceTemplates(TEMPLATES);
@@ -136,7 +139,7 @@ export async function seedDashboardTestData() {
         startTime: '00:00',
         endTime: '23:59',
         isFullDay: true,
-        name: absence === 'vacation' ? 'Vacation' : 'Sick Day',
+        name: absence === 'vacation' ? 'Urlaub' : 'Krankheit',
         color: absence === 'vacation' ? 'teal' : 'rose',
         createdAt: now,
         updatedAt: now,
@@ -175,7 +178,7 @@ export async function seedDashboardTestData() {
   }
 
   // Add future shifts for NextShiftWidget
-  // Tomorrow: Day shift
+  // Tomorrow: Frühdienst
   const tomorrow = addDays(today, 1);
   const tomorrowKey = format(tomorrow, 'yyyy-MM-dd');
   instances.push({
@@ -186,10 +189,10 @@ export async function seedDashboardTestData() {
     duration: 480,
     endTime: '16:00',
     color: 'teal',
-    name: 'Day Shift',
+    name: 'Frühdienst',
   });
 
-  // Day after tomorrow: Late shift
+  // Day after tomorrow: Spätdienst
   const dayAfter = addDays(today, 2);
   const dayAfterKey = format(dayAfter, 'yyyy-MM-dd');
   instances.push({
@@ -200,7 +203,7 @@ export async function seedDashboardTestData() {
     duration: 480,
     endTime: '22:00',
     color: 'purple',
-    name: 'Late Shift',
+    name: 'Spätdienst',
   });
 
   await storage.replaceInstances(instances);
