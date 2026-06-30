@@ -22,6 +22,7 @@ import {
 } from '@/lib/calendar/calendar-utils';
 import type { ShiftTemplate, ShiftColor, AbsenceTemplate, AbsenceInstance } from '@/lib/calendar/types';
 import { getCalendarStorage } from '@/modules/calendar/services/CalendarStorage';
+import { useDayLock } from '@/modules/calendar/hooks/useDayLock';
 import { TreePalm, Thermometer, Clock, Plus, Pencil } from 'lucide-react-native';
 
 interface InlinePickerProps {
@@ -35,6 +36,7 @@ const SHIFT_COLORS: ShiftColor[] = ['teal', 'blue', 'indigo', 'amber', 'purple']
 
 export default function InlinePicker({ visible, targetDate, onClose }: InlinePickerProps) {
   const { state, dispatch } = useCalendar();
+  const { ensureEditable } = useDayLock(state, dispatch);
 
   // Local tab state (synced from global state)
   const [pickerTab, setPickerTab] = useState<'shifts' | 'absences' | 'gps' | 'notes'>(state.inlinePickerTab);
@@ -322,14 +324,23 @@ export default function InlinePicker({ visible, targetDate, onClose }: InlinePic
         color: absenceTemplate.color,
       };
 
-      try {
-        const storage = await getCalendarStorage();
-        const created = await storage.createAbsenceInstance(newInstance);
-        dispatch({ type: 'ADD_ABSENCE_INSTANCE', instance: created });
-        dispatch({ type: 'SET_LAST_USED_ABSENCE_TEMPLATE', templateId });
-      } catch (error) {
-        console.error('[InlinePicker] Failed to create absence instance:', error);
-      }
+      // Gate at the storage write — this persists to SQLite directly, so a
+      // confirmed/locked targetDate must be blocked here (offers un-confirm),
+      // not only at the reducer. Covers the rare "picker opened while editable,
+      // day locked before selecting" case.
+      const persistAbsence = async () => {
+        try {
+          const storage = await getCalendarStorage();
+          const created = await storage.createAbsenceInstance(newInstance);
+          dispatch({ type: 'ADD_ABSENCE_INSTANCE', instance: created });
+          dispatch({ type: 'SET_LAST_USED_ABSENCE_TEMPLATE', templateId });
+        } catch (error) {
+          console.error('[InlinePicker] Failed to create absence instance:', error);
+        }
+        handleClose();
+      };
+      ensureEditable(targetDate, () => { void persistAbsence(); });
+      return;
     } else {
       // Arming mode - arm template for double-tap placement
       dispatch({ type: 'ARM_ABSENCE', templateId });
@@ -447,9 +458,20 @@ export default function InlinePicker({ visible, targetDate, onClose }: InlinePic
           color: savedTemplate.color,
         };
 
-        const createdInstance = await storage.createAbsenceInstance(newInstance);
-        dispatch({ type: 'ADD_ABSENCE_INSTANCE', instance: createdInstance });
-        dispatch({ type: 'SET_LAST_USED_ABSENCE_TEMPLATE', templateId: savedTemplate.id });
+        // Gate the SQLite write on the target day's lock (the template above is
+        // not day-scoped, so it stays created; only the placement is gated).
+        const persistAbsence = async () => {
+          try {
+            const createdInstance = await storage.createAbsenceInstance(newInstance);
+            dispatch({ type: 'ADD_ABSENCE_INSTANCE', instance: createdInstance });
+            dispatch({ type: 'SET_LAST_USED_ABSENCE_TEMPLATE', templateId: savedTemplate.id });
+          } catch (error) {
+            console.error('[InlinePicker] Failed to create absence instance:', error);
+          }
+          handleClose();
+        };
+        ensureEditable(targetDate, () => { void persistAbsence(); });
+        return;
       } else {
         // Arming mode - arm the new template
         dispatch({ type: 'ARM_ABSENCE', templateId: savedTemplate.id });

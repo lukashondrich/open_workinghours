@@ -19,6 +19,19 @@ function deriveConfirmedSet(statusMap: Record<string, ConfirmedDayStatus>): Set<
   );
 }
 
+/**
+ * A day is locked for edits once it is confirmed or (week-)locked. This is the
+ * defense-in-depth check used inside mutation cases — the UI intercepts first
+ * and offers to un-confirm, but a confirmed/locked day must never be mutated
+ * directly. `undefined` date (e.g. record not found) is treated as editable so
+ * unrelated no-op dispatches pass through unchanged.
+ */
+function isDateEditLocked(state: CalendarState, date?: string): boolean {
+  if (!date) return false;
+  const status = state.confirmedDayStatus[date]?.status;
+  return status === 'confirmed' || status === 'locked';
+}
+
 export const initialState: CalendarState = {
   mode: 'viewing',
   view: 'week',
@@ -145,6 +158,7 @@ export function calendarReducer(state: CalendarState, action: CalendarAction): C
     case 'DISARM_SHIFT':
       return { ...state, mode: 'viewing', armedTemplateId: null };
     case 'ADD_INSTANCE': {
+      if (isDateEditLocked(state, action.instance.date)) return state;
       const ensuredEndTime =
         action.instance.endTime ?? computeEndTime(action.instance.startTime, action.instance.duration);
       const nextInstance: ShiftInstance = { ...action.instance, endTime: ensuredEndTime };
@@ -154,6 +168,7 @@ export function calendarReducer(state: CalendarState, action: CalendarAction): C
       };
     }
     case 'PLACE_SHIFT': {
+      if (isDateEditLocked(state, action.date)) return state;
       if (!state.armedTemplateId) return state;
       const template = state.templates[state.armedTemplateId];
       if (!template) return state;
@@ -177,6 +192,7 @@ export function calendarReducer(state: CalendarState, action: CalendarAction): C
     case 'UPDATE_INSTANCE': {
       const existing = state.instances[action.id];
       if (!existing) return state;
+      if (isDateEditLocked(state, existing.date)) return state;
       const merged = { ...existing, ...action.instance };
       if (action.instance.startTime !== undefined || action.instance.duration !== undefined) {
         merged.endTime = computeEndTime(merged.startTime, merged.duration);
@@ -186,6 +202,7 @@ export function calendarReducer(state: CalendarState, action: CalendarAction): C
     case 'UPDATE_INSTANCE_START_TIME': {
       const instance = state.instances[action.id];
       if (!instance) return state;
+      if (isDateEditLocked(state, instance.date)) return state;
       const updatedInstance = {
         ...instance,
         startTime: action.startTime,
@@ -197,6 +214,8 @@ export function calendarReducer(state: CalendarState, action: CalendarAction): C
       };
     }
     case 'DELETE_INSTANCE': {
+      const target = state.instances[action.id];
+      if (target && isDateEditLocked(state, target.date)) return state;
       const remaining = { ...state.instances };
       delete remaining[action.id];
       // Only reset mode if we were editing this instance; preserve armed mode
@@ -285,6 +304,7 @@ export function calendarReducer(state: CalendarState, action: CalendarAction): C
     case 'UPDATE_TRACKING_START': {
       const record = state.trackingRecords[action.id];
       if (!record) return state;
+      if (isDateEditLocked(state, record.date)) return state;
       const [oldHours, oldMinutes] = record.startTime.split(':').map(Number);
       const [newHours, newMinutes] = action.startTime.split(':').map(Number);
       const oldStartMinutes = oldHours * 60 + oldMinutes;
@@ -305,6 +325,7 @@ export function calendarReducer(state: CalendarState, action: CalendarAction): C
     case 'UPDATE_TRACKING_END': {
       const record = state.trackingRecords[action.id];
       if (!record) return state;
+      if (isDateEditLocked(state, record.date)) return state;
       // Directly use the new duration (supports multi-day sessions)
       return {
         ...state,
@@ -320,6 +341,7 @@ export function calendarReducer(state: CalendarState, action: CalendarAction): C
     case 'UPDATE_TRACKING_BREAK': {
       const record = state.trackingRecords[action.id];
       if (!record) return state;
+      if (isDateEditLocked(state, record.date)) return state;
       return {
         ...state,
         trackingRecords: {
@@ -346,6 +368,26 @@ export function calendarReducer(state: CalendarState, action: CalendarAction): C
         confirmedDates: deriveConfirmedSet(updatedStatus),
         confirmedDayStatus: updatedStatus,
         editingTrackingId: null,
+      };
+    }
+    case 'UNCONFIRM_DAY': {
+      const existing = state.confirmedDayStatus[action.date];
+      // Only a locally-confirmed day can be reopened. Locked (week-submitted)
+      // days are immutable here; pending days are already editable.
+      if (!existing || existing.status !== 'confirmed') return state;
+      const updatedStatus: Record<string, ConfirmedDayStatus> = {
+        ...state.confirmedDayStatus,
+        [action.date]: {
+          ...existing,
+          status: 'pending',
+          confirmedAt: null,
+          lockedSubmissionId: null,
+        },
+      };
+      return {
+        ...state,
+        confirmedDates: deriveConfirmedSet(updatedStatus),
+        confirmedDayStatus: updatedStatus,
       };
     }
     case 'START_EDIT_TRACKING':
@@ -392,6 +434,8 @@ export function calendarReducer(state: CalendarState, action: CalendarAction): C
         confirmedDates: deriveConfirmedSet(action.confirmedDayStatus),
       };
     case 'DELETE_TRACKING_RECORD': {
+      const target = state.trackingRecords[action.id];
+      if (target && isDateEditLocked(state, target.date)) return state;
       const remaining = { ...state.trackingRecords };
       delete remaining[action.id];
       return {
@@ -457,6 +501,7 @@ export function calendarReducer(state: CalendarState, action: CalendarAction): C
     }
 
     case 'ADD_ABSENCE_INSTANCE':
+      if (isDateEditLocked(state, action.instance.date)) return state;
       return {
         ...state,
         absenceInstances: {
@@ -468,6 +513,7 @@ export function calendarReducer(state: CalendarState, action: CalendarAction): C
     case 'UPDATE_ABSENCE_INSTANCE': {
       const existing = state.absenceInstances[action.id];
       if (!existing) return state;
+      if (isDateEditLocked(state, existing.date)) return state;
       return {
         ...state,
         absenceInstances: {
@@ -478,6 +524,8 @@ export function calendarReducer(state: CalendarState, action: CalendarAction): C
     }
 
     case 'DELETE_ABSENCE_INSTANCE': {
+      const target = state.absenceInstances[action.id];
+      if (target && isDateEditLocked(state, target.date)) return state;
       const remaining = { ...state.absenceInstances };
       delete remaining[action.id];
       return {

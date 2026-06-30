@@ -59,6 +59,23 @@ This directory contains historical planning documents that have been superseded.
 
 ---
 
+## user-test-feedback-legacy-2025-01-18.md
+
+**Historical user-test triage notes**
+
+**Status:** 📦 Archived and superseded
+**Archive date:** 2026-06-30
+
+**Reason:** The file mixed historical feedback with product policy that has
+since changed. In particular, the old shorthand "data becomes uneditable after
+confirmation" is too broad. Current behavior distinguishes confirmed days,
+local-only notes, and submitted/locked weeks.
+
+**Current docs:** See `docs/REPORTS_TAB_UX_SPEC.md` for the active confirmation,
+un-confirm, and submitted-week edit-lock policy.
+
+---
+
 ## When to Reference Archived Docs
 
 **Module 1:**

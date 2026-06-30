@@ -184,6 +184,16 @@ export const en = {
       tapHint: 'Tap to place · Hold to remove',
       exitHint: 'Tap ✕ to exit batch mode',
     },
+    dayLock: {
+      lockedTitle: 'Day submitted',
+      lockedMessage: 'This day is part of a submitted week and can no longer be edited.',
+      unconfirmTitle: 'Day confirmed',
+      unconfirmEditMessage: 'This day is confirmed. Un-confirm it to make changes?',
+      unconfirmMessage: 'Un-confirm this day? You can confirm it again later.',
+      unconfirmAndEdit: 'Un-confirm & edit',
+      unconfirm: 'Un-confirm',
+      unconfirmA11y: 'Confirmed — tap to un-confirm',
+    },
     week: {
       submit: 'Confirm',
       submitShort: '✓',

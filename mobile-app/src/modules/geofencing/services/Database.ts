@@ -1158,6 +1158,19 @@ export class Database {
     return row ? this.mapDailyActual(row) : null;
   }
 
+  /**
+   * Removes the confirmed snapshot for a date (used when un-confirming a day).
+   * The week state machine counts confirmed days by daily_actuals rows, so this
+   * row MUST be deleted on un-confirm or the day would still be submittable.
+   * Any weekly_submission_items referencing this row cascade-delete, but in
+   * practice un-confirm only runs on 'confirmed' (pre-submission) days, which
+   * have no submission items yet.
+   */
+  async deleteDailyActual(date: string): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized');
+    await this.db.runAsync('DELETE FROM daily_actuals WHERE date = ?', date);
+  }
+
   async getDailyActualsForRange(startDate: string, endDate: string): Promise<DailyActual[]> {
     if (!this.db) throw new Error('Database not initialized');
 

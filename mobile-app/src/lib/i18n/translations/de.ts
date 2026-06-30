@@ -184,6 +184,16 @@ export const de = {
       tapHint: 'Tippen: platzieren · Halten: entfernen',
       exitHint: 'Tippe ✕ zum Beenden',
     },
+    dayLock: {
+      lockedTitle: 'Tag übermittelt',
+      lockedMessage: 'Dieser Tag gehört zu einer übermittelten Woche und kann nicht mehr bearbeitet werden.',
+      unconfirmTitle: 'Tag bestätigt',
+      unconfirmEditMessage: 'Dieser Tag ist bestätigt. Bestätigung aufheben, um Änderungen vorzunehmen?',
+      unconfirmMessage: 'Bestätigung für diesen Tag aufheben? Du kannst ihn später erneut bestätigen.',
+      unconfirmAndEdit: 'Aufheben & bearbeiten',
+      unconfirm: 'Bestätigung aufheben',
+      unconfirmA11y: 'Bestätigt – tippen, um Bestätigung aufzuheben',
+    },
     week: {
       submit: 'Bestätigen',
       submitShort: '✓',

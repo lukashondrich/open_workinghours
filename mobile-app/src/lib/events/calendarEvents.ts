@@ -7,7 +7,10 @@ type CalendarEventType = 'confirmed-days-updated' | 'day-confirmation-message' |
 interface CalendarEventPayloadMap {
   'confirmed-days-updated': {
     dates: string[];
-    submissionId: string;
+    // Present when days were locked by a week submission; absent when a day was
+    // un-confirmed (reopened for editing). Listeners reload from storage and
+    // don't read this — it's informational.
+    submissionId?: string;
   };
   'day-confirmation-message': {
     message: string;

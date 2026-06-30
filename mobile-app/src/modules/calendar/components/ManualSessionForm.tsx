@@ -21,6 +21,8 @@ import { getDatabase } from '@/modules/geofencing/services/Database';
 import { trackingEvents } from '@/lib/events/trackingEvents';
 import type { UserLocation } from '@/modules/geofencing/types';
 import { isTestMode } from '@/lib/testing/mockApi';
+import { useCalendar } from '@/lib/calendar/calendar-context';
+import { useDayLock } from '@/modules/calendar/hooks/useDayLock';
 
 interface Props {
   visible: boolean;
@@ -31,6 +33,9 @@ interface Props {
 type PickerMode = 'date' | 'startTime' | 'endTime' | null;
 
 export default function ManualSessionForm({ visible, defaultDate, onClose }: Props) {
+  const { state, dispatch } = useCalendar();
+  const { ensureEditable } = useDayLock(state, dispatch);
+
   // Animation
   const animValue = useRef(new Animated.Value(0)).current;
 
@@ -143,6 +148,15 @@ export default function ManualSessionForm({ visible, defaultDate, onClose }: Pro
   const canSave = selectedLocationId && isValidTimes && isNotFuture && !saving;
 
   const handleSave = async () => {
+    if (!selectedLocationId) return;
+    // Block adding tracked time to a confirmed/locked day (offers un-confirm).
+    // The form lets the user pick ANY date, so this must be checked at save time,
+    // not just at the entry point.
+    const dateKey = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`;
+    ensureEditable(dateKey, () => { void performSave(); });
+  };
+
+  const performSave = async () => {
     if (!selectedLocationId) return;
 
     setSaving(true);

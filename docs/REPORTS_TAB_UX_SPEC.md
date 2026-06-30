@@ -26,6 +26,14 @@ Auto-send ON:   Unconfirmed → Confirmed ────────────�
 - **Confirmed/Queued → Sent**: Sunday transmission. **Irreversible.**
 - **Day confirmation**: Per-day toggle in Calendar WeekView. All 7 days must be confirmed, including rest days (0h).
 
+### Day edit-lock policy
+
+- **Unconfirmed day:** Shifts, absences, GPS/manual tracked time, and local notes are editable.
+- **Confirmed day:** Hours-related day data is locked by default: shifts, absences, GPS/manual tracked time, and tracking breaks cannot be changed directly.
+- **Un-confirm escape hatch:** Users may un-confirm a confirmed day, which reopens hours-related data for editing and removes the `daily_actuals` snapshot from week eligibility.
+- **Local notes:** Notes are local-only annotations. They are not submitted, exported, or included in weekly totals, so they remain editable on confirmed days.
+- **Submitted/locked week:** Once a week has been submitted, its days are immutable in the app. There is no un-confirm path for locked days.
+
 ---
 
 ## 2. Navigation
@@ -291,6 +299,9 @@ For each queued week, the app calls `POST /finalized-weeks` with `week_start` (M
 | Past week, partially confirmed | Unconfirmed with remaining count in warning orange |
 | Past week, all confirmed, auto-send ON | Auto-queued, shows "Sending Sunday" |
 | User un-confirms a day after queuing | Week moves back to Unconfirmed |
+| User edits hours-related data on a confirmed day | Prompt to un-confirm, then continue the intended edit if accepted |
+| User edits a local note on a confirmed day | Allowed; notes are local-only and not submitted |
+| User edits a locked day from a submitted week | Blocked; submitted weeks are immutable |
 | Sunday arrives, nothing queued | Nothing sent, no error |
 | User opens Monday after transmission | Monday reward card shown |
 | App not open on Sunday | Tier A attempts background send. Tier B sends push. Tier C sends on next app open. |
