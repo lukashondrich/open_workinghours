@@ -147,6 +147,8 @@ Apple's web UI prompt is structured: *what data → linked to user? → used for
 
 > **Reviewer notes — Open Working Hours**
 >
+> **IMPORTANT — common misclassification (Guideline 2.5.4):** This app is **NOT** an employer-issued or employer-controlled employee-tracking app, despite the geofencing + work-hours framing. It is a **self-tracking tool used by individual healthcare workers for their own private records.** The user and the data subject are the same person. No employer, MDM profile, or organization-level account ever has access to any data. The backend has no API for employer ingest. The persistent background location is used exactly the same way fitness apps use it — for the user to track their own activity. Healthcare shifts (emergencies, multi-hour ward rounds, night shifts) make manual clock-in/out impractical, which is why automatic geofence detection exists.
+>
 > **What the app does:** Open Working Hours is a working-hours documentation tool for healthcare workers (doctors, nurses, midwives, etc.) in Germany and the EU. Users track their shifts via automatic geofencing or manual entry, see overtime over 14 days, and can voluntarily contribute confirmed weekly hour totals to anonymized, aggregated statistics that document working conditions across hospitals and specialties.
 >
 > **Demo account:**
