@@ -189,3 +189,18 @@ If a flow comes back empty, the most likely cause is the build wasn't installed 
 - 3-10 screenshots per locale per device size. We ship **6**.
 - No beta/coming-soon language in screenshots (App Store reject reason).
 - Status bar should look clean (9:41, full battery/signal) — handled by `lib/capture.js`.
+
+### 6.7" fallback (1284×2778)
+
+In practice (verified 2026-06-04), App Store Connect's submission form sometimes rejects the canonical 1320×2868 PNGs from the **6.7" Display** screenshot slot even though Apple's documentation claims they auto-scale. If you see the error *"Mindestens ein Screenshot weist falsche Maße auf"* (or its English equivalent) listing acceptable sizes that include `1284 × 2778`, resize via macOS `sips`:
+
+```bash
+cd composed
+mkdir -p en/resized de/resized
+for f in en/*.png; do sips -z 2778 1284 "$f" --out "en/resized/$(basename "$f")"; done
+for f in de/*.png; do sips -z 2778 1284 "$f" --out "de/resized/$(basename "$f")"; done
+```
+
+Aspect ratio is preserved within a barely-perceptible tolerance (1320/2868 = 0.4602 vs 1284/2778 = 0.4622). Drag from `en/resized/` and `de/resized/` instead.
+
+If a 6.9" Display slot is also present in your form (Apple has been rolling this out), upload the original 1320×2868 PNGs there too — both slots accept screenshots independently.
