@@ -22,6 +22,7 @@ import HoursExplainerSheet from '@/components/HoursExplainerSheet';
 import type { AbsenceInstance } from '@/lib/calendar/types';
 import { computePlannedMinutesForDate, getInstanceWindow, getDayBounds, computeOverlapMinutes } from '@/lib/calendar/time-calculations';
 import { t } from '@/lib/i18n';
+import { useDayLock } from '@/modules/calendar/hooks/useDayLock';
 
 const WEEKDAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
 
@@ -281,6 +282,7 @@ const SWIPE_THRESHOLD = 50; // pixels
 
 export default function MonthView() {
   const { state, dispatch } = useCalendar();
+  const { ensureEditable, lockStateFor } = useDayLock(state, dispatch);
   const { width: screenWidth } = useWindowDimensions();
   const days = getMonthDays(state.currentMonth);
 
@@ -356,6 +358,11 @@ export default function MonthView() {
 
   // Place the armed shift/absence on a given date
   const placeArmedOnDate = async (dateKey: string) => {
+    // Silently skip confirmed/locked days during batch placement.
+    if (lockStateFor(dateKey) !== 'editable') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      return;
+    }
     if (state.armedTemplateId) {
       const template = state.templates[state.armedTemplateId];
       if (template) {
@@ -426,16 +433,14 @@ export default function MonthView() {
   const handleDayPress = (date: Date) => {
     const dateKey = formatDateKey(date);
 
-    // Block tap on locked days
-    const dayStatus = state.confirmedDayStatus[dateKey];
-    if (dayStatus?.status === 'locked') return;
-
     if (state.armedTemplateId || state.armedAbsenceTemplateId) {
+      // placeArmedOnDate silently skips confirmed/locked days.
       placeArmedOnDate(dateKey);
       return;
     }
 
-    // Not armed: navigate to week view, focused on the tapped day
+    // Not armed: navigate to week view to view the day (allowed even when
+    // confirmed/locked — viewing is never blocked, only editing).
     const weekStart = startOfWeek(date, { weekStartsOn: 1 });
     dispatch({ type: 'SET_WEEK', date: weekStart });
     dispatch({ type: 'SET_WEEK_VIEW_FOCUS_DATE', date: dateKey });
@@ -446,16 +451,14 @@ export default function MonthView() {
   const handleDayLongPress = (date: Date) => {
     const dateKey = formatDateKey(date);
 
-    // Block on locked days
-    const dayStatus = state.confirmedDayStatus[dateKey];
-    if (dayStatus?.status === 'locked') return;
-
     if (state.armedTemplateId || state.armedAbsenceTemplateId) {
-      removeArmedFromDate(dateKey);
+      // Removing an armed placement mutates the day — gate it.
+      ensureEditable(dateKey, () => removeArmedFromDate(dateKey));
       return;
     }
 
-    dispatch({ type: 'OPEN_INLINE_PICKER', targetDate: dateKey });
+    // Opening the picker to add entries — gate (offers un-confirm on confirmed days).
+    ensureEditable(dateKey, () => dispatch({ type: 'OPEN_INLINE_PICKER', targetDate: dateKey }));
   };
 
   // Get armed template info for batch indicator

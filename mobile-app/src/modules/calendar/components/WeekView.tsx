@@ -57,6 +57,7 @@ import OnboardingTooltip from '@/components/OnboardingTooltip';
 // ShiftEditModal removed - using native time picker for start time only
 import { persistDailyActualForDate } from '../services/DailyAggregator';
 import { calendarEvents } from '@/lib/events/calendarEvents';
+import { useDayLock, getDayLockState } from '@/modules/calendar/hooks/useDayLock';
 
 // Base dimensions (now imported from zoom-context, kept here for reference)
 const DEFAULT_HOUR_HEIGHT = BASE_HOUR_HEIGHT; // 48
@@ -706,6 +707,7 @@ function CurrentTimeLine({
 
 export default function WeekView() {
   const { state, dispatch } = useCalendar();
+  const { ensureEditable, promptUnconfirm, lockStateFor } = useDayLock(state, dispatch);
   const { currentScale, setCurrentScale, previousScale, hourHeight, dayWidth } = useZoom();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
 
@@ -1264,6 +1266,13 @@ export default function WeekView() {
 
   // Place the armed shift/absence on a given date
   const placeArmedOnDate = async (dateKey: string) => {
+    // Silently skip confirmed/locked days during batch placement (consistent
+    // with the overlap-skip behaviour) — a disruptive dialog mid-batch is worse
+    // than a no-op. Deliberate edits go through the tap/long-press interception.
+    if (lockStateFor(dateKey) !== 'editable') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      return;
+    }
     if (state.armedTemplateId) {
       const template = state.templates[state.armedTemplateId];
       if (template) {
@@ -1348,17 +1357,26 @@ export default function WeekView() {
   };
 
   const handleAbsencePress = (absence: AbsenceInstance) => {
-    // Toggle active state for drag handles
-    if (activeAbsenceId === absence.id) {
-      setActiveAbsenceId(null);
-    } else {
-      setActiveAbsenceId(absence.id);
-      // Deselect tracking if any
-      setActiveTracking(null);
-    }
+    // Confirmed/locked day: intercept before exposing drag handles. `toggle` is
+    // the raw action so it runs cleanly after un-confirming (no stale re-check).
+    const toggle = () => {
+      // Toggle active state for drag handles
+      if (activeAbsenceId === absence.id) {
+        setActiveAbsenceId(null);
+      } else {
+        setActiveAbsenceId(absence.id);
+        // Deselect tracking if any
+        setActiveTracking(null);
+      }
+    };
+    ensureEditable(absence.date, toggle);
   };
 
   const handleAbsenceLongPress = (absence: AbsenceInstance) => {
+    // Confirmed/locked day: intercept and offer to un-confirm before deleting.
+    // `confirmDelete` is the raw action (no lock re-check) so it runs cleanly
+    // after un-confirming.
+    const confirmDelete = () => {
     Alert.alert(
       t('calendar.absences.deleteTitle') || 'Delete Absence?',
       t('calendar.absences.deleteMessage') || 'Remove this absence?',
@@ -1379,6 +1397,8 @@ export default function WeekView() {
         },
       ]
     );
+    };
+    ensureEditable(absence.date, confirmDelete);
   };
 
   // Helper to get absences for a date
@@ -1466,6 +1486,10 @@ export default function WeekView() {
   const handleAdjustTrackingEnd = useCallback(async (id: string, deltaMinutes: number) => {
     const record = state.trackingRecords[id];
     if (!record) return;
+    // Silent guard — this writes to the sessions table outside the reducer, so a
+    // confirmed/locked day must be blocked here too (defense; normally
+    // unreachable since activating a badge already goes through the lock).
+    if (getDayLockState(state, record.date) !== 'editable') return;
     const newDuration = Math.max(5, record.duration + deltaMinutes);
     dispatch({ type: 'UPDATE_TRACKING_END', id, newDuration });
 
@@ -1486,11 +1510,12 @@ export default function WeekView() {
         console.error('[WeekView] Failed to sync tracking end to session:', error);
       }
     }
-  }, [state.trackingRecords, dispatch]);
+  }, [state.trackingRecords, state.confirmedDayStatus, dispatch]);
 
   const handleAdjustTrackingStart = useCallback(async (id: string, deltaMinutes: number) => {
     const record = state.trackingRecords[id];
     if (!record) return;
+    if (getDayLockState(state, record.date) !== 'editable') return;
     const startMinutes = Math.max(0, timeToMinutes(record.startTime) + deltaMinutes);
     const hours = Math.floor(startMinutes / 60) % 24;
     const minutes = startMinutes % 60;
@@ -1512,12 +1537,13 @@ export default function WeekView() {
         console.error('[WeekView] Failed to sync tracking start to session:', error);
       }
     }
-  }, [state.trackingRecords, dispatch]);
+  }, [state.trackingRecords, state.confirmedDayStatus, dispatch]);
 
   // Absence adjustment handlers
   const handleAdjustAbsenceStart = useCallback(async (id: string, deltaMinutes: number) => {
     const absence = state.absenceInstances[id];
     if (!absence) return;
+    if (getDayLockState(state, absence.date) !== 'editable') return;
 
     const startMinutes = Math.max(0, timeToMinutes(absence.startTime) + deltaMinutes);
     const endMinutes = timeToMinutes(absence.endTime);
@@ -1538,11 +1564,12 @@ export default function WeekView() {
     } catch (error) {
       console.error('[WeekView] Failed to update absence start time:', error);
     }
-  }, [state.absenceInstances, dispatch]);
+  }, [state.absenceInstances, state.confirmedDayStatus, dispatch]);
 
   const handleAdjustAbsenceEnd = useCallback(async (id: string, deltaMinutes: number) => {
     const absence = state.absenceInstances[id];
     if (!absence) return;
+    if (getDayLockState(state, absence.date) !== 'editable') return;
 
     const startMinutes = timeToMinutes(absence.startTime);
     let endMinutes = timeToMinutes(absence.endTime) + deltaMinutes;
@@ -1563,9 +1590,11 @@ export default function WeekView() {
     } catch (error) {
       console.error('[WeekView] Failed to update absence end time:', error);
     }
-  }, [state.absenceInstances, dispatch]);
+  }, [state.absenceInstances, state.confirmedDayStatus, dispatch]);
 
-  const handleDeleteTracking = async (id: string) => {
+  // Raw delete (no lock check) — runs the DB + state deletion. Gated by
+  // handleDeleteTracking; also called directly as the post-un-confirm action.
+  const performDeleteTracking = async (id: string) => {
     // Extract session ID from tracking record ID (format: "tracking-session-123")
     const sessionId = id.replace('tracking-session-', '');
 
@@ -1586,9 +1615,23 @@ export default function WeekView() {
     }
   };
 
+  const handleDeleteTracking = async (id: string) => {
+    // Guard: don't delete tracked time on a confirmed/locked day (this writes to
+    // the sessions table directly, outside the reducer's guard). Pass the raw
+    // delete as the post-un-confirm action so it doesn't re-evaluate the (now
+    // stale) lock state and loop.
+    const record = state.trackingRecords[id];
+    if (record && lockStateFor(record.date) !== 'editable') {
+      ensureEditable(record.date, () => { void performDeleteTracking(id); });
+      return;
+    }
+    await performDeleteTracking(id);
+  };
+
   const handleAddBreak = async (id: string, additionalMinutes: number) => {
     const record = state.trackingRecords[id];
     if (!record) return;
+    if (lockStateFor(record.date) !== 'editable') return;
 
     const currentBreak = record.breakMinutes || 0;
     const newBreak = currentBreak + additionalMinutes;
@@ -1631,6 +1674,8 @@ export default function WeekView() {
   };
 
   const handleClearBreak = async (id: string) => {
+    const record = state.trackingRecords[id];
+    if (record && lockStateFor(record.date) !== 'editable') return;
     try {
       const { getCalendarStorage } = await import('@/modules/calendar/services/CalendarStorage');
       const storage = await getCalendarStorage();
@@ -1643,6 +1688,9 @@ export default function WeekView() {
   };
 
   const handleInstancePress = (instance: ShiftInstance) => {
+    // Confirmed/locked day: intercept and offer to un-confirm first. `openOptions`
+    // is the raw action (no lock re-check) so it runs cleanly after un-confirming.
+    const openOptions = () => {
     // Exit batch mode when tapping an existing shift
     if (state.armedTemplateId) {
       dispatch({ type: 'DISARM_SHIFT' });
@@ -1673,6 +1721,9 @@ export default function WeekView() {
       { text: t('common.delete'), style: 'destructive', onPress: showDeleteConfirm },
       { text: t('common.cancel'), style: 'cancel' },
     ]);
+    };
+
+    ensureEditable(instance.date, openOptions);
   };
 
   const handleTimePickerChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
@@ -1756,16 +1807,14 @@ export default function WeekView() {
 
   // Long-press: when armed, remove shift; when not armed, open picker
   const handleHourLongPress = (dateKey: string) => {
-    // Check if day is locked - block on locked days
-    const dayStatus = state.confirmedDayStatus[dateKey];
-    if (dayStatus?.status === 'locked') return;
-
     if (state.armedTemplateId || state.armedAbsenceTemplateId) {
-      removeArmedFromDate(dateKey);
+      // Removing an armed placement mutates the day — gate it.
+      ensureEditable(dateKey, () => removeArmedFromDate(dateKey));
       return;
     }
 
-    dispatch({ type: 'OPEN_INLINE_PICKER', targetDate: dateKey });
+    // Opening the picker to add entries — gate (offers un-confirm on confirmed days).
+    ensureEditable(dateKey, () => dispatch({ type: 'OPEN_INLINE_PICKER', targetDate: dateKey }));
   };
 
   // Exit batch mode (disarm any armed template)
@@ -1865,9 +1914,16 @@ export default function WeekView() {
                     {state.reviewMode && (
                       <>
                         {isConfirmed ? (
-                          <View style={[styles.reviewBadgeConfirmed, isCompactHeader && styles.reviewBadgeCompact]}>
+                          <TouchableOpacity
+                            style={[styles.reviewBadgeConfirmed, isCompactHeader && styles.reviewBadgeCompact]}
+                            onPress={() => promptUnconfirm(dateKey)}
+                            testID={`unconfirm-day-${dateKey}`}
+                            accessible={true}
+                            accessibilityRole="button"
+                            accessibilityLabel={t('calendar.dayLock.unconfirmA11y')}
+                          >
                             <Text style={[styles.reviewBadgeText, isCompactHeader && styles.reviewBadgeTextCompact]}>✓</Text>
-                          </View>
+                          </TouchableOpacity>
                         ) : (
                           <TouchableOpacity
                             style={[
@@ -2019,16 +2075,14 @@ export default function WeekView() {
                           onAdjustStart={handleAdjustTrackingStart}
                           onAdjustEnd={handleAdjustTrackingEnd}
                           onDelete={handleDeleteTracking}
-                          onToggleActive={(mode) =>
-                            setActiveTracking(isActive && activeTracking?.mode === mode
-                              ? null
-                              : { id: record.id, mode, clickedDateKey: dateKey })
-                          }
-                          onPress={() =>
-                            setActiveTracking(isActive
-                              ? null
-                              : { id: record.id, mode: 'times', clickedDateKey: dateKey })
-                          }
+                          onToggleActive={(mode) => {
+                            if (isActive) { setActiveTracking(activeTracking?.mode === mode ? null : { id: record.id, mode, clickedDateKey: dateKey }); return; }
+                            ensureEditable(record.date, () => setActiveTracking({ id: record.id, mode, clickedDateKey: dateKey }));
+                          }}
+                          onPress={() => {
+                            if (isActive) { setActiveTracking(null); return; }
+                            ensureEditable(record.date, () => setActiveTracking({ id: record.id, mode: 'times', clickedDateKey: dateKey }));
+                          }}
                           onAddBreak={handleAddBreak}
                           onClearBreak={handleClearBreak}
                           editMode={isActive ? activeTracking.mode : null}
@@ -2088,16 +2142,14 @@ export default function WeekView() {
                               onAdjustStart={handleAdjustTrackingStart}
                               onAdjustEnd={handleAdjustTrackingEnd}
                               onDelete={handleDeleteTracking}
-                              onToggleActive={(mode) =>
-                                setActiveTracking(isActive && activeTracking?.mode === mode
-                                  ? null
-                                  : { id: record.id, mode, clickedDateKey: dateKey })
-                              }
-                              onPress={() =>
-                                setActiveTracking(isActive
-                                  ? null
-                                  : { id: record.id, mode: 'times', clickedDateKey: dateKey })
-                              }
+                              onToggleActive={(mode) => {
+                                if (isActive) { setActiveTracking(activeTracking?.mode === mode ? null : { id: record.id, mode, clickedDateKey: dateKey }); return; }
+                                ensureEditable(record.date, () => setActiveTracking({ id: record.id, mode, clickedDateKey: dateKey }));
+                              }}
+                              onPress={() => {
+                                if (isActive) { setActiveTracking(null); return; }
+                                ensureEditable(record.date, () => setActiveTracking({ id: record.id, mode: 'times', clickedDateKey: dateKey }));
+                              }}
                               onAddBreak={handleAddBreak}
                               onClearBreak={handleClearBreak}
                               editMode={isActive ? activeTracking.mode : null}

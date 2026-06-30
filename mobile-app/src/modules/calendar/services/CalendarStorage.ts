@@ -454,6 +454,25 @@ export class CalendarStorage {
     });
   }
 
+  /**
+   * Revert a single day to 'pending' directly in storage. Used by the un-confirm
+   * side-effect to make `confirmed_days` consistent BEFORE the
+   * `confirmed-days-updated` event fires — otherwise the provider's own event
+   * listener could reload stale 'confirmed' state before the async persist effect
+   * has written 'pending'. UPDATE (not upsert) preserves the row's notes; if the
+   * row is somehow absent it no-ops, which loadConfirmedDays already treats as
+   * pending.
+   */
+  async markDayUnconfirmed(date: string) {
+    return this.enqueueOperation(async () => {
+      const db = this.getDb();
+      await db.runAsync(
+        `UPDATE confirmed_days SET status = 'pending', confirmed_at = NULL, locked_submission_id = NULL WHERE date = ?`,
+        date,
+      );
+    });
+  }
+
   async replaceConfirmedDays(days: Record<string, ConfirmedDayStatus>) {
     return this.enqueueOperation(async () => {
       const db = this.getDb();

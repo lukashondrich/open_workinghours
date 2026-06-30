@@ -148,6 +148,7 @@ export type CalendarAction =
   | { type: "UPDATE_TRACKING_END"; id: string; newDuration: number }
   | { type: "UPDATE_TRACKING_BREAK"; id: string; breakMinutes: number }
   | { type: "CONFIRM_DAY"; date: string; confirmedAt?: string }
+  | { type: "UNCONFIRM_DAY"; date: string }
   | { type: "START_EDIT_TRACKING"; id: string }
   | { type: "CANCEL_EDIT_TRACKING" }
   | { type: "DELETE_TRACKING_RECORD"; id: string }
