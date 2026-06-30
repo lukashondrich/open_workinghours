@@ -33,6 +33,10 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
+# macOS Finder metadata
+.DS_Store
+**/.DS_Store
+
 # env files (all directories)
 .env
 .env.*
