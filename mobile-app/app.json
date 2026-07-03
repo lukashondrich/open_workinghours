@@ -16,7 +16,7 @@
       "supportsTablet": false,
       "usesAppleSignIn": true,
       "bundleIdentifier": "com.openworkinghours.mobileapp",
-      "buildNumber": "63",
+      "buildNumber": "64",
       "config": {
         "usesNonExemptEncryption": false
       },
@@ -24,6 +24,9 @@
         "NSLocationWhenInUseUsageDescription": "Open Working Hours uses your location on this device to help place your workplace and detect arrivals and departures.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Allow background location so Open Working Hours can clock you in and out automatically when you arrive at or leave work.",
         "NSFaceIDUsageDescription": "Use Face ID to quickly unlock Open Working Hours.",
+        "UIBackgroundModes": [
+          "location"
+        ],
         "ITSAppUsesNonExemptEncryption": false
       },
       "privacyManifests": {
