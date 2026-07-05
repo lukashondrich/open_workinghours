@@ -1,6 +1,6 @@
 # App Store rejection under Guideline 2.5.4 — "employee tracking" misclassification
 
-**Status:** Blocked. Awaiting iOS crash log to diagnose why the last fix attempt broke the app on startup.
+**Status:** Fix prepared (2026-07-05). Crash cause confirmed by reading expo-location source — no crash log needed. patch-package fix applied + `UIBackgroundModes` removed, build #65 staged. Pending: real-device verification, then EAS build + resubmission.
 **Opened:** 2026-07-03
 **Related:** `mobile-app/store-assets/app-store-metadata.md` (§ 5 reviewer notes), `project-mgmt/WORKSTREAMS.md` § 8 (App Store Launch workstream)
 
@@ -94,6 +94,29 @@ Ordered rough guess of best → worst fit for the project's mission and scope:
 - Is there a newer version of expo-location that handles this differently?
 - If we do need to keep `UIBackgroundModes: location`, can we successfully argue the case at Apple developer relations without adding a new feature? (Probability estimate: low — Apple's second rejection was verbatim, suggesting first-line reviewers won't budge.)
 
-## Immediate next step
+## Resolution (2026-07-05)
 
-User fetches the `.ips` crash log from the device (Settings → Privacy & Security → Analytics & Improvements → Analytics Data → OpenWorkingHours-YYYY-MM-DD-...). We diagnose from there.
+The `.ips` crash log was unavailable, but the crash cause was confirmed by reading expo-location 19.0.8's iOS source directly. Two independent blockers in the library — not in iOS itself:
+
+1. **JS-level guard** — `LocationModule.swift` `startGeofencingAsync` throws `LocationUpdatesUnavailable` unless `UIBackgroundModes` contains `location` (via `EXTaskService hasBackgroundModeEnabled`, which reads Info.plist at runtime). Geofencing would silently fail to start even without a crash. The guard still exists on expo main (SDK 57), so upgrading doesn't help.
+2. **The actual startup crash** — `EXGeofencingTaskConsumer.m:74` sets `locationManager.allowsBackgroundLocationUpdates = YES`. Apple documents that setting this flag without the `location` background mode raises an NSException. expo-task-manager persists registered tasks across app updates and restores them in `didFinishLaunchingWithOptions` (`EXTaskService _restoreTasks`), so build #63 (upgrade install over #62, which had the geofence task registered) crashed **before the JS bundle loaded**. This matches the observed symptom exactly.
+
+Confirmed unaffected by removing the key (validated in code):
+- Region monitoring is a CoreLocation system service — detection latency/accuracy and app wake behavior don't depend on `UIBackgroundModes`.
+- `allowsBackgroundLocationUpdates` only affects continuous updates (`startUpdatingLocation`), which the geofencing consumer never requests.
+- The 5-min exit hysteresis is timestamp-based in SQLite (`pendingExitAt`, resolved on next wake) — never needed background runtime.
+- Accuracy validation (`getCurrentPositionAsync`) goes through `BaseLocationProvider`, which already sets `allowsBackgroundLocationUpdates = false` today — behavior identical before/after.
+
+### Fix applied (staged for build #65)
+
+- `patches/expo-location+19.0.8.patch` (via patch-package, `postinstall` script added):
+  - `startGeofencingAsync`: removed the background-mode guard
+  - `EXGeofencingTaskConsumer.m`: `allowsBackgroundLocationUpdates` now set conditionally on the background mode actually being declared (no NSException when absent)
+- `app.json`: removed `UIBackgroundModes: ["location"]`, bumped `buildNumber` to 65
+- `ios/` is gitignored — EAS prebuilds from `app.json`, so no plist edit needed (build #63 already proved removal propagates)
+
+### Remaining steps
+
+1. Real-device verification (local build): launch after an **upgrade install** over build #64 (the crash path — persisted task restoration), one geofence clock-in, one clock-out with the app killed in between. Regenerate local `ios/` via prebuild first.
+2. EAS build #65 → TestFlight sanity check → attach to the App Store version.
+3. Resubmit with reviewer note: the UIBackgroundModes location declaration has been removed; the app uses standard region monitoring only and does not use persistent background location.
