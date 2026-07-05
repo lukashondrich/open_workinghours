@@ -1,7 +1,7 @@
 # Claude Context: Open Working Hours
 
-**Last Updated:** 2026-06-12
-**Current Build:** #61 / v2.1.0 (in EAS build queue for App Store submission; #60 on TestFlight)
+**Last Updated:** 2026-07-05
+**Current Build:** #65 / v2.1.0 (on TestFlight; resubmitted to App Review after Guideline 2.5.4 rejection)
 
 ---
 
@@ -46,7 +46,7 @@
 
 All core features complete. User test feedback (Clusters A-F) fully implemented. TestFlight has 3-4 active users.
 
-**App Store submission in progress.** Build #60 / v2.1.0 was uploaded 2026-06-04 but failed to enter App Review due to four pre-review blockers from App Store Connect (category, content rights, price tier, iPad screenshots). Three were resolved in App Store Connect; the iPad one required code (`supportsTablet: false`). Build #61 is in the EAS build queue with that change. After it processes and auto-submits, the App Store Connect version needs the build attachment swapped from #60 → #61, then "Add for Review" — pending the lawyer's HWG sweep + GDPR jargon final call (task #31).
+**App Store submission: resubmitted, awaiting App Review.** After the pre-review metadata blockers (builds #60-62), Apple rejected v2.1.0 build #62 under Guideline 2.5.4, reading `UIBackgroundModes:location` as employee tracking. Resolved in build #65: `UIBackgroundModes:location` removed + `patches/expo-location+19.0.8.patch` (patch-package) so geofencing works without it — full history and diagnosis in `project-mgmt/ticket-app-store-guideline-2-5-4-rejection.md`. Verified on device (upgrade install over #64, killed-app clock-in/out walk test), attached to v2.1.0 in ASC, and resubmitted with a Resolution Center reply on 2026-07-05. Still outstanding: lawyer's HWG sweep + GDPR jargon final call on the description copy (task #31). ⚠️ The expo-location patch is version-pinned — regenerate it when upgrading expo-location (the upstream guard still exists on expo main/SDK 57).
 
 **What's working:**
 - Geofencing with automatic clock-in/out
