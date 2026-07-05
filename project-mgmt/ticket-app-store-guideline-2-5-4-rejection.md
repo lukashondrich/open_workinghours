@@ -1,6 +1,6 @@
 # App Store rejection under Guideline 2.5.4 — "employee tracking" misclassification
 
-**Status:** Fix prepared (2026-07-05). Crash cause confirmed by reading expo-location source — no crash log needed. patch-package fix applied + `UIBackgroundModes` removed, build #65 staged. Pending: real-device verification, then EAS build + resubmission.
+**Status:** Resubmitted to Apple (2026-07-05). Build #65 (patched expo-location, no `UIBackgroundModes:location`) verified on device and attached to v2.1.0 in ASC; Resolution Center reply sent stating the background mode was removed and the app uses region monitoring only. Awaiting Apple's response.
 **Opened:** 2026-07-03
 **Related:** `mobile-app/store-assets/app-store-metadata.md` (§ 5 reviewer notes), `project-mgmt/WORKSTREAMS.md` § 8 (App Store Launch workstream)
 
@@ -115,8 +115,19 @@ Confirmed unaffected by removing the key (validated in code):
 - `app.json`: removed `UIBackgroundModes: ["location"]`, bumped `buildNumber` to 65
 - `ios/` is gitignored — EAS prebuilds from `app.json`, so no plist edit needed (build #63 already proved removal propagates)
 
-### Remaining steps
+### Verification & resubmission (2026-07-05)
 
-1. Real-device verification (local build): launch after an **upgrade install** over build #64 (the crash path — persisted task restoration), one geofence clock-in, one clock-out with the app killed in between. Regenerate local `ios/` via prebuild first.
-2. EAS build #65 → TestFlight sanity check → attach to the App Store version.
-3. Resubmit with reviewer note: the UIBackgroundModes location declaration has been removed; the app uses standard region monitoring only and does not use persistent background location.
+1. ✅ EAS build #65 → TestFlight (local device build wasn't possible — no signing certs on this Mac; all signing lives on EAS).
+2. ✅ Upgrade install over #64 on the real device (the crash path — persisted task restoration): launches cleanly.
+3. ✅ Walk test with app killed: clock-out fired (after 5-min hysteresis), clock-in fired on return.
+4. ✅ ASC: build on rejected v2.1.0 swapped #62 → #65; Resolution Center reply sent — leads with "revised as suggested", states no persistent location / region monitoring only, notes the change is verifiable in the binary's Info.plist, includes demo account.
+
+### Awaiting
+
+- Apple's response to the resubmission.
+- Reminder: lawyer's HWG sweep + GDPR jargon call on the App Store description copy is still outstanding (task #31) — relevant if description edits are made before/after approval.
+
+### Follow-up (optional)
+
+- File upstream expo issue: the `startGeofencingAsync` background-mode guard is overly strict (region monitoring doesn't need `UIBackgroundModes:location`) and forces exactly this Guideline 2.5.4 conflict. `npx patch-package expo-location --create-issue` drafts it from our patch. If fixed upstream, the patch can be dropped on a future SDK upgrade.
+- The patch is version-pinned (`patches/expo-location+19.0.8.patch`) — regenerate when upgrading expo-location.
