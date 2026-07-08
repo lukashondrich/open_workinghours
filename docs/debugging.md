@@ -45,6 +45,16 @@ This guide covers debugging techniques for the Open Working Hours project.
 | Google Maps error | Missing API key | Use native maps (react-native-maps) |
 | Background location fails | iOS restrictions | Check permissions, test on device |
 | Build fails on M1 | CocoaPods arch issue | `arch -x86_64 pod install` |
+| iOS crashes on startup after removing `UIBackgroundModes: location` | expo-location NSException on task restore | See "iOS geofencing & background mode" below |
+
+### iOS geofencing & background mode
+
+The app deliberately does **not** declare `location` in `UIBackgroundModes` (App Store Guideline 2.5.4 — see `archive/app-store-guideline-2-5-4-2026-07.md`). Making geofencing work without it needs `patches/expo-location+19.0.8.patch` (patch-package, runs on `postinstall`). Two gotchas this addresses:
+
+- **Startup crash on upgrade installs.** expo-task-manager restores persisted location tasks at launch; the stock geofencing consumer sets `allowsBackgroundLocationUpdates = YES`, which raises an NSException when the background mode is absent — crashing *before* the JS bundle loads. This only reproduces on an **upgrade install** over a build that had a geofence task registered, not a fresh install. If you see an instant startup crash on iOS with no JS logs, suspect this.
+- **Geofencing silently won't start.** `startGeofencingAsync` throws `LocationUpdatesUnavailable` unless the mode is declared — the patch removes that guard.
+
+If you bump expo-location, the patch may not apply (it's pinned to 19.0.8). Regenerate: edit the two files under `node_modules/expo-location/ios/` (`LocationModule.swift` guard, `EXGeofencingTaskConsumer.m` flag), then `npx patch-package expo-location`. The upstream guard still exists on expo main/SDK 57, so this isn't fixed by upgrading.
 
 ### Debug Logging
 
