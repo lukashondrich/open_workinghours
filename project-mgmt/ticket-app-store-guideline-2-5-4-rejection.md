@@ -1,6 +1,6 @@
 # App Store rejection under Guideline 2.5.4 — "employee tracking" misclassification
 
-**Status:** Resubmitted to Apple (2026-07-05). Build #65 (patched expo-location, no `UIBackgroundModes:location`) verified on device and attached to v2.1.0 in ASC; Resolution Center reply sent stating the background mode was removed and the app uses region monitoring only. Awaiting Apple's response.
+**Status:** ✅ RESOLVED — approved and live on the App Store (2026-07-08). Build #65 (patched expo-location, no `UIBackgroundModes:location`) cleared Guideline 2.5.4 review and v2.1.0 is now public. TestFlight invite friction removed; doc-mums distribution unblocked.
 **Opened:** 2026-07-03
 **Related:** `mobile-app/store-assets/app-store-metadata.md` (§ 5 reviewer notes), `project-mgmt/WORKSTREAMS.md` § 8 (App Store Launch workstream)
 
@@ -122,12 +122,12 @@ Confirmed unaffected by removing the key (validated in code):
 3. ✅ Walk test with app killed: clock-out fired (after 5-min hysteresis), clock-in fired on return.
 4. ✅ ASC: build on rejected v2.1.0 swapped #62 → #65; Resolution Center reply sent — leads with "revised as suggested", states no persistent location / region monitoring only, notes the change is verifiable in the binary's Info.plist, includes demo account.
 
-### Awaiting
+### Outcome (2026-07-08)
 
-- Apple's response to the resubmission.
-- Reminder: lawyer's HWG sweep + GDPR jargon call on the App Store description copy is still outstanding (task #31) — relevant if description edits are made before/after approval.
+✅ Approved — v2.1.0 build #65 cleared Guideline 2.5.4 review and is live on the App Store. Resubmission (not just the Resolution Center reply) was the trigger: the message thread alone doesn't re-enter the queue; the version had to be explicitly resubmitted for review.
 
-### Follow-up (optional)
+### Still open / follow-up
 
-- File upstream expo issue: the `startGeofencingAsync` background-mode guard is overly strict (region monitoring doesn't need `UIBackgroundModes:location`) and forces exactly this Guideline 2.5.4 conflict. `npx patch-package expo-location --create-issue` drafts it from our patch. If fixed upstream, the patch can be dropped on a future SDK upgrade.
-- The patch is version-pinned (`patches/expo-location+19.0.8.patch`) — regenerate when upgrading expo-location.
+- **Description copy** — lawyer's HWG sweep + GDPR jargon call (task #31) was NOT blocking approval (rejection was purely the background mode). If their feedback lands, apply as a metadata-only update on the live version.
+- **Upstream expo issue (optional)** — the `startGeofencingAsync` background-mode guard is overly strict (region monitoring doesn't need `UIBackgroundModes:location`) and forces exactly this Guideline 2.5.4 conflict. `npx patch-package expo-location --create-issue` drafts it from our patch. If fixed upstream, the patch can be dropped on a future SDK upgrade.
+- **Patch is version-pinned** (`patches/expo-location+19.0.8.patch`) — regenerate when upgrading expo-location; the upstream guard still exists on expo main/SDK 57.
