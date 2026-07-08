@@ -29,7 +29,7 @@
 
 | Component | Status | Location |
 |-----------|--------|----------|
-| **React Native Mobile App (iOS)** | Production (TestFlight) | `mobile-app/` |
+| **React Native Mobile App (iOS)** | Live on the App Store (v2.1.0) | `mobile-app/` |
 | **React Native Mobile App (Android)** | Development (internal testing) | `mobile-app/` |
 | **FastAPI Backend** | Production (Hetzner) | `backend/` |
 | **Astro Website** | Live (openworkinghours.org) | `website/` |
@@ -44,7 +44,7 @@
 
 ## Current State
 
-All core features complete. User test feedback (Clusters A-F) fully implemented. TestFlight has 3-4 active users.
+All core features complete. User test feedback (Clusters A-F) fully implemented. v2.1.0 is public on the iOS App Store as of 2026-07-08.
 
 **App Store: LIVE.** v2.1.0 build #65 approved and public on 2026-07-08 (tag `v2.1.0-build65`) — the first public iOS release. Cleared a Guideline 2.5.4 rejection by removing `UIBackgroundModes: location` and patching expo-location so geofencing still works (`patches/expo-location+19.0.8.patch`). Full history: `archive/app-store-guideline-2-5-4-2026-07.md`; the technical trap is captured in `mobile-app/ARCHITECTURE.md` (Geofencing) and `docs/debugging.md`. ⚠️ The patch is version-pinned to expo-location 19.0.8 — regenerate on upgrade. Non-blocking follow-up: lawyer's HWG/GDPR pass on the description copy (task #31), appliable as a live-version metadata update.
 
