@@ -1,8 +1,8 @@
 # Mobile App Architecture
 
-**Last Updated:** 2026-06-04
+**Last Updated:** 2026-07-08
 **Platform:** React Native + Expo
-**Current Build:** #52 (TestFlight)
+**Current Build:** #65 (v2.1.0, live on the App Store)
 
 ---
 
@@ -51,10 +51,10 @@ Quick reference for common tasks:
 
 | Category | Technology |
 |----------|------------|
-| Framework | React Native 0.74 |
-| Runtime | Expo SDK ~51.0 |
-| Language | TypeScript 5.x |
-| Navigation | React Navigation 6 |
+| Framework | React Native 0.81 |
+| Runtime | Expo SDK ~54.0 |
+| Language | TypeScript 5.9 |
+| Navigation | React Navigation 7 |
 | State | React Context + useReducer |
 | Storage | expo-sqlite (SQLite) |
 | Location | expo-location + expo-task-manager |

@@ -204,9 +204,11 @@
 
 ---
 
-## 8. App Store Launch (iOS) — added 2026-06-04
+## 8. App Store Launch (iOS) — added 2026-06-04, ✅ SHIPPED 2026-07-08
 
 **Goal:** Ship Open Working Hours from TestFlight to the public iOS App Store (EN + DE). Removes the "you need an invite" friction blocking the doc-mums WhatsApp distribution path and establishes Apple-reviewed legitimacy for the privacy claims. Necessary precondition for the consumer-subscription channel in the business model (§6).
+
+**✅ ACHIEVED:** v2.1.0 build #65 approved and live on 2026-07-08 (tag `v2.1.0-build65`). Required clearing a Guideline 2.5.4 rejection (`UIBackgroundModes:location` misread as employee tracking) — full history in `archive/app-store-guideline-2-5-4-2026-07.md`. One follow-up remains open (HWG/GDPR copy pass, below) — it did NOT block approval and applies as a live-version metadata update if the lawyer requests changes.
 
 **Status:**
 
@@ -219,13 +221,13 @@
 | Reviewer demo account | ✅ Verified using existing backend bypass | `demo@openworkinghours.org` + `123456` (env vars `DEMO__EMAIL` / `DEMO__CODE`). Pre-dates this workstream. Docs: `docs/deployment.md` § "App Review demo account bypass". |
 | Reviewer notes | ✅ Drafted | Metadata § 5. |
 | URLs + categories + copyright | ✅ Decided | Productivity (primary) + Health & Fitness (secondary); `mailto:lukashondrich@googlemail.com` as Support URL; `2026 Lukas Hondrich`. Metadata § 4. |
-| Lawyer's HWG sweep + GDPR jargon final | ⏳ Pending external | Heilmittelwerbegesetz coverage check for a working-time app (especially the `burnout` keyword), and final call on "GDPR compliant" vs "GDPR-aligned". |
-| Submit | ⏳ Awaiting lawyer | Paste payload into App Store Connect, walk age-rating questionnaire (expected 4+), upload 12 PNGs, configure Nutrition Labels, paste reviewer notes, Submit. |
+| Submit + Apple review | ✅ Approved & live 2026-07-08 | Submitted with metadata; cleared Guideline 2.5.4 after removing `UIBackgroundModes:location` (build #65). Age rating 4+, 12 PNGs, Nutrition Labels, reviewer notes all in. |
+| Lawyer's HWG sweep + GDPR jargon final | ⏳ Pending external (non-blocking) | Heilmittelwerbegesetz coverage check for a working-time app (especially the `burnout` keyword), and final call on "GDPR compliant" vs "GDPR-aligned". Now applies as a **metadata-only update to the live listing** — not a submission blocker. |
 
 **Next actions:**
 - [ ] Send `app-store-metadata.md` to lawyer for HWG + GDPR-jargon pass
-- [ ] On lawyer sign-off, do the App Store Connect submission session (~30 min)
-- [ ] Apple review typically 1–3 days; address any "Information Needed" responses
+- [ ] If the lawyer requests copy changes, apply them as a metadata update on the live App Store version (no new build needed)
+- [ ] Monitor for any post-launch Apple "Information Needed" or user-report issues
 
 **Strategic dependencies:**
 - Unblocks doc-mums distribution (§2 User Acquisition row 1) — but doesn't fully resolve it, since that row is also gated on Android robustness (§4)
