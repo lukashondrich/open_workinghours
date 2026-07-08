@@ -138,6 +138,15 @@ Android OEMs (Samsung, Xiaomi, Huawei) aggressively kill background processes. S
 
 Solution: `ForegroundKeepaliveService.ts` runs `expo-location`'s `startLocationUpdatesAsync` with the `foregroundService` option. This creates a persistent notification that gives the app elevated process priority. The foreground service acts purely as a keep-alive — actual geofence detection continues via `startGeofencingAsync`. A `KeepaliveHealthCheckService.ts` periodically verifies the service is alive and restarts it if needed.
 
+**iOS: no `UIBackgroundModes: location` — and why (Build #65):**
+iOS does **not** declare `location` in `UIBackgroundModes`. The app uses only Core Location region monitoring (`startGeofencingAsync`), which iOS delivers to suspended/terminated apps without that declaration; continuous background location (`startLocationUpdatesAsync`) is Android-only here. Declaring the background mode with no continuous-location feature triggered an App Store **Guideline 2.5.4** rejection (misread as employee tracking).
+
+Removing the declaration requires a **patch to expo-location** (`patches/expo-location+19.0.8.patch`, applied via patch-package `postinstall`) because the stock library assumes the mode is always present:
+- `LocationModule.swift` `startGeofencingAsync` throws unless `UIBackgroundModes` contains `location` — patch removes that guard (region monitoring genuinely doesn't need it).
+- `EXGeofencingTaskConsumer.m` sets `allowsBackgroundLocationUpdates = YES` unconditionally, which raises an NSException when the mode is absent. Because expo-task-manager restores persisted tasks at launch (`didFinishLaunchingWithOptions`), this crashed on startup for upgrade installs before the JS bundle loaded — patch makes the flag conditional on the mode being declared.
+
+⚠️ The patch is **version-pinned to expo-location 19.0.8** and the upstream guard still exists on expo main/SDK 57 — regenerate the patch when upgrading. Full history: `archive/app-store-guideline-2-5-4-2026-07.md`. See also `docs/debugging.md` → "iOS geofencing & background mode".
+
 **Session States:**
 - `active` - User is clocked in
 - `pending_exit` - Exit detected, waiting for hysteresis period

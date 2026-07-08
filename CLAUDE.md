@@ -46,7 +46,7 @@
 
 All core features complete. User test feedback (Clusters A-F) fully implemented. TestFlight has 3-4 active users.
 
-**App Store: LIVE.** v2.1.0 build #65 was approved and published on 2026-07-08. The path there: pre-review metadata blockers (builds #60-62), then a Guideline 2.5.4 rejection of build #62 (Apple read `UIBackgroundModes:location` as employee tracking). Resolved in build #65 by removing `UIBackgroundModes:location` + `patches/expo-location+19.0.8.patch` (patch-package) so geofencing works without it — full history and diagnosis in `project-mgmt/ticket-app-store-guideline-2-5-4-rejection.md`. ⚠️ The expo-location patch is version-pinned — regenerate it when upgrading expo-location (the upstream guard still exists on expo main/SDK 57). Metadata-only follow-up (non-blocking): lawyer's HWG sweep + GDPR jargon call on the description copy (task #31), appliable as a live-version update.
+**App Store: LIVE.** v2.1.0 build #65 approved and public on 2026-07-08 (tag `v2.1.0-build65`) — the first public iOS release. Cleared a Guideline 2.5.4 rejection by removing `UIBackgroundModes: location` and patching expo-location so geofencing still works (`patches/expo-location+19.0.8.patch`). Full history: `archive/app-store-guideline-2-5-4-2026-07.md`; the technical trap is captured in `mobile-app/ARCHITECTURE.md` (Geofencing) and `docs/debugging.md`. ⚠️ The patch is version-pinned to expo-location 19.0.8 — regenerate on upgrade. Non-blocking follow-up: lawyer's HWG/GDPR pass on the description copy (task #31), appliable as a live-version metadata update.
 
 **What's working:**
 - Geofencing with automatic clock-in/out
@@ -199,6 +199,14 @@ All new UI **must** be testable by Appium (XCUITest on iOS, UiAutomator2 on Andr
 ---
 
 ## Recent Updates (Last 7 Days)
+
+### 2026-07-08: First public App Store release (v2.1.0 build #65)
+
+**What shipped:**
+- v2.1.0 approved and live on the App Store (tag `v2.1.0-build65`) — first public iOS release, removing TestFlight-invite friction (unblocks doc-mums distribution).
+- Cleared a Guideline 2.5.4 rejection: removed `UIBackgroundModes: location` (Apple read it as employee tracking) and added `patches/expo-location+19.0.8.patch` so region-monitoring geofencing works without the declaration. Verified on device (upgrade-install launch + killed-app clock-in/out walk test).
+- Reusable knowledge extracted to permanent docs: `mobile-app/ARCHITECTURE.md` (Geofencing → iOS background mode) and `docs/debugging.md` (iOS geofencing & background mode). Full case history archived at `archive/app-store-guideline-2-5-4-2026-07.md`.
+- ⚠️ Patch is version-pinned to expo-location 19.0.8 — regenerate on any SDK/expo-location upgrade (upstream guard still present on expo main/SDK 57).
 
 ### 2026-06-04: App Store screenshot pipeline + submission payload
 
