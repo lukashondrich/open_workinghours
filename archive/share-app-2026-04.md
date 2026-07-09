@@ -1,5 +1,7 @@
 # Share App Feature — Planning Doc
 
+> **✅ Shipped.** Share button + `/download` page shipped 2026-05 (`e3caac9`). The "When Store Links Are Available" step was completed at the iOS App Store launch (2026-07-08): official badges activated with the live App Store link. Durable knowledge (badge compliance, canonical link, page purpose) now lives in `website/README.md` → "Store Badges". Archived for history.
+
 **Date:** 2026-04-30 (updated 2026-05-13)
 **Branch:** `worktree-share-app-impl`
 

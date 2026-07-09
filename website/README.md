@@ -1,6 +1,6 @@
 # Open Working Hours - Website
 
-Public-facing project dossier website for outreach to unions, professional associations, and interest groups.
+Public-facing website with two audiences: **individual healthcare workers** (download the app) and **institutions** (unions, professional associations, interest groups for outreach/pilot partnerships). Since the iOS App Store launch (2026-07-08) the homepage leads with an App Store download CTA while keeping the institutional path.
 
 ## Tech Stack
 
@@ -10,16 +10,19 @@ Public-facing project dossier website for outreach to unions, professional assoc
 
 ## Pages
 
+Every route has a German counterpart under `/de/…`.
+
 | Route | Purpose |
 |-------|---------|
-| `/` | Project Dossier - overview for stakeholders |
+| `/` | Landing page - dual-audience: App Store download CTA (hero) + institutional/pilot-partner sections |
+| `/download` | Download page - official store badges, target of the in-app "Share App" link (see Store Badges below) |
+| `/dossier` | Project dossier - institutional overview for stakeholders |
 | `/product` | Demo & screenshots |
 | `/privacy` | Privacy principles (high-level trust page) |
 | `/team` | Team & advisors |
 | `/imprint` | German Impressum (legal) |
-| `/privacy-policy` | GDPR privacy policy |
-| `/dashboard` | Public dashboard - coverage map, progress, contact form (EN) |
-| `/de/dashboard` | Public dashboard (DE) |
+| `/privacy-policy`, `/app-privacy-policy` | GDPR privacy policy |
+| `/dashboard` | Public dashboard - coverage map, progress, contact form |
 
 ## Development
 
@@ -83,12 +86,25 @@ Update default description in `src/layouts/Layout.astro`:
 const { description = 'Your description here' } = Astro.props;
 ```
 
+## Store Badges
+
+Official store badges live in `website/public/badges/` and are used on `/` (hero), `/download`, and `/dashboard`:
+
+| File | Store | Locale | State |
+|------|-------|--------|-------|
+| `app-store-en.svg` / `app-store-de.svg` | Apple App Store | EN / DE | **Live** (linked) |
+| `google-play-en.png` / `google-play-de.png` | Google Play | EN / DE | Dimmed + "Coming soon" (Android still internal) |
+
+**Use the official artwork only — do not recreate the badges as custom SVG/CSS.** Apple and Google both require their official badge assets and forbid modification (clear space, no recoloring). Sources: Apple's marketing-tools API (`toolbox.marketingtools.apple.com/api/v2/badges/download-on-the-app-store/black/<locale>`) and Google's Play brand page (`play.google.com/intl/<locale>/badges/`). Regenerate from those sources if a locale is added.
+
+**App Store link:** `https://apps.apple.com/app/open-working-hours/id6755491395` (app id `6755491395`). Use this canonical slug form everywhere. Activate the Google Play badge (add `href`, drop the dimming and "Coming soon") once Android goes public.
+
 ## Design System
 
 ### Colors
-- **Primary:** Blue (`#2563eb` / `blue-600`)
-- **Text:** Gray-800 for body, Gray-900 for headings
-- **Background:** White
+- **Primary:** Teal (`#0d9488` / `teal-600`)
+- **Text:** Stone-600 for body, Stone-900 for headings
+- **Background:** White / Stone-50
 
 ### Typography
 - **Font:** Inter
@@ -134,7 +150,8 @@ See `docs/INTERACTIVE_MAP_PLAN.md` for full specification.
 **Nav order:** Dossier → Product → Dashboard (Live) → Privacy → Team
 
 **Cross-links to Dashboard:**
-- Homepage hero: "See current coverage across Germany →"
+- Homepage hero secondary CTA: "For clinics & unions →" (institutional path; primary CTA is the App Store download)
+- Homepage "Interested?" section: "Get in touch" / "View live dashboard"
 - Product page: "View live coverage map →" (replaced static screenshot)
 
 The "Live" badge on Dashboard indicates real-time data from the backend API.
@@ -149,4 +166,4 @@ The dashboard fetches data from these backend endpoints:
 ### Pending Items
 - Contact form email notification to admin (not yet implemented)
 - `contact@openworkinghours.org` email setup
-- App Store link (placeholder until available)
+- Google Play badge activation (Android still internal testing) — iOS App Store link is live as of 2026-07-08
