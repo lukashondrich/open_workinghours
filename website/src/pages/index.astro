@@ -1,8 +1,27 @@
 ---
 import Layout from '../layouts/Layout.astro';
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: 'Open Working Hours',
+  operatingSystem: 'iOS',
+  applicationCategory: 'BusinessApplication',
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'EUR' },
+  url: 'https://openworkinghours.org',
+  downloadUrl: 'https://apps.apple.com/app/open-working-hours/id6755491395',
+  description: 'Privacy-first iOS app for healthcare workers to automatically track working hours and make overtime visible. Geofencing clock-in/out, GDPR-compliant, data stays on the device.',
+  publisher: { '@type': 'Organization', name: 'Open Working Hours', url: 'https://openworkinghours.org' },
+};
 ---
 
-<Layout title="Open Working Hours">
+<Layout
+  title="Automatic working-hours tracking for healthcare workers"
+  description="Free, privacy-first iOS app for healthcare workers to track working hours automatically. Geofencing clock-in/out, GDPR-compliant, your data stays on your device."
+>
+  <Fragment slot="head">
+    <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+  </Fragment>
   <!-- Hero Section - side by side on desktop -->
   <section class="signal-hero">
     <div class="signal-container">

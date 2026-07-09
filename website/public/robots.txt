@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://openworkinghours.org/sitemap-index.xml

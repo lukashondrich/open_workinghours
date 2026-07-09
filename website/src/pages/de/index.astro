@@ -1,8 +1,27 @@
 ---
 import LayoutDE from '../../layouts/LayoutDE.astro';
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: 'Open Working Hours',
+  operatingSystem: 'iOS',
+  applicationCategory: 'BusinessApplication',
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'EUR' },
+  url: 'https://openworkinghours.org/de',
+  downloadUrl: 'https://apps.apple.com/app/open-working-hours/id6755491395',
+  description: 'Datenschutzfreundliche iOS-App für Beschäftigte im Gesundheitswesen: Arbeitszeiten automatisch erfassen und Überstunden sichtbar machen. Geofencing, DSGVO-konform, Daten bleiben auf dem Gerät.',
+  publisher: { '@type': 'Organization', name: 'Open Working Hours', url: 'https://openworkinghours.org' },
+};
 ---
 
-<LayoutDE title="Projektdossier">
+<LayoutDE
+  title="Arbeitszeiten automatisch erfassen — für das Gesundheitswesen"
+  description="Kostenlose, datenschutzfreundliche iOS-App für Beschäftigte im Gesundheitswesen: Arbeitszeiten automatisch per Geofencing erfassen. DSGVO-konform, Daten bleiben auf dem Gerät."
+>
+  <Fragment slot="head">
+    <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+  </Fragment>
   <!-- Hero Section - side by side on desktop -->
   <section class="signal-hero">
     <div class="signal-container">
