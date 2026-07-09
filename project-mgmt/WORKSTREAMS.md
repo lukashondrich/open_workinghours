@@ -214,9 +214,10 @@
 
 **✅ SEO basics shipped (2026-07-09):** Apple Smart App Banner (`app-id=6755491395`), sitemap (`@astrojs/sitemap` + `site` config), `robots.txt`, self-referencing canonical URLs, global Open Graph/Twitter tags, JSON-LD `SoftwareApplication`, stronger homepage titles/descriptions. Deferred: hreflang (EN/DE legal slugs differ), analytics (privacy-model decision).
 
-**⚠️ Open follow-ups (post-launch, low-effort — require account/device access):**
-- **Canonical domain = apex `openworkinghours.org`.** Decided because the shipped app (build #65) links to apex (`legalUrls.ts`, `ReportsScreen.tsx`) and can't change without a release, and all docs/OG/`site` config use apex. **Vercel currently serves `www` as primary (apex 308→www) — this is backwards.** Fix: Vercel → Settings → Domains → set `openworkinghours.org` as primary so www redirects to apex. Can't be done in code (a `vercel.json` redirect would loop against the current dashboard setting). Until flipped, canonical/sitemap/share links all resolve via one redirect hop (works, but not clean).
-- **Google Search Console:** submit `sitemap-index.xml` for the apex property (do after the domain flip). This is what actually starts indexing.
+**✅ Canonical domain = apex `openworkinghours.org` (fixed 2026-07-09).** Decided because the shipped app (build #65) links to apex (`legalUrls.ts`, `ReportsScreen.tsx`) and can't change without a release, and all docs/OG/`site` config use apex. Vercel was serving `www` as primary (apex 308→www); flipped in the Vercel dashboard so apex now serves 200 directly and `www` 308-redirects to apex. Verified: `openworkinghours.org` → 200, `www.openworkinghours.org` → 308 → apex. DNS unchanged (apex already pointed to Vercel via IONOS).
+
+**⚠️ Open follow-ups (post-launch — require account/device access):**
+- **Google Search Console:** add the `openworkinghours.org` property and submit `sitemap-index.xml`. This is what actually starts indexing. (HTML-tag verification is easy — the verification meta tag can be added to `Layout.astro`/`LayoutDE.astro` head.)
 - **Smart App Banner:** verify on real iOS Safari (renders only there).
 
 **Status:**

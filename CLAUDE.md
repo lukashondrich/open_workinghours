@@ -208,7 +208,7 @@ All new UI **must** be testable by Appium (XCUITest on iOS, UiAutomator2 on Andr
 - GPS privacy wording harmonized with the policy docs (precise location stays on-device; workplace search optional, approximate ~1 km to Komoot/Photon).
 - **SEO basics + Apple Smart App Banner** (`app-id=6755491395`): sitemap, `robots.txt`, canonical URLs, global OG/Twitter tags, JSON-LD, stronger homepage titles. Deferred: hreflang, analytics.
 - Deployed from `main` via Vercel. Source plan archived at `archive/share-app-2026-04.md`; workstream + open follow-ups in `project-mgmt/WORKSTREAMS.md` §8.
-- ⚠️ **Canonical domain = apex `openworkinghours.org`** (shipped app links to apex, can't change). Vercel currently serves `www` as primary (apex→www) — flip Vercel primary to apex. Then submit sitemap in Google Search Console. Both are account actions, not code.
+- ✅ **Canonical domain = apex `openworkinghours.org`** (shipped app links to apex, can't change). Vercel flipped so apex serves 200 and `www` 308→apex (verified). Remaining: submit `sitemap-index.xml` in Google Search Console (account action).
 
 ### 2026-07-08: First public App Store release (v2.1.0 build #65)
 
