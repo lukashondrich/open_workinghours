@@ -312,7 +312,7 @@ All new UI **must** be testable by Appium (XCUITest on iOS, UiAutomator2 on Andr
 | Map flickers between locations | Uncontrolled `initialRegion` + `regionRef` (no controlled `region` prop on Android) | LocationsListScreen |
 | Search result doesn't update map | Same pattern | SetupScreen |
 | Tab bar grey gradient on Samsung | `borderTopWidth: 0` + `elevation: 0` (Android only) | AppNavigator |
-| Saving location kills active session | **Open** — deferred | GeofenceService, TrackingManager |
+| Saving location kills active session | **Not reproducible** on 2026-04-04 retest — monitor, re-verify on device before Play submission (`archive/ANDROID_BUGS_2026-03-31.md`) | GeofenceService, TrackingManager |
 
 **Key lesson:** Never use controlled `region` prop with `animateToRegion` on Android `react-native-maps` — the `onRegionChangeComplete` feedback loop fights animations. Use `initialRegion` + ref + `animateToRegion` only. See `docs/debugging.md` → Android section.
 
