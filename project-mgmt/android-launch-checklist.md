@@ -77,8 +77,9 @@ All of these are **No**: violence, sexual content, profanity, controlled substan
 - Short description (≤80): *"Track your working hours automatically. Privacy-first, for healthcare workers."*
 - Full description (≤4000): reuse the iOS description (`store-assets/app-store-metadata.md` §1, EN + DE)
 - App icon 512×512: export from `assets/adaptive-icon.png`
-- **⚠️ Feature graphic 1024×500: NEW asset — Play requires it, iOS didn't. Must be created.**
-- Screenshots: **⚠️ iOS shots are 1320×2868 (~2.17:1), which exceeds Play's 2:1 max — regenerate at a Play-friendly size** (the `store-assets/` pipeline can do this).
+- ✅ **Feature graphic 1024×500: generated** → `mobile-app/store-assets/play/feature-graphic-1024x500.png` (branded teal + clock logo + tagline)
+- ✅ **Play-compliant screenshots: generated** → `mobile-app/store-assets/play/screenshots/{en,de}/*.png` (6 each, padded to 1480×2868 = 1.938:1, under Play's 2:1 max; padding blends seamlessly with the pale-teal background)
+- Regenerate both anytime with `node store-assets/play-assets.mjs` (outputs are gitignored like `composed/`; the script is committed)
 
 ---
 
