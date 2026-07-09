@@ -200,6 +200,14 @@ All new UI **must** be testable by Appium (XCUITest on iOS, UiAutomator2 on Andr
 
 ## Recent Updates (Last 7 Days)
 
+### 2026-07-09: Website consumer launch (openworkinghours.org)
+
+**What shipped:**
+- Homepage reoriented to **dual-audience** (Option C): official App Store badge as the primary hero CTA, institutional pilot-partner path preserved. "Closed Beta"/"TestFlight" copy replaced with truthful launch status across `/`, `/download`, `/dashboard`, `/product`, `/team` (EN+DE).
+- **Official** Apple + Google store badges (`website/public/badges/`) with the live canonical App Store link. Google Play stays "Coming soon" (Android internal). Badges must stay official — see `website/README.md` → "Store Badges".
+- GPS privacy wording harmonized with the policy docs (precise location stays on-device; workplace search optional, approximate ~1 km to Komoot/Photon).
+- Deployed from `main` via Vercel. Source plan archived at `archive/share-app-2026-04.md`; workstream in `project-mgmt/WORKSTREAMS.md` §8.
+
 ### 2026-07-08: First public App Store release (v2.1.0 build #65)
 
 **What shipped:**

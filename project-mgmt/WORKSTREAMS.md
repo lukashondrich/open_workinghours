@@ -210,6 +210,8 @@
 
 **✅ ACHIEVED:** v2.1.0 build #65 approved and live on 2026-07-08 (tag `v2.1.0-build65`). Required clearing a Guideline 2.5.4 rejection (`UIBackgroundModes:location` misread as employee tracking) — full history in `archive/app-store-guideline-2-5-4-2026-07.md`. One follow-up remains open (HWG/GDPR copy pass, below) — it did NOT block approval and applies as a live-version metadata update if the lawyer requests changes.
 
+**✅ Website updated for launch (2026-07-09):** openworkinghours.org made consumer-ready — homepage reoriented to dual-audience (official App Store badge as the primary hero CTA, institutional pilot-partner path preserved), official Apple/Google store badges on `/`, `/download`, `/dashboard`, live canonical App Store link, and "TestFlight/Closed Beta" copy replaced with truthful launch status across the site. GPS privacy wording harmonized with the policy docs. Details in `website/README.md` → "Store Badges"; the source plan is archived at `archive/share-app-2026-04.md`.
+
 **Status:**
 
 | Item | Status | Notes |
