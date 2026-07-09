@@ -9,6 +9,10 @@ interface Props {
 const { title, description = 'Datenschutzkonforme Infrastruktur zur Dokumentation von Arbeitsbedingungen im Gesundheitswesen' } = Astro.props;
 const currentPath = Astro.url.pathname;
 
+const fullTitle = `${title} | Open Working Hours`;
+const canonical = new URL(currentPath, Astro.site);
+const ogImage = new URL('/og-download.png', Astro.site);
+
 const navItems = [
   { href: '/de', label: 'Dossier' },
   { href: '/de/product', label: 'Produkt' },
@@ -24,13 +28,31 @@ const navItems = [
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <title>{title} | Open Working Hours</title>
+    <title>{fullTitle}</title>
+
+    <!-- Native App Store banner for iOS Safari visitors -->
+    <meta name="apple-itunes-app" content="app-id=6755491395" />
+
+    <!-- Open Graph / social sharing -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Open Working Hours" />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:locale" content="de_DE" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={fullTitle} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
+
     <slot name="head" />
   </head>
   <body class="min-h-screen flex flex-col">
