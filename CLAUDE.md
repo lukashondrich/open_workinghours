@@ -206,7 +206,9 @@ All new UI **must** be testable by Appium (XCUITest on iOS, UiAutomator2 on Andr
 - Homepage reoriented to **dual-audience** (Option C): official App Store badge as the primary hero CTA, institutional pilot-partner path preserved. "Closed Beta"/"TestFlight" copy replaced with truthful launch status across `/`, `/download`, `/dashboard`, `/product`, `/team` (EN+DE).
 - **Official** Apple + Google store badges (`website/public/badges/`) with the live canonical App Store link. Google Play stays "Coming soon" (Android internal). Badges must stay official — see `website/README.md` → "Store Badges".
 - GPS privacy wording harmonized with the policy docs (precise location stays on-device; workplace search optional, approximate ~1 km to Komoot/Photon).
-- Deployed from `main` via Vercel. Source plan archived at `archive/share-app-2026-04.md`; workstream in `project-mgmt/WORKSTREAMS.md` §8.
+- **SEO basics + Apple Smart App Banner** (`app-id=6755491395`): sitemap, `robots.txt`, canonical URLs, global OG/Twitter tags, JSON-LD, stronger homepage titles. Deferred: hreflang, analytics.
+- Deployed from `main` via Vercel. Source plan archived at `archive/share-app-2026-04.md`; workstream + open follow-ups in `project-mgmt/WORKSTREAMS.md` §8.
+- ⚠️ **Canonical domain = apex `openworkinghours.org`** (shipped app links to apex, can't change). Vercel currently serves `www` as primary (apex→www) — flip Vercel primary to apex. Then submit sitemap in Google Search Console. Both are account actions, not code.
 
 ### 2026-07-08: First public App Store release (v2.1.0 build #65)
 
