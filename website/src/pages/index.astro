@@ -9,7 +9,7 @@ import Layout from '../layouts/Layout.astro';
       <div class="signal-hero-grid">
         <!-- Left: Text and CTAs -->
         <div class="signal-hero-content">
-          <span class="signal-badge">Closed Beta</span>
+          <span class="signal-badge">Now on the App Store</span>
 
           <h1 class="signal-headline">
             Track hours automatically. Improve working conditions.
@@ -19,12 +19,12 @@ import Layout from '../layouts/Layout.astro';
             Open Working Hours helps healthcare workers document actual working hours easily – and make structural problems visible.
           </p>
 
-          <div class="signal-cta-group">
-            <a href="/dashboard#institutions" class="signal-btn-primary">
-              Become a pilot partner
+          <div class="signal-cta-group" style="align-items: center;">
+            <a href="https://apps.apple.com/app/open-working-hours/id6755491395" target="_blank" rel="noopener" aria-label="Download on the App Store">
+              <img src="/badges/app-store-en.svg" alt="Download on the App Store" class="h-12 w-auto" />
             </a>
-            <a href="/product" class="signal-btn-secondary">
-              View product demo
+            <a href="/dashboard#institutions" class="signal-btn-secondary">
+              For clinics &amp; unions →
             </a>
           </div>
         </div>
@@ -302,7 +302,7 @@ import Layout from '../layouts/Layout.astro';
         <div class="signal-feature-text">
           <h3 class="signal-feature-title">Privacy</h3>
           <p class="signal-feature-desc">
-            Location data, shifts, and calendar stay on your device. Geofencing runs locally – no GPS coordinates are transmitted. You decide which work times to contribute anonymously.
+            Location data, shifts, and calendar stay on your device. Geofencing runs locally – your precise GPS never leaves the device; only optional workplace search sends a coarse (~1 km) location to Komoot/Photon in Germany. You decide which work times to contribute anonymously.
           </p>
           <p class="signal-feature-desc">
             Only aggregated statistics are published when at least 5 people contribute (k-anonymity). No employer access; EU-only infrastructure (the optional Apple/Google sign-in is the only US touchpoint, under EU adequacy). GDPR compliant, deletion anytime.
@@ -427,7 +427,7 @@ import Layout from '../layouts/Layout.astro';
             </svg>
           </div>
           <h4>Status</h4>
-          <p>iOS app in closed beta. Seeking pilot partners.</p>
+          <p>Live on the iOS App Store. Android coming soon.</p>
         </div>
       </div>
     </div>
