@@ -292,6 +292,42 @@ export class AuthService {
   }
 
   /**
+   * Exchange a valid token for a fresh full-lifetime token (sliding session
+   * renewal — lifetime is set by the backend, currently 90 days).
+   * POST /auth/refresh
+   *
+   * Called when the current token is approaching expiry so active users are
+   * never forced to re-login. Throws if the token is already invalid/expired —
+   * the caller keeps the existing token and the normal re-login flow applies.
+   */
+  static async refreshToken(token: string): Promise<{ token: string; expiresAt: Date }> {
+    if (isTestMode()) {
+      console.log('[AuthService] TEST_MODE: Returning mock token refresh');
+      return {
+        token,
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      };
+    }
+
+    const response = await fetch(`${BASE_URL}/auth/refresh`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Token refresh failed: HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    return {
+      token: data.access_token,
+      expiresAt: new Date(data.expires_at),
+    };
+  }
+
+  /**
    * Get current user information
    * GET /auth/me
    *

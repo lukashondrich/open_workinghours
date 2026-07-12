@@ -14,6 +14,7 @@ jest.mock('../../../geofencing/services/Database', () => ({
 jest.mock('../../../../lib/auth/AuthStorage', () => ({
   AuthStorage: {
     getToken: jest.fn(),
+    getExpiresAt: jest.fn(),
   },
 }));
 
@@ -29,6 +30,7 @@ jest.mock('../../../../lib/events/calendarEvents', () => ({
 
 const mockedGetDatabase = getDatabase as jest.MockedFunction<typeof getDatabase>;
 const mockedGetToken = AuthStorage.getToken as jest.MockedFunction<typeof AuthStorage.getToken>;
+const mockedGetExpiresAt = AuthStorage.getExpiresAt as jest.MockedFunction<typeof AuthStorage.getExpiresAt>;
 const mockedGetCalendarStorage = getCalendarStorage as jest.MockedFunction<typeof getCalendarStorage>;
 const mockedCalendarEventsEmit = calendarEvents.emit as jest.MockedFunction<typeof calendarEvents.emit>;
 
@@ -107,8 +109,11 @@ describe('WeekFinalizationService', () => {
 
     mockedGetDatabase.mockReset();
     mockedGetToken.mockReset();
+    mockedGetExpiresAt.mockReset();
     mockedGetCalendarStorage.mockReset();
     mockedCalendarEventsEmit.mockReset();
+    // Token valid by default (expires well after the fake system time)
+    mockedGetExpiresAt.mockResolvedValue(new Date('2026-05-01T00:00:00.000Z'));
     global.fetch = jest.fn();
   });
 
@@ -279,6 +284,73 @@ describe('WeekFinalizationService', () => {
 
     expect(result).toEqual([{ weekStart, status: 'sent', finalizedWeekId: 'test-id' }]);
     expect(global.fetch).toHaveBeenCalled();
+  });
+
+  it('marks week auth_expired without fetching when the stored token is expired', async () => {
+    const weekStart = '2026-03-30';
+    const dates = createWeekDates(weekStart);
+    const db = createMockDatabase({
+      getReportsWeekQueue: jest.fn().mockResolvedValue([createQueuedWeek(weekStart)]),
+      getDailyActualsByDates: jest.fn().mockResolvedValue(dates.map((date) => createDailyActual(date))),
+    });
+    mockedGetDatabase.mockResolvedValue(db as any);
+    mockedGetToken.mockResolvedValue('jwt');
+    mockedGetExpiresAt.mockResolvedValue(new Date('2026-04-01T00:00:00.000Z')); // before fake now
+
+    const result = await WeekFinalizationService.sendEligibleQueuedWeeks();
+
+    expect(result).toEqual([
+      { weekStart, status: 'auth_expired', errorMessage: 'auth_expired' },
+    ]);
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(db.upsertReportsWeekQueue).toHaveBeenCalledWith(
+      expect.objectContaining({ weekStart, status: 'queued', lastError: 'auth_expired' }),
+    );
+    expect(mockedCalendarEventsEmit).toHaveBeenCalledWith('week-state-changed', { weekStart });
+  });
+
+  it('marks week auth_expired on a 401 response', async () => {
+    const weekStart = '2026-03-30';
+    const dates = createWeekDates(weekStart);
+    const db = createMockDatabase({
+      getReportsWeekQueue: jest.fn().mockResolvedValue([createQueuedWeek(weekStart)]),
+      getDailyActualsByDates: jest.fn().mockResolvedValue(dates.map((date) => createDailyActual(date))),
+    });
+    mockedGetDatabase.mockResolvedValue(db as any);
+    mockedGetToken.mockResolvedValue('jwt');
+    (global.fetch as jest.Mock).mockResolvedValue(
+      createResponse(401, { detail: 'Could not validate credentials' }),
+    );
+
+    const result = await WeekFinalizationService.sendEligibleQueuedWeeks();
+
+    expect(result).toEqual([
+      { weekStart, status: 'auth_expired', errorMessage: 'auth_expired' },
+    ]);
+    expect(db.upsertReportsWeekQueue).toHaveBeenCalledWith(
+      expect.objectContaining({ weekStart, status: 'queued', lastError: 'auth_expired' }),
+    );
+    expect(mockedCalendarEventsEmit).toHaveBeenCalledWith('week-state-changed', { weekStart });
+  });
+
+  it('emits week-state-changed when a queued week flips to sent', async () => {
+    const weekStart = '2026-03-30';
+    const dates = createWeekDates(weekStart);
+    const db = createMockDatabase({
+      getReportsWeekQueue: jest.fn().mockResolvedValue([createQueuedWeek(weekStart)]),
+      getDailyActualsByDates: jest.fn().mockResolvedValue(dates.map((date) => createDailyActual(date))),
+    });
+    const calendarStorage = createMockCalendarStorage();
+    mockedGetDatabase.mockResolvedValue(db as any);
+    mockedGetToken.mockResolvedValue('jwt');
+    mockedGetCalendarStorage.mockResolvedValue(calendarStorage as any);
+    (global.fetch as jest.Mock).mockResolvedValue(
+      createResponse(201, { finalized_week_id: 'id' }),
+    );
+
+    await WeekFinalizationService.sendEligibleQueuedWeeks();
+
+    expect(mockedCalendarEventsEmit).toHaveBeenCalledWith('week-state-changed', { weekStart });
   });
 
   it('does not call DailySubmissionService (removed dependency)', async () => {

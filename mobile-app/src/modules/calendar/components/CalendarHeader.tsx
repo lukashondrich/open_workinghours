@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Switch } from 'react-native';
+import { Alert, View, Text, TouchableOpacity, StyleSheet, Switch } from 'react-native';
 import { addDays, format, startOfWeek, startOfMonth, addMonths, subMonths, getISOWeek } from 'date-fns';
 import { de as deLocale } from 'date-fns/locale/de';
 import { ArrowRight, ChevronLeft, ChevronRight, Eye, EyeOff } from 'lucide-react-native';
@@ -8,15 +8,19 @@ import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/theme';
 import { useCalendar } from '@/lib/calendar/calendar-context';
+import { useAuth } from '@/lib/auth/auth-context';
 import { calendarEvents } from '@/lib/events/calendarEvents';
 import { t, getDateLocale } from '@/lib/i18n';
 import type { MainTabParamList } from '@/navigation/AppNavigator';
 import { WeekStateService, type WeekState } from '@/modules/reports/services/WeekStateService';
+import { AUTH_EXPIRED_ERROR } from '@/modules/reports/services/WeekFinalizationService';
+import type { ReportsWeekQueueRecord } from '@/modules/geofencing/types';
 
 type CalendarNavigationProp = BottomTabNavigationProp<MainTabParamList, 'Calendar'>;
 
 export default function CalendarHeader() {
   const { state, dispatch } = useCalendar();
+  const { signOut } = useAuth();
   const navigation = useNavigation<CalendarNavigationProp>();
   const [confirmationMessage, setConfirmationMessage] = useState<string | null>(null);
   const confirmationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -53,6 +57,7 @@ export default function CalendarHeader() {
 
   const [weekState, setWeekState] = useState<WeekState | null>(null);
   const [autoSend, setAutoSend] = useState(false);
+  const [queueRecord, setQueueRecord] = useState<ReportsWeekQueueRecord | null>(null);
   const weekIsFinalized =
     weekState === 'queued' ||
     weekState === 'sent' ||
@@ -61,19 +66,22 @@ export default function CalendarHeader() {
   useEffect(() => {
     if (!weekComplete) {
       setWeekState(null);
+      setQueueRecord(null);
       return;
     }
 
     let cancelled = false;
     const fetchState = async () => {
       try {
-        const [nextState, autoSendValue] = await Promise.all([
+        const [nextState, autoSendValue, nextQueueRecord] = await Promise.all([
           WeekStateService.getWeekState(weekStartKey),
           WeekStateService.getAutoSend(),
+          WeekStateService.getWeekQueueRecord(weekStartKey),
         ]);
         if (!cancelled) {
           setWeekState(nextState);
           setAutoSend(autoSendValue);
+          setQueueRecord(nextQueueRecord);
         }
       } catch (error) {
         console.error('[CalendarHeader] Failed to load week state:', error);
@@ -93,6 +101,65 @@ export default function CalendarHeader() {
       calendarEvents.off('week-state-changed', handleChanged);
     };
   }, [weekStartKey, weekComplete]);
+  const sendAuthExpired =
+    weekState === 'queued' && queueRecord?.lastError === AUTH_EXPIRED_ERROR;
+
+  // The auth-expired state is user-actionable: tapping the banner offers a
+  // re-login (soft sign-out → WelcomeScreen; local data is untouched and the
+  // queued week sends automatically after signing back in).
+  const handleFinalizedPress = () => {
+    if (!sendAuthExpired) {
+      navigation.navigate('Reports');
+      return;
+    }
+    Alert.alert(
+      t('calendar.header.reloginTitle'),
+      t('calendar.header.reloginMessage'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('calendar.header.reloginConfirm'),
+          onPress: () => {
+            void signOut();
+          },
+        },
+      ],
+    );
+  };
+
+  // Honest post-finalization copy: scheduled before the send window, gerund
+  // while sending/retrying, past tense once the backend confirmed it, warning
+  // when it is stuck (or needs a re-login).
+  const finalizedLabel = (() => {
+    if (weekState === 'sent') {
+      return t('calendar.header.weekSent');
+    }
+    if (weekState === 'queued') {
+      if (sendAuthExpired) {
+        return t('calendar.header.weekSendAuthExpired');
+      }
+      const weekOverMs = addDays(weekEnd, 1).getTime(); // Monday 00:00 after this week
+      // Any lastError means a send was already attempted — never show
+      // "scheduled" once that's true, even during the Sunday-evening window.
+      if (queueRecord?.lastError) {
+        // "Stuck" = ~48h of failed retries. Anchor on whichever is later:
+        // the week's send window opening (Monday 00:00) or when the week was
+        // actually queued — a week queued late (e.g. confirmed mid-week after
+        // the fact) must not show "failed" on its very first attempt.
+        const queuedAtMs = queueRecord.queuedAt ? new Date(queueRecord.queuedAt).getTime() : weekOverMs;
+        const failingSinceMs = Math.max(weekOverMs, queuedAtMs);
+        const stuck = Date.now() > failingSinceMs + 48 * 60 * 60 * 1000;
+        return stuck ? t('calendar.header.weekSendFailed') : t('calendar.header.weekSending');
+      }
+      if (Date.now() < weekOverMs) {
+        return t('calendar.header.weekScheduled');
+      }
+      return t('calendar.header.weekSending');
+    }
+    // confirmed + autoSend: will be queued automatically on Sunday evening
+    return t('calendar.header.weekScheduled');
+  })();
+
   const locale = getDateLocale() === 'de' ? deLocale : undefined;
   const sameMonth = weekStart.getMonth() === weekEnd.getMonth();
   const weekRangeLabel = sameMonth
@@ -241,11 +308,11 @@ export default function CalendarHeader() {
           </Text>
         ) : weekComplete && weekIsFinalized ? (
           <TouchableOpacity
-            onPress={() => navigation.navigate('Reports')}
+            onPress={handleFinalizedPress}
             style={styles.weekCompleteRow}
             accessible={true}
             accessibilityRole="button"
-            accessibilityLabel={t('calendar.header.weekFinalized')}
+            accessibilityLabel={finalizedLabel}
             testID="calendar-header-week-finalized"
           >
             <Text
@@ -254,7 +321,7 @@ export default function CalendarHeader() {
               adjustsFontSizeToFit
               minimumFontScale={0.85}
             >
-              {t('calendar.header.weekFinalized')}
+              {finalizedLabel}
             </Text>
           </TouchableOpacity>
         ) : weekComplete && weekState === 'confirmed' ? (
