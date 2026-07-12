@@ -28,6 +28,7 @@ import { getDateLocale, t } from '@/lib/i18n';
 import { addDays, format, parseISO } from 'date-fns';
 import { de, enUS } from 'date-fns/locale';
 import { WeekStateService, type WeekState, type WeekStateRecord } from '../services/WeekStateService';
+import { WeekFinalizationService } from '../services/WeekFinalizationService';
 import {
   CollectiveInsightsService,
   type CollectiveInsightsData,
@@ -56,6 +57,7 @@ interface WeekData {
   confirmedDays: number;
   totalDays: number;
   state: WeekState;
+  isCurrentWeek: boolean;
 }
 
 interface ReportsSnapshot {
@@ -87,6 +89,7 @@ function toWeekData(week: WeekStateRecord): WeekData {
     confirmedDays: week.confirmedDays,
     totalDays: week.totalDays,
     state: week.state,
+    isCurrentWeek: week.isCurrentWeek,
   };
 }
 
@@ -435,7 +438,12 @@ function WeekCard({ week, autoSend, onNavigate, onToggleSend }: {
             {t('reports.week.label', { number: week.weekNumber })} · {week.dateRange}
           </Text>
           {week.state === 'queued' ? (
-            <Text style={styles.badgeQueued}>{t('reports.week.queuedForSunday')}</Text>
+            // A past week's send window is already open — it transmits on this
+            // screen's next load, not on Sunday. Only the current week truly
+            // waits for Sunday evening.
+            <Text style={styles.badgeQueued}>
+              {week.isCurrentWeek ? t('reports.week.queuedForSunday') : t('reports.week.sendingNow')}
+            </Text>
           ) : week.state === 'confirmed' && autoSend ? (
             <Text style={styles.badgeQueued}>{t('reports.week.sendingSunday')}</Text>
           ) : week.state === 'confirmed' ? (
@@ -592,6 +600,12 @@ export default function ReportsScreen() {
     if (autoSendEnabled) {
       await WeekStateService.reconcileAutoSendQueue();
     }
+
+    // Send queued weeks whose window is already open (past weeks, or the
+    // current week after Sunday evening). Without this, sends only fire on
+    // an app background→foreground cycle — a user watching this screen would
+    // see "queued" forever. Duplicate passes are safe (backend 409 = sent).
+    await WeekFinalizationService.sendEligibleQueuedWeeks();
 
     const model = await WeekStateService.loadWeekState();
     const latestSentWeekStart = model.sentWeeks[0]?.weekStart ?? null;
@@ -774,7 +788,14 @@ export default function ReportsScreen() {
 
         {/* Submissions section header + auto-send toggle (same row) */}
         <View style={styles.submissionsHeader}>
-          <Text style={styles.sectionTitle}>{t('reports.submissions.title')}</Text>
+          <Text
+            style={styles.sectionTitle}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.8}
+          >
+            {t('reports.submissions.title')}
+          </Text>
           <View style={styles.autoSendToggle}>
             <View style={[styles.autoSendIndicator, autoSend && styles.autoSendIndicatorActive]}>
               <Send size={12} color={autoSend ? colors.primary[700] : colors.grey[500]} />
@@ -1156,11 +1177,16 @@ const styles = StyleSheet.create({
     color: colors.text.secondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+    // Long localized titles (DE: "DEINE WOCHENBEITRÄGE") must shrink, or the
+    // space-between row pushes the auto-send switch off the right screen edge.
+    flexShrink: 1,
+    marginRight: spacing.sm,
   },
   autoSendToggle: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
+    flexShrink: 0, // the switch must never be clipped
   },
   autoSendIndicator: {
     flexDirection: 'row',

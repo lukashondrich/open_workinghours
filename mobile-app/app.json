@@ -16,7 +16,7 @@
       "supportsTablet": false,
       "usesAppleSignIn": true,
       "bundleIdentifier": "com.openworkinghours.mobileapp",
-      "buildNumber": "66",
+      "buildNumber": "67",
       "config": {
         "usesNonExemptEncryption": false
       },

@@ -859,6 +859,7 @@ export const en = {
       queueForSunday: 'Queue for Sunday',
       sendingSunday: 'Sending Sunday',
       queuedForSunday: 'Queued for Sunday',
+      sendingNow: 'Sending…',
       undo: 'Undo',
     },
     // Sent section
