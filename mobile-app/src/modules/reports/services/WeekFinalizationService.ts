@@ -17,12 +17,21 @@ function buildWeekDateKeys(weekStartDate: Date): string[] {
   });
 }
 
+/**
+ * Sentinel stored in the queue's lastError when a send failed because the auth
+ * token expired. CalendarHeader keys on this to show "sign in again" instead of
+ * the generic retry copy — an auth failure is user-actionable, network blips
+ * are not.
+ */
+export const AUTH_EXPIRED_ERROR = 'auth_expired';
+
 export type SendResultStatus =
   | 'sent'
   | 'already_finalized'
   | 'skipped_not_ended'
   | 'skipped_not_ready'
   | 'skipped_not_fully_confirmed'
+  | 'auth_expired'
   | 'failed';
 
 export interface SendResult {
@@ -44,6 +53,11 @@ export class WeekFinalizationService {
       return [];
     }
 
+    // An expired token would fail every send with a 401 — mark eligible weeks
+    // instead of attempting, so the UI can prompt for re-login.
+    const expiresAt = await AuthStorage.getExpiresAt();
+    const tokenExpired = expiresAt !== null && expiresAt.getTime() <= Date.now();
+
     const queuedWeeks = await db.getReportsWeekQueue('queued');
     const sortedQueuedWeeks = [...queuedWeeks].sort((a, b) => a.weekStart.localeCompare(b.weekStart));
     const results: SendResult[] = [];
@@ -51,7 +65,7 @@ export class WeekFinalizationService {
     for (const queuedWeek of sortedQueuedWeeks) {
       // Process one week at a time to keep ordering deterministic.
       // eslint-disable-next-line no-await-in-loop
-      const result = await this.sendQueuedWeek(queuedWeek, token);
+      const result = await this.sendQueuedWeek(queuedWeek, token, tokenExpired);
       results.push(result);
     }
 
@@ -61,6 +75,7 @@ export class WeekFinalizationService {
   private static async sendQueuedWeek(
     queuedWeek: ReportsWeekQueueRecord,
     token: string,
+    tokenExpired = false,
   ): Promise<SendResult> {
     const db = await getDatabase();
     const weekStartDate = parseISO(queuedWeek.weekStart);
@@ -80,6 +95,11 @@ export class WeekFinalizationService {
     // Check jitter: don't send before send_after
     if (queuedWeek.sendAfter && new Date() < new Date(queuedWeek.sendAfter)) {
       return { weekStart: queuedWeek.weekStart, status: 'skipped_not_ready' };
+    }
+
+    if (tokenExpired) {
+      await this.markQueuedError(queuedWeek, AUTH_EXPIRED_ERROR);
+      return { weekStart: queuedWeek.weekStart, status: 'auth_expired', errorMessage: AUTH_EXPIRED_ERROR };
     }
 
     // Fetch all 7 daily actuals from local DB
@@ -126,6 +146,13 @@ export class WeekFinalizationService {
         return { weekStart: queuedWeek.weekStart, status: 'already_finalized', finalizedWeekId };
       }
 
+      if (response.status === 401 || response.status === 403) {
+        // Token invalid/expired mid-session — flag distinctly so the UI can
+        // prompt for re-login instead of retrying forever in silence.
+        await this.markQueuedError(queuedWeek, AUTH_EXPIRED_ERROR);
+        return { weekStart: queuedWeek.weekStart, status: 'auth_expired', errorMessage: AUTH_EXPIRED_ERROR };
+      }
+
       const errorMessage = await this.parseErrorResponse(response);
       await this.markQueuedError(queuedWeek, errorMessage);
       return { weekStart: queuedWeek.weekStart, status: 'failed', errorMessage };
@@ -140,9 +167,6 @@ export class WeekFinalizationService {
     const db = await getDatabase();
     const now = new Date().toISOString();
 
-    // Intentionally no `week-state-changed` emit here: CalendarHeader's "Week
-    // finalized" copy already covers both `queued` and `sent` states, so flipping
-    // queued→sent in the background doesn't require a UI refresh.
     await db.upsertReportsWeekQueue({
       weekStart: queuedWeek.weekStart,
       status: 'sent',
@@ -154,6 +178,10 @@ export class WeekFinalizationService {
     });
 
     await this.lockCalendarWeek(queuedWeek.weekStart, finalizedWeekId);
+
+    // CalendarHeader shows distinct copy for queued ("sending") vs sent
+    // ("sent"), so the background queued→sent flip needs a UI refresh.
+    calendarEvents.emit('week-state-changed', { weekStart: queuedWeek.weekStart });
   }
 
   private static async markQueuedError(queuedWeek: ReportsWeekQueueRecord, errorMessage: string): Promise<void> {
@@ -169,6 +197,8 @@ export class WeekFinalizationService {
       sendAfter: queuedWeek.sendAfter,
       updatedAt: now,
     });
+
+    calendarEvents.emit('week-state-changed', { weekStart: queuedWeek.weekStart });
   }
 
   private static async lockCalendarWeek(weekStart: string, submissionId: string): Promise<void> {

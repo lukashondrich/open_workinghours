@@ -13,9 +13,31 @@ export function getDayLockState(state: CalendarState, dateKey: string): DayLockS
   return 'editable';
 }
 
-async function performUnconfirm(dateKey: string, dispatch: Dispatch<CalendarAction>): Promise<void> {
+/**
+ * Run the un-confirm side effects, then flip the in-memory state.
+ *
+ * Order matters: side effects span two stores (daily_actuals in the geofencing
+ * DB, confirmed-status in CalendarStorage) with no cross-store transaction. If
+ * they fail, the day must STAY confirmed — dispatching first would leave the UI
+ * un-confirmed while the stale daily_actuals row still counts toward the week,
+ * and the Sunday auto-send could submit stale hours for a day the user believes
+ * they reopened.
+ *
+ * @returns true if the day was reopened, false if it failed (user was alerted).
+ */
+async function performUnconfirm(dateKey: string, dispatch: Dispatch<CalendarAction>): Promise<boolean> {
+  try {
+    await unconfirmDaySideEffects(dateKey);
+  } catch (error) {
+    console.error('[useDayLock] Failed to un-confirm day:', error);
+    Alert.alert(
+      t('calendar.dayLock.unconfirmFailedTitle'),
+      t('calendar.dayLock.unconfirmFailedMessage'),
+    );
+    return false;
+  }
   dispatch({ type: 'UNCONFIRM_DAY', date: dateKey });
-  await unconfirmDaySideEffects(dateKey);
+  return true;
 }
 
 /**
@@ -51,8 +73,10 @@ export function useDayLock(state: CalendarState, dispatch: Dispatch<CalendarActi
         {
           text: t('calendar.dayLock.unconfirmAndEdit'),
           onPress: async () => {
-            await performUnconfirm(dateKey, dispatch);
-            proceed();
+            const reopened = await performUnconfirm(dateKey, dispatch);
+            if (reopened) {
+              proceed();
+            }
           },
         },
       ],

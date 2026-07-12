@@ -227,6 +227,15 @@ export class WeekStateService {
   }
 
   /**
+   * Raw queue record for a single week (or null if never queued).
+   * Used by CalendarHeader to distinguish "sending" from "send failed".
+   */
+  static async getWeekQueueRecord(weekStart: string): Promise<ReportsWeekQueueRecord | null> {
+    const db = await getDatabase();
+    return db.getReportsWeekByStart(normalizeWeekStartKey(weekStart));
+  }
+
+  /**
    * Focused lookup for a single week's state — avoids the full-table scan of loadWeekState.
    * Used by CalendarHeader to show the post-finalization status without depending on Reports.
    */

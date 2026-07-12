@@ -349,6 +349,12 @@ function AuthStack() {
   );
 }
 
+// Must stay well below the server token lifetime (SECURITY__TOKEN_EXP_HOURS,
+// 90 days): if the server ever issues tokens shorter than this threshold,
+// every refresh immediately re-qualifies and the app would re-refresh on each
+// foreground until rate-limited.
+const REFRESH_THRESHOLD_MS = 7 * 24 * 60 * 60 * 1000;
+
 export default function AppNavigator() {
   const { state: authState, unlock, signIn, signOut } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
@@ -357,6 +363,25 @@ export default function AppNavigator() {
   const finalizationInFlightRef = useRef(false);
   const requiresConsentUpdate = authState.status === 'authenticated' && userNeedsConsentUpdate(authState.user);
 
+  // Sliding session renewal: swap the token for a fresh full-lifetime one when
+  // less than 7 days remain, so an active user's token never expires. Failure
+  // is non-fatal — the current token is still valid until its original expiry.
+  const maybeRefreshToken = useCallback(async () => {
+    if (authState.status !== 'authenticated' || !authState.token || !authState.expiresAt || !authState.user) {
+      return;
+    }
+    const msLeft = authState.expiresAt.getTime() - Date.now();
+    if (msLeft <= 0 || msLeft > REFRESH_THRESHOLD_MS) {
+      return;
+    }
+    try {
+      const { token, expiresAt } = await AuthService.refreshToken(authState.token);
+      await signIn(authState.user, token, expiresAt);
+    } catch (error) {
+      console.error('[AppNavigator] Token refresh failed (keeping current token):', error);
+    }
+  }, [authState.status, authState.token, authState.expiresAt, authState.user, signIn]);
+
   const runQueuedFinalization = useCallback(async () => {
     if (finalizationInFlightRef.current) {
       return;
@@ -364,6 +389,9 @@ export default function AppNavigator() {
 
     finalizationInFlightRef.current = true;
     try {
+      // Renew the token first so queued sends never go out with one that is
+      // about to (or did) expire.
+      await maybeRefreshToken();
       // Reconcile auto-send queue first (may queue current week on Sunday evening)
       const autoSend = await WeekStateService.getAutoSend();
       if (autoSend) {
@@ -378,7 +406,7 @@ export default function AppNavigator() {
     } finally {
       finalizationInFlightRef.current = false;
     }
-  }, []);
+  }, [maybeRefreshToken]);
 
   const handleConsentUpdateAccepted = useCallback(async () => {
     if (authState.status !== 'authenticated' || !authState.token || !authState.expiresAt) {

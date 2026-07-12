@@ -5,6 +5,7 @@
 
 import React, {
   createContext,
+  useCallback,
   useContext,
   useReducer,
   useEffect,
@@ -178,7 +179,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.remove();
   }, [state.status]);
 
-  const signIn = async (user: User, token: string, expiresAt: Date) => {
+  // Stable identities: consumers put these in hook dependency arrays
+  // (e.g. AppNavigator's runQueuedFinalization), so non-memoized versions
+  // would re-fire those effects on every provider render.
+  const signIn = useCallback(async (user: User, token: string, expiresAt: Date) => {
     try {
       await AuthStorage.saveAuth(token, user, expiresAt);
       userSignedOut.current = false;
@@ -190,9 +194,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error('[AuthProvider] Failed to sign in:', error);
       throw new Error('Failed to save authentication');
     }
-  };
+  }, []);
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     try {
       // "Lock" behavior: Keep token and biometric preference
       // On next app launch:
@@ -205,13 +209,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error('[AuthProvider] Failed to sign out:', error);
       throw new Error('Failed to sign out');
     }
-  };
+  }, []);
 
-  const unlock = () => {
+  const unlock = useCallback(() => {
     // Called from Lock Screen after successful biometric/passcode authentication
     // Transitions from 'locked' to 'authenticated'
     dispatch({ type: 'UNLOCK' });
-  };
+  }, []);
 
   // Don't render children until auth state is restored
   if (!isHydrated) {
