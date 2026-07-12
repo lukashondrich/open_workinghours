@@ -88,11 +88,29 @@ DEMO__CODE=<your-6-digit-code>
 
 ### App Review demo account bypass
 
-`DEMO__EMAIL` + `DEMO__CODE` together activate a login-flow bypass at `backend/app/routers/auth.py:163-186`. When `POST /auth/login` receives that exact email + code pair, the backend skips email verification entirely and returns a JWT — no SMTP delivery needed, no inbox required for Apple's reviewer. The User row for that email must already exist in the production DB (returns `404 Demo user not found` otherwise); register it once via the normal flow on the production app.
+`DEMO__EMAIL` + `DEMO__CODE` together activate a login-flow bypass in `backend/app/routers/auth.py` (login endpoint). When `POST /auth/login` receives that exact email + code pair, the backend skips email verification entirely and returns a JWT — no SMTP delivery needed, no inbox required for Apple's reviewer.
 
-Both keys must be set together — if either is missing, the demo block in `auth.py` is silently inactive and login falls through to the normal verification path. A second protection at `auth.py:432-433` prevents the demo user from being deleted via the normal account-deletion cascade, so the row is durable across releases.
+The User row for that email must exist in the production DB **and be flagged `is_demo = true`** (returns `404 Demo user not found` otherwise). Run `python scripts/seed_demo_user.py` once inside the backend container to create/flag it — the script is idempotent and retroactively flags a pre-existing demo user. The flag serves two purposes: the bypass can never be pointed at a real user's account, and `is_demo` users are **excluded from DP aggregation** so the publicly-documented review credentials cannot poison published statistics.
+
+Both keys must be set together — if either is missing, the demo block in `auth.py` is silently inactive and login falls through to the normal verification path. A second protection in the account-deletion endpoint prevents the demo user from being deleted via the normal cascade, so the row is durable across releases.
 
 **Current production values are documented in `mobile-app/store-assets/app-store-metadata.md` § 5** (Reviewer notes) — that's the file you paste into App Store Connect at submission time.
+
+### Deploy ordering — 2026-07 hardening batch
+
+The July 2026 security/reliability batch (admin-auth on budget endpoint, `is_demo` flag, `POST /auth/refresh`, 90-day tokens, mobile sliding renewal) has a required sequence:
+
+1. **Deploy backend first** — the mobile build calls `POST /auth/refresh`, which must exist before the app ships.
+2. **Run the migration BEFORE starting the new app code** (the Dockerfile does not run alembic; `init_db()` never alters existing tables, and the new code queries `users.is_demo` — demo login errors until the column exists):
+   ```bash
+   cd ~/open_workinghours/backend
+   docker compose build backend
+   docker compose run --rm backend alembic upgrade head   # adds users.is_demo
+   docker compose up -d                                    # new code starts with column present
+   ```
+3. Demo-user flagging is **automatic**: app startup flags the `DEMO__EMAIL` account `is_demo=true` if it exists (see `_ensure_demo_user_flagged` in `app/main.py`; look for "Flagged existing demo user" in the logs). `scripts/seed_demo_user.py` is only needed if the demo user was never created at all.
+4. Ship the mobile build afterwards. Older app versions are unaffected (refresh is additive; token lifetime is server-side).
+5. Note: user sessions are 90 days (compose default `SECURITY__TOKEN_EXP_HOURS: 2160`), renewed automatically by active apps; a refresh chain hard-expires after 365 days (`REFRESH_MAX_SESSION_DAYS`) forcing one interactive re-login per year. Affiliation tokens stay at 30 days (decoupled constant in `app/security.py`).
 
 ---
 
