@@ -858,6 +858,7 @@ export const de = {
       queueForSunday: 'Für Sonntag vormerken',
       sendingSunday: 'Wird am Sonntag gesendet',
       queuedForSunday: 'Für Sonntag vorgemerkt',
+      sendingNow: 'Wird gesendet…',
       undo: 'Rückgängig',
     },
     // Sent section

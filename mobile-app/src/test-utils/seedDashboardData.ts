@@ -174,6 +174,19 @@ export async function seedDashboardTestData() {
         confirmedAt: day.toISOString(),
         lockedSubmissionId: null,
       };
+      // Keep both sources of truth aligned: the Reports week state counts
+      // daily_actuals rows, while the calendar reads confirmed_days. Seeding
+      // only the status makes Reports show "N days open" for weeks the
+      // calendar displays as fully confirmed.
+      await db.upsertDailyActual({
+        id: `seed-actual-${dateKey}`,
+        date: dateKey,
+        plannedMinutes,
+        actualMinutes,
+        source: actualMinutes > 0 ? 'geofence' : 'manual',
+        confirmedAt: day.toISOString(),
+        updatedAt: now,
+      });
     }
   }
 
