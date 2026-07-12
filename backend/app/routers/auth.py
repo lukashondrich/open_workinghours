@@ -5,10 +5,11 @@ Part of the Privacy Architecture Redesign (Module 2).
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+import secrets
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, status
 from sqlalchemy.orm import Session
 
 from ..config import get_settings
@@ -31,7 +32,7 @@ from ..schemas import (
     UserProfileUpdateIn,
     UserRegisterIn,
 )
-from ..security import create_user_access_token, hash_code, hash_email
+from ..security import create_user_access_token, get_token_auth_time, hash_code, hash_email
 from ..social_auth import (
     ProviderIdentity,
     ProviderVerificationError,
@@ -65,7 +66,7 @@ def register_user(
     - User with this email must not already exist
 
     Returns:
-    - JWT access token (30-day expiry)
+    - JWT access token (90-day expiry, renewable via POST /auth/refresh)
     - User ID
     """
     email = payload.email.strip().lower()
@@ -153,7 +154,7 @@ def login_user(
     - User must exist in the system (registered via /auth/register)
 
     Returns:
-    - JWT access token (30-day expiry)
+    - JWT access token (90-day expiry, renewable via POST /auth/refresh)
     - User ID
     """
     email = payload.email.strip().lower()
@@ -165,11 +166,16 @@ def login_user(
     if settings.demo is not None:
         demo_email = settings.demo.email.lower()
         demo_code = settings.demo.code
-        if email == demo_email and payload.code == demo_code:
+        email_matches = secrets.compare_digest(email.encode("utf-8"), demo_email.encode("utf-8"))
+        code_matches = secrets.compare_digest(payload.code.encode("utf-8"), demo_code.encode("utf-8"))
+        if email_matches and code_matches:
             logger.info("Demo account login attempt")
+            # The account must be explicitly flagged is_demo: this ties the
+            # env-configured credentials to an account that is excluded from
+            # DP aggregation, so the bypass can't be pointed at a real user.
             user = (
                 db.query(User)
-                .filter(User.email_hash == email_hash_value)
+                .filter(User.email_hash == email_hash_value, User.is_demo.is_(True))
                 .one_or_none()
             )
             if user is None:
@@ -237,6 +243,57 @@ def login_user(
         access_token=token,
         expires_at=expires_at,
         user_id=user.user_id,
+    )
+
+
+# Backstop on the sliding session: a refresh chain older than this requires an
+# interactive re-login. Active users hit this once a year at most; a stolen
+# token cannot be renewed indefinitely.
+REFRESH_MAX_SESSION_DAYS = 365
+
+
+@router.post("/refresh", response_model=AuthTokenOut)
+def refresh_token(
+    # Rate limit BEFORE auth: dependencies run in declaration order, so invalid
+    # token attempts must hit the limiter too (brute-force throttling).
+    _rl: None = Depends(rate_limit(10, 60)),
+    current_user: User = Depends(get_current_user),
+    authorization: str | None = Header(default=None, convert_underscores=False),
+) -> AuthTokenOut:
+    """
+    Exchange a valid (not yet expired) token for a fresh full-lifetime token.
+
+    Sliding session renewal: the mobile app calls this when the current token
+    is approaching expiry, so active users are never forced to re-login. An
+    already-expired token cannot be refreshed, and the original interactive
+    login (auth_time claim) is carried forward so the chain expires after
+    REFRESH_MAX_SESSION_DAYS regardless of activity.
+    """
+    now = datetime.now(timezone.utc)
+    raw_token = ""
+    if authorization and " " in authorization:
+        raw_token = authorization.split(" ", 1)[1]
+    # Tokens issued before the auth_time claim existed start their chain now.
+    auth_time = get_token_auth_time(raw_token) or now
+
+    chain_deadline = auth_time + timedelta(days=REFRESH_MAX_SESSION_DAYS)
+    if now > chain_deadline:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session too old to renew. Please sign in again.",
+        )
+
+    # Clamp so the cap bounds ACCESS, not merely refreshing: a chain renewed
+    # near the deadline must not extend past auth_time + REFRESH_MAX_SESSION_DAYS.
+    token, expires_at = create_user_access_token(
+        user_id=str(current_user.user_id),
+        auth_time=auth_time,
+        max_expires_at=chain_deadline,
+    )
+    return AuthTokenOut(
+        access_token=token,
+        expires_at=expires_at,
+        user_id=current_user.user_id,
     )
 
 
@@ -423,19 +480,18 @@ def delete_account(
     Requires:
     - Valid JWT token in Authorization header
     """
-    settings = get_settings()
     user_id = current_user.user_id
     user_id_str = str(user_id)
     email_hash = current_user.email_hash
 
-    # Prevent demo account deletion
-    if settings.demo is not None and email_hash is not None:
-        demo_email_hash = hash_email(settings.demo.email.lower())
-        if email_hash == demo_email_hash:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Demo account cannot be deleted.",
-            )
+    # Prevent demo account deletion. Guard on the is_demo flag (the source of
+    # truth since the flag model) rather than the configured email hash — this
+    # also covers demo accounts without an email_hash (e.g. social auth).
+    if current_user.is_demo:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Demo account cannot be deleted.",
+        )
 
     # Re-fetch user in this session to avoid SQLAlchemy session conflict
     user = db.query(User).filter(User.user_id == user_id).one()

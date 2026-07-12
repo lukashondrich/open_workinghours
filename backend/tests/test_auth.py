@@ -242,6 +242,7 @@ class TestAuthLogin:
             specialty="Internal Medicine",
             role_level="Resident",
             state_code="BY",
+            is_demo=True,
         )
         test_db.add(demo_user)
         test_db.commit()
@@ -259,6 +260,35 @@ class TestAuthLogin:
         assert "access_token" in data
         assert "user_id" in data
         assert data["token_type"] == "bearer"
+
+    def test_demo_bypass_requires_is_demo_flag(self, client: TestClient, test_db: Session):
+        """The bypass must refuse an account that is not flagged is_demo,
+        so env credentials can never be pointed at a real user."""
+        from app.config import get_settings
+        from app.security import hash_email
+
+        settings = get_settings()
+        if settings.demo is None:
+            pytest.skip("Demo settings not configured (DEMO__EMAIL, DEMO__CODE)")
+
+        demo_email = settings.demo.email.lower()
+        demo_code = settings.demo.code
+
+        # Same email/code, but the account is NOT flagged as demo
+        unflagged_user = User(
+            email_hash=hash_email(demo_email),
+            hospital_id="demo-hospital",
+            specialty="Internal Medicine",
+            role_level="Resident",
+            state_code="BY",
+            is_demo=False,
+        )
+        test_db.add(unflagged_user)
+        test_db.commit()
+
+        response = client.post("/auth/login", json={"email": demo_email, "code": demo_code})
+
+        assert response.status_code == 404
 
     def test_demo_account_wrong_code_fails(self, client: TestClient, test_db: Session):
         """Test demo account with wrong code fails."""
@@ -281,6 +311,7 @@ class TestAuthLogin:
             specialty="Internal Medicine",
             role_level="Resident",
             state_code="BY",
+            is_demo=True,
         )
         test_db.add(demo_user)
         test_db.commit()
@@ -574,13 +605,14 @@ class TestAccountDeletion:
         demo_email = settings.demo.email.lower()
         email_hash = hash_email(demo_email)
 
-        # Create demo user
+        # Create demo user (deletion guard keys on the is_demo flag)
         demo_user = User(
             email_hash=email_hash,
             hospital_id="demo-hospital",
             specialty="Internal Medicine",
             role_level="Resident",
             state_code="BY",
+            is_demo=True,
         )
         test_db.add(demo_user)
         test_db.commit()
@@ -617,3 +649,100 @@ class TestAccountDeletion:
         # Try to use the same token
         me_response = client.get("/auth/me", headers=auth_headers)
         assert me_response.status_code == 401
+
+
+class TestTokenRefresh:
+    """Tests for POST /auth/refresh (sliding session renewal)."""
+
+    def test_refresh_returns_new_token(self, client: TestClient, auth_headers: dict[str, str]):
+        response = client.post("/auth/refresh", headers=auth_headers)
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "access_token" in data
+        assert "expires_at" in data
+        assert data["token_type"] == "bearer"
+
+        # The new token must itself be valid
+        new_headers = {"Authorization": f"Bearer {data['access_token']}"}
+        me_response = client.get("/auth/me", headers=new_headers)
+        assert me_response.status_code == 200
+
+    def test_refresh_requires_auth(self, client: TestClient):
+        response = client.post("/auth/refresh")
+        assert response.status_code == 401
+
+    def test_refresh_rejects_invalid_token(self, client: TestClient):
+        headers = {"Authorization": "Bearer not-a-real-token"}
+        response = client.post("/auth/refresh", headers=headers)
+        assert response.status_code == 401
+
+    def test_refresh_rejects_session_older_than_max_age(self, client: TestClient, auth_headers: dict[str, str]):
+        """A refresh chain older than REFRESH_MAX_SESSION_DAYS must require re-login."""
+        from datetime import datetime, timedelta, timezone
+        from app.security import create_user_access_token
+
+        me = client.get("/auth/me", headers=auth_headers)
+        user_id = me.json()["user_id"]
+
+        old_auth_time = datetime.now(timezone.utc) - timedelta(days=366)
+        old_chain_token, _ = create_user_access_token(user_id=user_id, auth_time=old_auth_time)
+
+        response = client.post(
+            "/auth/refresh",
+            headers={"Authorization": f"Bearer {old_chain_token}"},
+        )
+        assert response.status_code == 401
+        assert "sign in again" in response.json()["detail"].lower()
+
+    def test_refresh_preserves_auth_time(self, client: TestClient, auth_headers: dict[str, str]):
+        """Refresh must carry the original auth_time forward, not reset the chain."""
+        from datetime import datetime, timedelta, timezone
+        from app.security import create_user_access_token, get_token_auth_time
+
+        me = client.get("/auth/me", headers=auth_headers)
+        user_id = me.json()["user_id"]
+
+        original_auth_time = datetime.now(timezone.utc) - timedelta(days=100)
+        token, _ = create_user_access_token(user_id=user_id, auth_time=original_auth_time)
+
+        response = client.post("/auth/refresh", headers={"Authorization": f"Bearer {token}"})
+        assert response.status_code == 200
+
+        new_auth_time = get_token_auth_time(response.json()["access_token"])
+        assert new_auth_time is not None
+        assert abs((new_auth_time - original_auth_time).total_seconds()) < 2
+
+
+class TestAuthRateLimitOrdering:
+    """Failed auth attempts must count against the rate limit (limiter runs
+    before the auth dependency), otherwise brute-forcing is unthrottled."""
+
+    def test_refresh_throttles_invalid_tokens(self, client: TestClient):
+        headers = {"Authorization": "Bearer invalid-token"}
+        for _ in range(10):
+            response = client.post("/auth/refresh", headers=headers)
+            assert response.status_code == 401
+        response = client.post("/auth/refresh", headers=headers)
+        assert response.status_code == 429
+
+    def test_refresh_near_deadline_clamps_expiry_to_chain_cap(self, client: TestClient, auth_headers: dict[str, str]):
+        """A refresh near the 365d deadline must not extend access past it —
+        the cap bounds access, not merely the ability to refresh."""
+        from datetime import datetime, timedelta, timezone
+        from app.security import create_user_access_token
+
+        me = client.get("/auth/me", headers=auth_headers)
+        user_id = me.json()["user_id"]
+
+        auth_time = datetime.now(timezone.utc) - timedelta(days=360)
+        token, _ = create_user_access_token(user_id=user_id, auth_time=auth_time)
+
+        response = client.post("/auth/refresh", headers={"Authorization": f"Bearer {token}"})
+        assert response.status_code == 200
+
+        expires_at = datetime.fromisoformat(response.json()["expires_at"])
+        chain_deadline = auth_time + timedelta(days=365)
+        assert expires_at <= chain_deadline + timedelta(seconds=2)
+        # ...but it is still a usable token for the remaining ~5 days
+        assert expires_at > datetime.now(timezone.utc) + timedelta(days=4)

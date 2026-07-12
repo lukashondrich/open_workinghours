@@ -7,7 +7,9 @@ from pydantic_settings import BaseSettings
 
 class SecuritySettings(BaseModel):
     secret_key: str = Field(..., min_length=32)
-    token_exp_hours: int = Field(default=24 * 30, ge=1, le=24 * 365)
+    # 90 days: active users renew via /auth/refresh long before expiry; the
+    # lifetime only bounds how long a fully dormant user stays signed in.
+    token_exp_hours: int = Field(default=24 * 90, ge=1, le=24 * 365)
     email_hash_secret: str = Field(..., min_length=32)
 
 

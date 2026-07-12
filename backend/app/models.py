@@ -107,6 +107,10 @@ class User(Base):
     privacy_accepted_version = Column(String(20), nullable=True)
     consent_accepted_at = Column(DateTime(timezone=True), nullable=True)
 
+    # Demo/review accounts (e.g. Apple App Review). Excluded from DP aggregation
+    # so publicly-known credentials cannot poison published statistics.
+    is_demo = Column(Boolean, nullable=False, default=False, server_default="false")
+
     # Relationships
     work_events = relationship("WorkEvent", back_populates="user", cascade="all, delete-orphan")
     finalized_weeks = relationship("FinalizedUserWeek", back_populates="user", cascade="all, delete-orphan")

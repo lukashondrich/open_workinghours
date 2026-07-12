@@ -883,3 +883,62 @@ class TestAggregationIntegration:
         assert "n_entries" in data
         assert "cells" in data
         assert data["total_spent"] == 0.0
+
+
+def test_aggregation_excludes_demo_users(test_db):
+    """Finalized weeks from is_demo accounts must not flow into published stats.
+
+    Demo credentials are publicly known (App Review notes), so counting their
+    submissions would allow poisoning of the published statistics.
+    """
+    from app.models import FinalizedUserWeek, StateSpecialtyReleaseCell, StatsByStateSpecialty, User
+
+    test_db.add(StateSpecialtyReleaseCell(country_code="DEU", state_code="BY", specialty="surgery"))
+    test_db.flush()
+
+    week_start = date(2025, 12, 1)
+    week_end = date(2025, 12, 7)
+    for i in range(6):
+        user = User(
+            email_hash=f"hash_demo_excl_{i}",
+            hospital_id="test-hospital",
+            specialty="surgery",
+            role_level="specialist",
+            state_code="BY",
+            hospital_ref_id=200 + i,
+            is_demo=(i == 5),  # one demo account among real users
+        )
+        test_db.add(user)
+        test_db.flush()
+        test_db.add(
+            FinalizedUserWeek(
+                user_id=user.user_id,
+                week_start=week_start,
+                week_end=week_end,
+                planned_hours=Decimal("56.0"),
+                actual_hours=Decimal("63.0"),
+                hospital_id=user.hospital_id,
+                specialty=user.specialty,
+                role_level=user.role_level,
+                state_code=user.state_code,
+                country_code=user.country_code,
+                hospital_ref_id=user.hospital_ref_id,
+            )
+        )
+    test_db.commit()
+
+    compute_aggregates_by_state_specialty(test_db, date(2025, 12, 5))
+
+    stat = test_db.query(StatsByStateSpecialty).one()
+    assert stat.n_users == 5  # the demo user's week is not counted
+
+    # The per-user query feeds the dominance check and the privacy ledger —
+    # demo accounts must be excluded there too, not only from the aggregates.
+    from app.aggregation import _get_per_user_actual_hours
+
+    per_user = _get_per_user_actual_hours(
+        test_db, cell_key=("DEU", "BY", "surgery"), period_start=week_start
+    )
+    demo_ids = {u.user_id for u in test_db.query(User).filter(User.is_demo.is_(True))}
+    assert len(per_user) == 5
+    assert all(uid not in demo_ids for uid, _ in per_user)

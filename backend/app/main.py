@@ -2,12 +2,14 @@ import asyncio
 from contextlib import suppress
 import logging
 
-from fastapi import FastAPI, Request, Response
+from fastapi import Depends, FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
 from .cleanup import purge_old_feedback_reports_once
 from .config import get_settings
-from .database import init_db
+from .database import SessionLocal, init_db
+from .rate_limit import rate_limit
 from .routers import admin, analytics, auth, dashboard, feedback, finalized_weeks, reports, stats, submissions, taxonomy, verification, work_events
 
 settings = get_settings()
@@ -39,10 +41,37 @@ app = FastAPI(
 )
 
 
+def _ensure_demo_user_flagged() -> None:
+    """Idempotently flag the configured demo account is_demo=true.
+
+    The demo login bypass requires the flag; running this at startup removes
+    the deploy-time dependency on manually re-running seed_demo_user.py.
+    """
+    if settings.demo is None:
+        return
+    from .models import User
+    from .security import hash_email
+
+    try:
+        with SessionLocal() as db:
+            user = (
+                db.query(User)
+                .filter(User.email_hash == hash_email(settings.demo.email.lower()))
+                .one_or_none()
+            )
+            if user is not None and not user.is_demo:
+                user.is_demo = True
+                db.commit()
+                logger.info("Flagged existing demo user is_demo=true")
+    except Exception:
+        logger.exception("Failed to ensure demo user flag")
+
+
 @app.on_event("startup")
 async def on_startup() -> None:
     global _feedback_report_cleanup_task
     init_db()
+    _ensure_demo_user_flagged()
     _run_feedback_report_cleanup()
     _feedback_report_cleanup_task = asyncio.create_task(_feedback_report_cleanup_loop())
 
@@ -60,7 +89,15 @@ async def on_shutdown() -> None:
 
 
 @app.get("/healthz", tags=["meta"])
-def healthcheck() -> dict[str, str]:
+def healthcheck(response: Response, _rl: None = Depends(rate_limit(30, 60))) -> dict[str, str]:
+    """Liveness + DB connectivity: a dead database must not report healthy."""
+    try:
+        with SessionLocal() as session:
+            session.execute(text("SELECT 1"))
+    except Exception:
+        logger.exception("Health check failed: database unreachable")
+        response.status_code = 503
+        return {"status": "degraded", "database": "unreachable"}
     return {"status": "ok"}
 
 
