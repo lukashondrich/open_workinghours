@@ -29,6 +29,7 @@ from .models import (
     StateSpecialtyPrivacyLedger,
     StateSpecialtyReleaseCell,
     StatsByStateSpecialty,
+    User,
 )
 from .periods import compute_period_index, get_period_bounds, period_before
 
@@ -100,6 +101,13 @@ def _count_prior_streak(
         expected_period = period_before(expected_period, period_type)
 
 
+def _not_demo_user():
+    """Exclude demo/review accounts (publicly-known credentials) from aggregation."""
+    return ~FinalizedUserWeek.user_id.in_(
+        select(User.user_id).where(User.is_demo.is_(True))
+    )
+
+
 def _build_weekly_query(period_start: date, *, use_department_group: bool = False):
     """Build aggregation query for a single week."""
     specialty_col = FinalizedUserWeek.department_group if use_department_group else FinalizedUserWeek.specialty
@@ -123,6 +131,7 @@ def _build_weekly_query(period_start: date, *, use_department_group: bool = Fals
         .where(
             FinalizedUserWeek.week_start == period_start,
             FinalizedUserWeek.hospital_ref_id.isnot(None),
+            _not_demo_user(),
         )
     )
     if use_department_group:
@@ -147,6 +156,7 @@ def _build_multi_week_query(period_start: date, period_end: date, *, use_departm
         FinalizedUserWeek.week_start >= period_start,
         FinalizedUserWeek.week_start <= period_end,
         FinalizedUserWeek.hospital_ref_id.isnot(None),
+        _not_demo_user(),
     ]
     if use_department_group:
         cte_where.append(FinalizedUserWeek.department_group.isnot(None))
@@ -255,6 +265,7 @@ def _get_per_user_actual_hours(
                 FinalizedUserWeek.specialty == cell_key[2],
                 FinalizedUserWeek.week_start == period_start,
                 FinalizedUserWeek.hospital_ref_id.isnot(None),
+                _not_demo_user(),
             )
             .all()
         )
@@ -273,6 +284,7 @@ def _get_per_user_actual_hours(
             FinalizedUserWeek.week_start >= period_start,
             FinalizedUserWeek.week_start <= period_end,
             FinalizedUserWeek.hospital_ref_id.isnot(None),
+            _not_demo_user(),
         )
         .group_by(FinalizedUserWeek.user_id)
         .all()

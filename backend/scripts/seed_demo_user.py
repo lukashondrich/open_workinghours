@@ -59,7 +59,12 @@ def seed_demo_user() -> None:
 
         if existing_user:
             print(f"\n✓ Demo user already exists (ID: {existing_user.user_id})")
-            print("  No action needed.")
+            if not existing_user.is_demo:
+                existing_user.is_demo = True
+                db.commit()
+                print("  Flagged is_demo=true (required for login bypass + aggregation exclusion).")
+            else:
+                print("  No action needed.")
             return
 
         # Create demo user with realistic test data
@@ -70,6 +75,7 @@ def seed_demo_user() -> None:
             role_level="Resident",
             state_code="BY",  # Bavaria
             country_code="DEU",
+            is_demo=True,
         )
 
         db.add(demo_user)

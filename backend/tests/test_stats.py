@@ -214,3 +214,46 @@ class TestStatsPrivacyProperties:
         assert published["status"] == "published"
         assert published["planned_mean_hours"] is not None
         assert published["overtime_mean_hours"] is not None
+
+
+class TestAdminBudgetSummaryAuth:
+    """The privacy-budget summary is admin-only, unlike the public k-anonymous stats."""
+
+    def test_requires_admin_auth(self, client: TestClient):
+        response = client.get("/stats/admin/privacy-budget-summary")
+        assert response.status_code == 401
+
+    def test_rejects_wrong_credentials(self, client: TestClient):
+        response = client.get(
+            "/stats/admin/privacy-budget-summary",
+            auth=("admin", "wrong-password"),
+        )
+        assert response.status_code == 401
+
+    def test_allows_admin(self, client: TestClient):
+        response = client.get(
+            "/stats/admin/privacy-budget-summary",
+            auth=("admin", "test-admin-password"),
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert "year" in data
+        assert "worst_case_spent" in data
+        assert "annual_cap" in data
+
+
+class TestAdminBudgetSummaryRateLimit:
+    """Bad admin credentials must be throttled — limiter runs before auth."""
+
+    def test_throttles_bad_credentials(self, client: TestClient):
+        for _ in range(10):
+            response = client.get(
+                "/stats/admin/privacy-budget-summary",
+                auth=("admin", "wrong-password"),
+            )
+            assert response.status_code == 401
+        response = client.get(
+            "/stats/admin/privacy-budget-summary",
+            auth=("admin", "wrong-password"),
+        )
+        assert response.status_code == 429

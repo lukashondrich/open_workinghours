@@ -17,7 +17,9 @@ from ..dp_group_stats.accounting import budget_monitoring_summary
 from ..dp_group_stats.config import DPGroupStatsV1Config
 from ..dp_group_stats.policy import PublicationStatus
 from ..models import StatsByStateSpecialty
+from ..rate_limit import rate_limit
 from ..schemas import StatsByStateSpecialtyOut
+from .admin import verify_admin
 
 router = APIRouter(prefix="/stats", tags=["stats"])
 
@@ -219,6 +221,10 @@ def get_stats_summary(
 
 @router.get("/admin/privacy-budget-summary")
 def get_admin_privacy_budget_summary(
+    # Rate limit BEFORE auth: dependencies run in declaration order, so failed
+    # credential attempts must hit the limiter too (brute-force throttling).
+    _rl: None = Depends(rate_limit(10, 60)),
+    username: str = Depends(verify_admin),
     db: Session = Depends(_get_db_session),
     year: int = Query(default=None, description="Year for budget summary (defaults to current year)"),
 ) -> dict:
@@ -226,7 +232,7 @@ def get_admin_privacy_budget_summary(
     Admin-level overview of privacy budget consumption.
 
     Shows worst-case user spend, average spend, and cap utilization.
-    Follows existing pattern of unprotected stats endpoints.
+    Requires admin basic auth (unlike the public k-anonymous stats endpoints).
     """
     if year is None:
         year = date.today().year
