@@ -31,6 +31,7 @@ Use email-code login (`demo@openworkinghours.org` / `123456`) — **Google Sign-
 7. [ ] Calendar: create shift, apply template, add a day note, confirm/lock a day
 8. [ ] **Re-verify the old deferred bug**: save a NEW location while a session is active → does it kill the session? (docs say not reproducible since 2026-04-04 — confirm)
 9. [ ] Samsung-specifics (if on the A14): tab bar renders correctly, no map flicker between locations
+10. [ ] **Reports tab in German**: header row "DEINE WOCHENBEITRÄGE" + "Automatisch senden" toggle fully on-screen (v2.1.1 layout fix — iOS-verified, Android pending); week cards show honest send states ("Wird gesendet…" for past weeks)
 
 ---
 

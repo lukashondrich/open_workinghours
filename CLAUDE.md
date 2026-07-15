@@ -1,7 +1,7 @@
 # Claude Context: Open Working Hours
 
-**Last Updated:** 2026-07-08
-**Current Build:** #65 / v2.1.0 — ✅ LIVE on the App Store (approved 2026-07-08)
+**Last Updated:** 2026-07-15
+**Current Build:** #67 / v2.1.1 — 🕐 in App Store review (submitted 2026-07-14). Live version: #65 / v2.1.0 (approved 2026-07-08). v2.1.1 contents: backend security/session hardening companion release — sliding 90-day token renewal via `/auth/refresh`, honest week-send states + tap-to-re-login, safe un-confirm ordering, Reports layout fixes, immediate past-week sends.
 
 ---
 
@@ -549,7 +549,7 @@ pytest -v                    # Run tests
 uvicorn app.main:app --reload  # Local dev
 
 # Deploy backend
-ssh deploy@owh-backend-prod
+ssh deploy@api.openworkinghours.org
 cd ~/open_workinghours/backend
 docker compose down && docker compose build --no-cache backend && docker compose up -d
 ```
