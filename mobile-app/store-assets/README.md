@@ -104,8 +104,8 @@ plutil -p "$APP_PATH/EXConstants.bundle/app.config" | grep TEST_
 ```bash
 cd mobile-app/ios
 TEST_MODE=true TEST_SCREENSHOT_SEED=true xcodebuild \
-  -workspace mobileapp.xcworkspace \
-  -scheme mobileapp \
+  -workspace OpenWorkingHours.xcworkspace \
+  -scheme OpenWorkingHours \
   -configuration Release \
   -destination "platform=iOS Simulator,id=<sim-UDID>" \
   -derivedDataPath ./build \
