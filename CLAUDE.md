@@ -1,8 +1,7 @@
 # Claude Context: Open Working Hours
 
-**Last Updated:** 2026-07-15
-**Current Build:** #67 / v2.1.1 — 🕐 in App Store review (submitted 2026-07-14). Live version: #65 / v2.1.0 (approved 2026-07-08). v2.1.1 contents: backend security/session hardening companion release — sliding 90-day token renewal via `/auth/refresh`, honest week-send states + tap-to-re-login, safe un-confirm ordering, Reports layout fixes, immediate past-week sends.
-
+**Last Updated:** 2026-07-17
+**Current Build:** #68 / v2.1.2 — 🕐 in App Store review (submitted 2026-07-17). Live version: #67 / v2.1.1 (approved 2026-07-17). v2.1.2 contents: hospital directory rebuild (+914 hospitals from OSM, stable explicit ids, 55 coordinate repairs — see `datasets/german_hospitals/augment_hospitals_from_osm.py`) + "Meine Klinik ist nicht dabei" free-text fallback in registration/profile (free text lands in legacy `hospital_id`; find unmapped entries via `hospital_ref_id IS NULL AND hospital_id != 'not_specified'`). ⚠️ Backend redeploy pending so `/taxonomy` serves the new directory.
 ---
 
 ## Project Overview
