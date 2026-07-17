@@ -53,8 +53,11 @@ def _load_hospitals() -> list[Hospital]:
     with open(csv_path, encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for idx, row in enumerate(reader, start=1):
+            # Prefer the explicit id column (stable across dataset updates —
+            # users store hospital_ref_id, so ids must never shift). Fall back
+            # to the historical row-number scheme for old CSVs without it.
             _HOSPITALS.append(Hospital(
-                id=idx,
+                id=int(row["id"]) if row.get("id") else idx,
                 name=row.get("name", ""),
                 city=row.get("city", ""),
                 state=row.get("state", ""),

@@ -18,6 +18,7 @@ export const de = {
     adjust: 'Anpassen',
     addAnyway: 'Trotzdem hinzufügen',
     dismiss: 'Schließen',
+    noResults: 'Keine Treffer',
     // Day names (abbreviated)
     weekdays: {
       mon: 'Mo',
@@ -298,6 +299,12 @@ export const de = {
       hospitalLabel: 'Krankenhaus',
       hospitalPlaceholder: 'Krankenhaus suchen...',
       hospitalOther: 'Lieber nicht angeben',
+      hospitalMissing: 'Meine Klinik ist nicht dabei',
+      hospitalMissingLabel: 'Name deiner Klinik',
+      hospitalMissingPlaceholder: 'z. B. St. Hedwig-Krankenhaus',
+      hospitalMissingHint: 'Wir nehmen sie ins Verzeichnis auf – du kannst die App in der Zwischenzeit voll nutzen.',
+      hospitalMissingRequired: 'Klinikname erforderlich',
+      hospitalMissingRequiredMessage: 'Bitte gib den Namen deiner Klinik ein.',
       hospitalSearchHint: 'Mindestens 2 Zeichen eingeben',
       hospitalRequired: 'Krankenhaus erforderlich',
       hospitalRequiredMessage: "Bitte wähle dein Krankenhaus oder 'Lieber nicht angeben'",
