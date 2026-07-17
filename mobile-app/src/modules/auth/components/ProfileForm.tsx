@@ -16,8 +16,9 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  TextInput,
 } from 'react-native';
-import { colors, spacing, fontSize, fontWeight } from '@/theme';
+import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/theme';
 import { Button, Picker } from '@/components/ui';
 import type { PickerOption } from '@/components/ui';
 import { t } from '@/lib/i18n';
@@ -67,6 +68,7 @@ export default function ProfileForm({ onSubmit, email, submitLabel, footer }: Pr
   // Required fields
   const [stateCode, setStateCode] = useState<string | null>(null);
   const [hospitalValue, setHospitalValue] = useState<string | null>(null);
+  const [missingHospitalName, setMissingHospitalName] = useState('');
   const [profession, setProfession] = useState<Profession | null>(null);
   const [seniority, setSeniority] = useState<Seniority | null>(null);
 
@@ -110,19 +112,26 @@ export default function ProfileForm({ onSubmit, email, submitLabel, footer }: Pr
 
   // Build hospital options (filtered by selected state, or just "Other" if no state)
   const hospitalOptions: PickerOption[] = useMemo(() => {
+    // Fallback for dataset gaps: free-text entry keeps the user onboarding
+    // instead of bouncing. Distinct from 'other', which is the privacy opt-out.
+    const missingOption: PickerOption = {
+      value: 'missing',
+      label: t('auth.register.hospitalMissing'),
+      pinned: true,
+    };
     const otherOption: PickerOption = {
       value: 'other',
       label: t('auth.register.hospitalOther'),
       pinned: true,
     };
-    if (!stateCode) return [otherOption];
+    if (!stateCode) return [missingOption, otherOption];
     const hospitals = getHospitalsByState(stateCode);
     const options: PickerOption[] = hospitals.map((h) => ({
       value: String(h.id),
       label: h.name,
       subtitle: h.city,
     }));
-    options.push(otherOption);
+    options.push(missingOption, otherOption);
     return options;
   }, [stateCode]);
 
@@ -149,6 +158,13 @@ export default function ProfileForm({ onSubmit, email, submitLabel, footer }: Pr
       Alert.alert(t('auth.register.hospitalRequired'), t('auth.register.hospitalRequiredMessage'));
       return false;
     }
+    if (hospitalValue === 'missing' && !missingHospitalName.trim()) {
+      Alert.alert(
+        t('auth.register.hospitalMissingRequired'),
+        t('auth.register.hospitalMissingRequiredMessage'),
+      );
+      return false;
+    }
     if (!profession) {
       Alert.alert(t('auth.register.professionRequired'), t('auth.register.professionRequiredMessage'));
       return false;
@@ -170,7 +186,7 @@ export default function ProfileForm({ onSubmit, email, submitLabel, footer }: Pr
       setLoading(true);
 
       const consentRecord = createConsentRecord();
-      const hospitalRefId = hospitalValue === 'other'
+      const hospitalRefId = hospitalValue === 'other' || hospitalValue === 'missing'
         ? null
         : (hospitalValue ? parseInt(hospitalValue, 10) : undefined);
 
@@ -183,8 +199,10 @@ export default function ProfileForm({ onSubmit, email, submitLabel, footer }: Pr
         departmentGroup: departmentGroup || undefined,
         termsVersion: CURRENT_TERMS_VERSION,
         privacyVersion: CURRENT_PRIVACY_VERSION,
-        // Legacy field mappings
-        hospitalId: 'not_specified',
+        // Legacy field mappings. For 'missing', the free-text hospital name
+        // travels in hospital_id so we can find and map it to a real entry
+        // later (hospital_ref_id IS NULL AND hospital_id != 'not_specified').
+        hospitalId: hospitalValue === 'missing' ? missingHospitalName.trim() : 'not_specified',
         specialty: departmentGroup || 'not_specified',
         roleLevel: seniority || 'not_specified',
       });
@@ -239,6 +257,28 @@ export default function ProfileForm({ onSubmit, email, submitLabel, footer }: Pr
             searchHint={stateCode ? t('auth.register.hospitalSearchHint') : undefined}
             testID="hospital-picker"
           />
+
+          {hospitalValue === 'missing' && (
+            <View style={styles.missingHospitalBlock} accessible={false} collapsable={false}>
+              <Text style={styles.missingHospitalLabel}>
+                {t('auth.register.hospitalMissingLabel')}
+              </Text>
+              <TextInput
+                style={styles.missingHospitalInput}
+                value={missingHospitalName}
+                onChangeText={setMissingHospitalName}
+                placeholder={t('auth.register.hospitalMissingPlaceholder')}
+                placeholderTextColor={colors.text.tertiary}
+                autoCapitalize="words"
+                autoCorrect={false}
+                accessible={true}
+                testID="hospital-missing-input"
+              />
+              <Text style={styles.missingHospitalHint}>
+                {t('auth.register.hospitalMissingHint')}
+              </Text>
+            </View>
+          )}
 
           <Picker
             label={t('auth.register.professionLabel')}
@@ -298,6 +338,31 @@ export default function ProfileForm({ onSubmit, email, submitLabel, footer }: Pr
 }
 
 const styles = StyleSheet.create({
+  missingHospitalBlock: {
+    marginTop: -spacing.sm,
+    marginBottom: spacing.lg,
+  },
+  missingHospitalLabel: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+    color: colors.text.secondary,
+    marginBottom: spacing.xs,
+  },
+  missingHospitalInput: {
+    borderWidth: 1,
+    borderColor: colors.grey[300],
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 2,
+    fontSize: fontSize.md,
+    color: colors.text.primary,
+    backgroundColor: colors.background.paper,
+  },
+  missingHospitalHint: {
+    fontSize: fontSize.xs,
+    color: colors.text.tertiary,
+    marginTop: spacing.xs,
+  },
   container: {
     flex: 1,
     backgroundColor: colors.background.default,

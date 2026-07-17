@@ -18,6 +18,7 @@ export const en = {
     adjust: 'Adjust',
     addAnyway: 'Add Anyway',
     dismiss: 'Dismiss',
+    noResults: 'No results',
     // Day names (abbreviated)
     weekdays: {
       mon: 'Mon',
@@ -298,6 +299,12 @@ export const en = {
       hospitalLabel: 'Hospital',
       hospitalPlaceholder: 'Search your hospital...',
       hospitalOther: 'Prefer not to share',
+      hospitalMissing: "My hospital isn't listed",
+      hospitalMissingLabel: 'Hospital name',
+      hospitalMissingPlaceholder: 'e.g. St. Hedwig-Krankenhaus',
+      hospitalMissingHint: "We'll add it to the directory — you can use the app fully in the meantime.",
+      hospitalMissingRequired: 'Hospital name required',
+      hospitalMissingRequiredMessage: 'Please enter the name of your hospital.',
       hospitalSearchHint: 'Type at least 2 characters to search',
       hospitalRequired: 'Hospital required',
       hospitalRequiredMessage: "Please select your hospital or choose 'Prefer not to share'",

@@ -9,6 +9,7 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
+import { t } from '@/lib/i18n';
 import { ChevronDown } from 'lucide-react-native';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/theme';
 
@@ -230,7 +231,7 @@ export function Picker({
             </View>
           ) : filteredOptions.length === 0 ? (
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No results</Text>
+              <Text style={styles.emptyText}>{t('common.noResults')}</Text>
             </View>
           ) : null}
           {filteredOptions.map((item) => (

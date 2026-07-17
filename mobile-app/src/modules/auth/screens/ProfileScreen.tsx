@@ -5,12 +5,14 @@
 
 import React, { useCallback, useMemo, useState } from 'react';
 import {
+  View,
   Text,
   StyleSheet,
   Alert,
   ScrollView,
+  TextInput,
 } from 'react-native';
-import { colors, spacing, fontSize, fontWeight } from '@/theme';
+import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/theme';
 import { Button, Picker, SettingsDetailLayout } from '@/components/ui';
 import type { PickerOption } from '@/components/ui';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -30,6 +32,7 @@ export default function ProfileScreen() {
   const user = state.user;
 
   const [stateCode, setStateCode] = useState<string | null>(user?.stateCode || null);
+  const [missingHospitalName, setMissingHospitalName] = useState('');
   const [hospitalValue, setHospitalValue] = useState<string | null>(
     user?.hospitalRefId === null || user?.hospitalRefId === 0
       ? 'other'
@@ -70,19 +73,24 @@ export default function ProfileScreen() {
   }, []);
 
   const hospitalOptions: PickerOption[] = useMemo(() => {
+    const missingOption: PickerOption = {
+      value: 'missing',
+      label: t('auth.register.hospitalMissing'),
+      pinned: true,
+    };
     const otherOption: PickerOption = {
       value: 'other',
       label: t('auth.register.hospitalOther'),
       pinned: true,
     };
-    if (!stateCode) return [otherOption];
+    if (!stateCode) return [missingOption, otherOption];
     const hospitals = getHospitalsByState(stateCode);
     const options: PickerOption[] = hospitals.map((h) => ({
       value: String(h.id),
       label: h.name,
       subtitle: h.city,
     }));
-    options.push(otherOption);
+    options.push(missingOption, otherOption);
     return options;
   }, [stateCode]);
 
@@ -124,7 +132,15 @@ export default function ProfileScreen() {
 
     try {
       setSaving(true);
-      const hospitalRefId = hospitalValue === 'other'
+      if (hospitalValue === 'missing' && !missingHospitalName.trim()) {
+        Alert.alert(
+          t('auth.register.hospitalMissingRequired'),
+          t('auth.register.hospitalMissingRequiredMessage'),
+        );
+        setSaving(false);
+        return;
+      }
+      const hospitalRefId = hospitalValue === 'other' || hospitalValue === 'missing'
         ? null
         : (hospitalValue ? parseInt(hospitalValue, 10) : undefined);
 
@@ -134,6 +150,9 @@ export default function ProfileScreen() {
         {
           stateCode: stateCode || undefined,
           hospitalRefId,
+          // Free-text fallback for dataset gaps — travels in the legacy
+          // hospital_id field so unmapped hospitals can be found and added.
+          hospitalId: hospitalValue === 'missing' ? missingHospitalName.trim() : undefined,
           profession: profession || undefined,
           seniority: profession === 'other' ? undefined : (seniority || undefined),
           departmentGroup: departmentGroup || undefined,
@@ -182,6 +201,28 @@ export default function ProfileScreen() {
           testID="profile-hospital-picker"
         />
 
+        {hospitalValue === 'missing' && (
+          <View accessible={false} collapsable={false} style={styles.missingHospitalBlock}>
+            <Text style={styles.missingHospitalLabel}>
+              {t('auth.register.hospitalMissingLabel')}
+            </Text>
+            <TextInput
+              style={styles.missingHospitalInput}
+              value={missingHospitalName}
+              onChangeText={setMissingHospitalName}
+              placeholder={t('auth.register.hospitalMissingPlaceholder')}
+              placeholderTextColor={colors.text.tertiary}
+              autoCapitalize="words"
+              autoCorrect={false}
+              accessible={true}
+              testID="profile-hospital-missing-input"
+            />
+            <Text style={styles.missingHospitalHint}>
+              {t('auth.register.hospitalMissingHint')}
+            </Text>
+          </View>
+        )}
+
         <Picker
           label={t('auth.register.professionLabel')}
           value={profession}
@@ -229,6 +270,31 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
+  missingHospitalBlock: {
+    marginTop: -spacing.sm,
+    marginBottom: spacing.lg,
+  },
+  missingHospitalLabel: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+    color: colors.text.secondary,
+    marginBottom: spacing.xs,
+  },
+  missingHospitalInput: {
+    borderWidth: 1,
+    borderColor: colors.grey[300],
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 2,
+    fontSize: fontSize.md,
+    color: colors.text.primary,
+    backgroundColor: colors.background.paper,
+  },
+  missingHospitalHint: {
+    fontSize: fontSize.xs,
+    color: colors.text.tertiary,
+    marginTop: spacing.xs,
+  },
   container: {
     flex: 1,
     backgroundColor: colors.background.default,

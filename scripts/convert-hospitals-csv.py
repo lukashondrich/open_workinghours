@@ -45,6 +45,7 @@ def main():
     by_state: dict[str, list] = {code: [] for code in STATE_NAME_TO_CODE.values()}
     skipped = []
 
+    seen_display = set()  # (state_code, normalized name) — dedupe for display
     with open(CSV_PATH, newline='', encoding='utf-8') as f:
         reader = csv.DictReader(f)
         for idx, row in enumerate(reader, start=1):
@@ -64,8 +65,18 @@ def main():
                 skipped.append((idx, name, state_name))
                 continue
 
+            # Display dedupe: the CSV keeps duplicate rows forever (ids are
+            # user-referenced and must stay resolvable on the backend), but
+            # the picker should list each hospital once. Lowest id wins.
+            display_key = (state_code, name.lower())
+            if display_key in seen_display:
+                continue
+            seen_display.add(display_key)
+
             entry = {
-                'id': idx,
+                # Explicit stable id (falls back to row number for old CSVs).
+                # Users store hospital_ref_id — ids must never shift.
+                'id': int(row['id']) if row.get('id') else idx,
                 'name': name,
                 'lat': round(float(lat), 6) if lat else None,
                 'lon': round(float(lon), 6) if lon else None,
