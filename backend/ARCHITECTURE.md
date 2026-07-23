@@ -289,11 +289,53 @@ docker exec owh-backend python -m app.aggregation
    → Extract user_id
 ```
 
+### Session Lifetime & Renewal (2026-07)
+
+- Access tokens live **90 days** (`SECURITY__TOKEN_EXP_HOURS`, compose default 2160).
+- **`POST /auth/refresh`** — sliding renewal: a valid token exchanges for a fresh
+  full-lifetime token. The app calls it when <7 days remain, so active users
+  never re-login. The `auth_time` JWT claim (moment of last interactive login)
+  is carried through refreshes; the chain is refused AND the refreshed token's
+  expiry is clamped at `auth_time + REFRESH_MAX_SESSION_DAYS` (365) — a stolen
+  token cannot be renewed indefinitely.
+- No refresh endpoint existed before 2026-07; there is still no revocation list.
+- Affiliation tokens (legacy /reports path) are deliberately decoupled: fixed
+  30 days (`AFFILIATION_TOKEN_EXP_HOURS` in `security.py`).
+- Rate limiters are declared BEFORE auth dependencies on auth-sensitive
+  endpoints so failed credential attempts are throttled too.
+
 ### Demo Account
 
 For Apple App Review, a demo account bypasses email verification:
 - Email: Configured in `DEMO__EMAIL`
 - Code: Configured in `DEMO__CODE`
+- The account row must have **`is_demo = true`** (auto-flagged at app startup
+  by `_ensure_demo_user_flagged`; `scripts/seed_demo_user.py` for first creation).
+- `is_demo` users are **excluded from ALL DP aggregation paths** (aggregate
+  sums, dominance check, per-user ε ledger) — the credentials are publicly
+  documented, so their submissions must never influence published statistics.
+  Deletion of demo accounts is blocked via the same flag.
+
+---
+
+## Hospital Directory (taxonomy)
+
+- Source of truth: `datasets/german_hospitals/output/german_hospitals.csv`
+  (repo root). 2,134 rows / ~1,830 unique after display dedupe (2026-07 rebuild
+  from OpenStreetMap — see `datasets/german_hospitals/README.md`).
+- **ID contract:** the CSV has an explicit `id` column. Users store
+  `hospital_ref_id`, so **ids must never change or be reused**. Update the
+  dataset only by APPENDING rows with new ids (the augment script enforces
+  this). Never delete rows — the backend must keep every historical id
+  resolvable; the mobile converter dedupes for display instead.
+- Served by `GET /taxonomy/hospitals` (loaded from CSV at startup).
+  ⚠️ The Docker build context is `backend/`, so the CSV is NOT in the image —
+  compose mounts `../datasets/.../output` read-only into the container. The
+  mobile app primarily uses its own bundled per-state JSONs
+  (`scripts/convert-hospitals-csv.py` regenerates them from the same CSV).
+- Users who pick "My hospital isn't listed" send free text in the legacy
+  `hospital_id` field with `hospital_ref_id = NULL`. Find entries to add:
+  `SELECT hospital_id, state_code FROM users WHERE hospital_ref_id IS NULL AND hospital_id != 'not_specified';`
 
 ---
 

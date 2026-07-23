@@ -96,6 +96,18 @@ Both keys must be set together — if either is missing, the demo block in `auth
 
 **Current production values are documented in `mobile-app/store-assets/app-store-metadata.md` § 5** (Reviewer notes) — that's the file you paste into App Store Connect at submission time.
 
+### Hospital directory updates (2026-07+)
+
+The hospital CSV (`datasets/german_hospitals/output/german_hospitals.csv`) is
+OUTSIDE the backend build context — docker-compose mounts it read-only into the
+container. Updating the directory:
+
+1. Run the augment script + converter (see `datasets/german_hospitals/README.md`).
+2. Backend: `git pull` + `docker compose up -d` (restart reloads the CSV; no
+   image rebuild needed thanks to the volume mount).
+3. Mobile: the per-state JSONs are bundled — users get them with the next app
+   release. **Never change existing ids** (users store `hospital_ref_id`).
+
 ### Deploy ordering — 2026-07 hardening batch
 
 The July 2026 security/reliability batch (admin-auth on budget endpoint, `is_demo` flag, `POST /auth/refresh`, 90-day tokens, mobile sliding renewal) has a required sequence:

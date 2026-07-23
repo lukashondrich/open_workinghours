@@ -1,7 +1,7 @@
 # Claude Context: Open Working Hours
 
-**Last Updated:** 2026-07-17
-**Current Build:** #68 / v2.1.2 — 🕐 in App Store review (submitted 2026-07-17). Live version: #67 / v2.1.1 (approved 2026-07-17). v2.1.2 contents: hospital directory rebuild (+914 hospitals from OSM, stable explicit ids, 55 coordinate repairs — see `datasets/german_hospitals/augment_hospitals_from_osm.py`) + "Meine Klinik ist nicht dabei" free-text fallback in registration/profile (free text lands in legacy `hospital_id`; find unmapped entries via `hospital_ref_id IS NULL AND hospital_id != 'not_specified'`). ⚠️ Backend redeploy pending so `/taxonomy` serves the new directory.
+**Last Updated:** 2026-07-23
+**Current Build:** #68 / v2.1.2 — ✅ LIVE on the App Store (approved 2026-07-23)
 ---
 
 ## Project Overview
@@ -198,6 +198,22 @@ All new UI **must** be testable by Appium (XCUITest on iOS, UiAutomator2 on Andr
 ---
 
 ## Recent Updates (Last 7 Days)
+
+### 2026-07-23: v2.1.2 live — hospital directory rebuild + registration fallback (build #68)
+
+**What shipped (triggered by a real user unable to find St. Hedwig Berlin at registration):**
+- Hospital directory rebuilt: **1,220 → 2,134 rows (~1,830 unique displayed)** by augmenting from OpenStreetMap — the original dataset builder silently dropped register rows without an OSM match (~half of Germany's hospitals). 55 wrong-state coordinates repaired. Maintenance path: `datasets/german_hospitals/README.md` → "Maintenance" (augment script is append-only + idempotent).
+- **ID-stability contract**: explicit `id` column in the CSV; backend loader + JSON converter read it. Users store `hospital_ref_id` — ids must never shift (previously id = row number, a silent remap landmine).
+- **"Meine Klinik ist nicht dabei"** free-text fallback in registration + profile pickers; name lands in legacy `hospital_id` (`hospital_ref_id IS NULL AND hospital_id != 'not_specified'` finds entries to add to the directory). Distinct from the privacy opt-out ("Lieber nicht angeben").
+- ⚠️ **Prod gap found & fixed in compose**: `/taxonomy/hospitals` was silently EMPTY in production forever — the CSV lives outside the backend Docker build context. Fixed via read-only volume mount in `docker-compose.yml`; **backend redeploy still pending** to take effect (harmless meanwhile — the app uses bundled JSONs).
+
+### 2026-07-17: v2.1.1 live — security/session hardening companion release (build #67)
+
+**Backend (deployed 2026-07-12):** admin auth + brute-force-safe rate limiting on the privacy-budget endpoint; `is_demo` flag (demo account excluded from ALL DP aggregation incl. dominance/ledger; login bypass requires flag; auto-flagged at startup); **`POST /auth/refresh`** with `auth_time`-capped chains (90-day tokens, 365-day max session, affiliation tokens decoupled at 30d); `/healthz` does a real DB check.
+**Mobile:** sliding token renewal (<7 days left → refresh on foreground); honest week-send states (scheduled/sending/sent/failed/re-login) with immediate sends for queued past weeks on Reports focus; safe un-confirm ordering in `useDayLock` (side effects before state flip); dead code removed (HomeScreen, duplicate submission path).
+**Docs:** `backend/ARCHITECTURE.md` (session renewal, demo flag, hospital directory), `mobile-app/ARCHITECTURE.md` (Recent Implementations → 2026-07), `docs/deployment.md` (deploy ordering).
+**Process note:** the batch went through a multi-agent review + independent verification + external (codex) review before deploy — 13 findings fixed pre-ship. Review-ordering lesson: declare rate limiters BEFORE auth dependencies.
+
 
 ### 2026-07-09: Website consumer launch (openworkinghours.org)
 
