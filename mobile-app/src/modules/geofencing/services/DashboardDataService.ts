@@ -4,8 +4,9 @@ import { getCalendarStorage } from '@/modules/calendar/services/CalendarStorage'
 import type { ShiftInstance, ShiftColor, AbsenceInstance } from '@/lib/calendar/types';
 import {
   getAbsencesForDate,
+  hasConfirmableActivity,
 } from '@/lib/calendar/calendar-utils';
-import { computePlannedMinutesForDate, computeEffectivePlannedMinutesForDate, getDayBounds, computeOverlapMinutes } from '@/lib/calendar/time-calculations';
+import { computeEffectivePlannedMinutesForDate, getDayBounds, computeOverlapMinutes } from '@/lib/calendar/time-calculations';
 
 export interface DailyHoursData {
   date: string; // YYYY-MM-DD
@@ -29,9 +30,15 @@ export interface NextShiftData {
 export interface DashboardData {
   hoursSummary: {
     days: DailyHoursData[];
+    // totalPlanned/totalActual/deviation share one scope: elapsed days only
+    // (today excluded — it would read negative mid-shift). This keeps
+    // deviation === totalActual - totalPlanned true in the UI. The per-day
+    // `days` array still includes today for the chart.
     totalPlanned: number;
     totalActual: number;
-    deviation: number; // actual - planned
+    deviation: number;
+    eligibleDayCount: number; // elapsed days with activity (confirmable)
+    confirmedDayCount: number; // subset of eligible days confirmed
   };
   nextShift: NextShiftData | null;
   isLive: boolean; // true if user is currently clocked in
@@ -85,6 +92,8 @@ export async function loadDashboardData(accountCreatedAt?: string): Promise<Dash
   const days: DailyHoursData[] = [];
   let totalPlanned = 0;
   let totalActual = 0;
+  let eligibleDayCount = 0;
+  let confirmedDayCount = 0;
 
   for (let i = 13; i >= 0; i--) {
     const dayDate = subDays(today, i);
@@ -116,9 +125,7 @@ export async function loadDashboardData(accountCreatedAt?: string): Promise<Dash
     const hasSick = dayAbsences.some((a) => a.type === 'sick');
 
     // Calculate planned minutes (accounting for absences + overnight shifts)
-    const plannedMinutes = dayAbsences.length > 0
-      ? computeEffectivePlannedMinutesForDate(instances, dayAbsences, dateKey)
-      : computePlannedMinutesForDate(instances, dateKey);
+    const plannedMinutes = computeEffectivePlannedMinutesForDate(instances, absenceInstances, dateKey);
 
     // Calculate actual minutes from sessions
     let actualMinutes = 0;
@@ -154,8 +161,19 @@ export async function loadDashboardData(accountCreatedAt?: string): Promise<Dash
       hasSick,
     });
 
-    totalPlanned += plannedMinutes;
-    totalActual += actualMinutes;
+    // Displayed totals and confirmation completeness only consider elapsed
+    // days — one shared scope keeps Soll/Ist/deviation arithmetic honest.
+    // (!isToday here ≡ getMonthSummary's dateKey < todayKey: the 14-day
+    // window ends at today, so every non-today day is in the past.)
+    if (!isToday) {
+      totalPlanned += plannedMinutes;
+      totalActual += actualMinutes;
+
+      if (hasConfirmableActivity(plannedMinutes, actualMinutes, hasVacation, hasSick)) {
+        eligibleDayCount++;
+        if (isConfirmed) confirmedDayCount++;
+      }
+    }
   }
 
   // Find next shift
@@ -167,6 +185,8 @@ export async function loadDashboardData(accountCreatedAt?: string): Promise<Dash
       totalPlanned,
       totalActual,
       deviation: totalActual - totalPlanned,
+      eligibleDayCount,
+      confirmedDayCount,
     },
     nextShift,
     isLive,

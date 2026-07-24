@@ -7,7 +7,7 @@
  * - Day labels on X-axis
  * - Faded bars for unconfirmed days (nudge to confirm)
  * - Absence icons (vacation/sick)
- * - Unconfirmed count nudge
+ * - Confirmation completeness fraction ("X von Y Tagen bestätigt")
  */
 
 import React, { useEffect, useRef } from 'react';
@@ -21,7 +21,8 @@ import {
 import { ChevronRight, TreePalm, Thermometer, Info } from 'lucide-react-native';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
 import { t } from '@/lib/i18n';
-import { formatDuration } from '@/lib/calendar/calendar-utils';
+import { formatDuration, hasConfirmableActivity } from '@/lib/calendar/calendar-utils';
+import { getConfirmedFractionText } from '@/lib/calendar/confirmed-fraction';
 import { isTestMode } from '@/lib/testing/mockApi';
 import type { DailyHoursData } from '../services/DashboardDataService';
 import { format, parseISO } from 'date-fns';
@@ -33,6 +34,8 @@ interface HoursSummaryWidgetProps {
     totalPlanned: number;
     totalActual: number;
     deviation: number;
+    eligibleDayCount: number;
+    confirmedDayCount: number;
   };
   isLive: boolean;
   onPress: () => void;
@@ -118,7 +121,7 @@ function Bar({ day, maxHours, chartHeight, isLive }: BarProps) {
   const trackedHeight = Math.min(day.actualMinutes / maxMinutes, 1) * chartHeight;
 
   // Unconfirmed days appear faded (but not today - it can't be confirmed yet)
-  const hasActivity = day.plannedMinutes > 0 || day.actualMinutes > 0 || day.hasVacation || day.hasSick;
+  const hasActivity = hasConfirmableActivity(day.plannedMinutes, day.actualMinutes, day.hasVacation, day.hasSick);
   const barOpacity = (!hasActivity || day.isConfirmed || day.isToday) ? 1 : 0.4;
 
   return (
@@ -161,19 +164,21 @@ export default function HoursSummaryWidget({ data, isLive, onPress, onInfoPress 
   const deviationColor = data.deviation >= 0 ? colors.primary[500] : colors.error.main;
   const { maxHours, ticks, chartHeight } = getScaleConfig(data.days);
 
-  // Count unconfirmed days (excluding today and days with no activity)
-  const unconfirmedCount = data.days.filter(day => {
-    const hasActivity = day.plannedMinutes > 0 || day.actualMinutes > 0 || day.hasVacation || day.hasSick;
-    return hasActivity && !day.isConfirmed && !day.isToday;
-  }).length;
+  // Confirmation completeness line — same copy and rules as the MonthView footer
+  const fractionText = getConfirmedFractionText(data.confirmedDayCount, data.eligibleDayCount);
 
-  // Build accessibility summary for screen readers
-  const accessibilitySummary = t('dashboard.hoursSummary.accessibilitySummary', {
-    planned: formatHours(data.totalPlanned),
-    actual: formatHours(data.totalActual),
-    deviation: formatDeviation(data.deviation),
-    unconfirmed: unconfirmedCount,
-  });
+  // Build accessibility summary for screen readers; the fraction sentence is
+  // appended only when it is also visible (avoids announcing "0 von 0 Tagen")
+  const accessibilitySummary = [
+    t('dashboard.hoursSummary.accessibilitySummary', {
+      planned: formatHours(data.totalPlanned),
+      actual: formatHours(data.totalActual),
+      deviation: formatDeviation(data.deviation),
+    }),
+    fractionText,
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   return (
     <TouchableOpacity
@@ -225,7 +230,7 @@ export default function HoursSummaryWidget({ data, isLive, onPress, onInfoPress 
         </View>
       </View>
 
-      {/* Legend + unconfirmed nudge */}
+      {/* Legend + confirmation completeness */}
       <View style={styles.legendRow}>
         <View style={styles.legend}>
           <View style={styles.legendItem}>
@@ -237,9 +242,13 @@ export default function HoursSummaryWidget({ data, isLive, onPress, onInfoPress 
             <Text style={styles.legendText}>{t('dashboard.hoursSummary.legendTracked')}</Text>
           </View>
         </View>
-        {unconfirmedCount > 0 && (
-          <Text style={styles.unconfirmedNudge}>
-            {t('dashboard.hoursSummary.unconfirmedNudge', { count: unconfirmedCount })}
+        {fractionText != null && (
+          <Text
+            style={styles.confirmedFraction}
+            testID="hours-summary-fraction"
+            numberOfLines={1}
+          >
+            {fractionText}
           </Text>
         )}
       </View>
@@ -372,10 +381,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.lg,
   },
-  unconfirmedNudge: {
+  confirmedFraction: {
     fontSize: 10,
-    color: colors.error.main,
+    color: colors.text.tertiary,
     fontWeight: fontWeight.medium,
+    flexShrink: 1, // long German fraction must not push the legend off the card
+    marginLeft: spacing.sm,
   },
   legendItem: {
     flexDirection: 'row',

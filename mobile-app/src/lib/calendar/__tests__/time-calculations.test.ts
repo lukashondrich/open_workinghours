@@ -214,19 +214,24 @@ function makeAbsence(overrides: Partial<AbsenceInstance> & { date: string }): Ab
   };
 }
 
+// Index-keyed so absences sharing the default id don't collide
+function toAbsenceMap(absences: AbsenceInstance[]): Record<string, AbsenceInstance> {
+  return Object.fromEntries(absences.map((a, i) => [`a${i}`, a]));
+}
+
 describe('computeEffectivePlannedMinutesForDate', () => {
   it('no absences: same as computePlannedMinutesForDate', () => {
     const instances: Record<string, ShiftInstance> = {
       s1: makeShift({ date: '2025-01-10', startTime: '08:00', duration: 480 }),
     };
-    expect(computeEffectivePlannedMinutesForDate(instances, [], '2025-01-10')).toBe(480);
+    expect(computeEffectivePlannedMinutesForDate(instances, {}, '2025-01-10')).toBe(480);
   });
 
   it('full-day absence removes all planned minutes', () => {
     const instances: Record<string, ShiftInstance> = {
       s1: makeShift({ date: '2025-01-10', startTime: '08:00', duration: 480 }),
     };
-    const absences = [makeAbsence({ date: '2025-01-10' })];
+    const absences = toAbsenceMap([makeAbsence({ date: '2025-01-10' })]);
     expect(computeEffectivePlannedMinutesForDate(instances, absences, '2025-01-10')).toBe(0);
   });
 
@@ -235,7 +240,9 @@ describe('computeEffectivePlannedMinutesForDate', () => {
       s1: makeShift({ date: '2025-01-10', startTime: '08:00', duration: 480 }), // 08:00-16:00
     };
     // Absence 08:00-12:00 (4h overlap with shift)
-    const absences = [makeAbsence({ date: '2025-01-10', isFullDay: false, startTime: '08:00', endTime: '12:00' })];
+    const absences = toAbsenceMap([
+      makeAbsence({ date: '2025-01-10', isFullDay: false, startTime: '08:00', endTime: '12:00' }),
+    ]);
     expect(computeEffectivePlannedMinutesForDate(instances, absences, '2025-01-10')).toBe(240);
   });
 
@@ -245,7 +252,7 @@ describe('computeEffectivePlannedMinutesForDate', () => {
       s1: makeShift({ date: '2025-01-10', startTime: '22:00', duration: 480 }),
     };
     // Full-day absence on Jan 11
-    const absences = [makeAbsence({ date: '2025-01-11' })];
+    const absences = toAbsenceMap([makeAbsence({ date: '2025-01-11' })]);
 
     // Jan 10: 22:00-00:00 = 120 min, no absence overlap
     expect(computeEffectivePlannedMinutesForDate(instances, absences, '2025-01-10')).toBe(120);
@@ -259,14 +266,16 @@ describe('computeEffectivePlannedMinutesForDate', () => {
       s1: makeShift({ date: '2025-01-10', startTime: '22:00', duration: 480 }),
     };
     // Absence 00:00-03:00 on Jan 11
-    const absences = [makeAbsence({ date: '2025-01-11', isFullDay: false, startTime: '00:00', endTime: '03:00' })];
+    const absences = toAbsenceMap([
+      makeAbsence({ date: '2025-01-11', isFullDay: false, startTime: '00:00', endTime: '03:00' }),
+    ]);
 
     // Jan 11: shift 00:00-06:00 (360min) minus absence 00:00-03:00 (180min) = 180min
     expect(computeEffectivePlannedMinutesForDate(instances, absences, '2025-01-11')).toBe(180);
   });
 
   it('no shifts returns 0', () => {
-    const absences = [makeAbsence({ date: '2025-01-10' })];
+    const absences = toAbsenceMap([makeAbsence({ date: '2025-01-10' })]);
     expect(computeEffectivePlannedMinutesForDate({}, absences, '2025-01-10')).toBe(0);
   });
 });

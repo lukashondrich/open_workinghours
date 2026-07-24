@@ -58,8 +58,10 @@ export function computePlannedMinutesForDate(
 function getAbsenceWindow(absence: AbsenceInstance): { start: Date; end: Date } {
   const [year, month, day] = absence.date.split('-').map(Number);
   if (absence.isFullDay) {
+    // Full midnight-to-midnight — matching getDayBounds. Ending at 23:59
+    // left a phantom planned minute on shifts touching midnight.
     const start = new Date(year, month - 1, day, 0, 0, 0, 0);
-    const end = new Date(year, month - 1, day, 23, 59, 0, 0);
+    const end = new Date(year, month - 1, day + 1, 0, 0, 0, 0);
     return { start, end };
   }
   const [startHour, startMinute] = absence.startTime.split(':').map(Number);
@@ -69,17 +71,58 @@ function getAbsenceWindow(absence: AbsenceInstance): { start: Date; end: Date } 
   return { start, end };
 }
 
+/** Sum of merged interval lengths in ms — overlapping intervals count once. */
+function mergedIntervalMs(intervals: Array<[number, number]>): number {
+  if (intervals.length === 0) return 0;
+  const sorted = [...intervals].sort((a, b) => a[0] - b[0]);
+  let total = 0;
+  let [curStart, curEnd] = sorted[0];
+  for (let i = 1; i < sorted.length; i++) {
+    const [s, e] = sorted[i];
+    if (s <= curEnd) {
+      curEnd = Math.max(curEnd, e);
+    } else {
+      total += curEnd - curStart;
+      [curStart, curEnd] = [s, e];
+    }
+  }
+  total += curEnd - curStart;
+  return total;
+}
+
 /**
  * Effective planned minutes for a date, subtracting absence overlaps.
  * Works in absolute time so overnight shifts are handled correctly.
- * For each shift that overlaps the day, computes:
- *   clipped_shift ∩ day_bounds - Σ(clipped_shift ∩ absence ∩ day_bounds)
+ *
+ * Takes the FULL absence map (not one day's) so that the coverage rules can
+ * see absences on neighboring days — passing a pre-filtered day slice would
+ * silently break the night-shift rule below.
+ *
+ * Coverage rules per shift (clipped to the day bounds):
+ * - A full-day absence dated the same day as the SHIFT covers the entire
+ *   shift, including any post-midnight spill onto the next day — taking
+ *   vacation for a night shift cancels the whole shift, not just the
+ *   portion before midnight.
+ * - Any other absence covers its time-window intersection with the shift.
+ * - Covering intervals are UNIONed before subtracting, so overlapping
+ *   absences never double-subtract.
  */
 export function computeEffectivePlannedMinutesForDate(
   instances: Record<string, ShiftInstance>,
-  absences: AbsenceInstance[],
+  absenceInstances: Record<string, AbsenceInstance>,
   dateKey: string,
 ): number {
+  const absences = Object.values(absenceInstances);
+  if (absences.length === 0) {
+    return computePlannedMinutesForDate(instances, dateKey);
+  }
+
+  // Windows are shift-independent — derive them once, not per shift
+  const absenceMeta = absences.map((a) => {
+    const { start, end } = getAbsenceWindow(a);
+    return { isFullDay: a.isFullDay, date: a.date, startMs: start.getTime(), endMs: end.getTime() };
+  });
+
   const { start: dayStart, end: dayEnd } = getDayBounds(dateKey);
 
   return Object.values(instances).reduce((total, instance) => {
@@ -90,21 +133,24 @@ export function computeEffectivePlannedMinutesForDate(
     const clippedEnd = shiftEnd < dayEnd ? shiftEnd : dayEnd;
     if (clippedStart >= clippedEnd) return total;
 
-    let shiftMinutes = Math.round((clippedEnd.getTime() - clippedStart.getTime()) / 60000);
+    const shiftMinutes = Math.round((clippedEnd.getTime() - clippedStart.getTime()) / 60000);
 
-    // Subtract overlap with each absence (also clipped to day bounds)
-    for (const absence of absences) {
-      const { start: absStart, end: absEnd } = getAbsenceWindow(absence);
-      // Triple intersection: shift ∩ absence ∩ day
-      const overlapStart = new Date(Math.max(clippedStart.getTime(), absStart.getTime()));
-      const overlapEnd = new Date(Math.min(clippedEnd.getTime(), absEnd.getTime()));
-      const overlapMs = overlapEnd.getTime() - overlapStart.getTime();
-      if (overlapMs > 0) {
-        shiftMinutes -= Math.round(overlapMs / 60000);
+    const coverIntervals: Array<[number, number]> = [];
+    for (const absence of absenceMeta) {
+      if (absence.isFullDay && absence.date === instance.date) {
+        // Vacation/sick on the shift's own day cancels the whole shift
+        coverIntervals.push([clippedStart.getTime(), clippedEnd.getTime()]);
+        continue;
+      }
+      const overlapStart = Math.max(clippedStart.getTime(), absence.startMs);
+      const overlapEnd = Math.min(clippedEnd.getTime(), absence.endMs);
+      if (overlapEnd > overlapStart) {
+        coverIntervals.push([overlapStart, overlapEnd]);
       }
     }
 
-    return total + Math.max(0, shiftMinutes);
+    const coveredMinutes = Math.round(mergedIntervalMs(coverIntervals) / 60000);
+    return total + Math.max(0, shiftMinutes - coveredMinutes);
   }, 0);
 }
 

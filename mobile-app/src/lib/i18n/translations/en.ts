@@ -245,7 +245,9 @@ export const en = {
       tracked: 'Tracked',
       planned: 'Planned',
       overtime: 'Overtime',
-      confirmed: 'confirmed',
+      daysConfirmedFraction: '{{confirmed}} of {{total}} days confirmed',
+      daysConfirmedFractionOne: '0 of 1 day confirmed',
+      allDaysConfirmed: 'All days confirmed',
       explainerA11yLabel: 'How hours are calculated',
     },
     gps: {
@@ -423,10 +425,9 @@ export const en = {
       actual: 'Actual',
       legendPlanned: 'Planned',
       legendTracked: 'Tracked',
-      unconfirmedNudge: '{{count}} to confirm',
       explainerA11yLabel: 'How hours are calculated',
       // Accessibility
-      accessibilitySummary: 'Last 14 days: {{planned}} planned, {{actual}} tracked, {{deviation}} deviation. {{unconfirmed}} days to confirm.',
+      accessibilitySummary: 'Last 14 days excluding today: {{planned}} planned, {{actual}} tracked, {{deviation}} deviation.',
       accessibilityHint: 'Double tap to view calendar',
     },
     nextShift: {
@@ -446,9 +447,11 @@ export const en = {
     trackedTitle: 'Tracked',
     trackedBody: 'Automatically tracked (GPS) and manually logged times, minus logged breaks.',
     overtimeTitle: 'Overtime',
-    overtimeBody: 'Tracked minus planned, summed per day.',
+    overtimeBody: 'Tracked minus Planned. All values count only days that have already passed — today joins tomorrow, future shifts once they are over.',
     confirmedTitle: 'Confirmed',
-    confirmedBody: "Confirmed days are days you've reviewed. Only they count toward Confirmed overtime.",
+    confirmedBody: "Confirmed days are days you've reviewed. “X of Y days confirmed” shows how many past days with activity you've reviewed so far.",
+    futureMonthsTitle: 'Future months',
+    futureMonthsBody: "For months that haven't started yet, the footer shows the month's total planned hours instead.",
     close: 'Got it',
   },
 
