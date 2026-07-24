@@ -13,6 +13,7 @@ import {
   TextInput,
   ScrollView,
 } from 'react-native';
+import { useSheetSlide } from '@/components/ui/useSheetSlide';
 import { AppText as Text } from '@/components/ui/AppText';
 import { X, Pencil } from 'lucide-react-native';
 import { format } from 'date-fns';
@@ -36,6 +37,7 @@ export default function NoteEditor({ visible, date, onClose }: Props) {
   const insets = useSafeAreaInsets();
   const animValue = useRef(new Animated.Value(0)).current;
   const inputRef = useRef<TextInput>(null);
+  const { opacity, translateY } = useSheetSlide(animValue);
 
   // Local text state
   const existingNote = date ? state.dayNotes[date] : null;
@@ -223,11 +225,6 @@ export default function NoteEditor({ visible, date, onClose }: Props) {
   }
 
   // Edit mode — bottom sheet panel
-  const translateY = animValue.interpolate({
-    inputRange: [0, 1],
-    outputRange: [400, 0],
-  });
-
   const wrapperProps = Platform.OS === 'ios'
     ? { behavior: 'padding' as const, style: styles.flexWrapper }
     : { style: styles.flexWrapper };
@@ -245,7 +242,7 @@ export default function NoteEditor({ visible, date, onClose }: Props) {
         </TouchableWithoutFeedback>
 
         {/* Panel */}
-        <Animated.View style={[styles.panelWrapper, { transform: [{ translateY }] }]}>
+        <Animated.View style={[styles.panelWrapper, { opacity, transform: [{ translateY }] }]}>
           <TouchableWithoutFeedback accessible={false} onPress={() => {}}>
             <View style={[styles.card, { paddingBottom: Math.max(insets.bottom, 64) }]}>
               {/* Header */}

@@ -11,6 +11,7 @@ import {
   Animated,
   BackHandler,
 } from 'react-native';
+import { useSheetSlide } from '@/components/ui/useSheetSlide';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AppTextInput as TextInput } from '@/components/ui/AppTextInput';
 import { Plus, TreePalm, ThermometerIcon, Pencil, Check } from 'lucide-react-native';
@@ -32,6 +33,7 @@ export default function TemplatePanel() {
 
   // Animation
   const animValue = useRef(new Animated.Value(0)).current;
+  const { opacity, translateY } = useSheetSlide(animValue);
 
   useEffect(() => {
     // TEST_MODE: Skip animation for instant E2E test interaction
@@ -283,12 +285,6 @@ export default function TemplatePanel() {
     );
   };
 
-  // Slide up from bottom
-  const translateY = animValue.interpolate({
-    inputRange: [0, 1],
-    outputRange: [600, 0],
-  });
-
   const wrapperProps = Platform.OS === 'ios'
     ? { behavior: 'padding' as const, style: styles.keyboardAvoidingView }
     : { behavior: 'height' as const, style: styles.keyboardAvoidingView };
@@ -301,12 +297,12 @@ export default function TemplatePanel() {
     >
       <KeyboardAvoidingView {...wrapperProps}>
         {/* Overlay */}
-        <TouchableWithoutFeedback onPress={handleClose}>
+        <TouchableWithoutFeedback accessible={false} onPress={handleClose}>
           <Animated.View style={[styles.overlay, { opacity: animValue }]} />
         </TouchableWithoutFeedback>
 
         {/* Panel */}
-        <Animated.View style={[styles.panelWrapper, { transform: [{ translateY }] }]}>
+        <Animated.View style={[styles.panelWrapper, { opacity, transform: [{ translateY }] }]}>
           <TouchableWithoutFeedback onPress={() => {}} accessible={false}>
             <View
               style={styles.panel}
