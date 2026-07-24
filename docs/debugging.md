@@ -72,6 +72,26 @@ Filter in Xcode Console: `[GeofenceService]`
 
 ## Android Debugging
 
+### Emulator recovery (verified 2026-07-24)
+
+The emulator degrades badly under host CPU load (parallel Gradle/xcodebuild):
+apps and even the System UI / `system` process ANR ("Der Prozess … reagiert
+nicht"). Recovery checklist, in order:
+
+1. Don't run heavy builds while interacting with the emulator; tap "Warten" on
+   ANRs from momentary load.
+2. If the SYSTEM process ANRs, the instance is wedged — a normal `adb reboot`
+   may not fix it. Cold-boot instead:
+   `adb emu kill && ~/Library/Android/sdk/emulator/emulator -avd <AVD> -no-snapshot-load`.
+3. After any emulator reboot, `adb reverse tcp:8081 tcp:8081` is LOST — restore
+   it or debug builds hang on the splash screen (Metro unreachable), then pick
+   the dev server again in the expo-dev-client launcher.
+4. GMS "Location Accuracy" dialog re-fires on every "No thanks" (geofencing
+   keeps requesting) — tap "Turn on" once to break the loop.
+5. Maestro's on-device driver goes stale across reboots ("io exception" with
+   the device listed as connected) — fall back to `adb shell input tap` +
+   `uiautomator dump`, or restart the Maestro session.
+
 ### Device: Samsung Galaxy A14 (SM-A145F)
 
 **ADB ID:** `R58W910C8QD` · **Android 15** · **API 35**
