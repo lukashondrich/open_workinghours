@@ -18,7 +18,7 @@ npm run test:ios       # Terminal 2: run tests
 
 | Factor | iOS | Android |
 |--------|-----|---------|
-| **Stability** | ~100% (48/48) | ~82% (45/55) — improving |
+| **Stability** | ⚠️ 56/71 as of 2026-07-24 (was 48/48 pre-May; suite silently broken by WelcomeScreen redesign, auth helper fixed — remaining failures are diagnosed script drift, see `project-mgmt/ticket-e2e-suite-modernization.md`) | ~82% (45/55), stale — re-baseline after iOS is green |
 | **Time** | ~200s | ~260s |
 | **Build** | `npm run build:ios` | `npm run build:android` or EAS |
 | **Known flakiness** | None | Absences arm (picker state), manual-session (location wizard) |

@@ -162,6 +162,20 @@
 | Reports tab | Low | UI prototype done, backend not started | Revisit after user traction |
 | Group D — Day View | Low | Not started | Not urgent |
 
+### Follow-ups from the v2.1.3 session (2026-07-24)
+
+Shipped that day: elapsed-day overtime scoping + confirmation fraction + plan
+mode + absence-calculation fixes + sheet-peek fix (v2.1.3 / #69, submitted for
+review). Open follow-ups, each with its own ticket where noted:
+
+| Task | Priority | Ticket / home |
+|------|----------|---------------|
+| E2E suite modernization — iOS to 71/71 (auth fixed, 15 script-drift failures diagnosed); gate before relying on E2E for releases | Medium | `ticket-e2e-suite-modernization.md` |
+| `/e2e-android` skill — AFTER the above (shared scripts must be green first) | Low | same ticket, "Follow-up" section |
+| Regenerate store screenshots (flows 03+04 drifted vs. new footer/widget) | Low | `ticket-regenerate-store-screenshots.md` |
+| Remove dead TemplatePanel (~850 unreachable lines; also fixes duplicate testIDs) | Low | `ticket-remove-dead-template-panel.md` |
+| Micro-polish parked from code review: `useTodayKey()` hook on second consumer, `React.memo(DayCell)` + stable callbacks, fraction i18n keys out of `calendar.month.*` | Low | this list |
+
 ---
 
 ## 5. Tech-from-below Talk (end of April)
