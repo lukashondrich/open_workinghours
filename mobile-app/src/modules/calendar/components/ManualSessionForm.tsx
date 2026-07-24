@@ -11,6 +11,7 @@ import {
   BackHandler,
   KeyboardAvoidingView,
 } from 'react-native';
+import { useSheetSlide } from '@/components/ui/useSheetSlide';
 import { AppText as Text } from '@/components/ui/AppText';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { ChevronDown, Clock, MapPin, Calendar } from 'lucide-react-native';
@@ -38,6 +39,7 @@ export default function ManualSessionForm({ visible, defaultDate, onClose }: Pro
 
   // Animation
   const animValue = useRef(new Animated.Value(0)).current;
+  const { opacity, translateY } = useSheetSlide(animValue);
 
   useEffect(() => {
     // TEST_MODE: Skip animation for instant E2E test interaction
@@ -262,12 +264,6 @@ export default function ManualSessionForm({ visible, defaultDate, onClose }: Pro
     });
   };
 
-  // Slide up from bottom
-  const translateY = animValue.interpolate({
-    inputRange: [0, 1],
-    outputRange: [600, 0],
-  });
-
   // KeyboardAvoidingView: iOS uses 'padding', Android uses 'height'
   // (Android 'height' tested working on SDK 54/RN 0.81.5/Fabric)
   const wrapperProps = Platform.OS === 'ios'
@@ -287,7 +283,7 @@ export default function ManualSessionForm({ visible, defaultDate, onClose }: Pro
         </TouchableWithoutFeedback>
 
         {/* Panel */}
-        <Animated.View style={[styles.panelWrapper, { transform: [{ translateY }] }]}>
+        <Animated.View style={[styles.panelWrapper, { opacity, transform: [{ translateY }] }]}>
           <TouchableWithoutFeedback accessible={false} onPress={() => {}}>
             <View style={styles.card}>
             {/* Header */}

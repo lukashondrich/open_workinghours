@@ -1,10 +1,27 @@
 # Known Issues
 
-**Last Updated:** 2026-03-24
+**Last Updated:** 2026-07-23
 
 ---
 
 ## Active Issues
+
+### Hours summary: accepted transients & cosmetic nits (overtime-scoping rework, 2026-07-23)
+
+**Status:** Accepted by design — documented so they aren't re-reported as bugs
+**Severity:** Low
+**Affects:** MonthView footer, Status `HoursSummaryWidget`, bottom sheets
+
+1. **Night workers mid-shift see yesterday underreported.** Calendar tracked
+   minutes come from completed `tracking_records` (sessions land there at
+   clock-out). During a live 22:00–06:00 session, yesterday's 22:00–24:00
+   portion shows as planned-but-not-tracked (small negative overtime / faded
+   eligible day) until clock-out. Self-heals every morning. Fixing it would
+   mean threading live-session state into the calendar — deliberately not done.
+2. **Footer height snaps (no animation) when swiping between two expandable
+   months of different content height while expanded.** Cosmetic.
+3. **`Database.test.ts` "should update a location" is timing-flaky** in full-suite
+   runs (updated_at compared within the same millisecond); passes in isolation.
 
 ### Android E2E: Month view toggle and location wizard flakiness
 

@@ -199,6 +199,19 @@ All new UI **must** be testable by Appium (XCUITest on iOS, UiAutomator2 on Andr
 
 ## Recent Updates (Last 7 Days)
 
+### 2026-07-23: MonthView overtime scoped to elapsed days + completeness fraction
+
+**Problem (user-reported):** planning a full month up front showed the whole plan as negative overtime ("-200h" in red on day 1) — the footer summed tracked − planned over ALL days including future ones.
+
+**What changed (mobile only, no backend impact):**
+- `getMonthSummary()` (`calendar-utils.ts`) now takes `todayKey`; **tracked, planned, AND overtime all sum only elapsed days** (before today — today would read negative mid-shift), so `Überstunden = Erfasst − Geplant` holds exactly in the footer (mixed scopes proved confusing in dogfooding — the displayed numbers didn't add up). Same shared scoping for Soll/Ist/deviation on the Status widget (chart bars still include today). Planned is now **absence-aware** (`computeEffectivePlannedMinutesForDate`) — was a latent bug where a vacation day with a planned shift dragged overtime negative; same fix applied to per-day cell overtime in `MonthView.tsx`. Absence chips stay month-scoped (plan facts, not balance arithmetic).
+- Footer: dual "total vs. confirmed" overtime replaced by one headline + completeness fraction ("X von Y Tagen bestätigt" / "Alle Tage bestätigt"; hidden when zero elapsed eligible days; singular key for 1-day months). **Plan mode**: a month with no elapsed days (future months; the 1st before any work) shows "{X}h Geplant" (whole-month, `monthPlannedMinutes`) instead of a dead 0m balance — planning ahead visibly updates the footer; switches to balance mode automatically once the month starts. Same treatment on the Status screen: `DashboardDataService` exposes `eligibleDayCount`/`confirmedDayCount`, `deviation` excludes today, and `HoursSummaryWidget`'s red "{X} to confirm" nudge became the same quiet fraction line. Closes `project-mgmt/ticket-overtime-completeness-indicator.md` entirely.
+- `todayKey` refreshes via `useFocusEffect` so the footer doesn't go stale across midnight. `HoursExplainerSheet` copy updated (EN+DE) to match.
+- Tests: `src/lib/calendar/__tests__/month-summary.test.ts` (8 cases incl. overnight-shift cutoff split).
+- Known accepted transient: night workers mid-shift see a small deficit for yesterday's portion until clock-out (tracking records land at clock-out).
+- **Bottom-sheet "peek" bug fixed app-wide** (found during simulator verification): all four inline bottom sheets (`HoursExplainerSheet`, `TemplatePanel`, `ManualSessionForm`, `NoteEditor`) hid via a FIXED translateY offset (420/600/400) — any panel taller than its offset left its top edge visible above the tab bar when closed. Fix: shared **`useSheetSlide(animValue)`** hook (`src/components/ui/useSheetSlide.ts`) — full window-height slide + `opacity: animValue` (the opacity is the guarantee). Rule for new sheets: use the hook; closed state must be opacity-0, never geometry-only.
+- ⚠️ App Store screenshot flows 03 (Status widget) + 04 (month footer) capture these surfaces — now outdated; see `project-mgmt/ticket-regenerate-store-screenshots.md` (low priority).
+
 ### 2026-07-23: v2.1.2 live — hospital directory rebuild + registration fallback (build #68)
 
 **What shipped (triggered by a real user unable to find St. Hedwig Berlin at registration):**

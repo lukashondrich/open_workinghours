@@ -7,7 +7,9 @@ import {
   Animated,
   Easing,
   BackHandler,
+  ScrollView,
 } from 'react-native';
+import { useSheetSlide } from '@/components/ui/useSheetSlide';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X } from 'lucide-react-native';
 
@@ -24,6 +26,7 @@ interface Props {
 export default function HoursExplainerSheet({ visible, onClose }: Props) {
   const insets = useSafeAreaInsets();
   const animValue = useRef(new Animated.Value(0)).current;
+  const { opacity, translateY } = useSheetSlide(animValue);
 
   useEffect(() => {
     if (!visible) {
@@ -51,16 +54,12 @@ export default function HoursExplainerSheet({ visible, onClose }: Props) {
     return () => sub.remove();
   }, [visible, onClose]);
 
-  const translateY = animValue.interpolate({
-    inputRange: [0, 1],
-    outputRange: [420, 0],
-  });
-
   const bullets = [
     { title: t('hoursExplainer.plannedTitle'), body: t('hoursExplainer.plannedBody') },
     { title: t('hoursExplainer.trackedTitle'), body: t('hoursExplainer.trackedBody') },
     { title: t('hoursExplainer.overtimeTitle'), body: t('hoursExplainer.overtimeBody') },
     { title: t('hoursExplainer.confirmedTitle'), body: t('hoursExplainer.confirmedBody') },
+    { title: t('hoursExplainer.futureMonthsTitle'), body: t('hoursExplainer.futureMonthsBody') },
   ];
 
   return (
@@ -80,6 +79,7 @@ export default function HoursExplainerSheet({ visible, onClose }: Props) {
           styles.panel,
           {
             paddingBottom: Math.max(insets.bottom, spacing.lg) + spacing.md,
+            opacity,
             transform: [{ translateY }],
           },
         ]}
@@ -100,12 +100,16 @@ export default function HoursExplainerSheet({ visible, onClose }: Props) {
           </TouchableOpacity>
         </View>
 
-        {bullets.map((b) => (
-          <View key={b.title} style={styles.bullet}>
-            <Text style={styles.bulletTitle}>{b.title}</Text>
-            <Text style={styles.bulletBody}>{b.body}</Text>
-          </View>
-        ))}
+        {/* Scrollable so large font scales on small devices can't push the
+            header above the top screen edge (panel is capped via maxHeight) */}
+        <ScrollView style={styles.bulletScroll} bounces={false}>
+          {bullets.map((b) => (
+            <View key={b.title} style={styles.bullet}>
+              <Text style={styles.bulletTitle}>{b.title}</Text>
+              <Text style={styles.bulletBody}>{b.body}</Text>
+            </View>
+          ))}
+        </ScrollView>
 
         <TouchableOpacity
           testID="hours-explainer-got-it"
@@ -131,12 +135,17 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
+    maxHeight: '85%',
     backgroundColor: colors.background.paper,
     borderTopLeftRadius: borderRadius.lg,
     borderTopRightRadius: borderRadius.lg,
     paddingTop: spacing.lg,
     paddingHorizontal: spacing.xl,
     ...shadows.lg,
+  },
+  bulletScroll: {
+    flexGrow: 0,
+    flexShrink: 1,
   },
   header: {
     flexDirection: 'row',
