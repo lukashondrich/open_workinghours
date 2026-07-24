@@ -1,7 +1,7 @@
 # Claude Context: Open Working Hours
 
-**Last Updated:** 2026-07-23
-**Current Build:** #68 / v2.1.2 — ✅ LIVE on the App Store (approved 2026-07-23)
+**Last Updated:** 2026-07-24
+**Current Build:** #69 / v2.1.3 — uploaded to App Store Connect 2026-07-24 (TestFlight processing; UX release: elapsed-day overtime scoping, confirmation fraction, plan mode, sheet-peek fix). v2.1.2 (#68) remains LIVE on the App Store.
 ---
 
 ## Project Overview
