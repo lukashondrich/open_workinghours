@@ -605,6 +605,46 @@ useEffect(() => {
 
 ## Recent Implementations
 
+### v2.1.3: Elapsed-Day Hours Balance, Confirmation Fraction, Plan Mode (2026-07-24)
+
+**One scope for the displayed balance** (`calendar-utils.getMonthSummary`,
+`DashboardDataService`):
+- Tracked, planned, and overtime (MonthView footer) and Soll/Ist/deviation
+  (Status widget) all sum ONLY elapsed days (`dateKey < todayKey`; today
+  excluded — it would read negative mid-shift). The displayed arithmetic
+  `overtime === tracked − planned` holds by construction (derived at the
+  return site, not accumulated). Whole-month planned lives in a separate
+  `monthPlannedMinutes` field. Chart bars on Status still include today.
+- `hasElapsedDays: false` (month not started) puts the footer in **plan
+  mode**: shows "{X}h Geplant" instead of a 0-balance; chevron hidden when
+  there is nothing to expand.
+- Confirmation completeness ("X von Y Tagen bestätigt") replaces the dual
+  total/confirmed overtime and the red "{X} to confirm" nudge. Shared logic:
+  `hasConfirmableActivity()` (eligibility rule, calendar-utils) +
+  `getConfirmedFractionText()` (`confirmed-fraction.ts` — separate module so
+  calendar-utils stays free of the i18n/expo-localization dependency).
+- `todayKey` refreshes on tab focus AND AppState foregrounding (midnight
+  staleness). Month summary prefilters instances/absences to month ±1 day;
+  MonthView's per-day cell indicators are memoized as one map (they used to
+  recompute 42 cells on every re-render).
+
+**Absence semantics** (`time-calculations.computeEffectivePlannedMinutesForDate`):
+- Takes the FULL absence map (per-day slices would break the rules below).
+- Full-day absence windows run midnight-to-midnight (23:59 previously left a
+  phantom planned minute on shifts touching midnight).
+- A full-day absence dated on a shift's own date cancels the ENTIRE shift,
+  including a night shift's post-midnight spill.
+- Overlapping absences' cover intervals are unioned — never double-subtracted.
+
+**Bottom-sheet rule** (`src/components/ui/useSheetSlide.ts`): inline sheets
+hide via full window-height translate + `opacity: animValue`. The opacity is
+the guarantee against the closed-sheet-peek bug (fixed offsets 420/600/400
+used to leave taller panels visible above the tab bar). New sheets MUST use
+the hook; closed state must be opacity-0, never geometry-only.
+
+Known accepted transients: `docs/KNOWN_ISSUES.md` → "Hours summary". Full
+change history: CLAUDE.md → Recent Updates 2026-07-23/24.
+
 ### v2.1.1 + v2.1.2: Session Renewal, Honest Send States, Hospital Directory (2026-07)
 
 **Sliding session renewal** (`AppNavigator.maybeRefreshToken`, `AuthService.refreshToken`):
