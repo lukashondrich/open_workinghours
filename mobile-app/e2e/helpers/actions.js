@@ -604,11 +604,20 @@ async function isAuthenticated(driver) {
  */
 async function performTestLogin(driver) {
   try {
-    // Tap Login button
-    const loginButton = await byTestId(driver, 'login-button');
-    await loginButton.waitForDisplayed({ timeout: 5000 });
-    await loginButton.click();
-    await driver.pause(1000);
+    // Post-2026-05-13 WelcomeScreen (social auth redesign): "Weiter mit
+    // E-Mail" (email-signin-button) navigates to LoginScreen, where
+    // login-button is the FINAL submit. The old flow tapped login-button
+    // on the welcome screen directly — kept as fallback for old builds.
+    // (Same bridge as store-assets/lib/seed.js doTestLoginOnLoginScreen.)
+    if (await existsTestId(driver, 'email-signin-button')) {
+      await tapTestId(driver, 'email-signin-button', 5000);
+      await driver.pause(1000);
+    } else {
+      const loginButton = await byTestId(driver, 'login-button');
+      await loginButton.waitForDisplayed({ timeout: 5000 });
+      await loginButton.click();
+      await driver.pause(1000);
+    }
 
     // Enter email
     const emailInput = await byTestId(driver, 'email-input');
