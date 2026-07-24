@@ -143,6 +143,36 @@ Apple's web UI prompt is structured: *what data → linked to user? → used for
 
 ---
 
+## 4b. Release notes ("What's New") per version
+
+### v2.1.3 (build 69, submitted 2026-07-24)
+
+**DE:**
+```
+Dieses Update macht deine Stundenbilanz verständlicher:
+
+• Überstunden zählen jetzt nur bereits vergangene Tage — ein vorausgeplanter Monat zeigt keine roten Minusstunden mehr
+• Die Rechnung geht immer auf: Erfasst minus Geplant = Überstunden, im Kalender und auf dem Status-Bildschirm
+• Neu: „X von Y Tagen bestätigt" zeigt dir, wie viele Tage du schon geprüft hast
+• Zukünftige Monate zeigen die insgesamt geplanten Stunden
+• Urlaubs- und Krankheitstage mit geplanten Diensten zählen nicht mehr als verpasste Arbeit — auch bei Nachtdiensten
+• Kleinere Darstellungsfehler behoben
+```
+
+**EN:**
+```
+This update makes your hours balance easier to understand:
+
+• Overtime now only counts days that have already passed — a fully planned month no longer shows red minus hours
+• The math always adds up: Tracked minus Planned = Overtime, in the calendar and on the Status screen
+• New: "X of Y days confirmed" shows how many days you've already reviewed
+• Future months show the month's total planned hours
+• Vacation and sick days with planned shifts no longer count as missed work — including night shifts
+• Minor visual fixes
+```
+
+---
+
 ## 5. Reviewer notes (paste into "Notes" field at submission)
 
 > **Reviewer notes — Open Working Hours**
