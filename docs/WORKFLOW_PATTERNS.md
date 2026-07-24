@@ -83,7 +83,7 @@ Testing often involves screenshots or long-running processes. Lean towards using
 
 | Test Type | Subagent | Documentation |
 |-----------|----------|---------------|
-| **E2E Regression** | Bash | **[mobile-app/e2e/README.md](../mobile-app/e2e/README.md)** — runbook, Android pitfalls, TEST_MODE |
+| **E2E Regression** | Bash — or invoke the `/e2e-ios` project skill (`.claude/skills/e2e-ios/`), which encodes the full verified procedure incl. Xcode 26 build fallback and delegates to a subagent | **[mobile-app/e2e/README.md](../mobile-app/e2e/README.md)** — runbook, Android pitfalls, TEST_MODE |
 | Visual Inspection | general-purpose | Manual workflow (see below) |
 
 **E2E is the primary doc for testing.** It covers the full runbook, platform-specific issues (especially Android), and hard-won debugging lessons.

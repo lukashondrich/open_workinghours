@@ -62,6 +62,8 @@ project-mgmt/presentation-outline.md
 transferable-workflow-patterns/
 
 # Local tool state and scratch databases
-.claude/
+.claude/*
+# Project skills are shared repo assets (invocable as /<name> in Claude Code)
+!.claude/skills/
 backend/test.db
 test.db
