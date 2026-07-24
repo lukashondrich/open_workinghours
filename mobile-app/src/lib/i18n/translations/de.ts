@@ -245,7 +245,9 @@ export const de = {
       tracked: 'Erfasst',
       planned: 'Geplant',
       overtime: 'Überstunden',
-      confirmed: 'bestätigt',
+      daysConfirmedFraction: '{{confirmed}} von {{total}} Tagen bestätigt',
+      daysConfirmedFractionOne: '0 von 1 Tag bestätigt',
+      allDaysConfirmed: 'Alle Tage bestätigt',
       explainerA11yLabel: 'Wie Stunden berechnet werden',
     },
     gps: {
@@ -423,10 +425,9 @@ export const de = {
       actual: 'Ist',
       legendPlanned: 'Geplant',
       legendTracked: 'Erfasst',
-      unconfirmedNudge: '{{count}} zu bestätigen',
       explainerA11yLabel: 'Wie Stunden berechnet werden',
       // Accessibility
-      accessibilitySummary: 'Letzte 14 Tage: {{planned}} geplant, {{actual}} erfasst, {{deviation}} Abweichung. {{unconfirmed}} Tage zu bestätigen.',
+      accessibilitySummary: 'Letzte 14 Tage ohne heute: {{planned}} geplant, {{actual}} erfasst, {{deviation}} Abweichung.',
       accessibilityHint: 'Doppeltippen um Kalender anzuzeigen',
     },
     nextShift: {
@@ -446,9 +447,11 @@ export const de = {
     trackedTitle: 'Erfasst',
     trackedBody: 'Automatisch per GPS erkannte und manuell erfasste Zeiten, minus eingetragene Pausen.',
     overtimeTitle: 'Überstunden',
-    overtimeBody: 'Erfasst minus geplant, pro Tag aufsummiert.',
+    overtimeBody: 'Erfasst minus Geplant. Alle Werte zählen nur bereits vergangene Tage — der heutige Tag kommt ab morgen dazu, zukünftige Dienste, sobald sie vorbei sind.',
     confirmedTitle: 'Bestätigt',
-    confirmedBody: 'Bestätigte Tage sind Tage, die du geprüft hast. Nur sie zählen zu den bestätigten Überstunden.',
+    confirmedBody: 'Bestätigte Tage sind Tage, die du geprüft hast. „X von Y Tagen bestätigt“ zeigt, wie viele vergangene Tage mit Aktivität schon geprüft sind.',
+    futureMonthsTitle: 'Zukünftige Monate',
+    futureMonthsBody: 'Für Monate, die noch nicht begonnen haben, zeigt die Fußzeile stattdessen die insgesamt geplanten Stunden des Monats.',
     close: 'Verstanden',
   },
 

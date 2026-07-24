@@ -4,7 +4,8 @@ import {
   getDayBounds as _getDayBounds,
   computeOverlapMinutes as _computeOverlapMinutes,
   getTrackedMinutesForDate as _getTrackedMinutesForDate,
-  computePlannedMinutesForDate,
+  getInstanceWindow as _getInstanceWindow,
+  computeEffectivePlannedMinutesForDate,
 } from './time-calculations';
 
 export function getWeekDays(weekStart: Date): Date[] {
@@ -505,20 +506,46 @@ export const getTrackedMinutesForDate = _getTrackedMinutesForDate;
 export interface MonthSummary {
   trackedMinutes: number;
   plannedMinutes: number;
+  monthPlannedMinutes: number; // whole month incl. today/future — for plan-mode display of future months
   vacationDays: number;
   sickDays: number;
-  confirmedOvertimeMinutes: number;
+  overtimeMinutes: number; // always === trackedMinutes - plannedMinutes
+  eligibleDayCount: number;
+  confirmedDayCount: number;
+  hasElapsedDays: boolean; // false → month hasn't started; footer shows the plan, not a balance
+}
+
+/**
+ * A day counts toward confirmation completeness when it has anything the user
+ * could review. Shared by the MonthView footer, the Status widget's totals,
+ * and its per-bar fading — one rule, one place.
+ */
+export function hasConfirmableActivity(
+  plannedMinutes: number,
+  trackedMinutes: number,
+  hasVacation: boolean,
+  hasSick: boolean,
+): boolean {
+  return plannedMinutes > 0 || trackedMinutes > 0 || hasVacation || hasSick;
 }
 
 /**
  * Calculate summary statistics for a month.
+ *
+ * Tracked, planned, and overtime all cover only days before `todayKey`, so
+ * overtime === tracked − planned always holds in the UI — future planned
+ * shifts are not a deficit, and today would read negative mid-shift. Planned
+ * subtracts absence overlaps (a vacation day with a planned shift is not
+ * missed work). Absence day counts cover the whole month (they are plan
+ * facts, not part of the balance arithmetic).
  *
  * @param month - Any date within the target month
  * @param instances - All shift instances
  * @param trackingRecords - All tracking records
  * @param absenceInstances - All absence instances
  * @param confirmedDates - Set of confirmed date keys
- * @returns Summary with tracked/planned minutes, absence counts, and confirmed overtime
+ * @param todayKey - Today as YYYY-MM-DD; days >= this are excluded from tracked/planned/overtime and eligibility
+ * @returns Summary with elapsed-day tracked/planned/overtime minutes, month absence counts, and confirmation counts
  */
 export function getMonthSummary(
   month: Date,
@@ -526,44 +553,117 @@ export function getMonthSummary(
   trackingRecords: Record<string, TrackingRecord>,
   absenceInstances: Record<string, AbsenceInstance>,
   confirmedDates: Set<string>,
+  todayKey: string,
 ): MonthSummary {
   const start = startOfMonth(month);
   const end = endOfMonth(month);
 
+  // Prefilter to the month ±1 day (overnight shifts spill across the month
+  // boundary in both directions) so the per-day scans below touch ~30 items
+  // instead of a user's full multi-year history.
+  const { monthInstances, monthAbsences, absencesByDate } = sliceMonthData(
+    start,
+    end,
+    instances,
+    absenceInstances,
+  );
+
   let trackedMinutes = 0;
   let plannedMinutes = 0;
+  let monthPlannedMinutes = 0;
   let vacationDays = 0;
   let sickDays = 0;
-  let confirmedOvertimeMinutes = 0;
+  let eligibleDayCount = 0;
+  let confirmedDayCount = 0;
 
   // Iterate through each day of the month
   let current = start;
   while (current <= end) {
     const dateKey = formatDateKey(current);
 
-    // Calculate day's tracked (handling multi-day sessions)
-    const { trackedMinutes: dayTracked } = getTrackedMinutesForDate(dateKey, trackingRecords);
+    const dayAbsences = absencesByDate.get(dateKey) ?? [];
+    const hasVacation = dayAbsences.some((a) => a.type === 'vacation');
+    const hasSick = dayAbsences.some((a) => a.type === 'sick');
 
-    // Sum planned minutes (from shift instances, handles overnight shifts)
-    const dayPlanned = computePlannedMinutesForDate(instances, dateKey);
+    // Sum planned minutes (handles overnight shifts, subtracts absence overlaps)
+    const dayPlanned = computeEffectivePlannedMinutesForDate(monthInstances, monthAbsences, dateKey);
+    monthPlannedMinutes += dayPlanned;
 
-    trackedMinutes += dayTracked;
-    plannedMinutes += dayPlanned;
+    // The balance and confirmation completeness only consider elapsed days —
+    // one shared scope keeps the arithmetic honest. Tracked minutes are only
+    // needed here, so future months skip the tracking scan entirely.
+    if (dateKey < todayKey) {
+      const { trackedMinutes: dayTracked } = getTrackedMinutesForDate(dateKey, trackingRecords);
+      trackedMinutes += dayTracked;
+      plannedMinutes += dayPlanned;
 
-    // Track confirmed overtime
-    if (confirmedDates.has(dateKey)) {
-      confirmedOvertimeMinutes += dayTracked - dayPlanned;
+      if (hasConfirmableActivity(dayPlanned, dayTracked, hasVacation, hasSick)) {
+        eligibleDayCount++;
+        if (confirmedDates.has(dateKey)) confirmedDayCount++;
+      }
     }
 
     // Count absence days (count each day only once per type)
-    const absences = getAbsencesForDate(absenceInstances, dateKey);
-    if (absences.some((a) => a.type === 'vacation')) vacationDays++;
-    if (absences.some((a) => a.type === 'sick')) sickDays++;
+    if (hasVacation) vacationDays++;
+    if (hasSick) sickDays++;
 
     current = addDays(current, 1);
   }
 
-  return { trackedMinutes, plannedMinutes, vacationDays, sickDays, confirmedOvertimeMinutes };
+  return {
+    trackedMinutes,
+    plannedMinutes,
+    monthPlannedMinutes,
+    vacationDays,
+    sickDays,
+    overtimeMinutes: trackedMinutes - plannedMinutes,
+    eligibleDayCount,
+    confirmedDayCount,
+    hasElapsedDays: formatDateKey(start) < todayKey,
+  };
+}
+
+/**
+ * Slice the full instance/absence maps down to what a month's calculations
+ * can possibly touch: the month itself plus one day on each side.
+ */
+function sliceMonthData(
+  start: Date,
+  end: Date,
+  instances: Record<string, ShiftInstance>,
+  absenceInstances: Record<string, AbsenceInstance>,
+): {
+  monthInstances: Record<string, ShiftInstance>;
+  monthAbsences: Record<string, AbsenceInstance>;
+  absencesByDate: Map<string, AbsenceInstance[]>;
+} {
+  const windowStartMs = addDays(start, -1).getTime();
+  const windowEndMs = addDays(end, 2).getTime();
+  const windowStartKey = formatDateKey(addDays(start, -1));
+  const windowEndKey = formatDateKey(addDays(end, 1));
+
+  const monthInstances: Record<string, ShiftInstance> = {};
+  for (const [id, instance] of Object.entries(instances)) {
+    const { start: s, end: e } = _getInstanceWindow(instance);
+    if (e.getTime() > windowStartMs && s.getTime() < windowEndMs) {
+      monthInstances[id] = instance;
+    }
+  }
+
+  const monthAbsences: Record<string, AbsenceInstance> = {};
+  const absencesByDate = new Map<string, AbsenceInstance[]>();
+  for (const [id, absence] of Object.entries(absenceInstances)) {
+    if (absence.date < windowStartKey || absence.date > windowEndKey) continue;
+    monthAbsences[id] = absence;
+    const list = absencesByDate.get(absence.date);
+    if (list) {
+      list.push(absence);
+    } else {
+      absencesByDate.set(absence.date, [absence]);
+    }
+  }
+
+  return { monthInstances, monthAbsences, absencesByDate };
 }
 
 /**

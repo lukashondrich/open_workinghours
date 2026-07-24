@@ -2,7 +2,31 @@
 
 **Priority:** Medium
 **Context:** UX clarity — currently MonthView shows two overtime numbers (total vs. confirmed) which is confusing
-**Status:** Open — design agreed, deferred (out of scope for the explainer work)
+**Status:** ✅ DONE (2026-07-23) — both halves shipped (MonthView + HoursSummaryWidget)
+
+## Status update 2026-07-23
+
+The MonthView part shipped, folded into the "overtime scoped to elapsed days" fix
+(triggered by user feedback that a fully-planned month showed e.g. -200h red on day 1):
+
+- Footer headline is now ONE overtime number, summed over elapsed days only
+  (before today; future planned shifts and today's in-progress shift excluded).
+- Dual "total vs. confirmed" display replaced by the completeness fraction
+  ("X von Y Tagen bestätigt" / "Alle Tage bestätigt"), hidden when a month has
+  zero elapsed eligible days. Singular form ("1 Tag") handled.
+- `getMonthSummary()` planned minutes are now absence-aware
+  (`computeEffectivePlannedMinutesForDate`), same for the per-day cell overtime.
+- Unit tests: `src/lib/calendar/__tests__/month-summary.test.ts`.
+
+**HoursSummaryWidget half (same day):**
+- `DashboardDataService` exposes `eligibleDayCount`/`confirmedDayCount`;
+  Soll/Ist/deviation ALL exclude today (one shared scope so the displayed
+  arithmetic Ist − Soll = deviation holds; no more mid-shift creep). Only the
+  per-day chart bars still include today.
+- Red "{X} to confirm" nudge replaced with the same fraction line (quiet
+  tertiary color — the faded bars keep carrying the visual nudge), reusing the
+  `calendar.month.*` fraction strings. Accessibility summary updated to match.
+- v2 nice-to-have (tap fraction to highlight unconfirmed days) remains unbuilt.
 
 ## Summary
 

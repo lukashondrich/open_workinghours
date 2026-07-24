@@ -1,9 +1,10 @@
 import React, { useMemo, useRef, useState, useCallback } from 'react';
-import { View, StyleSheet, TouchableOpacity, PanResponder, Animated, useWindowDimensions } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, PanResponder, Animated, useWindowDimensions, AppState } from 'react-native';
 import { AppText as Text } from '@/components/ui/AppText';
 import { format, startOfMonth, endOfMonth, startOfWeek, addDays, isSameDay, addMonths, subMonths } from 'date-fns';
 import { TreePalm, Thermometer, Check, CircleHelp, X, ChevronDown, ChevronUp, StickyNote, Info } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import { useFocusEffect } from '@react-navigation/native';
 
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/theme';
 import { useCalendar } from '@/lib/calendar/calendar-context';
@@ -13,14 +14,16 @@ import {
   getColorPalette,
   getAbsencesForDate,
   getMonthSummary,
+  type MonthSummary,
   formatOvertimeDisplay,
   getTrackedMinutesForDate,
   findOverlappingShift,
 } from '@/lib/calendar/calendar-utils';
+import { getConfirmedFractionText } from '@/lib/calendar/confirmed-fraction';
 import { getCalendarStorage } from '@/modules/calendar/services/CalendarStorage';
 import HoursExplainerSheet from '@/components/HoursExplainerSheet';
 import type { AbsenceInstance } from '@/lib/calendar/types';
-import { computePlannedMinutesForDate, getInstanceWindow, getDayBounds, computeOverlapMinutes } from '@/lib/calendar/time-calculations';
+import { computeEffectivePlannedMinutesForDate, getInstanceWindow, getDayBounds, computeOverlapMinutes } from '@/lib/calendar/time-calculations';
 import { t } from '@/lib/i18n';
 import { useDayLock } from '@/modules/calendar/hooks/useDayLock';
 
@@ -151,75 +154,93 @@ function DayCell({
 }
 
 interface MonthlySummaryFooterProps {
-  trackedHours: number;
-  plannedHours: number;
-  vacationDays: number;
-  sickDays: number;
-  confirmedOvertimeMinutes: number;
-  totalOvertimeMinutes: number;
+  summary: MonthSummary;
   onInfoPress: () => void;
 }
 
-function MonthlySummaryFooter({
-  trackedHours,
-  plannedHours,
-  vacationDays,
-  sickDays,
-  confirmedOvertimeMinutes,
-  totalOvertimeMinutes,
-  onInfoPress,
-}: MonthlySummaryFooterProps) {
+function formatMinutesDisplay(totalMinutes: number): string {
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  if (m === 0) return `${h}h`;
+  return `${h}h ${m}m`;
+}
+
+function MonthlySummaryFooter({ summary, onInfoPress }: MonthlySummaryFooterProps) {
+  const {
+    trackedMinutes,
+    plannedMinutes,
+    monthPlannedMinutes,
+    vacationDays,
+    sickDays,
+    overtimeMinutes,
+    eligibleDayCount,
+    confirmedDayCount,
+    hasElapsedDays,
+  } = summary;
+
+  // Month hasn't started — show the plan, not a meaningless 0-balance
+  const planMode = !hasElapsedDays;
+
   const [expanded, setExpanded] = useState(false);
   const expandAnim = useRef(new Animated.Value(0)).current;
 
-  const overtimeDisplay = formatOvertimeDisplay(totalOvertimeMinutes);
-  const confirmedDisplay = formatOvertimeDisplay(confirmedOvertimeMinutes);
+  const overtimeDisplay = formatOvertimeDisplay(overtimeMinutes);
 
   const getOvertimeColor = () => {
-    if (totalOvertimeMinutes > 0) return colors.success.main;
-    if (totalOvertimeMinutes < 0) return colors.error.main;
+    if (overtimeMinutes > 0) return colors.success.main;
+    if (overtimeMinutes < 0) return colors.error.main;
     return colors.text.primary;
   };
 
-  const formatHoursMinutes = (hours: number): string => {
-    const totalMinutes = Math.round(hours * 60);
-    const h = Math.floor(totalMinutes / 60);
-    const m = totalMinutes % 60;
-    if (m === 0) return `${h}h`;
-    return `${h}h ${m}m`;
-  };
+  // Confirmation completeness line; hidden for months with no elapsed eligible days
+  const fractionText = getConfirmedFractionText(confirmedDayCount, eligibleDayCount);
 
-  const toggleExpanded = () => {
-    const toValue = expanded ? 0 : 1;
-    setExpanded(!expanded);
+  // Plan-mode months with no absences have nothing to expand
+  const expandable = !planMode || vacationDays > 0 || sickDays > 0;
+
+  // The animation follows the DERIVED open state, so swiping to a
+  // non-expandable month collapses (and back restores) without imperative sync
+  const isOpen = expanded && expandable;
+  React.useEffect(() => {
     Animated.timing(expandAnim, {
-      toValue,
+      toValue: isOpen ? 1 : 0,
       duration: 200,
       useNativeDriver: false,
     }).start();
-  };
+  }, [isOpen, expandAnim]);
 
-  // Interpolate height: collapsed ~28pt, expanded ~90pt
+  // Expanded content height is MEASURED (absolutely-positioned probe below) —
+  // fixed budgets clipped the absence chips at large accessibility font sizes.
+  const [contentHeight, setContentHeight] = useState(0);
   const expandedHeight = expandAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, 62], // additional height for expanded content
+    outputRange: [0, contentHeight || (planMode ? 32 : 80)],
   });
 
   return (
     <View style={styles.summaryFooter}>
       {/* Collapsed bar — always visible */}
       <TouchableOpacity
-        onPress={toggleExpanded}
+        onPress={expandable ? () => setExpanded((e) => !e) : undefined}
         style={styles.summaryCollapsedRow}
-        activeOpacity={0.7}
+        activeOpacity={expandable ? 0.7 : 1}
         accessible={true}
         accessibilityRole="button"
         testID="summary-toggle"
       >
-        <Text style={[styles.summaryValue, { color: getOvertimeColor() }]}>
-          {overtimeDisplay}
-        </Text>
-        <Text style={styles.summaryCollapsedLabel}>{t('calendar.month.overtime')}</Text>
+        {planMode ? (
+          <>
+            <Text style={styles.summaryValue}>{formatMinutesDisplay(monthPlannedMinutes)}</Text>
+            <Text style={styles.summaryCollapsedLabel}>{t('calendar.month.planned')}</Text>
+          </>
+        ) : (
+          <>
+            <Text style={[styles.summaryValue, { color: getOvertimeColor() }]}>
+              {overtimeDisplay}
+            </Text>
+            <Text style={styles.summaryCollapsedLabel}>{t('calendar.month.overtime')}</Text>
+          </>
+        )}
         <TouchableOpacity
           onPress={onInfoPress}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -231,47 +252,58 @@ function MonthlySummaryFooter({
         >
           <Info size={14} color={colors.text.tertiary} />
         </TouchableOpacity>
-        {expanded ? (
-          <ChevronUp size={16} color={colors.text.tertiary} />
-        ) : (
-          <ChevronDown size={16} color={colors.text.tertiary} />
-        )}
+        {expandable &&
+          (isOpen ? (
+            <ChevronUp size={16} color={colors.text.tertiary} />
+          ) : (
+            <ChevronDown size={16} color={colors.text.tertiary} />
+          ))}
       </TouchableOpacity>
 
-      {/* Expanded content — animated height */}
+      {/* Expanded content — animated height; the absolutely-positioned inner
+          view lays out at natural height so onLayout measures the true size
+          regardless of the animated container height */}
       <Animated.View style={{ height: expandedHeight, overflow: 'hidden' }}>
-        <View style={styles.summaryRow}>
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryValue}>{formatHoursMinutes(trackedHours)}</Text>
-            <Text style={styles.summaryLabel}>{t('calendar.month.tracked')}</Text>
-          </View>
-          <View style={styles.summaryDivider} />
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryValue}>{formatHoursMinutes(plannedHours)}</Text>
-            <Text style={styles.summaryLabel}>{t('calendar.month.planned')}</Text>
-          </View>
-          <View style={styles.summaryDivider} />
-          <View style={styles.summaryItem}>
-            <Text style={[styles.summaryValue, { color: getOvertimeColor() }]}>
-              {confirmedDisplay}
-            </Text>
-            <Text style={styles.summaryLabel}>{t('calendar.month.confirmed')}</Text>
-          </View>
-        </View>
+        <View
+          style={styles.expandedContentProbe}
+          onLayout={(e) => setContentHeight(Math.ceil(e.nativeEvent.layout.height))}
+        >
+          {!planMode && (
+            <>
+              <View style={styles.summaryRow}>
+                <View style={styles.summaryItem}>
+                  <Text style={styles.summaryValue}>{formatMinutesDisplay(trackedMinutes)}</Text>
+                  <Text style={styles.summaryLabel}>{t('calendar.month.tracked')}</Text>
+                </View>
+                <View style={styles.summaryDivider} />
+                <View style={styles.summaryItem}>
+                  <Text style={styles.summaryValue}>{formatMinutesDisplay(plannedMinutes)}</Text>
+                  <Text style={styles.summaryLabel}>{t('calendar.month.planned')}</Text>
+                </View>
+              </View>
 
-        <View style={styles.absenceSummaryRow}>
-          {vacationDays > 0 && (
-            <View style={styles.absenceChip}>
-              <TreePalm size={12} color={colors.primary[500]} />
-              <Text style={styles.absenceChipText}>{vacationDays}</Text>
-            </View>
+              {fractionText != null && (
+                <Text style={styles.fractionText} testID="month-summary-fraction">
+                  {fractionText}
+                </Text>
+              )}
+            </>
           )}
-          {sickDays > 0 && (
-            <View style={styles.absenceChip}>
-              <Thermometer size={12} color={colors.warning.dark} />
-              <Text style={styles.absenceChipText}>{sickDays}</Text>
-            </View>
-          )}
+
+          <View style={styles.absenceSummaryRow}>
+            {vacationDays > 0 && (
+              <View style={styles.absenceChip}>
+                <TreePalm size={12} color={colors.primary[500]} />
+                <Text style={styles.absenceChipText}>{vacationDays}</Text>
+              </View>
+            )}
+            {sickDays > 0 && (
+              <View style={styles.absenceChip}>
+                <Thermometer size={12} color={colors.warning.dark} />
+                <Text style={styles.absenceChipText}>{sickDays}</Text>
+              </View>
+            )}
+          </View>
         </View>
       </Animated.View>
     </View>
@@ -289,6 +321,24 @@ export default function MonthView() {
   // Flash feedback for place/remove actions
   const [flashCell, setFlashCell] = useState<{ dateKey: string; type: 'place' | 'remove'; counter: number } | null>(null);
   const [explainerVisible, setExplainerVisible] = useState(false);
+
+  // Today's date key drives the summary's elapsed-day cutoff; refresh on tab
+  // focus AND app foregrounding so the footer doesn't go stale across midnight
+  // (backgrounding on this tab and resuming next day fires no focus event).
+  const [todayKey, setTodayKey] = useState(() => formatDateKey(new Date()));
+  useFocusEffect(
+    useCallback(() => {
+      setTodayKey(formatDateKey(new Date()));
+    }, []),
+  );
+  React.useEffect(() => {
+    const sub = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        setTodayKey(formatDateKey(new Date()));
+      }
+    });
+    return () => sub.remove();
+  }, []);
 
   const triggerFlash = (dateKey: string, type: 'place' | 'remove') => {
     setFlashCell(prev => ({ dateKey, type, counter: (prev?.counter ?? 0) + 1 }));
@@ -481,54 +531,6 @@ export default function MonthView() {
     }
   };
 
-  const indicatorsForDate = (date: Date): DayCellIndicators => {
-    const dateKey = formatDateKey(date);
-    const templateColors: string[] = [];
-    const { start: dayStart, end: dayEnd } = getDayBounds(dateKey);
-
-    Object.values(state.instances)
-      .filter((instance) => {
-        const { start, end } = getInstanceWindow(instance);
-        return computeOverlapMinutes(start, end, dayStart, dayEnd) > 0;
-      })
-      .forEach((instance) => {
-        const palette = getColorPalette(instance.color);
-        templateColors.push(palette.dot);
-      });
-
-    const plannedMinutes = computePlannedMinutesForDate(state.instances, dateKey);
-
-    // Get tracked minutes with proper multi-day session handling
-    const { trackedMinutes, hasTracking } = getTrackedMinutesForDate(dateKey, state.trackingRecords);
-
-    const confirmed = state.confirmedDates.has(dateKey);
-
-    // Check for absences
-    const absences = getAbsencesForDate(state.absenceInstances, dateKey);
-    const hasVacation = absences.some((a) => a.type === 'vacation');
-    const hasSick = absences.some((a) => a.type === 'sick');
-
-    // Check for notes
-    const hasNote = !!state.dayNotes[dateKey];
-
-    // Notes are annotations; only work/schedule data should require confirmation.
-    const hasActivity = templateColors.length > 0 || hasTracking || hasVacation || hasSick;
-
-    // Calculate overtime for this day
-    const overtimeMinutes = trackedMinutes - plannedMinutes;
-
-    return {
-      templateColors: templateColors.slice(0, 3),
-      tracked: hasTracking,
-      confirmed,
-      hasVacation,
-      hasSick,
-      hasNote,
-      hasActivity,
-      overtimeMinutes,
-    };
-  };
-
   // Build calendar grid - dynamic row count (5 or 6 weeks)
   const monthStart = startOfMonth(state.currentMonth);
   const firstWeekStart = startOfWeek(monthStart, { weekStartsOn: 1 });
@@ -538,10 +540,79 @@ export default function MonthView() {
   const weeksCount = Math.ceil((firstDayIndex + daysInMonth) / 7);
   const totalCells = weeksCount * 7;
 
-  const calendarDays: Date[] = [];
-  for (let i = 0; i < totalCells; i++) {
-    calendarDays.push(addDays(firstWeekStart, i));
-  }
+  const calendarDays: Date[] = useMemo(() => {
+    const result: Date[] = [];
+    for (let i = 0; i < totalCells; i++) {
+      result.push(addDays(firstWeekStart, i));
+    }
+    return result;
+  }, [firstWeekStart.getTime(), totalCells]);
+
+  // Per-cell indicators, memoized as one map — MonthView re-renders on every
+  // context dispatch and flash animation, and recomputing ~42 cells' worth of
+  // instance/absence scans each time is measurable jank on low-end devices
+  const indicatorsByDate = useMemo(() => {
+    const map = new Map<string, DayCellIndicators>();
+
+    for (const date of calendarDays) {
+      const dateKey = formatDateKey(date);
+      const templateColors: string[] = [];
+      const { start: dayStart, end: dayEnd } = getDayBounds(dateKey);
+
+      Object.values(state.instances)
+        .filter((instance) => {
+          const { start, end } = getInstanceWindow(instance);
+          return computeOverlapMinutes(start, end, dayStart, dayEnd) > 0;
+        })
+        .forEach((instance) => {
+          const palette = getColorPalette(instance.color);
+          templateColors.push(palette.dot);
+        });
+
+      // Planned subtracts absence overlaps so a vacation day with a planned
+      // shift doesn't read as missed work
+      const absences = getAbsencesForDate(state.absenceInstances, dateKey);
+      const hasVacation = absences.some((a) => a.type === 'vacation');
+      const hasSick = absences.some((a) => a.type === 'sick');
+
+      const plannedMinutes = computeEffectivePlannedMinutesForDate(
+        state.instances,
+        state.absenceInstances,
+        dateKey,
+      );
+
+      // Get tracked minutes with proper multi-day session handling
+      const { trackedMinutes, hasTracking } = getTrackedMinutesForDate(dateKey, state.trackingRecords);
+
+      const confirmed = state.confirmedDates.has(dateKey);
+
+      // Check for notes
+      const hasNote = !!state.dayNotes[dateKey];
+
+      // Notes are annotations; only work/schedule data should require confirmation.
+      const hasActivity = templateColors.length > 0 || hasTracking || hasVacation || hasSick;
+
+      map.set(dateKey, {
+        templateColors: templateColors.slice(0, 3),
+        tracked: hasTracking,
+        confirmed,
+        hasVacation,
+        hasSick,
+        hasNote,
+        hasActivity,
+        overtimeMinutes: trackedMinutes - plannedMinutes,
+      });
+    }
+
+    return map;
+  }, [
+    calendarDays,
+    state.instances,
+    state.trackingRecords,
+    state.absenceInstances,
+    state.confirmedDates,
+    state.dayNotes,
+  ]);
 
   // Calculate month summary
   const summary = useMemo(
@@ -552,11 +623,10 @@ export default function MonthView() {
         state.trackingRecords,
         state.absenceInstances,
         state.confirmedDates,
+        todayKey,
       ),
-    [state.currentMonth, state.instances, state.trackingRecords, state.absenceInstances, state.confirmedDates],
+    [state.currentMonth, state.instances, state.trackingRecords, state.absenceInstances, state.confirmedDates, todayKey],
   );
-
-  const totalOvertimeMinutes = summary.trackedMinutes - summary.plannedMinutes;
 
   return (
     <View style={styles.container} {...panResponder.panHandlers}>
@@ -569,24 +639,27 @@ export default function MonthView() {
           ))}
         </View>
         <View style={[styles.grid, { flexDirection: 'row', flexWrap: 'wrap' }]}>
-          {calendarDays.map((date) => (
-            <View
-              key={date.toISOString()}
-              style={{ width: `${100 / 7}%`, height: `${100 / weeksCount}%` }}
-            >
-              <DayCell
-                date={date}
-                onPress={handleDayPress}
-                onLongPress={handleDayLongPress}
-                indicators={indicatorsForDate(date)}
-                isToday={isSameDay(date, new Date())}
-                isCurrentMonth={date.getMonth() === state.currentMonth.getMonth()}
-                isTargetDay={state.inlinePickerTargetDate === formatDateKey(date)}
-                flashType={flashCell?.dateKey === formatDateKey(date) ? flashCell.type : null}
-                flashCounter={flashCell?.counter ?? 0}
-              />
-            </View>
-          ))}
+          {calendarDays.map((date) => {
+            const dateKey = formatDateKey(date);
+            return (
+              <View
+                key={dateKey}
+                style={{ width: `${100 / 7}%`, height: `${100 / weeksCount}%` }}
+              >
+                <DayCell
+                  date={date}
+                  onPress={handleDayPress}
+                  onLongPress={handleDayLongPress}
+                  indicators={indicatorsByDate.get(dateKey)!}
+                  isToday={isSameDay(date, new Date())}
+                  isCurrentMonth={date.getMonth() === state.currentMonth.getMonth()}
+                  isTargetDay={state.inlinePickerTargetDate === dateKey}
+                  flashType={flashCell?.dateKey === dateKey ? flashCell.type : null}
+                  flashCounter={flashCell?.counter ?? 0}
+                />
+              </View>
+            );
+          })}
         </View>
         {/* Batch mode indicator — inside Animated.View for Android compatibility; fixed slot prevents layout shift */}
         <View style={styles.batchIndicatorSlot}>
@@ -622,15 +695,7 @@ export default function MonthView() {
         </View>
       </Animated.View>
 
-      <MonthlySummaryFooter
-        trackedHours={summary.trackedMinutes / 60}
-        plannedHours={summary.plannedMinutes / 60}
-        vacationDays={summary.vacationDays}
-        sickDays={summary.sickDays}
-        confirmedOvertimeMinutes={summary.confirmedOvertimeMinutes}
-        totalOvertimeMinutes={totalOvertimeMinutes}
-        onInfoPress={() => setExplainerVisible(true)}
-      />
+      <MonthlySummaryFooter summary={summary} onInfoPress={() => setExplainerVisible(true)} />
 
       <HoursExplainerSheet
         visible={explainerVisible}
@@ -772,6 +837,18 @@ const styles = StyleSheet.create({
     width: 1,
     height: 28,
     backgroundColor: colors.border.default,
+  },
+  expandedContentProbe: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+  },
+  fractionText: {
+    fontSize: fontSize.xs,
+    color: colors.text.tertiary,
+    textAlign: 'center',
+    marginTop: 4,
   },
   absenceSummaryRow: {
     flexDirection: 'row',
