@@ -40,6 +40,18 @@ and the LoginScreen register link has no testID.
 - Baseline documented in `mobile-app/e2e/README.md` (replace the stale 48/48
   numbers) and the `/e2e-ios` skill.
 
+## Follow-up: e2e-android skill (deferred deliberately)
+
+Decision 2026-07-24: do NOT create an `/e2e-android` skill yet. The Android
+suite shares `helpers/actions.js` (so the auth fix above already applies), and
+its dominant failure mode is ENVIRONMENT fragility, not missing run-knowledge —
+see `docs/debugging.md` → "Emulator recovery" for the captured lessons
+(load-induced ANRs, cold boot, lost adb reverse, GMS dialog loop, Maestro
+driver staleness). Creating the skill before the shared scripts are green on
+iOS would encode a broken baseline. When this ticket is done (71/71 iOS),
+create `/e2e-android` analogous to `/e2e-ios`, referencing the emulator
+recovery section and the Android-specific pitfalls in `mobile-app/e2e/README.md`.
+
 ## Duplicate-testID cleanup (related, optional)
 
 `template-save`/`absence-save` exist in BOTH the dead `TemplatePanel` and
