@@ -4,7 +4,7 @@
  * Reusable actions for E2E tests with built-in waits and error handling.
  */
 
-const { byTestId, byText, byI18n, byI18nFast, t, i18n } = require('./selectors');
+const { byTestId, byText, byTextAnyCase, byAlertButtonText, byI18n, byI18nFast, t, i18n } = require('./selectors');
 const { execSync } = require('child_process');
 
 /**
@@ -20,24 +20,27 @@ const { execSync } = require('child_process');
  */
 async function dismissKeyboard(driver, strategy = 'tap') {
   if (driver.isAndroid) {
-    try { await driver.hideKeyboard(); } catch { /* ignore */ }
+    // Only hide when the keyboard is actually shown: hideKeyboard() presses
+    // Back, and with no keyboard open that POPS THE CURRENT SCREEN (this
+    // silently exited the setup wizard at Step 3 — UiAutomator2's setValue
+    // injects text without raising the keyboard).
+    try {
+      if (await driver.isKeyboardShown()) await driver.hideKeyboard();
+    } catch { /* ignore */ }
     return;
   }
 
   if (strategy === 'key') {
     // Press Return key to dismiss keyboard without tapping screen.
     // Works for single-line TextInputs (blurs the input).
+    // NO screen-tap fallback here: 'key' is used inside bottom-sheet panels,
+    // where a fallback tap would land on the overlay and close the panel
+    // (this exact bug broke the shifts/absences template-create tests —
+    // 'mobile: pressButton' doesn't accept 'return' and always threw).
     try {
       await driver.execute('mobile: pressButton', { name: 'return' });
       await driver.pause(300);
-    } catch {
-      // Fallback to tap strategy if pressButton not available
-      try {
-        await driver.action('pointer', { parameters: { pointerType: 'touch' } })
-          .move({ x: 200, y: 200 }).down().up().perform();
-        await driver.pause(300);
-      } catch { /* ignore */ }
-    }
+    } catch { /* ignore — prefer dismissKeyboardFromInput for reliability */ }
     return;
   }
 
@@ -45,6 +48,30 @@ async function dismissKeyboard(driver, strategy = 'tap') {
   try {
     await driver.action('pointer', { parameters: { pointerType: 'touch' } })
       .move({ x: 200, y: 200 }).down().up().perform();
+    await driver.pause(300);
+  } catch { /* ignore */ }
+}
+
+/**
+ * Dismiss the keyboard by pressing Return on a specific text input.
+ * Safe inside bottom-sheet panels (no screen tap that could hit the overlay).
+ * iOS: types '\n' into the input — presses Return, which blurs single-line
+ * TextInputs and hides the keyboard. Android: uses driver.hideKeyboard().
+ * @param {WebdriverIO.Browser} driver
+ * @param {WebdriverIO.Element} inputElement - the focused TextInput element
+ */
+async function dismissKeyboardFromInput(driver, inputElement) {
+  if (driver.isAndroid) {
+    // Guarded like dismissKeyboard: hideKeyboard() with no keyboard open
+    // presses Back and pops the current screen.
+    try {
+      if (await driver.isKeyboardShown()) await driver.hideKeyboard();
+    } catch { /* ignore */ }
+    await driver.pause(300);
+    return;
+  }
+  try {
+    await inputElement.addValue('\n');
     await driver.pause(300);
   } catch { /* ignore */ }
 }
@@ -179,18 +206,29 @@ async function advancePastSetupForegroundPrimer(driver) {
 
 /**
  * Skip optional post-save permission primers in setup flows.
+ * The primers (background location, then notifications) can each appear with
+ * a DELAY after save on slow emulators — poll instead of a one-shot check,
+ * until the tab bar is reached or the budget is spent.
  * @param {WebdriverIO.Browser} driver
  */
 async function skipSetupPostSavePermissionPrimers(driver) {
   await driver.pause(500);
-  if (await existsTestId(driver, 'setup-background-primer-skip')) {
-    await tapTestId(driver, 'setup-background-primer-skip');
-    await driver.pause(1000);
-  }
-
-  if (await existsTestId(driver, 'setup-notification-primer-skip')) {
-    await tapTestId(driver, 'setup-notification-primer-skip');
-    await driver.pause(1000);
+  for (let i = 0; i < 10; i++) {
+    let acted = false;
+    if (await existsTestId(driver, 'setup-background-primer-skip')) {
+      await tapTestId(driver, 'setup-background-primer-skip');
+      await driver.pause(1000);
+      acted = true;
+    }
+    if (await existsTestId(driver, 'setup-notification-primer-skip')) {
+      await tapTestId(driver, 'setup-notification-primer-skip');
+      await driver.pause(1000);
+      acted = true;
+    }
+    if (!acted) {
+      if (await existsTestId(driver, 'tab-status')) break;
+      await driver.pause(1000);
+    }
   }
 }
 
@@ -304,10 +342,19 @@ async function dismissNativeDialog(driver, buttonTexts = ['OK', 'Allow', 'Erlaub
   const dismissed = await dismissAndroidSystemDialog(driver);
   if (dismissed) return true;
 
-  // Then try common button texts
+  // Then try common button texts. Case-insensitive: Android AlertDialog
+  // themes render button labels ALL-CAPS. Prefer native Button-class matches
+  // (alert titles can carry the same text as a button); fall back to generic
+  // text matching for in-app RN dialogs whose buttons aren't widget.Button.
   for (const text of buttonTexts) {
     try {
-      const btn = await byText(driver, text, true);
+      const nativeBtn = await byAlertButtonText(driver, text);
+      if (await nativeBtn.isExisting()) {
+        await nativeBtn.click();
+        await driver.pause(300);
+        return true;
+      }
+      const btn = await byTextAnyCase(driver, text);
       if (await btn.isExisting()) {
         await btn.click();
         await driver.pause(300);
@@ -674,14 +721,20 @@ async function ensureAuthenticated(driver) {
 
   await dismissSystemDialogs(driver);
 
-  // Wait for app to be ready — either tab bar (authenticated) or login button (welcome screen).
+  // Wait for app to be ready — either tab bar (authenticated) or a welcome-
+  // screen button. Post-2026-05-13 redesign the welcome screen shows
+  // email-signin-button; login-button is kept for old builds.
   // Android emulators can take 10+ seconds to load the JS bundle.
+  const isOnWelcomeScreen = async () =>
+    (await existsTestId(driver, 'email-signin-button')) ||
+    (await existsTestId(driver, 'login-button'));
+
   const maxWait = driver.isAndroid ? 15000 : 8000;
   const pollInterval = 1000;
   let waited = 0;
   while (waited < maxWait) {
     const hasTabBar = await existsTestId(driver, 'tab-status');
-    const hasLogin = await existsTestId(driver, 'login-button');
+    const hasLogin = await isOnWelcomeScreen();
     if (hasTabBar || hasLogin) break;
     await driver.pause(pollInterval);
     waited += pollInterval;
@@ -691,8 +744,10 @@ async function ensureAuthenticated(driver) {
 
   if (!authenticated) {
     // Check if we're on the welcome screen (login/register buttons visible).
-    // If so, skip back-presses — on Android, back() from the welcome screen exits the app.
-    const onWelcomeScreen = await existsTestId(driver, 'login-button');
+    // If so, skip back-presses — on Android, back() from the welcome screen
+    // exits the app (this exact miss broke the whole Android suite when the
+    // welcome screen redesign renamed the button).
+    const onWelcomeScreen = await isOnWelcomeScreen();
 
     if (!onWelcomeScreen) {
       // Tab bar not found and not on welcome screen — might be covered by a stack screen
@@ -812,9 +867,23 @@ async function completeLocationWizard(driver) {
       await driver.terminateApp('com.openworkinghours.mobileapp');
       await driver.pause(1000);
       await driver.activateApp('com.openworkinghours.mobileapp');
-      await driver.pause(5000);
+      // Poll for the app to be ready — release-build cold start takes ~20s
+      // on emulators ("Loading..." spinner before any screen renders)
+      for (let i = 0; i < 30; i++) {
+        const ready =
+          (await existsTestId(driver, 'tab-status')) ||
+          (await existsTestId(driver, 'email-signin-button')) ||
+          (await existsTestId(driver, 'login-button'));
+        if (ready) break;
+        await driver.pause(1000);
+      }
       await dismissSystemDialogs(driver);
-    } catch { /* ignore */ }
+      // The restart may land on the welcome screen if auth state didn't
+      // survive the process kill — re-authenticate if needed.
+      await ensureAuthenticated(driver);
+    } catch (e) {
+      console.log('App restart recovery issue:', e.message);
+    }
 
     // Navigate to Status tab where "Add Workplace" button is
     await navigateToTab(driver, 'status');
@@ -827,6 +896,17 @@ async function completeLocationWizard(driver) {
       console.log('Tapped "Add Workplace" after app restart');
     } catch (e) {
       console.log('Could not tap "Add Workplace" after restart:', e.message);
+    }
+  } else {
+    // iOS: tap "Add Workplace" on the Status screen to open the wizard.
+    // (The Android branch taps it after its permission-grant restart; the iOS
+    // path previously never tapped it, so the wizard never opened and
+    // setup-search-input could not be found.)
+    try {
+      await tapTestId(driver, 'add-workplace-button', 5000);
+      await driver.pause(1500);
+    } catch (e) {
+      console.log('Could not tap "Add Workplace":', e.message);
     }
   }
 
@@ -847,42 +927,59 @@ async function completeLocationWizard(driver) {
     if (i < 5) await driver.pause(1000);
   }
 
-  // Step 1: Search for a location, or tap the map as fallback if geocoding fails
-  await typeTestId(driver, 'setup-search-input', 'Berlin');
-  await dismissKeyboard(driver);
+  // The wizard may START at Step 2 (radius) instead of Step 1 (search):
+  // when the user's registered hospital has directory coordinates, the pin is
+  // pre-placed (v2.1.2 hospital pre-population) and the search step is
+  // skipped. The TEST_MODE mock user has hospitalRefId 6, so this is the
+  // common path in E2E.
+  const onSearchStep = await existsTestId(driver, 'setup-search-input');
+  if (onSearchStep) {
+    // Step 1: Search for a location, or tap the map as fallback if geocoding fails
+    await typeTestId(driver, 'setup-search-input', 'Berlin');
+    await dismissKeyboard(driver);
 
-  // Wait for geocoding results — Photon API can be slow on emulators
-  let searchWorked = false;
-  try {
-    const firstResult = await byTestId(driver, 'setup-search-result-0');
-    await firstResult.waitForDisplayed({ timeout: 15000 });
-    await firstResult.click();
-    searchWorked = true;
-    await driver.pause(1000);
-  } catch { /* geocoding failed or no results */ }
+    // Wait for geocoding results — Photon API can be slow on emulators
+    let searchWorked = false;
+    try {
+      const firstResult = await byTestId(driver, 'setup-search-result-0');
+      await firstResult.waitForDisplayed({ timeout: 15000 });
+      await firstResult.click();
+      searchWorked = true;
+      await driver.pause(1000);
+    } catch { /* geocoding failed or no results */ }
 
-  if (!searchWorked) {
-    // Fallback: tap the center of the map to place a pin manually
-    console.log('Geocoding returned no results — tapping map to place pin');
-    const { width, height } = await driver.getWindowSize();
-    await driver.action('pointer', { parameters: { pointerType: 'touch' } })
-      .move({ x: Math.round(width / 2), y: Math.round(height / 2) })
-      .down().pause(100).up().perform();
-    await driver.pause(1000);
+    if (!searchWorked) {
+      // Fallback: tap the center of the map to place a pin manually
+      console.log('Geocoding returned no results — tapping map to place pin');
+      const { width, height } = await driver.getWindowSize();
+      await driver.action('pointer', { parameters: { pointerType: 'touch' } })
+        .move({ x: Math.round(width / 2), y: Math.round(height / 2) })
+        .down().pause(100).up().perform();
+      await driver.pause(1000);
+    }
+
+    await tapTestId(driver, 'setup-continue-step1');
+    await driver.pause(500);
+  } else {
+    console.log('Wizard started at Step 2 (hospital pre-population) — skipping search step');
   }
-
-  await tapTestId(driver, 'setup-continue-step1');
-  await driver.pause(500);
 
   // Step 2: Radius — just continue with default
   await tapTestId(driver, 'setup-continue-step2');
   await driver.pause(500);
 
-  // Step 3: Name — enter a name and save
+  // Step 3: Name — enter a name and save.
+  // Android: do NOT dismiss the keyboard here — driver.hideKeyboard() presses
+  // Back, which pops the wizard screen (verified empirically, even with the
+  // keyboard shown). adjustResize keeps the save button on-screen with the
+  // keyboard up, so it can be tapped directly.
   await typeTestId(driver, 'setup-name-input', 'Test Hospital');
   await driver.pause(300);
-  await dismissKeyboard(driver);
+  if (!driver.isAndroid) {
+    await dismissKeyboard(driver);
+  }
 
+  await scrollToTestId(driver, 'setup-save-button');
   await tapTestId(driver, 'setup-save-button');
   await driver.pause(1000);
   await skipSetupPostSavePermissionPrimers(driver);
@@ -922,17 +1019,25 @@ async function ensureLocationConfigured(driver, returnToTab = 'calendar') {
     console.log(`⚠ Location wizard failed: ${e.message} — tests requiring location may skip`);
   }
 
-  // After wizard, ensure we're back on a tab-bar screen.
-  // The wizard may leave us on a sub-screen, so try Status first.
+  // After wizard, ensure we're back on a tab-bar screen. NO blind back-press
+  // here: if the app is already on the tab root, back() EXITS the app on
+  // Android (this left the whole suite staring at the launcher). Instead
+  // re-foreground the app and wait for the tab bar — post-save transitions
+  // (primers, auto check-in) can take a while on emulators.
   try {
-    await navigateToTab(driver, 'status');
-    await driver.pause(500);
-  } catch {
-    // Tab bar not visible — try pressing back to return to main screen
-    try {
-      await driver.back();
-      await driver.pause(1000);
-    } catch { /* ignore */ }
+    await driver.activateApp('com.openworkinghours.mobileapp');
+  } catch { /* already in foreground */ }
+  for (let i = 0; i < 15; i++) {
+    if (await existsTestId(driver, 'tab-status')) break;
+    // Late-appearing post-save primers block the way to the tab bar
+    if (await existsTestId(driver, 'setup-background-primer-skip')) {
+      await tapTestId(driver, 'setup-background-primer-skip');
+    } else if (await existsTestId(driver, 'setup-notification-primer-skip')) {
+      await tapTestId(driver, 'setup-notification-primer-skip');
+    } else {
+      await dismissNativeDialog(driver, ['OK', 'CONTINUE ANYWAY', 'Allow', 'Erlauben']);
+    }
+    await driver.pause(1000);
   }
 
   // Navigate to requested tab
@@ -955,9 +1060,22 @@ async function ensureCleanCalendarState(driver) {
   // (FAB is hidden when InlinePicker, TemplatePanel, or ManualSessionForm is open, or in month view)
   let fabExists = await existsTestId(driver, 'calendar-fab');
   if (!fabExists) {
-    // Try dismissing open overlays — press back on Android, tap outside on iOS
+    // First-visit onboarding tooltips can also hide the FAB
+    await dismissOnboardingTooltips(driver);
+    fabExists = await existsTestId(driver, 'calendar-fab');
+  }
+  if (!fabExists) {
+    // Try dismissing open overlays — press back on Android, tap outside on iOS.
+    // Android: ONLY press back when an overlay is verifiably open — back with
+    // nothing open exits the app from the tab root (left the suite on the
+    // launcher home screen).
     for (let i = 0; i < 2; i++) {
       if (driver.isAndroid) {
+        const overlayOpen =
+          (await existsTestId(driver, 'inline-picker-cancel')) ||
+          (await existsTestId(driver, 'template-panel-overlay')) ||
+          (await existsTestId(driver, 'manual-session-cancel'));
+        if (!overlayOpen) break;
         try { await driver.back(); } catch { /* ignore */ }
       } else {
         try {
@@ -997,6 +1115,45 @@ async function ensureCleanCalendarState(driver) {
 }
 
 /**
+ * Scroll until an element with the given testID is in the view tree.
+ * Android only renders on-screen elements into the UiAutomator tree, so
+ * below-the-fold elements "don't exist" until scrolled to (iOS exposes the
+ * whole tree, where this returns immediately).
+ * Tries UiScrollable scrollIntoView first, then manual swipes.
+ * @param {WebdriverIO.Browser} driver
+ * @param {string} testId
+ * @param {number} maxSwipes
+ * @returns {Promise<boolean>} whether the element exists after scrolling
+ */
+async function scrollToTestId(driver, testId, maxSwipes = 4) {
+  if (await existsTestId(driver, testId)) return true;
+
+  if (driver.isAndroid) {
+    try {
+      const el = await driver.$(
+        `android=new UiScrollable(new UiSelector().scrollable(true)).scrollIntoView(new UiSelector().resourceIdMatches("(.*:id/)?${testId}$"))`
+      );
+      if (await el.isExisting()) return true;
+    } catch { /* no scrollable container or not found — try manual swipes */ }
+  }
+
+  for (let i = 0; i < maxSwipes; i++) {
+    try {
+      const { width, height } = await driver.getWindowSize();
+      await driver.action('pointer', { parameters: { pointerType: 'touch' } })
+        .move({ x: Math.round(width / 2), y: Math.round(height * 0.7) })
+        .down()
+        .move({ x: Math.round(width / 2), y: Math.round(height * 0.3), duration: 400 })
+        .up()
+        .perform();
+      await driver.pause(500);
+    } catch { /* swipe failed — re-check existence anyway */ }
+    if (await existsTestId(driver, testId)) return true;
+  }
+  return existsTestId(driver, testId);
+}
+
+/**
  * Navigate to Settings screen by tapping the gear button.
  * Replaces the fragile navigateToTab(driver, 'settings') pattern.
  * @param {WebdriverIO.Browser} driver
@@ -1033,5 +1190,7 @@ module.exports = {
   isLocationConfigured,
   ensureLocationConfigured,
   ensureCleanCalendarState,
+  scrollToTestId,
   dismissKeyboard,
+  dismissKeyboardFromInput,
 };

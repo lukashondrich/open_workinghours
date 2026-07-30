@@ -93,6 +93,11 @@ function getDeviceCapabilities(platform) {
       // Increase snapshot depth for complex React Native views
       'appium:settings[snapshotMaxDepth]': 62,
       'appium:settings[enableMultiWindows]': true,
+      // Don't wait for the UI to go "idle" before each command: screens with
+      // a MapView (setup wizard) animate continuously, so idle never arrives —
+      // commands then stall for minutes and wedge the UiAutomator2 server
+      // (subsequent POST /session calls time out for the rest of the run).
+      'appium:settings[waitForIdleTimeout]': 100,
     };
   }
 }

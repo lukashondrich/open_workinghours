@@ -37,18 +37,21 @@ echo "Starting Appium..."
 appium --allow-cors --relaxed-security &
 APPIUM_PID=$!
 
-# Wait for Appium to be ready
-echo "Waiting for Appium to start..."
-for i in {1..30}; do
+# Wait for Appium to be ready.
+# Appium 3.x sometimes spends minutes in its extension/driver compatibility
+# check before binding the port (seen 2026-07-24 with xcuitest peer-dep WARN),
+# so wait generously rather than 30s.
+echo "Waiting for Appium to start (can take minutes on driver-check runs)..."
+for i in {1..150}; do
   if curl -s http://127.0.0.1:4723/status > /dev/null 2>&1; then
     echo "✓ Appium ready (PID: $APPIUM_PID)"
     break
   fi
-  if [ $i -eq 30 ]; then
+  if [ $i -eq 150 ]; then
     echo "✗ Appium failed to start"
     exit 1
   fi
-  sleep 1
+  sleep 2
 done
 
 # Handle platform argument

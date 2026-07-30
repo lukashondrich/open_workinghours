@@ -6,4 +6,5 @@ module.exports = {
   testMatch: [path.join(__dirname, 'flows/**/*.test.js')],
   testTimeout: 120000, // 2 minutes per test
   verbose: true,
+  testSequencer: path.join(__dirname, 'testSequencer.js'),
 };

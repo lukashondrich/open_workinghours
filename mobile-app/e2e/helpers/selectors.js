@@ -74,6 +74,39 @@ async function byText(driver, text, exact = false) {
 }
 
 /**
+ * Find element by text, case-insensitively (full-string match).
+ * Needed for native alert buttons on Android: the AlertDialog theme renders
+ * button labels ALL-CAPS ("KEEP EXPORTED EVENTS"), so exact-case matching
+ * only ever worked for buttons that are already uppercase ("OK").
+ * @param {WebdriverIO.Browser} driver
+ * @param {string} text
+ */
+async function byTextAnyCase(driver, text) {
+  if (driver.isIOS) {
+    return driver.$(`-ios predicate string:label ==[c] "${text}"`);
+  }
+  const escaped = text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return driver.$(`android=new UiSelector().textMatches("(?i)${escaped}")`);
+}
+
+/**
+ * Find a NATIVE alert-dialog button by text, case-insensitively.
+ * Constrained to android.widget.Button / XCUIElementTypeButton because alert
+ * titles can carry the same string as a button (e.g. the sign-out confirm:
+ * title "Sign Out", button "Sign Out") — a plain text match hits the title
+ * TextView first and the tap does nothing.
+ * @param {WebdriverIO.Browser} driver
+ * @param {string} text
+ */
+async function byAlertButtonText(driver, text) {
+  if (driver.isIOS) {
+    return driver.$(`-ios predicate string:label ==[c] "${text}" AND type == "XCUIElementTypeButton"`);
+  }
+  const escaped = text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return driver.$(`android=new UiSelector().className("android.widget.Button").textMatches("(?i)${escaped}")`);
+}
+
+/**
  * Find element by accessibility label
  * @param {WebdriverIO.Browser} driver
  * @param {string} label
@@ -104,7 +137,7 @@ const i18n = {
   verify: { de: 'Bestätigen', en: 'Verify' },
 
   // Location
-  addLocation: { de: 'Arbeitsplatz hinzufügen', en: 'Add workplace' },
+  addLocation: { de: 'Neuen Standort hinzufügen', en: 'Add New Location' },
   workLocations: { de: 'Arbeitsorte', en: 'Work Locations' },
   continue: { de: 'Weiter', en: 'Continue' },
   save: { de: 'Speichern', en: 'Save' },
@@ -200,6 +233,8 @@ module.exports = {
   byTestId,
   byTestIdOrLabel,
   byText,
+  byTextAnyCase,
+  byAlertButtonText,
   byLabel,
   byI18n,
   byI18nFast,

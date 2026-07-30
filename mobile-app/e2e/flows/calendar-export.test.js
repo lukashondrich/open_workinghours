@@ -13,13 +13,15 @@
  * Uses ensureAuthenticated() — if not logged in, performs TEST_MODE login.
  */
 
+const { execSync } = require('child_process');
 const { createDriver, getPlatform } = require('../helpers/driver');
-const { byTestId, byText } = require('../helpers/selectors');
+const { byTestId, byText, byTextAnyCase, byAlertButtonText } = require('../helpers/selectors');
 const {
   ensureAuthenticated,
   existsTestId,
   navigateToSettings,
   tapTestId,
+  scrollToTestId,
   dismissNativeDialog,
   dismissSystemDialogs,
   screenshot,
@@ -30,6 +32,21 @@ describe('Calendar Export', () => {
   const platform = getPlatform();
 
   beforeAll(async () => {
+    // Pre-grant calendar permission so the EventKit/system permission dialog
+    // (locale-dependent wording, flaky to dismiss) never appears when the
+    // sync toggle is first enabled. handlePermissionDialog stays as fallback.
+    try {
+      if (platform === 'ios') {
+        execSync('xcrun simctl privacy booted grant calendar com.openworkinghours.mobileapp 2>/dev/null');
+      } else {
+        execSync('adb shell pm grant com.openworkinghours.mobileapp android.permission.READ_CALENDAR 2>/dev/null');
+        execSync('adb shell pm grant com.openworkinghours.mobileapp android.permission.WRITE_CALENDAR 2>/dev/null');
+      }
+      console.log('Pre-granted calendar permission');
+    } catch (e) {
+      console.log('Calendar permission pre-grant failed (will rely on dialog handling):', e.message);
+    }
+
     driver = await createDriver(platform);
     await driver.pause(2000);
     await ensureAuthenticated(driver);
@@ -64,6 +81,45 @@ describe('Calendar Export', () => {
   async function navigateToSettingsScreen() {
     await navigateToSettings(driver);
     await driver.pause(500);
+  }
+
+  /**
+   * Helper: Return from the CalendarExport subpage to the Settings screen,
+   * verifying arrival (sign-out-button present). Back-navigation on Android
+   * intermittently lands elsewhere in full-suite runs — recover by
+   * re-navigating from scratch instead of failing on a blind lookup.
+   */
+  async function backToSettingsScreen() {
+    if (driver.isIOS) {
+      try {
+        const backButton = await driver.$('-ios predicate string:label == "Settings" OR label == "Einstellungen"');
+        if (await backButton.isExisting()) {
+          await backButton.click();
+          await driver.pause(500);
+        }
+      } catch {
+        await driver.back();
+        await driver.pause(500);
+      }
+    } else {
+      await driver.back();
+      await driver.pause(700);
+    }
+
+    for (let i = 0; i < 3; i++) {
+      if (await existsTestId(driver, 'sign-out-button')) return;
+      if (await existsTestId(driver, 'calendar-sync-toggle')) {
+        // Still on the subpage — pop again
+        if (driver.isAndroid) { await driver.back(); } else {
+          try { await driver.back(); } catch { /* ignore */ }
+        }
+        await driver.pause(700);
+        continue;
+      }
+      // Bounced somewhere else (e.g. main tabs) — navigate to Settings fresh
+      try { await navigateToSettingsScreen(); } catch { /* retry loop */ }
+      await driver.pause(700);
+    }
   }
 
   /**
@@ -121,6 +177,26 @@ describe('Calendar Export', () => {
   }
 
   /**
+   * Helper: Handle the inline calendar-target picker shown during enable.
+   * Added after these tests were written: when >0 calendar targets exist,
+   * enabling sync opens a picker and keeps the loading spinner up until a
+   * target is chosen — without this, the toggle never re-renders and every
+   * enable appears to hang. Picks the first target if the picker appears.
+   */
+  async function handleCalendarTargetPicker() {
+    for (let i = 0; i < 10; i++) {
+      if (await existsTestId(driver, 'calendar-target-0')) {
+        await tapTestId(driver, 'calendar-target-0', 3000);
+        await driver.pause(500);
+        console.log('Selected first calendar target in picker');
+        return true;
+      }
+      await driver.pause(500);
+    }
+    return false;
+  }
+
+  /**
    * Helper: Tap a button in a native Alert dialog by text.
    */
   async function tapAlertButton(textOptions) {
@@ -141,9 +217,18 @@ describe('Calendar Export', () => {
         return true;
       } catch { /* no alert */ }
     } else {
+      // Case-insensitive: Android AlertDialog renders button labels ALL-CAPS.
+      // Prefer Button-class matches — dialog titles can carry the same text
+      // as a button (sign-out confirm), and a generic match taps the title.
       for (const text of textOptions) {
         try {
-          const button = await byText(driver, text, true);
+          const nativeBtn = await byAlertButtonText(driver, text);
+          if (await nativeBtn.isExisting()) {
+            await nativeBtn.click();
+            await driver.pause(500);
+            return true;
+          }
+          const button = await byTextAnyCase(driver, text);
           if (await button.isExisting()) {
             await button.click();
             await driver.pause(500);
@@ -168,7 +253,9 @@ describe('Calendar Export', () => {
             const btn = await driver.$(`-ios predicate string:label == "${text}"`);
             if (await btn.isExisting()) return true;
           } else {
-            const btn = await byText(driver, text, true);
+            const nativeBtn = await byAlertButtonText(driver, text);
+            if (await nativeBtn.isExisting()) return true;
+            const btn = await byTextAnyCase(driver, text);
             if (await btn.isExisting()) return true;
           }
         } catch { /* continue polling */ }
@@ -232,6 +319,7 @@ describe('Calendar Export', () => {
 
     await tapToggle();
     await handlePermissionDialog();
+    await handleCalendarTargetPicker();
     await waitForToggleReady();
 
     const stateAfter = await getToggleState();
@@ -268,6 +356,7 @@ describe('Calendar Export', () => {
     await waitForToggleReady();
     await tapToggle();
     await handlePermissionDialog();
+    await handleCalendarTargetPicker();
     await waitForToggleReady();
 
     const stateAfter = await getToggleState();
@@ -299,6 +388,7 @@ describe('Calendar Export', () => {
     // Re-enable first
     await tapToggle();
     await handlePermissionDialog();
+    await handleCalendarTargetPicker();
     await waitForToggleReady();
     const stateEnabled = await getToggleState();
     expect(stateEnabled).toBe(true);
@@ -326,40 +416,18 @@ describe('Calendar Export', () => {
       // Re-enable if somehow disabled
       await tapToggle();
       await handlePermissionDialog();
+      await handleCalendarTargetPicker();
       await waitForToggleReady();
     }
     const syncOn = await getToggleState();
     expect(syncOn).toBe(true);
 
-    // Go back to main Settings screen (from CalendarExport subpage)
-    if (driver.isIOS) {
-      try {
-        const backButton = await driver.$('-ios predicate string:label == "Settings" OR label == "Einstellungen"');
-        if (await backButton.isExisting()) {
-          await backButton.click();
-          await driver.pause(500);
-        }
-      } catch {
-        // Fallback: navigate via back button
-        await driver.back();
-        await driver.pause(500);
-      }
-    } else {
-      await driver.back();
-      await driver.pause(500);
-    }
+    // Go back to main Settings screen (verified, with recovery)
+    await backToSettingsScreen();
 
-    // Scroll down to Sign Out button
-    const { width, height } = await driver.getWindowSize();
-    await driver.action('pointer', { parameters: { pointerType: 'touch' } })
-      .move({ x: Math.round(width / 2), y: Math.round(height * 0.7) })
-      .down()
-      .move({ x: Math.round(width / 2), y: Math.round(height * 0.2), duration: 300 })
-      .up()
-      .perform();
-    await driver.pause(500);
-
-    // Tap sign out
+    // Tap sign out (scroll into view — Android excludes below-the-fold
+    // elements from the UiAutomator tree entirely)
+    await scrollToTestId(driver, 'sign-out-button');
     await tapTestId(driver, 'sign-out-button', 10000);
     await driver.pause(1000);
 
@@ -404,18 +472,15 @@ describe('Calendar Export', () => {
   });
 
   test('10. should handle sign-out with "Keep events"', async () => {
-    // Should still be on Settings from test 9 (cancel kept us here)
-    // Scroll to sign out button
-    const { width, height } = await driver.getWindowSize();
-    await driver.action('pointer', { parameters: { pointerType: 'touch' } })
-      .move({ x: Math.round(width / 2), y: Math.round(height * 0.7) })
-      .down()
-      .move({ x: Math.round(width / 2), y: Math.round(height * 0.2), duration: 300 })
-      .up()
-      .perform();
-    await driver.pause(500);
+    // Should still be on Settings from test 9 (cancel kept us here) —
+    // verify and recover if not
+    if (!(await existsTestId(driver, 'sign-out-button'))) {
+      await backToSettingsScreen();
+    }
 
-    // Tap sign out
+    // Tap sign out (scroll into view — Android excludes below-the-fold
+    // elements from the UiAutomator tree entirely)
+    await scrollToTestId(driver, 'sign-out-button');
     await tapTestId(driver, 'sign-out-button', 10000);
     await driver.pause(1000);
 
@@ -442,8 +507,11 @@ describe('Calendar Export', () => {
     expect(tapped).toBe(true);
     await driver.pause(2000);
 
-    // Should be on welcome/login screen
-    const loginExists = await existsTestId(driver, 'login-button');
+    // Should be on welcome/login screen (post-2026-05-13 redesign the welcome
+    // screen shows email-signin-button; login-button kept for old builds)
+    const loginExists =
+      (await existsTestId(driver, 'email-signin-button')) ||
+      (await existsTestId(driver, 'login-button'));
     expect(loginExists).toBe(true);
   });
 
@@ -463,36 +531,16 @@ describe('Calendar Export', () => {
     if (!currentState) {
       await tapToggle();
       await handlePermissionDialog();
+      await handleCalendarTargetPicker();
       await waitForToggleReady();
     }
 
-    // Go back to main Settings
-    if (driver.isIOS) {
-      try {
-        const backButton = await driver.$('-ios predicate string:label == "Settings" OR label == "Einstellungen"');
-        if (await backButton.isExisting()) {
-          await backButton.click();
-          await driver.pause(500);
-        }
-      } catch {
-        await navigateToSettingsScreen();
-      }
-    } else {
-      await driver.back();
-      await driver.pause(500);
-    }
+    // Go back to main Settings (verified, with recovery)
+    await backToSettingsScreen();
 
-    // Scroll to sign out
-    const { width, height } = await driver.getWindowSize();
-    await driver.action('pointer', { parameters: { pointerType: 'touch' } })
-      .move({ x: Math.round(width / 2), y: Math.round(height * 0.7) })
-      .down()
-      .move({ x: Math.round(width / 2), y: Math.round(height * 0.2), duration: 300 })
-      .up()
-      .perform();
-    await driver.pause(500);
-
-    // Tap sign out
+    // Tap sign out (scroll into view — Android excludes below-the-fold
+    // elements from the UiAutomator tree entirely)
+    await scrollToTestId(driver, 'sign-out-button');
     await tapTestId(driver, 'sign-out-button', 10000);
     await driver.pause(1000);
 
@@ -519,8 +567,10 @@ describe('Calendar Export', () => {
     expect(tapped).toBe(true);
     await driver.pause(2000);
 
-    // Should be on welcome/login screen
-    const loginExists = await existsTestId(driver, 'login-button');
+    // Should be on welcome/login screen (see test 10 note on the redesign)
+    const loginExists =
+      (await existsTestId(driver, 'email-signin-button')) ||
+      (await existsTestId(driver, 'login-button'));
     expect(loginExists).toBe(true);
   });
 
