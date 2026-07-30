@@ -2,8 +2,34 @@
 
 **Priority:** Medium — should be green before relying on E2E as a release gate
 **Created:** 2026-07-24 (found while running the suite after the overtime-scoping change)
-**Status:** Open. Auth helper already fixed (see below); 15 failures remain, all
-diagnosed as test-script drift or environment assumptions — NO app regressions.
+**Status:** ✅ **CLOSED 2026-07-27.** Definition of done met on BOTH platforms:
+iOS 71/71 twice in a row from clean installs (2026-07-24), Android 71/71 twice
+in a row from clean installs (2026-07-27, up from 0/71 at first run). Suite
+order pinned via `e2e/testSequencer.js`. New baselines + all newly-discovered
+pitfalls documented in `mobile-app/e2e/README.md` (pitfalls 13–17 + "Infra
+ordering rules").
+
+**Two REAL app bugs found & fixed along the way (the point of the exercise):**
+1. The LOCAL `mobile-app/android/` dir (gitignored prebuild artifact) is a
+   stale prebuild from before expo-calendar was added — its manifest lacked
+   `READ_CALENDAR`/`WRITE_CALENDAR`, so calendar live-sync was dead in every
+   LOCALLY-built APK ("Calendar permission required" instantly). EAS builds
+   prebuild fresh and are unaffected (the plugin adds both permissions —
+   verified in `expo-calendar/plugin/build/withCalendar.js`). Fixed locally
+   by hand (NOT committable — gitignored); durable fix:
+   `npx expo prebuild -p android --clean` at next Android maintenance.
+   ⚠️ Before the Play submission, verify the built AAB actually contains the
+   calendar permissions (`aapt2 dump permissions`), since the 2026-07-09 AAB
+   inventory in `project-mgmt/android-launch-checklist.md` doesn't list them.
+2. `PermissionPrimingScreen` had no bottom safe-area inset — on edge-to-edge
+   Android the "Skip" button sat in the system gesture zone (taps = home
+   gesture; also awkward for real users). Now uses `useSafeAreaInsets()`.
+
+**Residual caveat:** the iOS 71/71 runs predate the `PermissionPrimingScreen`
+safe-area change (app code, cross-platform). Low risk (additive padding), but
+re-run the iOS suite against a rebuilt app before the next iOS release.
+Also noted: Android `versionName` in build.gradle still says 2.0.0 (out of
+sync with app.json 2.1.3) — sync before the Play upload.
 
 ## Context
 
@@ -40,17 +66,11 @@ and the LoginScreen register link has no testID.
 - Baseline documented in `mobile-app/e2e/README.md` (replace the stale 48/48
   numbers) and the `/e2e-ios` skill.
 
-## Follow-up: e2e-android skill (deferred deliberately)
+## Follow-up: e2e-android skill
 
-Decision 2026-07-24: do NOT create an `/e2e-android` skill yet. The Android
-suite shares `helpers/actions.js` (so the auth fix above already applies), and
-its dominant failure mode is ENVIRONMENT fragility, not missing run-knowledge —
-see `docs/debugging.md` → "Emulator recovery" for the captured lessons
-(load-induced ANRs, cold boot, lost adb reverse, GMS dialog loop, Maestro
-driver staleness). Creating the skill before the shared scripts are green on
-iOS would encode a broken baseline. When this ticket is done (71/71 iOS),
-create `/e2e-android` analogous to `/e2e-ios`, referencing the emulator
-recovery section and the Android-specific pitfalls in `mobile-app/e2e/README.md`.
+Precondition met (71/71 both platforms) — `/e2e-android` skill created
+2026-07-27 at `.claude/skills/e2e-android/`, encoding the green procedure and
+the infra ordering rules.
 
 ## Duplicate-testID cleanup (related, optional)
 

@@ -22,16 +22,18 @@ Confirmed present in the built AAB — not inferred from config:
 
 Use email-code login (`demo@openworkinghours.org` / `123456`) — **Google Sign-In will fail until the SHA-1 is registered** (see below), that's expected.
 
-1. [ ] App launches, no crash
-2. [ ] **Maps render** on the location setup screen (SetupScreen) — the historical Google-Maps-key risk
-3. [ ] **Geofencing on a real walk**: clock-in on arrival at a saved workplace; clock-out ~5 min after leaving (hysteresis). *The core reliability test — this is the doc-mums blocker.*
-4. [ ] **Foreground keepalive**: tracking notification appears; **swipe-kill the app** and confirm it still clocks you out (the Android-only keepalive + health-check restart)
-5. [ ] **Prominent disclosure order**: the background-location priming screen (`PermissionPrimingScreen` / `backgroundPrimer`) shows **before** the OS "Allow all the time" dialog — *record this for the Play video*
-6. [ ] Notifications: POST_NOTIFICATIONS prompt + a delivered clock-out notification
+1. [x] App launches, no crash *(2026-07-27/29, A14, local release build)*
+2. [x] **Maps render** *(2026-07-29)* — found + worked around the blank-tiles paint race (`loadingEnabled` + onMapReady camera nudge; durable fix = react-native-maps upgrade, see Pre-submission section). NOT a key problem.
+3. [x] **Geofencing on a real walk** *(2026-07-29)*: clock-in/out times "pretty accurate" — **the doc-mums blocker is verified on-device**. Tested with the app alive (foreground/background), NOT swipe-killed.
+4. [x] **Foreground keepalive / swipe-kill** *(2026-07-30)*: clock-in AND clock-out worked with the app swipe-killed — the Android-only keepalive + health-check restart path is verified on the A14.
+5. [ ] **Prominent disclosure order** + record for the Play video — still open (needed for the Play background-location declaration anyway)
+6. [~] Notifications: check-in/out notifications observed during walk test (prompt flow untested from scratch)
 7. [ ] Calendar: create shift, apply template, add a day note, confirm/lock a day
 8. [ ] **Re-verify the old deferred bug**: save a NEW location while a session is active → does it kill the session? (docs say not reproducible since 2026-04-04 — confirm)
-9. [ ] Samsung-specifics (if on the A14): tab bar renders correctly, no map flicker between locations
-10. [ ] **Reports tab in German**: header row "DEINE WOCHENBEITRÄGE" + "Automatisch senden" toggle fully on-screen (v2.1.1 layout fix — iOS-verified, Android pending); week cards show honest send states ("Wird gesendet…" for past weeks)
+9. [~] Samsung-specifics: no map flicker / tab bar issues observed so far
+10. [x] **Reports tab in German** *(2026-07-30, A14 screenshot-verified)*: "DEINE WOCHENBEITRÄGE" + "Automatisch senden" toggle fully on-screen; week cards KW27–31 with German dates + honest states. Note: the app reads the device language at process start — German requires de FIRST in the system language list + app force-stop (no live switching; `localeConfig` polish item above).
+
+**Additional fixes landed during on-device testing (2026-07-27/29):** duplicate + status-bar-crammed header on Add Location (Setup was the only screen missing the Android `headerShown:false` branch; all other secondary screens audited clean), blank-map paint race workaround, primer safe-area, month-footer jitter, calendar permissions (local builds).
 
 ---
 
@@ -84,7 +86,17 @@ All of these are **No**: violence, sexual content, profanity, controlled substan
 
 ---
 
+## Pre-submission verification (added 2026-07-27, from the E2E session)
+
+- [ ] *(Optional polish)* **Per-app language support (Android 13+):** the app doesn't declare `android:localeConfig`, so it doesn't appear in Settings → App languages. Nice-to-have for a bilingual app; not release-blocking. (Locale switching itself works via the system language list — the FIRST language in the list wins, and the app reads it at process start.)
+- [ ] **Blank-map paint race (found on the A14, 2026-07-27):** with newArch + react-native-maps 1.20.1, the base tiles intermittently don't paint on first load (overlays/markers render; a zoom gesture fixes it). Workaround shipped: `loadingEnabled` + a real camera nudge in `onMapReady` (SetupScreen, LocationsListScreen). Durable fix: **upgrade react-native-maps** (Fabric paint fixes landed after 1.20) — needs its own verification pass against the April Android map lessons (`docs/debugging.md`), then re-run E2E + check all 4 map surfaces (Setup 1/2, mini-map, LocationsList, Tracking).
+
+- [ ] **Verify the AAB contains `READ_CALENDAR` + `WRITE_CALENDAR`** (`aapt2 dump permissions`). The local `android/` prebuild was stale and lacked them (calendar live-sync dead in local APKs); EAS should add them via the expo-calendar plugin, but the 2026-07-09 AAB inventory above doesn't list them — confirm on the actual artifact. If missing → rebuild.
+- [ ] **Sync Android `versionName`** — build.gradle says 2.0.0, app.json says 2.1.3.
+- [ ] The `PermissionPrimingScreen` bottom-inset fix (2026-07-27) must be in the build — without it the primer's "Skip" button sits in the gesture zone on Android 15 (also relevant to the prominent-disclosure video, checklist item 5).
+
 ## Follow-ups that need your accounts (I can't reach them)
 - [ ] **Google Sign-In SHA-1**: after first upload, copy the **App signing SHA-1** from Play Console → App integrity and register it (+ the EAS upload-key SHA-1) against the Android OAuth client in Google Cloud (same project as `googleWebClientId 819562297268-…`). Until then Sign-In = `DEVELOPER_ERROR`.
+- [ ] **Maps API key SHA-1 (found 2026-07-27 via blank map on the A14):** the Maps key is restricted by package + SHA-1, so EVERY signing cert needs registering on it too — otherwise the map renders as a blank beige canvas (Google logo + location dot, no tiles): (1) the **Play App Signing SHA-1** (or Play builds ship with broken maps — same failure class in production), (2) the EAS upload key (presumably already there — EAS builds worked), (3) optionally the local debug keystore `5E:8F:16:06:2E:A3:CD:2C:4A:0D:54:78:76:BA:A6:F3:8C:AB:F6:25` for local test builds (public well-known cert — fine to remove after testing).
 - [ ] If Play rejects "versionCode 5 already used" → tell Claude to bump + rebuild.
 - [ ] (Optional) Play service-account JSON → wire `eas submit` android config for future auto-submits.
