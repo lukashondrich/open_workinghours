@@ -26,11 +26,11 @@ Use email-code login (`demo@openworkinghours.org` / `123456`) — **Google Sign-
 2. [x] **Maps render** *(2026-07-29)* — found + worked around the blank-tiles paint race (`loadingEnabled` + onMapReady camera nudge; durable fix = react-native-maps upgrade, see Pre-submission section). NOT a key problem.
 3. [x] **Geofencing on a real walk** *(2026-07-29)*: clock-in/out times "pretty accurate" — **the doc-mums blocker is verified on-device**. Tested with the app alive (foreground/background), NOT swipe-killed.
 4. [x] **Foreground keepalive / swipe-kill** *(2026-07-30)*: clock-in AND clock-out worked with the app swipe-killed — the Android-only keepalive + health-check restart path is verified on the A14.
-5. [ ] **Prominent disclosure order** + record for the Play video — still open (needed for the Play background-location declaration anyway)
-6. [~] Notifications: check-in/out notifications observed during walk test (prompt flow untested from scratch)
-7. [ ] Calendar: create shift, apply template, add a day note, confirm/lock a day
-8. [ ] **Re-verify the old deferred bug**: save a NEW location while a session is active → does it kill the session? (docs say not reproducible since 2026-04-04 — confirm)
-9. [~] Samsung-specifics: no map flicker / tab bar issues observed so far
+5. [~] **Prominent disclosure order**: flow observed during on-device setup (primer before OS dialog) — **the screen RECORDING for the Play declaration is still to be captured** (fresh install, ~90s)
+6. [x] Notifications *(2026-07-30, user-tested)*
+7. [x] Calendar flows *(2026-07-30, user-tested)*
+8. [x] Save-location-during-active-session *(2026-07-30, user-tested — old bug remains non-reproducible)*
+9. [x] Samsung-specifics *(2026-07-30)*: no map flicker / tab bar issues
 10. [x] **Reports tab in German** *(2026-07-30, A14 screenshot-verified)*: "DEINE WOCHENBEITRÄGE" + "Automatisch senden" toggle fully on-screen; week cards KW27–31 with German dates + honest states. Note: the app reads the device language at process start — German requires de FIRST in the system language list + app force-stop (no live switching; `localeConfig` polish item above).
 
 **Additional fixes landed during on-device testing (2026-07-27/29):** duplicate + status-bar-crammed header on Add Location (Setup was the only screen missing the Android `headerShown:false` branch; all other secondary screens audited clean), blank-map paint race workaround, primer safe-area, month-footer jitter, calendar permissions (local builds).
