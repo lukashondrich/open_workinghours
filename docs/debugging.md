@@ -91,6 +91,21 @@ nicht"). Recovery checklist, in order:
 5. Maestro's on-device driver goes stale across reboots ("io exception" with
    the device listed as connected) — fall back to `adb shell input tap` +
    `uiautomator dump`, or restart the Maestro session.
+6. **Restart Appium AFTER any emulator restart** (2026-07-27): Appium caches
+   its device connection; with a stale one, every new `POST /session` hangs
+   (whole E2E runs fail at `createDriver`). Boot emulator first, then Appium.
+7. **Appium won't bind port 4723**: its startup driver-check spawns
+   `npm view appium-xcuitest-driver ...` which can stall on the network for
+   minutes (looks like a silent hang, empty log). `pkill -f "npm view"`
+   unblocks it instantly.
+8. **Emulator storage fills over long sessions** → app installs fail with
+   `INSTALL_FAILED_INSUFFICIENT_STORAGE`. Free ~800 MB:
+   `adb shell pm clear com.google.android.gms && adb shell pm clear com.android.vending`.
+9. **App "randomly" ends up on the launcher during automation**: check logcat
+   for `m=TO_BACK` right after a tap — a bottom button inside the system
+   gesture zone registers taps as a home gesture (see the
+   `PermissionPrimingScreen` safe-area fix, 2026-07-27), or something pressed
+   Back on a tab root (exits the app).
 
 ### Device: Samsung Galaxy A14 (SM-A145F)
 

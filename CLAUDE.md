@@ -199,6 +199,16 @@ All new UI **must** be testable by Appium (XCUITest on iOS, UiAutomator2 on Andr
 
 ## Recent Updates (Last 7 Days)
 
+### 2026-07-27: E2E suite green on BOTH platforms (71/71 ×2 each) + 2 real Android app bugs fixed
+
+**Toward the Android test release: fixed the testing infra first, then let the suite find real bugs. It did.**
+
+- **App bug 1 (Android local builds):** the LOCAL `mobile-app/android/` dir (gitignored prebuild artifact) is a **stale prebuild from before expo-calendar was added** — its manifest lacked `READ_CALENDAR`/`WRITE_CALENDAR`, so calendar live-sync was dead in every locally-built APK (instant "Calendar permission required"). EAS/cloud builds prebuild fresh and are unaffected (the expo-calendar plugin adds both permissions). Fixed locally by hand (E2E-verified) — **note: not committable (gitignored)**; the durable fix is `npx expo prebuild -p android --clean` at the next Android maintenance, which would also pick up any other plugin changes since ~build 54.
+- **App bug 2 (Android, user-facing):** `PermissionPrimingScreen` had no bottom safe-area inset — on edge-to-edge Android 15 the "Skip" button sat in the system gesture zone (taps registered as home gestures). Now uses `useSafeAreaInsets()`.
+- **E2E suites:** iOS 56/71 → **71/71 twice** (clean installs); Android 0/71 → **71/71 twice**. All failures were test-script drift or infra, diagnosed with evidence — highlights: hospital pre-population starts the wizard at Step 2 (v2.1.2 feature the tests predated), `driver.hideKeyboard()` presses Back and pops screens, Android alert titles collide with same-text buttons + ALL-CAPS labels, MapView screens never go "idle" (waitForIdleTimeout cap), Appium must be restarted after any emulator restart. Suite order pinned (`e2e/testSequencer.js`).
+- **Docs:** new baselines + pitfalls 13–17 + "Infra ordering rules" in `mobile-app/e2e/README.md`; emulator-recovery additions in `docs/debugging.md`; `project-mgmt/ticket-e2e-suite-modernization.md` CLOSED. **`/e2e-android` skill created** (`.claude/skills/e2e-android/`).
+- ⚠️ Follow-ups: iOS suite not yet re-run against the `PermissionPrimingScreen` change (low risk, additive padding — re-run before next iOS release); Android `versionName` in build.gradle is 2.0.0, out of sync with app.json 2.1.3 — sync before Play upload.
+
 ### 2026-07-23: MonthView overtime scoped to elapsed days + completeness fraction
 
 **Problem (user-reported):** planning a full month up front showed the whole plan as negative overtime ("-200h" in red on day 1) — the footer summed tracked − planned over ALL days including future ones.
