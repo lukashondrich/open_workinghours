@@ -266,7 +266,14 @@ function MonthlySummaryFooter({ summary, onInfoPress }: MonthlySummaryFooterProp
       <Animated.View style={{ height: expandedHeight, overflow: 'hidden' }}>
         <View
           style={styles.expandedContentProbe}
-          onLayout={(e) => setContentHeight(Math.ceil(e.nativeEvent.layout.height))}
+          onLayout={(e) => {
+            const h = Math.ceil(e.nativeEvent.layout.height);
+            // Ignore ±1px re-measurements: the probe's pixel-grid rounding
+            // depends on the footer's own (animated) height, so alternating
+            // 1px readings otherwise feed back into a permanent height
+            // jitter loop (footer visibly vibrates a few px when expanded).
+            setContentHeight((prev) => (prev !== 0 && Math.abs(prev - h) <= 1 ? prev : h));
+          }}
         >
           {!planMode && (
             <>

@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MapPin, Bell, ShieldCheck } from 'lucide-react-native';
 
 import { Button } from '@/components/ui';
@@ -39,6 +40,10 @@ export default function PermissionPrimingScreen({
   testIDPrefix,
 }: Props) {
   const Icon = ICONS[icon];
+  // Edge-to-edge (Android 15 enforces it): without a bottom inset the ghost
+  // skip button sits inside the system gesture zone — taps on its lower half
+  // register as a home gesture and background the app.
+  const insets = useSafeAreaInsets();
 
   return (
     <View style={styles.container} accessible={false} collapsable={false}>
@@ -65,7 +70,11 @@ export default function PermissionPrimingScreen({
         )}
       </ScrollView>
 
-      <View style={styles.actions} accessible={false} collapsable={false}>
+      <View
+        style={[styles.actions, { paddingBottom: Math.max(insets.bottom, spacing.xl) }]}
+        accessible={false}
+        collapsable={false}
+      >
         <Button
           onPress={onPrimary}
           loading={loading}
