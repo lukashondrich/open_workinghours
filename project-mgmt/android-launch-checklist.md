@@ -1,7 +1,13 @@
 # Android Play Store launch — working checklist
 
 **Created:** 2026-07-09 (during iOS launch follow-up). Companion to `WORKSTREAMS.md` §8.
-**AAB built:** versionCode 5, `expo.dev/artifacts/eas/SwVQR8GGyWE8kezLA4m_ZNKeE8Aqu4xXnFY6Eb09pBQ.aab`
+**SUBMISSION AAB (2026-07-30): versionCode 6, v2.1.3, production profile** —
+`expo.dev/artifacts/eas/X2g4v72arPU1X2gTLjZzknE9MNz63ENFnGxo911cWnw.aab`
+Binary-verified: READ/WRITE_CALENDAR ✓, ACCESS_BACKGROUND_LOCATION ✓,
+FOREGROUND_SERVICE_LOCATION ✓, Maps key ✓, versionName 2.1.3 ✓,
+LocationTaskService ✓. Contains all 2026-07 fixes + react-native-maps 1.29.
+*(Supersedes the versionCode-5 AAB below, which predates every fix from the
+July test campaign.)*
 
 ---
 
@@ -91,7 +97,7 @@ All of these are **No**: violence, sexual content, profanity, controlled substan
 - [ ] *(Optional polish)* **Per-app language support (Android 13+):** the app doesn't declare `android:localeConfig`, so it doesn't appear in Settings → App languages. Nice-to-have for a bilingual app; not release-blocking. (Locale switching itself works via the system language list — the FIRST language in the list wins, and the app reads it at process start.)
 - [x] **Blank-map paint race** *(RESOLVED 2026-07-30)*: react-native-maps upgraded 1.20.1 → **1.29.0** (commit `a469216`), verified with full E2E 71/71 on BOTH platforms + visual tile check. The `loadingEnabled` + camera-nudge workaround stays as defense in depth.
 
-- [ ] **Verify the AAB contains `READ_CALENDAR` + `WRITE_CALENDAR`** (`aapt2 dump permissions`) — still confirm on the actual EAS artifact at submission time. *(Local prebuild regenerated 2026-07-30 via `expo prebuild -p android --clean`: the expo-calendar plugin now generates both permissions locally, verified in the built APK + full E2E gate — so EAS prebuilds should too; this check is belt-and-braces.)*
+- [x] **AAB contains `READ_CALENDAR` + `WRITE_CALENDAR`** *(VERIFIED 2026-07-30 on the versionCode-6 submission AAB — binary check, both present)*.
 - [x] **Sync Android `versionName`** *(RESOLVED 2026-07-30)*: the prebuild regeneration synced build.gradle to 2.1.3 automatically (versionName comes from app.json now).
 - [ ] The `PermissionPrimingScreen` bottom-inset fix (2026-07-27) must be in the build — without it the primer's "Skip" button sits in the gesture zone on Android 15 (also relevant to the prominent-disclosure video, checklist item 5).
 
