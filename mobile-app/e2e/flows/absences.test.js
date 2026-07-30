@@ -23,7 +23,7 @@ const {
   ensureCleanCalendarState,
   waitForTestIdWithRetry,
   existsTestId,
-  dismissKeyboard,
+  dismissKeyboardFromInput,
 } = require('../helpers/actions');
 
 describe('Absence Management', () => {
@@ -81,8 +81,14 @@ describe('Absence Management', () => {
     await tapTestId(driver, 'absence-add');
     await driver.pause(1000);
 
-    // Dismiss keyboard (auto-focused name input) so save button is visible
-    await dismissKeyboard(driver);
+    // Dismiss keyboard (auto-focused name input) so save button is visible.
+    // Must go through the input itself — a screen tap would hit the overlay
+    // and close the whole picker.
+    try {
+      const nameInput = await byTestId(driver, 'absence-name-input');
+      await nameInput.waitForExist({ timeout: 5000 });
+      await dismissKeyboardFromInput(driver, nameInput);
+    } catch { /* input not found — continue, save assert below will tell */ }
     await driver.pause(500);
 
     // Scroll down in the picker to reveal save/cancel buttons
@@ -142,10 +148,9 @@ describe('Absence Management', () => {
     await nameInput.setValue('Test Vacation');
     await driver.pause(300);
 
-    // Only dismiss keyboard on Android (iOS: keyboard doesn't block getValue)
-    if (driver.isAndroid) {
-      await dismissKeyboard(driver);
-    }
+    // Dismiss keyboard on both platforms so the save button below the input
+    // isn't covered by the keyboard in the next test
+    await dismissKeyboardFromInput(driver, nameInput);
 
     const value = driver.isAndroid ? await nameInput.getText() : await nameInput.getValue();
     expect(value).toContain('Test');

@@ -21,7 +21,7 @@ const {
   ensureCleanCalendarState,
   waitForTestIdWithRetry,
   existsTestId,
-  dismissKeyboard,
+  dismissKeyboardFromInput,
 } = require('../helpers/actions');
 
 /**
@@ -159,8 +159,9 @@ describe('Shift Management', () => {
     await nameInput.setValue('Test Shift');
     await driver.pause(300);
 
-    // Use 'key' strategy to avoid tapping the overlay which closes the panel
-    await dismissKeyboard(driver, 'key');
+    // Dismiss keyboard via Return on the input itself — never tap the screen
+    // here (a tap would hit the overlay and close the panel)
+    await dismissKeyboardFromInput(driver, nameInput);
 
     // Save (closes the panel after saving)
     await tapTestId(driver, 'template-save');

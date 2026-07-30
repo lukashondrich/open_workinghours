@@ -13,6 +13,7 @@
  * If a location is already configured, wizard tests are skipped.
  */
 
+const { execSync } = require('child_process');
 const { createDriver, getPlatform } = require('../helpers/driver');
 const { byTestId, byText, byI18nFast, t, i18n } = require('../helpers/selectors');
 const {
@@ -23,6 +24,7 @@ const {
   navigateToTab,
   waitForText,
   existsTestId,
+  scrollToTestId,
   dismissPermissionDialogs,
   dismissNativeDialog,
   ensureAuthenticated,
@@ -33,8 +35,19 @@ const {
 describe('Location Setup', () => {
   let driver;
   let canTestWizard = false; // Track if we can test the wizard flow
+  let canTestSearch = false; // False when hospital pre-population skips the search step
 
   beforeAll(async () => {
+    // Android: enable high-accuracy location mode BEFORE the wizard's map
+    // opens. Otherwise Google Play Services shows a "Location Accuracy"
+    // dialog in a separate system window that UiAutomator2 cannot see or
+    // dismiss — hierarchy queries then hang until the jest timeout.
+    if (getPlatform() === 'android') {
+      try {
+        execSync('adb shell settings put secure location_mode 3 2>/dev/null');
+      } catch { /* adb unavailable — dialog handling below is best-effort */ }
+    }
+
     driver = await createDriver(getPlatform());
     await driver.pause(2000);
     // Ensure we're authenticated before location tests
@@ -68,17 +81,24 @@ describe('Location Setup', () => {
   });
 
   test('should check if Add Location is available', async () => {
-    // Check if "Add new location" button exists (bilingual)
-    // If not, a location is already configured - we'll skip wizard tests
+    // The add button lives on the LocationsList screen (Settings → Work
+    // Locations), not on Settings itself — navigate into it first.
+    // If the button is missing (max locations reached), skip wizard tests.
     try {
+      const workLocationsRow = await byI18nFast(driver, 'workLocations');
+      await workLocationsRow.waitForDisplayed({ timeout: 5000 });
+      await workLocationsRow.click();
+      await driver.pause(1000);
+
       const addButton = await byI18nFast(driver, 'addLocation');
+      await addButton.waitForDisplayed({ timeout: 5000 });
       canTestWizard = await addButton.isDisplayed();
     } catch (e) {
       canTestWizard = false;
     }
 
     if (!canTestWizard) {
-      console.log('  ℹ Location already configured - wizard tests will be skipped');
+      console.log('  ℹ Add Location not available (max reached?) - wizard tests will be skipped');
     }
 
     // This test always passes - it's just checking state
@@ -104,14 +124,20 @@ describe('Location Setup', () => {
       await driver.pause(500);
     }
 
-    // Step 1: Search input should be visible
-    const searchInput = await byTestId(driver, 'setup-search-input');
-    expect(await searchInput.isDisplayed()).toBe(true);
+    // The wizard starts at Step 1 (search) for users without a known hospital,
+    // or directly at Step 2 (radius) when hospital pre-population placed the
+    // pin (v2.1.2). The TEST_MODE mock user has hospitalRefId 6 → Step 2.
+    canTestSearch = await existsTestId(driver, 'setup-search-input');
+    const onRadiusStep = await existsTestId(driver, 'setup-continue-step2');
+    if (!canTestSearch) {
+      console.log('  ℹ Wizard opened at Step 2 (hospital pre-population) - search tests will be skipped');
+    }
+    expect(canTestSearch || onRadiusStep).toBe(true);
   });
 
   test('should search for a location', async () => {
-    if (!canTestWizard) {
-      console.log('  ⏭ Skipped: location already configured');
+    if (!canTestWizard || !canTestSearch) {
+      console.log('  ⏭ Skipped: wizard unavailable or search step skipped');
       return;
     }
 
@@ -132,8 +158,10 @@ describe('Location Setup', () => {
       return;
     }
 
-    await tapTestId(driver, 'setup-continue-step1');
-    await driver.pause(500);
+    if (canTestSearch) {
+      await tapTestId(driver, 'setup-continue-step1');
+      await driver.pause(500);
+    } // else: already on Step 2 (hospital pre-population)
 
     // Verify radius controls are visible
     const decreaseBtn = await byTestId(driver, 'setup-radius-decrease');
@@ -181,7 +209,12 @@ describe('Location Setup', () => {
     await typeTestId(driver, 'setup-name-input', 'Test Hospital');
     await driver.pause(500);
 
-    await dismissKeyboard(driver);
+    // Android: keep the keyboard up — hideKeyboard() presses Back and pops
+    // the wizard screen (see completeLocationWizard). adjustResize keeps the
+    // save button reachable regardless.
+    if (!driver.isAndroid) {
+      await dismissKeyboard(driver);
+    }
 
     expect(true).toBe(true);
   });
@@ -192,14 +225,16 @@ describe('Location Setup', () => {
       return;
     }
 
-    // Verify save button exists (but don't tap it - avoid test data)
-    const saveBtn = await byTestId(driver, 'setup-save-button');
-    expect(await saveBtn.isDisplayed()).toBe(true);
+    // Verify save button exists (but don't tap it - avoid test data).
+    // Android: scroll it into view first — below-the-fold elements aren't in
+    // the UiAutomator tree at all.
+    const found = await scrollToTestId(driver, 'setup-save-button');
+    expect(found).toBe(true);
 
-    // Go back to cancel (avoid creating test data)
+    // Go back to cancel (avoid creating test data).
+    // setup-back-button only exists for steps 3→2 and 2→1 (step 1 has no
+    // in-wizard back button); the stack unwind happens in the next test.
     console.log('  ℹ Canceling wizard to avoid test data');
-    await tapTestId(driver, 'setup-back-button');
-    await driver.pause(300);
     await tapTestId(driver, 'setup-back-button');
     await driver.pause(300);
     await tapTestId(driver, 'setup-back-button');
@@ -207,22 +242,21 @@ describe('Location Setup', () => {
   });
 
   test('should return to main app', async () => {
-    // After backing out of the wizard, we're on the Settings screen.
-    // Settings is a stack screen that covers the tab bar, so we need
-    // to go back to the main tabs first.
-    if (driver.isIOS) {
-      try {
-        const backButton = await driver.$('-ios predicate string:label == "Back" OR label == "Zurück"');
-        if (await backButton.isExisting()) {
-          await backButton.click();
-          await driver.pause(500);
-        }
-      } catch {
-        // Fallback: try navigateToTab directly (might work if tab bar is visible)
+    // We may be several stack screens deep (Setup → LocationsList → Settings).
+    // Unwind until the tab bar is visible: nav-back coordinate tap on iOS
+    // (native header back has no testID), hardware back on Android.
+    for (let i = 0; i < 5; i++) {
+      const hasTabBar = await existsTestId(driver, 'tab-status');
+      if (hasTabBar) break;
+      if (driver.isIOS) {
+        try {
+          await driver.action('pointer', { parameters: { pointerType: 'touch' } })
+            .move({ x: 40, y: 65 }).down().up().perform();
+        } catch { /* ignore */ }
+      } else {
+        try { await driver.back(); } catch { /* ignore */ }
       }
-    } else {
-      await driver.back();
-      await driver.pause(500);
+      await driver.pause(700);
     }
 
     await navigateToTab(driver, 'status');

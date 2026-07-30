@@ -18,13 +18,27 @@ npm run test:ios       # Terminal 2: run tests
 
 | Factor | iOS | Android |
 |--------|-----|---------|
-| **Stability** | ⚠️ 56/71 as of 2026-07-24 (was 48/48 pre-May; suite silently broken by WelcomeScreen redesign, auth helper fixed — remaining failures are diagnosed script drift, see `project-mgmt/ticket-e2e-suite-modernization.md`) | ~82% (45/55), stale — re-baseline after iOS is green |
-| **Time** | ~200s | ~260s |
+| **Stability** | ✅ 71/71, twice in a row from clean installs (2026-07-24) | ✅ 71/71, twice in a row from clean installs (2026-07-27) |
+| **Time** | ~660s | ~610s |
 | **Build** | `npm run build:ios` | `npm run build:android` or EAS |
-| **Known flakiness** | None | Absences arm (picker state), manual-session (location wizard) |
+| **Known flakiness** | None | None with current helpers; infra ordering matters (see "Infra ordering rules") |
 | **Local build prereqs** | Xcode | Android Studio + NDK |
 
-**Recommendation:** Run iOS first (more stable). Use Android for cross-platform verification.
+**Suite order is pinned** by `testSequencer.js` (auth → registration → calendar → location → shifts → absences → manual-session → calendar-export) — Jest's default failed-first ordering is disabled.
+
+### Infra ordering rules (Android — violating these wedges the whole run)
+
+1. **Boot the emulator FIRST, then (re)start Appium.** Appium caches its device
+   connection; after any emulator restart, every new `POST /session` hangs
+   until Appium is restarted.
+2. **If Appium won't bind port 4723**: its startup driver-check spawns
+   `npm view appium-xcuitest-driver ...` which can stall on the network for
+   minutes. `pkill -f "npm view"` unblocks it instantly (Appium stays alive).
+3. **Emulator storage fills up** over long sessions (`INSTALL_FAILED_INSUFFICIENT_STORAGE`):
+   `adb shell pm clear com.google.android.gms && adb shell pm clear com.android.vending`
+   frees ~800 MB.
+4. Set `adb shell settings put secure location_mode 3` before wizard-touching
+   suites (prevents the un-automatable GMS "Location Accuracy" dialog).
 
 ### Pre-flight Checklist
 
@@ -533,6 +547,67 @@ After the setup wizard opens the map, Google Play Services may show a "For a bet
 **Fix:** Pre-configure high-accuracy mode via `adb shell settings put secure location_mode 3` BEFORE the wizard opens. If the mode is already on, the dialog doesn't appear.
 
 **Fallback if it appears:** `adb shell input keyevent KEYCODE_BACK` dismisses it, but also exits the wizard. The test must then re-navigate to the wizard.
+
+### 13. `driver.hideKeyboard()` presses Back — can POP THE CURRENT SCREEN
+
+UiAutomator2 implements hideKeyboard via a Back press. On stack screens
+(setup wizard Step 3) this **popped the screen and even exited the app**,
+including when the keyboard WAS shown. Rules:
+- Never call `driver.hideKeyboard()` on a stack screen. Android's
+  `adjustResize` keeps buttons in the UiAutomator tree with the keyboard up —
+  tap them directly instead of dismissing.
+- `dismissKeyboard`/`dismissKeyboardFromInput` are guarded with
+  `isKeyboardShown()`, but the guard is NOT sufficient on stack screens.
+
+### 14. Alert titles can carry the same text as a button — match Button class
+
+The sign-out confirm dialog has title "Sign Out" AND button "Sign Out". A
+plain text selector matches the title TextView first; the tap does nothing
+and the flow silently stalls. Also, Android AlertDialog themes render button
+labels ALL-CAPS ("KEEP EXPORTED EVENTS"), so exact-case matching only ever
+worked for "OK". Use `byAlertButtonText` (selectors.js): matches
+`android.widget.Button` + case-insensitive text. `dismissNativeDialog` and
+the calendar-export helpers do this, with a generic-text fallback for in-app
+RN dialogs (whose buttons are not `widget.Button`).
+
+### 15. MapView screens never go "idle" — cap waitForIdleTimeout
+
+UiAutomator2 waits for an idle UI before each command; screens with a
+`MapView` animate continuously, so commands stalled for minutes and wedged
+the UiAutomator2 server (every later `POST /session` timed out for the rest
+of the run). `driver.js` sets `appium:settings[waitForIdleTimeout]: 100`.
+Side benefit: the location suite dropped from ~226s to ~60s.
+
+### 16. Bottom buttons in the gesture-nav zone register as HOME gestures
+
+Edge-to-edge (Android 15) puts unpadded bottom buttons inside the system
+gesture zone — UiAutomator's center-click on such a button backgrounds the
+app (task TO_BACK in logcat, launcher on screen). This was an APP layout bug
+(fixed 2026-07-27: `PermissionPrimingScreen` now applies
+`useSafeAreaInsets().bottom`). If a suite "randomly" lands on the launcher,
+check logcat for `m=TO_BACK` right after a tap and suspect this.
+
+### 17. Never press Back speculatively — verify an overlay is open first
+
+Back with nothing open exits the app from a tab root. `ensureCleanCalendarState`
+only backs out when `inline-picker-cancel` / `template-panel-overlay` /
+`manual-session-cancel` exists; `ensureLocationConfigured`'s post-wizard
+recovery re-foregrounds via `activateApp` + polls instead of pressing Back.
+
+### Session Log: 2026-07-27 — Both platforms 71/71 (suite modernization complete)
+
+Full history in `project-mgmt/ticket-e2e-suite-modernization.md` (now closed):
+iOS 56/71 → 71/71 ×2 (script drift: keyboard-Return overlay taps, hospital
+pre-population Step-2 wizard entry, calendar target picker, post-sign-out
+welcome-screen assertions, suite-order pinning). Android 0/71 → 71/71 ×2
+(auth helper welcome-screen redesign miss, ALL-CAPS/title-collision alert
+taps, waitForIdleTimeout, hideKeyboard Back-press, gesture-zone safe-area
+app fix, calendar-permission manifest app fix). Two REAL app bugs found and
+fixed: the local `android/` prebuild's manifest lacked
+`READ_CALENDAR`/`WRITE_CALENDAR` (stale prebuild predating expo-calendar —
+local APKs only; EAS prebuilds fresh; hand-fixed locally, durable fix is
+`expo prebuild -p android --clean`), and the `PermissionPrimingScreen`
+gesture-zone overlap (committed).
 
 ### Session Log: 2026-03-25 — Android E2E Stabilization
 
