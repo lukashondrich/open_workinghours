@@ -89,10 +89,10 @@ All of these are **No**: violence, sexual content, profanity, controlled substan
 ## Pre-submission verification (added 2026-07-27, from the E2E session)
 
 - [ ] *(Optional polish)* **Per-app language support (Android 13+):** the app doesn't declare `android:localeConfig`, so it doesn't appear in Settings → App languages. Nice-to-have for a bilingual app; not release-blocking. (Locale switching itself works via the system language list — the FIRST language in the list wins, and the app reads it at process start.)
-- [ ] **Blank-map paint race (found on the A14, 2026-07-27):** with newArch + react-native-maps 1.20.1, the base tiles intermittently don't paint on first load (overlays/markers render; a zoom gesture fixes it). Workaround shipped: `loadingEnabled` + a real camera nudge in `onMapReady` (SetupScreen, LocationsListScreen). Durable fix: **upgrade react-native-maps** (Fabric paint fixes landed after 1.20) — needs its own verification pass against the April Android map lessons (`docs/debugging.md`), then re-run E2E + check all 4 map surfaces (Setup 1/2, mini-map, LocationsList, Tracking).
+- [x] **Blank-map paint race** *(RESOLVED 2026-07-30)*: react-native-maps upgraded 1.20.1 → **1.29.0** (commit `a469216`), verified with full E2E 71/71 on BOTH platforms + visual tile check. The `loadingEnabled` + camera-nudge workaround stays as defense in depth.
 
-- [ ] **Verify the AAB contains `READ_CALENDAR` + `WRITE_CALENDAR`** (`aapt2 dump permissions`). The local `android/` prebuild was stale and lacked them (calendar live-sync dead in local APKs); EAS should add them via the expo-calendar plugin, but the 2026-07-09 AAB inventory above doesn't list them — confirm on the actual artifact. If missing → rebuild.
-- [ ] **Sync Android `versionName`** — build.gradle says 2.0.0, app.json says 2.1.3.
+- [ ] **Verify the AAB contains `READ_CALENDAR` + `WRITE_CALENDAR`** (`aapt2 dump permissions`) — still confirm on the actual EAS artifact at submission time. *(Local prebuild regenerated 2026-07-30 via `expo prebuild -p android --clean`: the expo-calendar plugin now generates both permissions locally, verified in the built APK + full E2E gate — so EAS prebuilds should too; this check is belt-and-braces.)*
+- [x] **Sync Android `versionName`** *(RESOLVED 2026-07-30)*: the prebuild regeneration synced build.gradle to 2.1.3 automatically (versionName comes from app.json now).
 - [ ] The `PermissionPrimingScreen` bottom-inset fix (2026-07-27) must be in the build — without it the primer's "Skip" button sits in the gesture zone on Android 15 (also relevant to the prominent-disclosure video, checklist item 5).
 
 ## Follow-ups that need your accounts (I can't reach them)
