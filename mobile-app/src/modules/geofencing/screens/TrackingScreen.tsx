@@ -143,6 +143,7 @@ export default function TrackingScreen({ navigation, route }: Props) {
           <View style={styles.mapContainer}>
             <MapView
               style={styles.map}
+              loadingEnabled={true}
               region={{
                 latitude: location.latitude,
                 longitude: location.longitude,

@@ -213,6 +213,20 @@ export default function SetupScreen({ navigation, route }: Props) {
     };
   }, [miniMapHeight]);
 
+  // Force the initial tile paint: some Android devices (seen on the Samsung
+  // A14, new-arch + react-native-maps 1.20) leave the base map blank until
+  // the first camera move — overlays (markers, my-location dot) render but
+  // tiles never paint. The nudge must be a REAL camera change (animating to
+  // the identical region is a no-op): a ~4% zoom shift is imperceptible but
+  // triggers the paint.
+  const handleMapReady = () => {
+    const r = regionRef.current;
+    mapRef.current?.animateToRegion(
+      { ...r, latitudeDelta: r.latitudeDelta * 1.04, longitudeDelta: r.longitudeDelta * 1.04 },
+      150
+    );
+  };
+
   const centerMapOnCurrentLocation = async () => {
     console.log('[SetupScreen] Getting current location...');
 
@@ -879,6 +893,8 @@ export default function SetupScreen({ navigation, route }: Props) {
               ref={mapRef}
               style={styles.map}
               initialRegion={regionRef.current}
+              onMapReady={handleMapReady}
+              loadingEnabled={true}
               onRegionChangeComplete={(r) => { regionRef.current = r; }}
               onPress={handleMapPress}
               showsUserLocation={hasForegroundPermission}
@@ -930,6 +946,8 @@ export default function SetupScreen({ navigation, route }: Props) {
               ref={mapRef}
               style={styles.map}
               initialRegion={regionRef.current}
+              onMapReady={handleMapReady}
+              loadingEnabled={true}
               onRegionChangeComplete={(r) => { regionRef.current = r; }}
               onPress={viewOnly ? undefined : handleMapPress}
               showsUserLocation={hasForegroundPermission}
@@ -1014,6 +1032,7 @@ export default function SetupScreen({ navigation, route }: Props) {
           <Animated.View style={[styles.miniMapContainer, { height: miniMapHeight }]}>
             <MapView
               style={styles.miniMap}
+              loadingEnabled={true}
               region={{
                 latitude: pinCoordinate.latitude,
                 longitude: pinCoordinate.longitude,

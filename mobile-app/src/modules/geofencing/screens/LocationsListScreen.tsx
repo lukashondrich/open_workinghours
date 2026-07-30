@@ -277,6 +277,18 @@ export default function LocationsListScreen() {
                 ref={mapRef}
                 style={styles.map}
                 initialRegion={mapInitialRegion}
+                // Blank-until-touch workaround (Samsung A14): a REAL camera
+                // change on ready forces the base tiles to paint (identical-
+                // region animations are no-ops — see SetupScreen)
+                onMapReady={() => mapRef.current?.animateToRegion(
+                  {
+                    ...mapInitialRegion,
+                    latitudeDelta: mapInitialRegion.latitudeDelta * 1.04,
+                    longitudeDelta: mapInitialRegion.longitudeDelta * 1.04,
+                  },
+                  150
+                )}
+                loadingEnabled={true}
                 showsUserLocation
                 showsMyLocationButton={false}
               >
