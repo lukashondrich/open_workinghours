@@ -2,7 +2,38 @@
 
 **Priority:** Low
 **Created:** 2026-07-23
-**Status:** Open — do together with the next screenshot refresh, no urgency
+**Status:** RESOLVED 2026-08-12 — superseded by the panoramic screenshot set.
+Upload to App Store Connect remains (see below); everything else is done.
+
+## Resolution (2026-08-12)
+
+The refresh happened as part of building the new **5-slot panoramic screenshot
+set** (`store-assets/compose-panorama.js`, see `store-assets/README.md` →
+"Panoramic set"):
+
+- All 6 flows recaptured × 2 locales from a fresh `TEST_SCREENSHOT_SEED` build
+  (vNext of the July UX release). Flow 03 verified: quiet "9 von 12 Tagen
+  bestätigt" fraction + today-excluded Soll/Ist, exactly as shipped.
+- The panorama set drops the month view (flow 04) entirely — its slot is
+  replaced by the dark privacy panorama. Point 2 below is therefore moot for
+  the store set. (Flow 04's raw had also silently captured the *week* view,
+  not the month view, since at least June — worth knowing if the flow is ever
+  revived.)
+- Headline copy for the new set lives in `copy/{en,de}.json` under
+  `pano-tracking-1/2`, `single-calendar`, `pano-privacy-1/2`.
+- Store-ready PNGs: `composed/{locale}/panorama/` (1320×2868, alpha-stripped,
+  filename prefixes = upload order) + `resized/` (1284×2778 sips fallback for
+  the 6.7" slot, pre-generated).
+- The panorama gutter constant (60px) was verified against a live panoramic
+  set (Calm, DE store) by solving seam-contour continuity: measured ≈62px
+  (4.7% of a slot) — within measurement error of 60.
+
+**Remaining (manual):** drag the 10 PNGs into App Store Connect with the next
+metadata or app update. If Connect rejects 1320×2868 again, use `resized/`.
+
+---
+
+Original ticket below for context.
 
 ## Summary
 

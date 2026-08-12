@@ -139,7 +139,8 @@ store-assets/
 │   └── de.json
 ├── raw/                 # captured PNGs (gitignored)
 ├── composed/            # final marketing PNGs (gitignored)
-├── compose.js           # sharp-based: headline + bg overlay
+├── compose.js           # sharp-based: headline + bg overlay (classic 1-card-per-screen)
+├── compose-panorama.js  # sharp-based: 5-slot panoramic set (see below)
 └── capture-all.js       # orchestrator
 ```
 
@@ -157,6 +158,47 @@ store-assets/
 - **Screenshot:** scaled to fit bottom ~75% with horizontal padding, no device frame.
 
 Tunables live in `compose.js` (constants at top of file).
+
+## Panoramic set (compose-panorama.js)
+
+The panoramic layout (introduced 2026-08-12) replaces the six equal cards with
+**5 slots**: two two-panel panoramas whose artwork flows across the App Store
+gallery gap, plus one classic single card.
+
+| Slot | File | Content |
+|---|---|---|
+| 1–2 | `01-pano-tracking-left/right` | Light panorama: status dashboard (straddles the seam) + geofence map |
+| 3 | `03-calendar-single` | Single card: week view + template picker (complete, centered phone) |
+| 4–5 | `04-pano-privacy-left/right` | Dark-teal panorama: collective insights + data privacy; enlarged "Du vs. Gruppe" card floats across the seam |
+
+**Gutter compensation (the one non-obvious mechanic):** the store's gallery
+shows slots with a gap between them, so a contour crossing the slice edge
+would visually "jump" unless compensated. The canvas is therefore
+`2*1320 + GUTTER` (= 2700) px wide; panel 1 is `extract`ed from columns
+0–1320, panel 2 from 1380–2700, and the `GUTTER` (60 px ≈ 4.5% of a slot)
+band of artwork falls invisibly into the store's gap — contours align on the
+product page. Verified 2026-08-12 by reverse-measuring a live panoramic set
+(Calm, DE store): their designed gutter solves to ≈62 px at 1320-scale —
+60 is within measurement error.
+
+Layout rules: headlines never enter the gutter band (~3% safety margin);
+only phones / the zoom card cross it. Panel 1 must work standalone (search
+results sometimes show fewer screenshots). Phones deliberately bleed off the
+bottom edge to hide empty screen regions. Screenshots are written with
+`removeAlpha()` — App Store Connect rejects PNGs with an alpha channel.
+
+Headline copy keys: `pano-tracking-1/2`, `single-calendar`,
+`pano-privacy-1/2` in `copy/{locale}.json`.
+
+```bash
+node compose-panorama.js          # -> composed/{locale}/panorama/
+LOCALES=de node compose-panorama.js
+```
+
+The classic six-card pipeline (`npm run compose`) still works unchanged.
+Design reference: the approved sketch lives in the "Panorama-Galerie"
+artifact (project chat 2026-08-12); placements in `compose-panorama.js`
+mirror it exactly.
 
 ## Conventions
 

@@ -16,5 +16,20 @@
   },
   "06-collective-insights": {
     "headline": "Contribute anonymously to public statistics."
+  },
+  "pano-tracking-1": {
+    "headline": "Your hours at a glance."
+  },
+  "pano-tracking-2": {
+    "headline": "Clock in automatically."
+  },
+  "single-calendar": {
+    "headline": "Log shifts in seconds."
+  },
+  "pano-privacy-1": {
+    "headline": "Contribute to statistics — anonymously."
+  },
+  "pano-privacy-2": {
+    "headline": "Your data, your control."
   }
 }

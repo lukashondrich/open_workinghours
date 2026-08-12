@@ -16,5 +16,20 @@
   },
   "06-collective-insights": {
     "headline": "Trage freiwillig und anonym zu Statistiken bei."
+  },
+  "pano-tracking-1": {
+    "headline": "Deine Arbeitszeit auf einen Blick."
+  },
+  "pano-tracking-2": {
+    "headline": "Automatisch einstempeln."
+  },
+  "single-calendar": {
+    "headline": "Schichten eintragen in Sekunden."
+  },
+  "pano-privacy-1": {
+    "headline": "Trage anonym zu Statistiken bei."
+  },
+  "pano-privacy-2": {
+    "headline": "Deine Daten, deine Kontrolle."
   }
 }
