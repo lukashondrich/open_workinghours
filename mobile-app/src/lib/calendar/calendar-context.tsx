@@ -37,6 +37,10 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
   const [state, rawDispatch] = useReducer(calendarReducer, initialState);
   const [isHydrated, setIsHydrated] = useState(false);
   const storageRef = useRef<Awaited<ReturnType<typeof getCalendarStorage>> | null>(null);
+  // Order-stable snapshot of the last persisted confirmedDayStatus; null until
+  // the first post-hydration run. See the persist effect for why this guards
+  // the confirmed-days-updated emit.
+  const lastPersistedConfirmedRef = useRef<string | null>(null);
 
   // Helper to load tracking records for a date range
   const loadTrackingForRange = useCallback(
@@ -222,7 +226,27 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!isHydrated) return;
-    persistConfirmedDays(state.confirmedDayStatus);
+    // Content snapshot (order-stable) guards two things:
+    // 1. The hydration tick and the HYDRATE_CONFIRMED_DAYS rehydration this
+    //    provider performs on 'confirmed-days-updated' change the object
+    //    reference without changing content — emitting there would loop
+    //    (emit → rehydrate → new reference → emit → …).
+    // 2. The first post-hydration run must neither write back what was just
+    //    loaded nor announce it.
+    const snapshot = JSON.stringify(
+      Object.keys(state.confirmedDayStatus)
+        .sort()
+        .map((k) => [k, state.confirmedDayStatus[k]]),
+    );
+    if (lastPersistedConfirmedRef.current === snapshot) return;
+    const isBaseline = lastPersistedConfirmedRef.current === null;
+    lastPersistedConfirmedRef.current = snapshot;
+    if (isBaseline) return;
+    void persistConfirmedDays(state.confirmedDayStatus).then(() => {
+      // Canonical "day confirmations changed" signal for out-of-calendar
+      // listeners (Status). Empty dates = unspecified; subscribers reload.
+      calendarEvents.emit('confirmed-days-updated', { dates: [] });
+    });
   }, [state.confirmedDayStatus, isHydrated]);
 
   // Persist absence templates and instances together to avoid FK constraint issues

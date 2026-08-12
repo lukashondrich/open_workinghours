@@ -19,6 +19,7 @@ import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/
 import { t } from '@/lib/i18n';
 import { useAuth } from '@/lib/auth/auth-context';
 import { trackingEvents } from '@/lib/events/trackingEvents';
+import { calendarEvents } from '@/lib/events/calendarEvents';
 import { getDatabase, Database } from '@/modules/geofencing/services/Database';
 import { TrackingManager } from '@/modules/geofencing/services/TrackingManager';
 import {
@@ -346,6 +347,24 @@ export default function StatusScreen() {
     trackingEvents.on('tracking-changed', handleTrackingChanged);
     return () => {
       trackingEvents.off('tracking-changed', handleTrackingChanged);
+    };
+  }, [loadAllData]);
+
+  // Refresh when day confirmations change anywhere (confirm, un-confirm,
+  // week submission locking) so the 14-day overview and the confirmation
+  // fraction stay live without a tab switch. Debounce coalesces bursts
+  // (e.g. a whole week locking in one submission).
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const handleConfirmedDaysUpdated = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => loadAllData(), 150);
+    };
+
+    calendarEvents.on('confirmed-days-updated', handleConfirmedDaysUpdated);
+    return () => {
+      if (timer) clearTimeout(timer);
+      calendarEvents.off('confirmed-days-updated', handleConfirmedDaysUpdated);
     };
   }, [loadAllData]);
 
