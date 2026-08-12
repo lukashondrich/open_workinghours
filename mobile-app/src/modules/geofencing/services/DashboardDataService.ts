@@ -147,8 +147,11 @@ export async function loadDashboardData(accountCreatedAt?: string): Promise<Dash
       actualMinutes += overlap;
     }
 
-    // Check if day is confirmed
-    const isConfirmed = confirmedDays[dateKey]?.status === 'confirmed';
+    // Check if day is confirmed — 'locked' is confirmed-and-submitted, so it
+    // counts too (the calendar month footer already counts both; see
+    // calendar-reducer.ts isConfirmedStatus)
+    const status = confirmedDays[dateKey]?.status;
+    const isConfirmed = status === 'confirmed' || status === 'locked';
 
     days.push({
       date: dateKey,
