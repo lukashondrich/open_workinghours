@@ -1,6 +1,41 @@
 # Android Play Store launch — working checklist
 
 **Created:** 2026-07-09 (during iOS launch follow-up). Companion to `WORKSTREAMS.md` §8.
+
+## 🚀 STATUS: SUBMITTED TO GOOGLE REVIEW — 2026-08-12
+
+Closed-Test (Alpha) release, versionCode 6 / v2.1.3, sent for review with ALL
+required App-content declarations complete: App access (demo account), Data
+safety, ads/health/Werbe-ID declarations, store listing (DE: name, short+full
+description, icon 512, feature graphic, 6 screenshots re-padded to strict 9:16),
+category Effizienz + tags, contact details, account-deletion URLs
+(`app-privacy-policy#rights`), **background-location + foreground-service
+(Geofencing) declarations incl. demo video**.
+
+- **Demo video**: recorded via Appium-driven emulator automation (demo review
+  account against prod; script persisted at
+  `mobile-app/store-assets/play/record-disclosure-video.js`). Two cuts on the
+  user's Desktop: full 79s (`OWH-disclosure-video.mp4`) and the submitted 29s
+  cut (`OWH-disclosure-video-30s.mp4`, YouTube unlisted) showing feature →
+  background primer → OS settings page → "Allow all the time".
+  Recording pitfalls: GMS "Location Accuracy" dialog must be answered "Turn
+  on" once per emulator (a `pm clear com.google.android.gms` RESETS this);
+  set a GPS fix (`adb emu geo fix 13.3777 52.5162`) or the app's
+  "Location Unavailable" alert blocks the wizard; warm-up launch before
+  recording (cold starts outlast script waits).
+- Ignored warning: no R8/ProGuard mapping file — build doesn't obfuscate.
+  (Optional later: enable R8 to shrink the ~110 MB APK; needs its own E2E pass.)
+
+**Next, in order:**
+1. Await Google review (first-time app: ~1–7 days)
+2. Play Console → App-Integrität: copy **App signing SHA-1** → register on
+   BOTH the Maps API key and the Android OAuth client (see "Follow-ups")
+3. Install via Play opt-in link on the A14 → smoke-test maps + Google Sign-In
+   (the two things only the Play-signed build proves)
+4. Collect 12+ testers (doc-mums) → 14-day continuous closed test → apply for
+   production access
+5. Open items: EN store-listing localization; regenerate screenshots
+   (flows 03/04 show pre-v2.1.3 UI) before any public listing
 **SUBMISSION AAB (2026-07-30): versionCode 6, v2.1.3, production profile** —
 `expo.dev/artifacts/eas/X2g4v72arPU1X2gTLjZzknE9MNz63ENFnGxo911cWnw.aab`
 Binary-verified: READ/WRITE_CALENDAR ✓, ACCESS_BACKGROUND_LOCATION ✓,
@@ -32,7 +67,7 @@ Use email-code login (`demo@openworkinghours.org` / `123456`) — **Google Sign-
 2. [x] **Maps render** *(2026-07-29)* — found + worked around the blank-tiles paint race (`loadingEnabled` + onMapReady camera nudge; durable fix = react-native-maps upgrade, see Pre-submission section). NOT a key problem.
 3. [x] **Geofencing on a real walk** *(2026-07-29)*: clock-in/out times "pretty accurate" — **the doc-mums blocker is verified on-device**. Tested with the app alive (foreground/background), NOT swipe-killed.
 4. [x] **Foreground keepalive / swipe-kill** *(2026-07-30)*: clock-in AND clock-out worked with the app swipe-killed — the Android-only keepalive + health-check restart path is verified on the A14.
-5. [~] **Prominent disclosure order**: flow observed during on-device setup (primer before OS dialog) — **the screen RECORDING for the Play declaration is still to be captured** (fresh install, ~90s)
+5. [x] **Prominent disclosure order** *(2026-08-12)*: recorded (automated emulator take, see STATUS section), 29s cut submitted with the Play declarations
 6. [x] Notifications *(2026-07-30, user-tested)*
 7. [x] Calendar flows *(2026-07-30, user-tested)*
 8. [x] Save-location-during-active-session *(2026-07-30, user-tested — old bug remains non-reproducible)*

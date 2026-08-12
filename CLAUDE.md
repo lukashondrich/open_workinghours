@@ -29,7 +29,7 @@
 | Component | Status | Location |
 |-----------|--------|----------|
 | **React Native Mobile App (iOS)** | Live on the App Store (v2.1.0) | `mobile-app/` |
-| **React Native Mobile App (Android)** | Development (internal testing) | `mobile-app/` |
+| **React Native Mobile App (Android)** | **In Google Play review** (Closed Test submitted 2026-08-12, vc6/v2.1.3) | `mobile-app/` |
 | **FastAPI Backend** | Production (Hetzner) | `backend/` |
 | **Astro Website** | Live (openworkinghours.org) | `website/` |
 | **Next.js Dashboard** | Deprecated | Root (unused) |
@@ -198,6 +198,22 @@ All new UI **must** be testable by Appium (XCUITest on iOS, UiAutomator2 on Andr
 ---
 
 ## Recent Updates (Last 7 Days)
+
+### 2026-08-12: Android SUBMITTED to Google Play review (Closed Test / Alpha)
+
+**First Android store submission.** versionCode 6 / v2.1.3 AAB (EAS production
+build, binary-verified) sent for review with the complete App-content package:
+data safety form, demo-account app access, store listing (DE), category/tags,
+deletion URLs, and the background-location + foreground-service (Geofencing)
+declarations including the demo video (automated Appium-driven emulator
+recording; script + pitfalls: `mobile-app/store-assets/play/record-disclosure-video.js`
+and `project-mgmt/android-launch-checklist.md` → STATUS section).
+**Post-review actions queued** (checklist STATUS section): register the Play
+App-Signing SHA-1 on the Maps key + OAuth client, smoke-test the Play-signed
+build (maps + Google Sign-In), then 12+ testers × 14 days → production access.
+Earlier in the pipeline (2026-07-30/31): react-native-maps 1.20.1→1.29.0
+(E2E-verified both platforms), `expo prebuild -p android --clean` regeneration
+(calendar perms plugin-generated, versionName synced to 2.1.3).
 
 ### 2026-07-27: E2E suite green on BOTH platforms (71/71 ×2 each) + 2 real Android app bugs fixed
 
