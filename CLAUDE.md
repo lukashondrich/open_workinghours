@@ -1,7 +1,7 @@
 # Claude Context: Open Working Hours
 
 **Last Updated:** 2026-08-13
-**Current Build:** #72 / v2.1.4 — in TestFlight (user-verified 2026-08-13), NOT yet submitted for App Review. Confirmation-counting release: locked days count as confirmed, fraction counts every elapsed day, live Status refresh, month-cell spacing. v2.1.3 (#69) is LIVE on the App Store. Next App Store submission should carry the panoramic screenshots (`store-assets/composed/{locale}/panorama/`) + lawyer copy if arrived.
+**Current Build:** #72 / v2.1.4 — SUBMITTED for App Review 2026-08-13 (confirmation-counting release: locked days count as confirmed, fraction counts every elapsed day, live Status refresh, month-cell spacing) **with the new panoramic screenshots** (first store use). v2.1.3 (#69) remains LIVE until approval. Lawyer's HWG/GDPR description pass still outstanding — next metadata update.
 ---
 
 ## Project Overview
