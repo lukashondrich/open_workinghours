@@ -2,10 +2,7 @@ import { subDays, startOfDay, format, isBefore, isAfter, parseISO } from 'date-f
 import { getDatabase } from '@/modules/geofencing/services/Database';
 import { getCalendarStorage } from '@/modules/calendar/services/CalendarStorage';
 import type { ShiftInstance, ShiftColor, AbsenceInstance } from '@/lib/calendar/types';
-import {
-  getAbsencesForDate,
-  hasConfirmableActivity,
-} from '@/lib/calendar/calendar-utils';
+import { getAbsencesForDate } from '@/lib/calendar/calendar-utils';
 import { computeEffectivePlannedMinutesForDate, getDayBounds, computeOverlapMinutes } from '@/lib/calendar/time-calculations';
 
 export interface DailyHoursData {
@@ -37,7 +34,7 @@ export interface DashboardData {
     totalPlanned: number;
     totalActual: number;
     deviation: number;
-    eligibleDayCount: number; // elapsed days with activity (confirmable)
+    eligibleDayCount: number; // elapsed days in the window (post-account); all need review
     confirmedDayCount: number; // subset of eligible days confirmed
   };
   nextShift: NextShiftData | null;
@@ -172,10 +169,11 @@ export async function loadDashboardData(accountCreatedAt?: string): Promise<Dash
       totalPlanned += plannedMinutes;
       totalActual += actualMinutes;
 
-      if (hasConfirmableActivity(plannedMinutes, actualMinutes, hasVacation, hasSick)) {
-        eligibleDayCount++;
-        if (isConfirmed) confirmedDayCount++;
-      }
+      // Every elapsed day needs review, activity or not — mirrors
+      // getMonthSummary and the 7/7-days submission invariant
+      // (WeekStateService). Pre-account days never reach here.
+      eligibleDayCount++;
+      if (isConfirmed) confirmedDayCount++;
     }
   }
 

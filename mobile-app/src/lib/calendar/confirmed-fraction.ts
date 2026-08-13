@@ -5,7 +5,7 @@
  */
 import { t } from '@/lib/i18n';
 
-/** Returns null when there is nothing to confirm yet (no elapsed days with activity). */
+/** Returns null when there is nothing to confirm yet (no elapsed days in the account window). */
 export function getConfirmedFractionText(
   confirmedDayCount: number,
   eligibleDayCount: number,

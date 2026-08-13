@@ -545,6 +545,7 @@ export function hasConfirmableActivity(
  * @param absenceInstances - All absence instances
  * @param confirmedDates - Set of confirmed date keys
  * @param todayKey - Today as YYYY-MM-DD; days >= this are excluded from tracked/planned/overtime and eligibility
+ * @param accountStartKey - Optional account-creation date key; days before it are excluded from the confirmation fraction (nothing to review before signup)
  * @returns Summary with elapsed-day tracked/planned/overtime minutes, month absence counts, and confirmation counts
  */
 export function getMonthSummary(
@@ -554,6 +555,7 @@ export function getMonthSummary(
   absenceInstances: Record<string, AbsenceInstance>,
   confirmedDates: Set<string>,
   todayKey: string,
+  accountStartKey?: string,
 ): MonthSummary {
   const start = startOfMonth(month);
   const end = endOfMonth(month);
@@ -597,7 +599,11 @@ export function getMonthSummary(
       trackedMinutes += dayTracked;
       plannedMinutes += dayPlanned;
 
-      if (hasConfirmableActivity(dayPlanned, dayTracked, hasVacation, hasSick)) {
+      // Every elapsed day needs review, activity or not — submission's hard
+      // invariant is 7/7 confirmed days per week (WeekStateService), and a
+      // confirmed empty day is a real "0 hours" data point. Days before
+      // account creation are the only exception.
+      if (!accountStartKey || dateKey >= accountStartKey) {
         eligibleDayCount++;
         if (confirmedDates.has(dateKey)) confirmedDayCount++;
       }
