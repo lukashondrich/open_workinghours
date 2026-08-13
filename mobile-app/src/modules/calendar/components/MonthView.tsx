@@ -141,8 +141,10 @@ function DayCell({
         {indicators.hasNote && <View testID={`month-day-${dateKey}-note`}><StickyNote size={10} color="#6366F1" /></View>}
       </View>
       {/* Row 3: Confirmation status - overtime+check for confirmed activity days,
-          lone check for confirmed empty days, ? for any day still needing review
-          (every elapsed day needs review — the submission gate is 7/7 per week) */}
+          lone check for confirmed empty days, ? only for days reviewable NOW
+          (elapsed, post-account — every one of them blocks its week's
+          submission, which needs 7/7 confirmed). Future days show nothing:
+          they can't be confirmed yet, so a hint there is noise. */}
       <View style={styles.confirmRow}>
         {indicators.confirmed ? (
           indicators.hasActivity ? (
@@ -155,7 +157,7 @@ function DayCell({
           ) : (
             <Check size={10} color={colors.primary[500]} />
           )
-        ) : indicators.hasActivity || showConfirmHint ? (
+        ) : showConfirmHint ? (
           <CircleHelp size={12} color={colors.grey[400]} />
         ) : null}
       </View>
@@ -756,7 +758,8 @@ const styles = StyleSheet.create({
   dayCell: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: spacing.xs,
+    paddingTop: spacing.xs,
+    paddingBottom: 2,
     borderRadius: borderRadius.md,
   },
   dayCellMuted: {
@@ -771,7 +774,8 @@ const styles = StyleSheet.create({
   },
   dayLabel: {
     fontSize: fontSize.sm,
-    marginBottom: 2,
+    lineHeight: 17,
+    marginBottom: 1,
     color: colors.text.primary,
   },
   dayLabelMuted: {
@@ -797,22 +801,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     gap: 2,
-    marginTop: 2,
+    marginTop: 1,
     minHeight: 10,
   },
+  // Compact: the day cell's content stack must stay under the compressed cell
+  // height (footer expanded, 5-week month ≈ 66px incl. padding) or the
+  // confirm symbol visually collides with the next week's row.
   confirmRow: {
-    marginTop: 2,
-    minHeight: 22,
+    marginTop: 1,
+    minHeight: 20,
     justifyContent: 'center',
     alignItems: 'center',
   },
   overtimeColumn: {
     flexDirection: 'column',
     alignItems: 'center',
-    gap: 1,
   },
   overtimeText: {
     fontSize: 9,
+    lineHeight: 11,
     fontWeight: fontWeight.medium,
   },
   // Summary Footer Styles
