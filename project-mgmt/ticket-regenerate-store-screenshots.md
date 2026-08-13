@@ -28,8 +28,8 @@ set** (`store-assets/compose-panorama.js`, see `store-assets/README.md` →
   set (Calm, DE store) by solving seam-contour continuity: measured ≈62px
   (4.7% of a slot) — within measurement error of 60.
 
-**Remaining (manual):** drag the 10 PNGs into App Store Connect with the next
-metadata or app update. If Connect rejects 1320×2868 again, use `resized/`.
+**DONE:** uploaded to App Store Connect with the v2.1.4 (#72) submission,
+2026-08-13. Ticket fully closed.
 
 ---
 
