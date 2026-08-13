@@ -145,6 +145,30 @@ Apple's web UI prompt is structured: *what data → linked to user? → used for
 
 ## 4b. Release notes ("What's New") per version
 
+### v2.1.4 (build 72, submitted 2026-08-13)
+
+**DE:**
+```
+Dieses Update verbessert die Tagesbestätigung:
+
+• Bereits übermittelte Wochen zählen jetzt korrekt als bestätigt — Status und Monatsansicht zeigen dieselben Zahlen
+• „X von Y Tagen bestätigt" zählt jetzt jeden vergangenen Tag; ein bestätigter Tag ohne Arbeit wird als 0-Stunden-Tag erfasst
+• Der Status-Bildschirm aktualisiert sich sofort beim Bestätigen — ohne Tab-Wechsel
+• Monatsansicht: kompaktere Tageszellen, das ?-Symbol erscheint nur noch bei prüfbaren (vergangenen) Tagen
+```
+
+**EN:**
+```
+This update improves day confirmation:
+
+• Submitted weeks now correctly count as confirmed — Status and month view show the same numbers
+• "X of Y days confirmed" now counts every past day; confirming a day without work records it as a 0-hour day
+• The Status screen updates instantly when you confirm — no tab switch needed
+• Month view: more compact day cells; the ? marker only appears on reviewable (past) days
+```
+
+**Screenshots:** replaced with the 5-slot panoramic set (`composed/{locale}/panorama/`, upload order = filename order). See README → "Panoramic set".
+
 ### v2.1.3 (build 69, submitted 2026-07-24)
 
 **DE:**
