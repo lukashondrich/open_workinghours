@@ -1,7 +1,7 @@
 # Claude Context: Open Working Hours
 
-**Last Updated:** 2026-07-24
-**Current Build:** #69 / v2.1.3 — submitted for App Review 2026-07-24 (UX release: elapsed-day overtime scoping, confirmation fraction, plan mode, sheet-peek fix). v2.1.2 (#68) remains LIVE until approval.
+**Last Updated:** 2026-08-13
+**Current Build:** #72 / v2.1.4 — in TestFlight (user-verified 2026-08-13), NOT yet submitted for App Review. Confirmation-counting release: locked days count as confirmed, fraction counts every elapsed day, live Status refresh, month-cell spacing. v2.1.3 (#69) is LIVE on the App Store. Next App Store submission should carry the panoramic screenshots (`store-assets/composed/{locale}/panorama/`) + lawyer copy if arrived.
 ---
 
 ## Project Overview
@@ -198,6 +198,39 @@ All new UI **must** be testable by Appium (XCUITest on iOS, UiAutomator2 on Andr
 ---
 
 ## Recent Updates (Last 7 Days)
+
+### 2026-08-13: v2.1.4 confirmation-counting release (TestFlight #72) + panoramic screenshots
+
+**Dogfooding-driven batch, all user-verified on TestFlight the same day:**
+- **Locked-day undercount fixed (real shipping bug since v2.1.1):** submitted weeks
+  rewrite days to `'locked'`, but `DashboardDataService` counted only `'confirmed'` —
+  Status undercounted by up to 7 days per submitted week and disagreed with the month
+  footer. The old ticket's Changes A/C/D were verified **never implemented** (its
+  "RESOLVED" markers resolve the plan review, not code). C: count
+  `'confirmed' || 'locked'` (+ audit of all 6 read sites — one defect). A: StatusScreen
+  subscribes to `confirmed-days-updated` (150ms debounce). D: calendar-context persist
+  effect emits the event — guarded by an order-stable content snapshot because the
+  provider rehydrates on that same event (a naive emit loops forever). Changes B + E
+  remain open in the (locally-excluded) ticket.
+- **Confirmation fraction = every elapsed day (option A):** the old
+  `hasConfirmableActivity` gate hid confirmed empty days from both numbers, though the
+  submission gate is a hard 7/7 (`WeekStateService`) and a confirmed empty day is a
+  real 0-hour data point. `getMonthSummary` takes `accountStartKey` (no review debt
+  before signup); explainer copy updated EN+DE. Deliberately NO convenience feature for
+  confirming empty days — wait for real-user friction reports first.
+- **Month view polish:** day-cell stack tightened ~72→64px (fits the compressed cell
+  when the footer is expanded — the ✓/? used to collide with the next row); "?" hint
+  now only on reviewable days (elapsed, post-account) — future/today stay clean.
+- **Panoramic App Store screenshots** (`store-assets/compose-panorama.js`): 5-slot set,
+  2 two-panel panoramas + 1 single; canvas 2×1320+60px gutter band so contours align
+  across the store gallery gap (gutter reverse-verified against Calm's live panorama,
+  ~62px). Raws recaptured from fresh seed build. Upload rides the next App Store
+  submission (`composed/{locale}/panorama/` + `resized/` 6.7" fallback).
+  Flow 04's capture still silently lands on week view (toggle tap swallowed) — fix the
+  flow before reusing it.
+- **E2E:** iOS suite 71/71 on the branch (also satisfies the pending
+  post-PermissionPrimingScreen re-run). New unit tests: DashboardDataService (red/green
+  verified), account-window month-summary case (259 total).
 
 ### 2026-08-12: Android SUBMITTED to Google Play review (Closed Test / Alpha)
 
