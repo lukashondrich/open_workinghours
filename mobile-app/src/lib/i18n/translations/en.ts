@@ -449,7 +449,7 @@ export const en = {
     overtimeTitle: 'Overtime',
     overtimeBody: 'Tracked minus Planned. All values count only days that have already passed — today joins tomorrow, future shifts once they are over.',
     confirmedTitle: 'Confirmed',
-    confirmedBody: "Confirmed days are days you've reviewed. “X of Y days confirmed” shows how many past days with activity you've reviewed so far.",
+    confirmedBody: "Confirmed days are days you've reviewed. “X of Y days confirmed” counts every past day — confirming a day without work records it as a 0-hour day, which is part of your week's data too.",
     futureMonthsTitle: 'Future months',
     futureMonthsBody: "For months that haven't started yet, the footer shows the month's total planned hours instead.",
     close: 'Got it',

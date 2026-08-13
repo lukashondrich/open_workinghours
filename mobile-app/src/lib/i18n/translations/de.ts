@@ -449,7 +449,7 @@ export const de = {
     overtimeTitle: 'Überstunden',
     overtimeBody: 'Erfasst minus Geplant. Alle Werte zählen nur bereits vergangene Tage — der heutige Tag kommt ab morgen dazu, zukünftige Dienste, sobald sie vorbei sind.',
     confirmedTitle: 'Bestätigt',
-    confirmedBody: 'Bestätigte Tage sind Tage, die du geprüft hast. „X von Y Tagen bestätigt“ zeigt, wie viele vergangene Tage mit Aktivität schon geprüft sind.',
+    confirmedBody: 'Bestätigte Tage sind Tage, die du geprüft hast. „X von Y Tagen bestätigt“ zählt jeden vergangenen Tag — auch ein Tag ohne Arbeit wird beim Bestätigen als 0-Stunden-Tag erfasst und gehört zu deinen Wochendaten.',
     futureMonthsTitle: 'Zukünftige Monate',
     futureMonthsBody: 'Für Monate, die noch nicht begonnen haben, zeigt die Fußzeile stattdessen die insgesamt geplanten Stunden des Monats.',
     close: 'Verstanden',

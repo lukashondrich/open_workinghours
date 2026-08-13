@@ -54,7 +54,9 @@ describe('loadDashboardData confirmation counting', () => {
     expect(byDate[dateKey(2)].isConfirmed).toBe(true); // locked — the v2.1.x undercount bug
     expect(byDate[dateKey(3)].isConfirmed).toBe(false);
 
-    expect(data.hoursSummary.eligibleDayCount).toBe(3);
+    // Every elapsed day of the 14-day window is eligible (13 non-today days),
+    // not just the 3 with sessions — empty days need review too.
+    expect(data.hoursSummary.eligibleDayCount).toBe(13);
     expect(data.hoursSummary.confirmedDayCount).toBe(2);
   });
 });

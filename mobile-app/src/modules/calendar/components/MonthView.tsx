@@ -1,13 +1,14 @@
 import React, { useMemo, useRef, useState, useCallback } from 'react';
 import { View, StyleSheet, TouchableOpacity, PanResponder, Animated, useWindowDimensions, AppState } from 'react-native';
 import { AppText as Text } from '@/components/ui/AppText';
-import { format, startOfMonth, endOfMonth, startOfWeek, addDays, isSameDay, addMonths, subMonths } from 'date-fns';
+import { format, startOfMonth, endOfMonth, startOfWeek, addDays, isSameDay, addMonths, subMonths, parseISO } from 'date-fns';
 import { TreePalm, Thermometer, Check, CircleHelp, X, ChevronDown, ChevronUp, StickyNote, Info } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useFocusEffect } from '@react-navigation/native';
 
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/theme';
 import { useCalendar } from '@/lib/calendar/calendar-context';
+import { useAuth } from '@/lib/auth/auth-context';
 import {
   getMonthDays,
   formatDateKey,
@@ -50,6 +51,7 @@ function DayCell({
   isTargetDay,
   flashType,
   flashCounter,
+  showConfirmHint,
 }: {
   date: Date;
   onPress: (date: Date) => void;
@@ -60,6 +62,8 @@ function DayCell({
   isTargetDay: boolean;
   flashType: 'place' | 'remove' | null;
   flashCounter: number;
+  /** Elapsed day within the account window: unconfirmed = needs review, even with no activity */
+  showConfirmHint: boolean;
 }) {
   const flashAnim = useRef(new Animated.Value(0)).current;
   const lastFlashRef = useRef(0);
@@ -136,16 +140,22 @@ function DayCell({
         {indicators.hasSick && <View testID={`month-day-${dateKey}-sick`}><Thermometer size={10} color="#92400E" /></View>}
         {indicators.hasNote && <View testID={`month-day-${dateKey}-note`}><StickyNote size={10} color="#6366F1" /></View>}
       </View>
-      {/* Row 3: Confirmation status - overtime for confirmed, ? for unconfirmed with activity */}
+      {/* Row 3: Confirmation status - overtime+check for confirmed activity days,
+          lone check for confirmed empty days, ? for any day still needing review
+          (every elapsed day needs review — the submission gate is 7/7 per week) */}
       <View style={styles.confirmRow}>
         {indicators.confirmed ? (
-          <View style={styles.overtimeColumn}>
-            <Text style={[styles.overtimeText, { color: getOvertimeColor() }]}>
-              {overtimeDisplay}
-            </Text>
+          indicators.hasActivity ? (
+            <View style={styles.overtimeColumn}>
+              <Text style={[styles.overtimeText, { color: getOvertimeColor() }]}>
+                {overtimeDisplay}
+              </Text>
+              <Check size={10} color={colors.primary[500]} />
+            </View>
+          ) : (
             <Check size={10} color={colors.primary[500]} />
-          </View>
-        ) : indicators.hasActivity ? (
+          )
+        ) : indicators.hasActivity || showConfirmHint ? (
           <CircleHelp size={12} color={colors.grey[400]} />
         ) : null}
       </View>
@@ -321,6 +331,12 @@ const SWIPE_THRESHOLD = 50; // pixels
 
 export default function MonthView() {
   const { state, dispatch } = useCalendar();
+  const { state: authState } = useAuth();
+  // Days before account creation are excluded from the confirmation fraction
+  // and the needs-review hint — there is nothing to review before signup.
+  const accountStartKey = authState.user?.createdAt
+    ? formatDateKey(parseISO(authState.user.createdAt))
+    : undefined;
   const { ensureEditable, lockStateFor } = useDayLock(state, dispatch);
   const { width: screenWidth } = useWindowDimensions();
   const days = getMonthDays(state.currentMonth);
@@ -631,8 +647,9 @@ export default function MonthView() {
         state.absenceInstances,
         state.confirmedDates,
         todayKey,
+        accountStartKey,
       ),
-    [state.currentMonth, state.instances, state.trackingRecords, state.absenceInstances, state.confirmedDates, todayKey],
+    [state.currentMonth, state.instances, state.trackingRecords, state.absenceInstances, state.confirmedDates, todayKey, accountStartKey],
   );
 
   return (
@@ -663,6 +680,7 @@ export default function MonthView() {
                   isTargetDay={state.inlinePickerTargetDate === dateKey}
                   flashType={flashCell?.dateKey === dateKey ? flashCell.type : null}
                   flashCounter={flashCell?.counter ?? 0}
+                  showConfirmHint={dateKey < todayKey && (!accountStartKey || dateKey >= accountStartKey)}
                 />
               </View>
             );

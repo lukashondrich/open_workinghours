@@ -90,7 +90,7 @@ describe('getMonthSummary', () => {
     expectIdentity(summary);
   });
 
-  it('counts eligible and confirmed days over elapsed days with activity only', () => {
+  it('counts every elapsed day as eligible, activity or not (submission requires 7/7 per week)', () => {
     const instances = toMap([
       makeShift({ id: 's1', date: '2025-03-01', startTime: '08:00', duration: 480 }),
       makeShift({ id: 's2', date: '2025-03-02', startTime: '08:00', duration: 480 }),
@@ -99,7 +99,8 @@ describe('getMonthSummary', () => {
     const absences = toMap([
       makeAbsence({ id: 'a1', date: '2025-03-03', type: 'sick' }),
     ]);
-    // March 4-9 elapsed but empty -> not eligible
+    // March 4-9 elapsed and empty -> still eligible: an empty day is a 0-hour
+    // data point the week submission needs confirmed
     const summary = getMonthSummary(
       MONTH,
       instances,
@@ -109,8 +110,23 @@ describe('getMonthSummary', () => {
       '2025-03-10',
     );
 
-    expect(summary.eligibleDayCount).toBe(3); // Mar 1, 2 (shifts) + Mar 3 (sick)
+    expect(summary.eligibleDayCount).toBe(9); // Mar 1-9, all elapsed days
     expect(summary.confirmedDayCount).toBe(2);
+  });
+
+  it('excludes days before account creation from the confirmation fraction', () => {
+    const summary = getMonthSummary(
+      MONTH,
+      {},
+      {},
+      {},
+      new Set(['2025-03-05']),
+      '2025-03-10',
+      '2025-03-04', // account created mid-month
+    );
+
+    expect(summary.eligibleDayCount).toBe(6); // Mar 4-9 only
+    expect(summary.confirmedDayCount).toBe(1);
   });
 
   it('returns all zeros for a fully future month while still counting month absences', () => {
