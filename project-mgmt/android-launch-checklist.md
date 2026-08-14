@@ -35,7 +35,18 @@ category Effizienz + tags, contact details, account-deletion URLs
 4. Collect 12+ testers (doc-mums) → 14-day continuous closed test → apply for
    production access
 5. Open items: EN store-listing localization; regenerate screenshots
-   (flows 03/04 show pre-v2.1.3 UI) before any public listing
+   (flows 03/04 show pre-v2.1.3 UI) before any public listing — consider
+   reusing the iOS panoramic set (`store-assets/compose-panorama.js`,
+   2026-08-13) adapted to Play's 9:16 requirement
+6. **Marketing experiment (agreed 2026-08-14, after Android approval):**
+   set up an App Store **custom product page** (privacy/collective-insights
+   panorama first) + a ~€20 Instagram test campaign. Ground rules from the
+   planning discussion: NO Meta SDK/pixel in the app (privacy stance) —
+   attribution via the custom-product-page link's own ASC analytics;
+   restrict device targeting per store availability; ad copy stays on
+   working-time/overtime/privacy framing (HWG caution — lawyer pass still
+   pending); ad creative can be rendered from the panorama artwork in
+   9:16 story format via the compose pipeline.
 **SUBMISSION AAB (2026-07-30): versionCode 6, v2.1.3, production profile** —
 `expo.dev/artifacts/eas/X2g4v72arPU1X2gTLjZzknE9MNz63ENFnGxo911cWnw.aab`
 Binary-verified: READ/WRITE_CALENDAR ✓, ACCESS_BACKGROUND_LOCATION ✓,
