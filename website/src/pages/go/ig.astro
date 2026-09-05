@@ -1,0 +1,41 @@
+---
+// Ad landing hop for the Instagram test campaign (video-lab/campaigns/ig-test-2026-09-collective.md).
+// Meta refuses a Traffic-ad destination that resolves into the App Store (error #1487810), and it
+// follows HTTP redirects when checking. So this is a real 200 page: the official badge links to the
+// Apple campaign URL (pt/ct → App Analytics attribution), and a script forwards after a short delay.
+const STORE = 'https://apps.apple.com/app/apple-store/id6755491395?pt=128304319&ct=ig-test-2026-09-collective&mt=8';
+---
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Open Working Hours – im App Store</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #2E8B6B; color: #fff;
+        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif; }
+      main { min-height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;
+        text-align: center; padding: 32px 24px; box-sizing: border-box; }
+      img.icon { width: 112px; height: 112px; border-radius: 26px; box-shadow: 0 16px 40px rgba(0,0,0,.2); }
+      h1 { font-size: 28px; font-weight: 800; letter-spacing: -0.3px; margin: 24px 0 8px; }
+      p { font-size: 17px; opacity: .92; margin: 0 0 28px; max-width: 28rem; line-height: 1.4; }
+      a.badge img { height: 56px; width: auto; }
+      small { display: block; margin-top: 28px; font-size: 13px; opacity: .7; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <img class="icon" src="/apple-touch-icon.png" alt="" width="112" height="112" />
+      <h1>Open Working Hours</h1>
+      <p>Arbeitszeit automatisch erfassen. Überstunden sehen. Anonym vergleichen. Kostenlos.</p>
+      <a class="badge" id="store" href={STORE} rel="noopener" aria-label="Im App Store laden">
+        <img src="/badges/app-store-de.svg" alt="Im App Store laden" />
+      </a>
+      <small>Du wirst gleich zum App Store weitergeleitet …</small>
+    </main>
+    <script is:inline define:vars={{ STORE }}>
+      setTimeout(function () { window.location.replace(STORE); }, 900);
+    </script>
+  </body>
+</html>
