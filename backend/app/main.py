@@ -10,7 +10,7 @@ from .cleanup import purge_old_feedback_reports_once
 from .config import get_settings
 from .database import SessionLocal, init_db
 from .rate_limit import rate_limit
-from .routers import admin, analytics, auth, dashboard, feedback, finalized_weeks, reports, stats, submissions, taxonomy, verification, work_events
+from .routers import admin, analytics, auth, dashboard, feedback, finalized_weeks, go, reports, stats, submissions, taxonomy, verification, work_events
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
@@ -113,6 +113,7 @@ app.include_router(analytics.router)
 app.include_router(submissions.router)
 app.include_router(feedback.router)
 app.include_router(taxonomy.router)
+app.include_router(go.router)
 
 app.add_middleware(
     CORSMiddleware,
