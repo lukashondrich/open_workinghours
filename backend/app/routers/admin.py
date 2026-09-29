@@ -669,7 +669,7 @@ def get_dashboard_page(username: str = Depends(verify_admin), _rl: None = Depend
                 eventsHtml = events.slice(0, 50).map(e => {
                     const time = new Date(e.timestamp).toLocaleString();
                     // Show accuracy with source: "32.5m (fetch)" or "32.5m (event)" or "N/A"
-                    const sourceLabel = e.accuracy_source === 'active_fetch' ? 'fetch' : e.accuracy_source === 'event' ? 'event' : '';
+                    const sourceLabel = e.accuracy_source === 'active_fetch' ? 'fetch' : e.accuracy_source === 'event' ? 'event' : e.accuracy_source === 'keepalive' ? 'keepalive' : '';
                     const accuracy = e.accuracy_meters
                         ? e.accuracy_meters.toFixed(1) + 'm' + (sourceLabel ? ` (${escapeHtml(sourceLabel)})` : '')
                         : 'N/A';

@@ -60,6 +60,14 @@ def submit_feedback(
     if gps_telemetry and not include_location_diagnostics:
         for event in gps_telemetry.get("recent_events", []):
             event.pop("location_name", None)
+    session_telemetry = (
+        [entry.model_dump() for entry in payload.session_telemetry]
+        if payload.session_telemetry is not None
+        else None
+    )
+    if session_telemetry and not include_location_diagnostics:
+        for entry in session_telemetry:
+            entry.pop("location_name", None)
     location_details = (
         _sanitize_location_details(payload.locations_details)
         if include_location_diagnostics
@@ -91,6 +99,8 @@ def submit_feedback(
         },
         # GPS telemetry for geofence parameter tuning
         "gps_telemetry": gps_telemetry,
+        # Tracking sessions (no coordinates) for session-integrity debugging
+        "session_telemetry": session_telemetry,
     }
 
     # Create feedback report

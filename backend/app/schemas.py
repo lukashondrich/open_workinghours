@@ -2,7 +2,7 @@ from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr, Field, validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, validator
 
 from .models import StaffGroup
 from .taxonomy import (
@@ -578,7 +578,7 @@ class GpsTelemetryEvent(BaseModel):
     timestamp: str
     event_type: str  # "enter" | "exit"
     accuracy_meters: float | None = None
-    accuracy_source: str | None = None  # "event" | "active_fetch" | null
+    accuracy_source: str | None = None  # "event" | "active_fetch" | "keepalive" | null
     ignored: bool = False
     ignore_reason: str | None = None
     location_name: str | None = None
@@ -599,6 +599,27 @@ class GpsTelemetry(BaseModel):
     ignored_events_count: int = 0
     signal_degradation_count: int = 0
     debounced_events_count: int = 0
+    manual_session_count: int = 0
+    stale_timestamp_count: int = 0
+
+
+SESSION_TELEMETRY_MAX_ENTRIES = 50  # matches the client cap
+
+
+class SessionTelemetryEntry(BaseModel):
+    """One tracking session from the device (no coordinates)"""
+    clock_in: str = Field(max_length=40)
+    clock_out: str | None = Field(default=None, max_length=40)
+    duration_minutes: int | None = None
+    tracking_method: Literal["geofence_auto", "manual"]
+    state: Literal["active", "pending_exit", "completed"]
+    pending_exit_at: str | None = Field(default=None, max_length=40)
+    checkin_accuracy: float | None = None
+    exit_accuracy: float | None = None
+    created_at: str | None = Field(default=None, max_length=40)
+    updated_at: str | None = Field(default=None, max_length=40)
+    location_index: int | None = None
+    location_name: str | None = Field(default=None, max_length=200)
 
 
 class FeedbackIn(BaseModel):
@@ -632,6 +653,26 @@ class FeedbackIn(BaseModel):
 
     # GPS telemetry for parameter tuning (geofence debugging)
     gps_telemetry: GpsTelemetry | None = None
+
+    # Recent tracking sessions (session-integrity debugging), newest first.
+    # Lenient on purpose: a malformed entry or an over-long list must not cost
+    # the user the whole report — invalid entries are dropped, the list capped.
+    session_telemetry: list[SessionTelemetryEntry] | None = None
+
+    @field_validator("session_telemetry", mode="before")
+    @classmethod
+    def _tolerant_session_telemetry(cls, value):
+        if value is None:
+            return None
+        if not isinstance(value, list):
+            return None
+        kept: list = []
+        for raw in value[:SESSION_TELEMETRY_MAX_ENTRIES]:
+            try:
+                kept.append(SessionTelemetryEntry.model_validate(raw))
+            except Exception:
+                continue
+        return kept
 
     # User's description (optional - they might just send app state)
     description: str | None = None
