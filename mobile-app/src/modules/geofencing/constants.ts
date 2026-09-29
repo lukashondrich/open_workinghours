@@ -4,7 +4,7 @@ export const GEOFENCE_TASK_NAME = 'GEOFENCE_TASK';
 export const LOCATION_KEEPALIVE_TASK_NAME = 'LOCATION_KEEPALIVE_TASK';
 
 export const GEOFENCE_CONFIG: GeofenceConfig = {
-  minRadius: 100,         // Minimum 100 meters
+  minRadius: 50,          // Minimum 50 meters
   maxRadius: 1000,        // Maximum 1 kilometer
   defaultRadius: 200,     // Default 200 meters
   notifyOnEnter: true,

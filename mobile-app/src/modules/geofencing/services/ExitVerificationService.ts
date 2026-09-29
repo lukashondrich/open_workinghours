@@ -10,7 +10,8 @@
  * 2. Each notification triggers a quick GPS check
  * 3. If confidently inside → cancel pending exit
  * 4. If confidently outside at 5 min → confirm clock-out
- * 5. If uncertain → let fallback handle it (app foreground)
+ * 5. If uncertain → leave the pending exit to the expiry pass (rule 5: confirmed only
+ *    with positive 'outside' evidence, otherwise cancelled)
  */
 
 import * as Notifications from 'expo-notifications';
@@ -20,6 +21,8 @@ import { Platform } from 'react-native';
 import { getDatabase } from './Database';
 import { formatDuration } from '@/lib/calendar/calendar-utils';
 import { trackingEvents } from '@/lib/events/trackingEvents';
+import { serialized } from './SessionQueue';
+import { classifyFix } from './geo';
 
 // ============================================================================
 // Constants
@@ -52,6 +55,9 @@ export interface VerificationState {
   geofenceRadius: number;
   pendingExitTime: string; // ISO timestamp
   checkIndex: number; // Which check we're on (0, 1, 2)
+  /** 'android': the check's fix is handed to TrackingManagerAndroid.handleFix and
+   *  decided there. Absent (iOS core): this service decides itself (shipped logic). */
+  core?: 'android';
 }
 
 export interface ScheduleVerificationParams {
@@ -60,36 +66,18 @@ export interface ScheduleVerificationParams {
   geofenceCenter: { latitude: number; longitude: number };
   geofenceRadius: number;
   pendingExitTime: string;
+  core?: 'android';
 }
 
-type CancelReason = 'returned' | 'manual' | 'geofence-reentry';
-
-// ============================================================================
-// Distance Calculation
-// ============================================================================
-
-/**
- * Calculate distance between two coordinates in meters (Haversine formula)
- */
-function calculateDistance(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number
-): number {
-  const R = 6371e3; // Earth radius in meters
-  const φ1 = (lat1 * Math.PI) / 180;
-  const φ2 = (lat2 * Math.PI) / 180;
-  const Δφ = ((lat2 - lat1) * Math.PI) / 180;
-  const Δλ = ((lon2 - lon1) * Math.PI) / 180;
-
-  const a =
-    Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-  return R * c;
-}
+type CancelReason =
+  | 'returned'
+  | 'manual'
+  | 'manual-restore'
+  | 'capped'
+  | 'no-evidence'
+  | 'expired'
+  | 'geofence-reentry'
+  | 'confirmed-on-reentry';
 
 // ============================================================================
 // State Management
@@ -167,13 +155,25 @@ export async function scheduleVerificationChecks(
 }
 
 /**
- * Cancel all verification checks and clean up
+ * Cancel all verification checks and clean up (notifications + stored state).
+ *
+ * This never touches the session row. Callers inside the session queue
+ * (TrackingManager) already own that write; the verification-check path
+ * ('returned') does its own queued write in `restorePendingSession`.
  */
 export async function cancelVerification(
   sessionId: string,
   reason: CancelReason
 ): Promise<void> {
-  console.log(`[ExitVerification] Cancelling verification: ${reason}`);
+  // The verification slot (notifications + stored state) is global; only the
+  // session that owns it may cancel it, or capping/restoring session A would
+  // kill session B's in-flight verification.
+  const owner = await getVerificationState();
+  if (owner && owner.sessionId !== sessionId) {
+    console.log(`[ExitVerification] Not cancelling: verification belongs to ${owner.sessionId}, not ${sessionId} (${reason})`);
+    return;
+  }
+  console.log(`[ExitVerification] Cancelling verification for ${sessionId}: ${reason}`);
 
   // Cancel all scheduled notifications
   for (const id of VERIFICATION_NOTIFICATION_IDS) {
@@ -186,17 +186,32 @@ export async function cancelVerification(
 
   // Clear state
   await clearVerificationState();
+}
 
-  // If user returned, cancel the pending exit in database
-  if (reason === 'returned' || reason === 'geofence-reentry') {
+/**
+ * User is confidently back inside: restore the session to 'active'.
+ * Runs in the session queue; re-checks the row because a queued job may have
+ * already resolved it (manual clock-out, expired hysteresis, re-entry event).
+ */
+async function restorePendingSession(sessionId: string, pendingExitTime?: string): Promise<void> {
+  await serialized(async () => {
     try {
       const db = await getDatabase();
+      const session = await db.getSession(sessionId);
+      if (!session || session.state !== 'pending_exit') {
+        console.log('[ExitVerification] Session no longer pending - nothing to restore');
+        return;
+      }
+      if (pendingExitTime !== undefined && session.pendingExitAt !== pendingExitTime) {
+        console.log('[ExitVerification] Session is pending for a later exit - nothing to restore');
+        return;
+      }
       await db.cancelPendingExit(sessionId);
       trackingEvents.emit('tracking-changed');
     } catch (error) {
       console.error('[ExitVerification] Failed to cancel pending exit:', error);
     }
-  }
+  });
 }
 
 /**
@@ -224,34 +239,47 @@ export async function handleVerificationCheck(checkIndex: number): Promise<void>
     return;
   }
 
-  // Calculate distance from geofence center
-  const distance = calculateDistance(
-    location.coords.latitude,
-    location.coords.longitude,
-    state.geofenceCenter.latitude,
-    state.geofenceCenter.longitude
+  if (state.core === 'android') {
+    // Android: one decision function for every fix (TrackingManagerAndroid rule 5).
+    // Lazy require: the core imports this module.
+    const { TrackingManagerAndroid } = require('./TrackingManagerAndroid') as typeof import('./TrackingManagerAndroid');
+    const db = await getDatabase();
+    await new TrackingManagerAndroid(db).handleFix(
+      state.locationId,
+      {
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+        accuracy: location.coords.accuracy,
+        timestamp: new Date(location.timestamp || Date.now()).toISOString(),
+      },
+      'verification'
+    );
+    const isFinal = checkIndex === CHECK_INTERVALS_MINUTES.length - 1;
+    const current = await getVerificationState();
+    if (current && current.sessionId === state.sessionId && current.pendingExitTime === state.pendingExitTime) {
+      if (isFinal) await clearVerificationState();
+      else await setVerificationState({ ...state, checkIndex: checkIndex + 1 });
+    }
+    return;
+  }
+
+  // Same geometry as every other fix judgement (an N/A accuracy is 'uncertain')
+  const fixClass = classifyFix(
+    { latitude: location.coords.latitude, longitude: location.coords.longitude, accuracy: location.coords.accuracy },
+    { latitude: state.geofenceCenter.latitude, longitude: state.geofenceCenter.longitude, radiusMeters: state.geofenceRadius }
   );
-
-  // Confidence-based detection (accounts for GPS accuracy)
-  const accuracy = location.coords.accuracy ?? 50;
-  const radius = state.geofenceRadius;
-
-  // Must be confident about location before taking action
-  const isConfidentlyInside = distance + accuracy < radius;
-  const isConfidentlyOutside = distance - accuracy > radius;
-  const isUncertain = !isConfidentlyInside && !isConfidentlyOutside;
+  const isConfidentlyInside = fixClass === 'inside';
+  const isConfidentlyOutside = fixClass === 'outside';
 
   console.log(
-    `[ExitVerification] Check ${checkIndex + 1}: distance=${distance.toFixed(0)}m, accuracy=${accuracy.toFixed(0)}m, radius=${radius}m`
-  );
-  console.log(
-    `[ExitVerification] → inside=${isConfidentlyInside}, outside=${isConfidentlyOutside}, uncertain=${isUncertain}`
+    `[ExitVerification] Check ${checkIndex + 1}: ${fixClass} (accuracy ${location.coords.accuracy ?? 'N/A'}m, radius ${state.geofenceRadius}m)`
   );
 
   if (isConfidentlyInside) {
     // User definitely returned - cancel pending exit
     console.log('[ExitVerification] User confidently inside geofence');
     await cancelVerification(state.sessionId, 'returned');
+    await restorePendingSession(state.sessionId, state.pendingExitTime);
     return;
   }
 
@@ -264,27 +292,69 @@ export async function handleVerificationCheck(checkIndex: number): Promise<void>
       console.log('[ExitVerification] Final check - confidently outside, confirming clock-out');
       await confirmClockOut(state);
     } else {
-      // Uncertain on final check - don't auto clock-out
-      // Clear state and let fallback handle it (manual or app foreground)
-      console.log('[ExitVerification] Final check - uncertain, skipping auto clock-out');
+      // Uncertain on the final check: no clock-out from here. The pending exit
+      // stays; the next processing pass decides by its evidence (rule 5): it
+      // confirms if some fix meanwhile proved "outside", otherwise it cancels.
+      console.log('[ExitVerification] Final check - uncertain, leaving the pending exit to the expiry pass');
       await clearVerificationState();
-      // Pending exit remains in database - will be processed on next app foreground
     }
   } else {
-    // Not final check - update state for next check
-    await setVerificationState({
-      ...state,
-      checkIndex: checkIndex + 1,
-    });
+    // An early check that is confidently outside is evidence the user left —
+    // record it on the pending exit now, in case the final check never runs.
+    if (isConfidentlyOutside) {
+      await serialized(async () => {
+        const db = await getDatabase();
+        await db.upgradePendingExitEvidence(state.sessionId, location.coords.accuracy ?? null);
+      });
+    }
+    // Not final check - update state for next check, unless a queued job
+    // (manual clock-out, re-entry) already cleared or replaced it meanwhile —
+    // re-writing would resurrect a dead verification.
+    const current = await getVerificationState();
+    if (current && current.sessionId === state.sessionId) {
+      await setVerificationState({
+        ...state,
+        checkIndex: checkIndex + 1,
+      });
+    }
   }
 }
 
 /**
- * Confirm clock-out after successful verification
+ * Confirm clock-out after successful verification.
+ *
+ * Runs in the session queue and re-reads the row first: by the time the 5-min
+ * notification fires, a queued job may already have resolved the session
+ * (manual clock-out, re-entry event, stale-exit cleanup), and a manual session
+ * must never be closed by a location check (session rule 1).
  */
 async function confirmClockOut(state: VerificationState): Promise<void> {
+  await serialized(() => confirmClockOutImpl(state));
+}
+
+async function confirmClockOutImpl(state: VerificationState): Promise<void> {
   try {
     const db = await getDatabase();
+
+    const current = await db.getSession(state.sessionId);
+    if (!current || current.state !== 'pending_exit') {
+      console.log('[ExitVerification] Session no longer pending - skipping clock-out confirmation');
+      await clearVerificationState();
+      return;
+    }
+    if (current.pendingExitAt !== state.pendingExitTime) {
+      // The row is pending for a LATER exit than the one these checks were
+      // scheduled for (exit → re-entry → exit again): this check is stale.
+      console.log('[ExitVerification] Verification belongs to an earlier pending exit - skipping');
+      return;
+    }
+    if (current.trackingMethod === 'manual') {
+      console.log('[ExitVerification] Manual session - restoring instead of clocking out');
+      await db.cancelPendingExit(state.sessionId);
+      await clearVerificationState();
+      trackingEvents.emit('tracking-changed');
+      return;
+    }
 
     // Confirm the pending exit in database
     await db.confirmPendingExit(state.sessionId);

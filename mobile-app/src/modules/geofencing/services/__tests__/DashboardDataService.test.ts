@@ -27,8 +27,8 @@ function sessionOn(daysAgo: number) {
   };
 }
 
-describe('loadDashboardData confirmation counting', () => {
-  beforeEach(() => {
+beforeEach(() => {
+  {
     jest.clearAllMocks();
     mockedGetCalendarStorage.mockResolvedValue({
       loadInstances: jest.fn().mockResolvedValue({}),
@@ -38,14 +38,22 @@ describe('loadDashboardData confirmation counting', () => {
         // dateKey(3): tracked but never confirmed
       }),
       loadAbsenceInstances: jest.fn().mockResolvedValue({}),
+      // A 30-min break entered in the calendar for the session on dateKey(1)
+      loadTrackingBreaks: jest.fn().mockResolvedValue({ 'tracking-session-s1': 30 }),
     } as any);
     mockedGetDatabase.mockResolvedValue({
       getActiveLocations: jest.fn().mockResolvedValue([]),
-      getSessionsBetween: jest.fn().mockResolvedValue([sessionOn(1), sessionOn(2), sessionOn(3)]),
+      getSessionsBetween: jest.fn().mockResolvedValue([
+        { id: 's1', ...sessionOn(1) },
+        { id: 's2', ...sessionOn(2) },
+        { id: 's3', ...sessionOn(3) },
+      ]),
       getActiveSession: jest.fn().mockResolvedValue(null),
     } as any);
-  });
+  }
+});
 
+describe('loadDashboardData confirmation counting', () => {
   it("counts 'locked' (confirmed-and-submitted) days as confirmed", async () => {
     const data = await loadDashboardData();
 
@@ -58,5 +66,15 @@ describe('loadDashboardData confirmation counting', () => {
     // not just the 3 with sessions — empty days need review too.
     expect(data.hoursSummary.eligibleDayCount).toBe(13);
     expect(data.hoursSummary.confirmedDayCount).toBe(2);
+  });
+});
+
+describe('loadDashboardData actual minutes', () => {
+  it('subtracts calendar breaks from session minutes (agrees with the calendar)', async () => {
+    const data = await loadDashboardData();
+    const byDate = Object.fromEntries(data.hoursSummary.days.map((d) => [d.date, d]));
+    expect(byDate[dateKey(1)].actualMinutes).toBe(8 * 60 - 30);
+    expect(byDate[dateKey(2)].actualMinutes).toBe(8 * 60);
+    expect(data.hoursSummary.totalActual).toBe(3 * 8 * 60 - 30);
   });
 });

@@ -277,20 +277,29 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
     persistNotes();
   }, [state.dayNotes, isHydrated]);
 
-  // Auto-load tracking for month view on initial mount (overview always shows tracking)
+  // On initial mount: load tracking for the current range and switch the
+  // Tracked layer ON by default (tester feedback 2026-09: the tracked hours are
+  // what people open the calendar for; the toggle stays available to hide them).
+  // Month view always shows tracking anyway; week view needs reviewMode.
   useEffect(() => {
     if (!isHydrated) return;
-    if (state.view !== 'month') return;
 
-    const monthStart = startOfMonth(state.currentMonth);
-    const monthEnd = endOfMonth(state.currentMonth);
+    const isMonthView = state.view === 'month';
+    const start = isMonthView
+      ? startOfMonth(state.currentMonth)
+      : startOfWeek(state.currentWeekStart, { weekStartsOn: 1 });
+    const end = isMonthView
+      ? endOfMonth(state.currentMonth)
+      : addDays(startOfWeek(state.currentWeekStart, { weekStartsOn: 1 }), 6);
 
-    loadTrackingForRange(monthStart, monthEnd)
+    loadTrackingForRange(start, end)
       .then((trackingRecords) => {
-        rawDispatch({ type: 'UPDATE_TRACKING_RECORDS', trackingRecords });
+        // Idempotent: a user tap on the toggle while this load is in flight
+        // must not be undone by the mount effect.
+        rawDispatch({ type: 'SET_REVIEW_MODE', on: true, trackingRecords });
       })
       .catch((error) => {
-        console.error('[CalendarProvider] Failed to load month tracking on mount:', error);
+        console.error('[CalendarProvider] Failed to load tracking on mount:', error);
       });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isHydrated]); // Only run once after hydration

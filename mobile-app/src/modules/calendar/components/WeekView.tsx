@@ -18,11 +18,12 @@ import { AppText as Text } from '@/components/ui/AppText';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import * as Haptics from 'expo-haptics';
-import { startOfWeek, subDays, format as formatDate, startOfDay, parse, differenceInCalendarDays } from 'date-fns';
+import { startOfWeek, subDays, format as formatDate, startOfDay, parse, parseISO, differenceInCalendarDays } from 'date-fns';
 import { de as deLocale } from 'date-fns/locale/de';
 
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
 import { t, getDateLocale } from '@/lib/i18n';
+import { showOptionsAlert } from '@/lib/utils/optionsAlert';
 import { isTestMode } from '@/lib/testing/mockApi';
 import { useCalendar } from '@/lib/calendar/calendar-context';
 import {
@@ -33,6 +34,7 @@ import {
   getDisclosureLevel,
   calculateMinZoom,
   HEADER_HEIGHT,
+  TIME_COLUMN_WIDTH,
 } from '@/lib/calendar/zoom-context';
 import {
   calculateShiftDisplay,
@@ -46,10 +48,14 @@ import {
   findOverlappingShift,
   getAbsencesForDate,
   shiftHasAbsenceOverlap,
+  getTrackedMinutesForDate,
+  getWeekSummary,
 } from '@/lib/calendar/calendar-utils';
+import { buildSeriesOccurrences } from '@/lib/calendar/recurrence';
 import type { ShiftInstance, TrackingRecord, AbsenceInstance } from '@/lib/calendar/types';
 import { getCalendarStorage } from '@/modules/calendar/services/CalendarStorage';
 import { TreePalm, Thermometer, Clock, X, StickyNote } from 'lucide-react-native';
+import WeekTotalsRow, { WEEK_TOTALS_ROW_HEIGHT } from './WeekTotalsRow';
 import { OnboardingStorage } from '@/lib/storage/OnboardingStorage';
 import { SundayNotificationService } from '@/modules/reports/services/SundayNotificationService';
 import { OnboardingPreferences } from '@/lib/storage/OnboardingPreferences';
@@ -58,6 +64,8 @@ import OnboardingTooltip from '@/components/OnboardingTooltip';
 import { persistDailyActualForDate } from '../services/DailyAggregator';
 import { calendarEvents } from '@/lib/events/calendarEvents';
 import { useDayLock, getDayLockState } from '@/modules/calendar/hooks/useDayLock';
+import { useAuth } from '@/lib/auth/auth-context';
+import { getTrackingRecordsForDate } from '@/lib/calendar/time-calculations';
 
 // Base dimensions (now imported from zoom-context, kept here for reference)
 const DEFAULT_HOUR_HEIGHT = BASE_HOUR_HEIGHT; // 48
@@ -102,6 +110,11 @@ function hexToRgba(hex: string, opacity: number): string {
   return `rgba(${r}, ${g}, ${b}, ${opacity})`;
 }
 
+// Time gutter: widens while the Σ cell is expanded so the week figures fit
+// strictly inside that column (owner's call 2026-09-27: nothing under the days).
+const GUTTER_WIDTH = TIME_COLUMN_WIDTH;
+const GUTTER_WIDTH_EXPANDED = 92;
+
 function TrackingBadge({
   record,
   onAdjustStart,
@@ -117,6 +130,7 @@ function TrackingBadge({
   showStartGrabber = true,
   showEndGrabber = true,
   showBreakPanel = false,
+  breakPanelSide = 'right',
   currentTime,
   hourHeight = DEFAULT_HOUR_HEIGHT,
   isToday = true,
@@ -135,6 +149,9 @@ function TrackingBadge({
   showStartGrabber?: boolean;
   showEndGrabber?: boolean;
   showBreakPanel?: boolean;
+  /** Which side of the badge the break panel opens on. The last week column has
+   *  no room on the right — the horizontal ScrollView clips there (found 2026-09). */
+  breakPanelSide?: 'left' | 'right';
   currentTime: Date;
   hourHeight?: number;
   isToday?: boolean;
@@ -286,7 +303,7 @@ function TrackingBadge({
       ]);
     };
 
-    Alert.alert(t('calendar.week.trackingOptions'), formatDuration(record.duration), [
+    showOptionsAlert(t('calendar.week.trackingOptions'), formatDuration(record.duration), [
       { text: t('calendar.week.adjustTimes'), onPress: () => onToggleActive('times') },
       { text: t('calendar.week.adjustBreaks'), onPress: () => onToggleActive('breaks') },
       { text: t('common.delete'), style: 'destructive', onPress: showDeleteConfirm },
@@ -423,7 +440,14 @@ function TrackingBadge({
         )}
       </Pressable>
       {editMode === 'breaks' && showBreakPanel && (
-        <View style={[styles.breakPanel, breakPanelStyle]}>
+        <View
+          style={[
+            styles.breakPanel,
+            breakPanelSide === 'left' ? styles.breakPanelLeft : styles.breakPanelRight,
+            breakPanelStyle,
+          ]}
+          testID={`tracking-break-panel-${record.id}`}
+        >
           <Text style={styles.breakTitle}>{t('calendar.week.breakTitle')}</Text>
           {[5, 15, 30, 45, 60].map((min) => (
             <TouchableOpacity
@@ -705,7 +729,7 @@ function CurrentTimeLine({
   );
 }
 
-export default function WeekView() {
+export default function WeekView({ onInfoPress }: { onInfoPress?: () => void } = {}) {
   const { state, dispatch } = useCalendar();
   const { ensureEditable, promptUnconfirm, lockStateFor } = useDayLock(state, dispatch);
   const { currentScale, setCurrentScale, previousScale, hourHeight, dayWidth } = useZoom();
@@ -717,9 +741,11 @@ export default function WeekView() {
   // Calculate dynamic minimum zoom to fit calendar in viewport
   // Use measured height if available, otherwise estimate with CHROME_HEIGHT fallback
   const CHROME_HEIGHT_FALLBACK = 200;
-  const availableHeight = containerHeight !== null
+  // The Σ totals row (review mode) sits under the grid and takes its share
+  const totalsRowHeight = state.reviewMode ? WEEK_TOTALS_ROW_HEIGHT : 0;
+  const availableHeight = (containerHeight !== null
     ? containerHeight - HEADER_HEIGHT  // Use actual measured height
-    : screenHeight - CHROME_HEIGHT_FALLBACK - HEADER_HEIGHT;  // Fallback estimate
+    : screenHeight - CHROME_HEIGHT_FALLBACK - HEADER_HEIGHT) - totalsRowHeight;  // Fallback estimate
 
   const minZoom = useMemo(
     () => calculateMinZoom(screenWidth, availableHeight),
@@ -846,6 +872,25 @@ export default function WeekView() {
 
   // Track viewport width for swipe navigation
   const [viewportWidth, setViewportWidth] = useState(screenWidth);
+  const viewportWidthRef = useRef(screenWidth);
+  viewportWidthRef.current = viewportWidth;
+
+  // Fitted-content week navigation (Android): when the whole week fits the
+  // viewport (maxScrollX <= 0, e.g. pinch-zoomed out), the horizontal
+  // ScrollView is clamped — its endDrag velocity is unreliably 0, so the
+  // velocity-based handlers below can't fire. Raw touch events still deliver
+  // start/end positions regardless of scroll-responder ownership, so we
+  // derive the swipe from finger travel instead. Only active when the
+  // content fits; normal scrolling is untouched.
+  const horizontalContentWidthRef = useRef(0);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+
+  const horizontalContentFits = useCallback(() => {
+    return (
+      horizontalContentWidthRef.current > 0 &&
+      horizontalContentWidthRef.current <= viewportWidthRef.current + 1
+    );
+  }, []);
 
   // Swipe navigation threshold (pixels of overscroll to trigger)
   const SWIPE_THRESHOLD = 60;
@@ -855,8 +900,16 @@ export default function WeekView() {
   const [isTransitioning, setIsTransitioning] = useState(false);
 
   // Animated week navigation
+  // weekNavLockRef guards synchronously: two triggers can fire from the same
+  // gesture in the same JS batch (ScrollView endDrag + raw touchEnd) before
+  // the isTransitioning state update lands.
+  const weekNavLockRef = useRef(false);
   const animateToWeek = useCallback((direction: 'prev' | 'next') => {
-    if (isTransitioning) return;
+    if (isTransitioning || weekNavLockRef.current) return;
+    weekNavLockRef.current = true;
+    // Failsafe: if the animation chain is ever interrupted (its completion
+    // callback never firing), release the lock so navigation can't die.
+    setTimeout(() => { weekNavLockRef.current = false; setIsTransitioning(false); }, 1000);
 
     setIsTransitioning(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -888,6 +941,7 @@ export default function WeekView() {
         useNativeDriver: true,
       }).start(() => {
         setIsTransitioning(false);
+        weekNavLockRef.current = false;
       });
     });
   }, [isTransitioning, viewportWidth, slideAnim, dispatch]);
@@ -930,7 +984,10 @@ export default function WeekView() {
   }, [isTransitioning, animateToWeek]);
 
   // Android-specific week navigation (the working version)
-  const wasAtEdgeOnDragStart = useRef<'left' | 'right' | null>(null);
+  // 'both' = content fits the viewport (maxScrollX <= 0, e.g. zoomed out to fit
+  // the whole week) — every drag starts at both edges and only the fling
+  // direction decides prev vs next.
+  const wasAtEdgeOnDragStart = useRef<'left' | 'right' | 'both' | null>(null);
   const VELOCITY_THRESHOLD = 0.3;
 
   const handleHorizontalScrollBeginDrag = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -940,9 +997,11 @@ export default function WeekView() {
     const currentScrollX = contentOffset.x;
     const maxScrollXLocal = contentSize.width - layoutMeasurement.width;
 
-    if (currentScrollX <= 15) {
+    if (maxScrollXLocal <= 0) {
+      wasAtEdgeOnDragStart.current = 'both';
+    } else if (currentScrollX <= 15) {
       wasAtEdgeOnDragStart.current = 'left';
-    } else if (maxScrollXLocal > 0 && currentScrollX >= maxScrollXLocal - 15) {
+    } else if (currentScrollX >= maxScrollXLocal - 15) {
       wasAtEdgeOnDragStart.current = 'right';
     } else {
       wasAtEdgeOnDragStart.current = null;
@@ -957,10 +1016,11 @@ export default function WeekView() {
     const maxScrollXLocal = contentSize.width - layoutMeasurement.width;
     const velocityX = velocity?.x ?? 0;
 
+    const contentFits = maxScrollXLocal <= 0;
     const atLeftEdge = currentScrollX <= 15;
-    const atRightEdge = maxScrollXLocal > 0 && currentScrollX >= maxScrollXLocal - 15;
-    const startedAtLeft = wasAtEdgeOnDragStart.current === 'left';
-    const startedAtRight = wasAtEdgeOnDragStart.current === 'right';
+    const atRightEdge = contentFits || currentScrollX >= maxScrollXLocal - 15;
+    const startedAtLeft = wasAtEdgeOnDragStart.current === 'left' || wasAtEdgeOnDragStart.current === 'both';
+    const startedAtRight = wasAtEdgeOnDragStart.current === 'right' || wasAtEdgeOnDragStart.current === 'both';
 
     // At left edge + positive velocity = previous week
     if ((atLeftEdge || startedAtLeft) && velocityX > VELOCITY_THRESHOLD) {
@@ -982,6 +1042,31 @@ export default function WeekView() {
   const handleHorizontalScrollEndDrag = Platform.OS === 'ios'
     ? handleHorizontalScrollEndDragIOS
     : handleHorizontalScrollEndDragAndroid;
+
+  // Raw touch handlers for fitted-content week navigation (see comment above).
+  const FITTED_SWIPE_THRESHOLD = 60;
+
+  const handleGridTouchStart = useCallback((event: { nativeEvent: { touches: Array<{ pageX: number; pageY: number }>; pageX: number; pageY: number } }) => {
+    if (Platform.OS !== 'android') return;
+    if (event.nativeEvent.touches.length === 1) {
+      touchStartRef.current = { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY };
+    } else {
+      touchStartRef.current = null; // multi-touch = pinch, not a swipe
+    }
+  }, []);
+
+  const handleGridTouchEnd = useCallback((event: { nativeEvent: { pageX: number; pageY: number } }) => {
+    if (Platform.OS !== 'android') return;
+    const start = touchStartRef.current;
+    touchStartRef.current = null;
+    if (!start || isTransitioning || isPinching || !horizontalContentFits()) return;
+
+    const dx = event.nativeEvent.pageX - start.x;
+    const dy = event.nativeEvent.pageY - start.y;
+    if (Math.abs(dx) < FITTED_SWIPE_THRESHOLD || Math.abs(dx) < Math.abs(dy)) return;
+
+    animateToWeek(dx > 0 ? 'prev' : 'next');
+  }, [isTransitioning, isPinching, horizontalContentFits, animateToWeek]);
 
   // Track max scroll for edge detection
   const maxScrollX = useRef(0);
@@ -1013,11 +1098,12 @@ export default function WeekView() {
   // Fires from outer horizontal ScrollView's onContentSizeChange, guarded one-shot per mount so
   // pinch-zoom dayWidth changes don't re-trigger.
   const handleContentSizeChange = useCallback((contentWidth: number, _contentHeight: number) => {
+    horizontalContentWidthRef.current = contentWidth;
     if (hasScrolledOnMountRef.current) return;
     hasScrolledOnMountRef.current = true;
 
     const focusDate = state.weekViewFocusDate;
-    const TIME_COL_WIDTH = 60;
+    const TIME_COL_WIDTH = GUTTER_WIDTH;
 
     // Horizontal: center the focused day, clamped. Monday clamps to 0; Sunday clamps to maxScrollX.
     let targetX = 0;
@@ -1063,18 +1149,19 @@ export default function WeekView() {
   // Edge swipe detection using RNGH Pan gesture
   // Runs simultaneously with ScrollView - detects edge swipes without blocking scroll
   const EDGE_SWIPE_THRESHOLD = 60;
-  const edgeSwipeStartedAtEdge = useRef<'left' | 'right' | null>(null);
+  // 'both' = content fits the viewport (maxScrollX <= 0, e.g. zoomed out to
+  // fit the whole week) — the swipe direction in onEnd decides prev vs next.
+  const edgeSwipeStartedAtEdge = useRef<'left' | 'right' | 'both' | null>(null);
 
   const edgeSwipeGesture = useMemo(() =>
     Gesture.Pan()
       .onStart(() => {
         // Check if we're starting at an edge
-        const atLeftEdge = scrollX.current <= 5;
-        const atRightEdge = maxScrollX.current > 0 && scrollX.current >= maxScrollX.current - 5;
-
-        if (atLeftEdge) {
+        if (maxScrollX.current <= 0) {
+          edgeSwipeStartedAtEdge.current = 'both';
+        } else if (scrollX.current <= 5) {
           edgeSwipeStartedAtEdge.current = 'left';
-        } else if (atRightEdge) {
+        } else if (scrollX.current >= maxScrollX.current - 5) {
           edgeSwipeStartedAtEdge.current = 'right';
         } else {
           edgeSwipeStartedAtEdge.current = null;
@@ -1085,17 +1172,18 @@ export default function WeekView() {
         if (!edgeSwipeStartedAtEdge.current) return;
 
         const { translationX, velocityX } = event;
+        const startedAt = edgeSwipeStartedAtEdge.current;
 
         // Check if swipe is primarily horizontal
         if (Math.abs(event.translationY) > Math.abs(translationX)) return;
 
         // At left edge, swiping right (positive translationX) = previous week
-        if (edgeSwipeStartedAtEdge.current === 'left' &&
+        if ((startedAt === 'left' || startedAt === 'both') &&
             (translationX > EDGE_SWIPE_THRESHOLD || velocityX > 500)) {
           animateToWeekRef.current('prev');
         }
         // At right edge, swiping left (negative translationX) = next week
-        else if (edgeSwipeStartedAtEdge.current === 'right' &&
+        else if ((startedAt === 'right' || startedAt === 'both') &&
                  (translationX < -EDGE_SWIPE_THRESHOLD || velocityX < -500)) {
           animateToWeekRef.current('next');
         }
@@ -1134,6 +1222,29 @@ export default function WeekView() {
   const weekDays = useMemo(() => getWeekDays(weekStart), [weekStart]);
   const hourMarkers = useMemo(() => generateHourMarkers(), []);
   const todayKey = formatDateKey(new Date());
+
+  // Week footer figures — same helper family as the month footer (getRangeSummary),
+  // so the two views cannot disagree. Days before signup are excluded from the
+  // confirmation fraction, as in MonthView.
+  const { state: authState } = useAuth();
+  const accountStartKey = authState.user?.createdAt
+    ? formatDateKey(parseISO(authState.user.createdAt))
+    : undefined;
+  const [totalsExpanded, setTotalsExpanded] = useState(false);
+  const gutterWidth = totalsExpanded ? GUTTER_WIDTH_EXPANDED : GUTTER_WIDTH;
+  const weekSummary = useMemo(
+    () =>
+      !state.reviewMode ? null : getWeekSummary(
+        state.currentWeekStart,
+        state.instances,
+        state.trackingRecords,
+        state.absenceInstances,
+        state.confirmedDates,
+        todayKey,
+        accountStartKey,
+      ),
+    [state.reviewMode, state.currentWeekStart, state.instances, state.trackingRecords, state.absenceInstances, state.confirmedDates, todayKey, accountStartKey],
+  );
 
   // Pre-compute disclosure level for header (avoid recalculating in loop)
   const disclosureLevel = getDisclosureLevel(currentScale);
@@ -1409,8 +1520,12 @@ export default function WeekView() {
   // Core submit logic (called directly or after tooltip dismissal)
   const executeSubmit = async (dateKey: string) => {
     try {
-      const trackingRecords = getTrackingForDate(dateKey);
-      const record = await persistDailyActualForDate(dateKey, state.instances, trackingRecords);
+      // Overlap-based on purpose: a night shift that started yesterday is dated
+      // yesterday, but its after-midnight tail belongs to THIS day's submitted
+      // minutes (what the footer and the Σ row already show). The date-match
+      // `getTrackingForDate` is only for rendering (overflow badges are drawn separately).
+      const trackingRecords = getTrackingRecordsForDate(dateKey, state.trackingRecords);
+      const record = await persistDailyActualForDate(dateKey, state.instances, state.absenceInstances, trackingRecords);
       dispatch({ type: 'CONFIRM_DAY', date: dateKey, confirmedAt: record.confirmedAt });
       await SundayNotificationService.scheduleWeeklyNotifications();
 
@@ -1440,6 +1555,13 @@ export default function WeekView() {
       setPendingSubmitDate(null);
       await executeSubmit(dateKey);
     }
+  };
+
+  // Cancel path: close WITHOUT persisting the seen-flag, so a hesitant user
+  // gets the explanation again on their next attempt.
+  const handleSubmitTooltipCancel = () => {
+    setShowSubmitTooltip(false);
+    setPendingSubmitDate(null);
   };
 
   const handleBatchTooltipDismiss = async () => {
@@ -1700,6 +1822,25 @@ export default function WeekView() {
     }
 
     const showDeleteConfirm = () => {
+      if (instance.seriesId) {
+        // Series member: scope the deletion (shift-app norm — edits stay
+        // per-day, only deletion asks about the series)
+        Alert.alert(t('calendar.week.deleteSeriesTitle'), t('calendar.week.deleteShiftMessage', { name: instance.name }), [
+          {
+            text: t('calendar.week.deleteOnlyThis'),
+            style: 'destructive',
+            onPress: () => dispatch({ type: 'DELETE_INSTANCE', id: instance.id }),
+          },
+          {
+            text: t('calendar.week.deleteThisAndFuture'),
+            style: 'destructive',
+            onPress: () =>
+              dispatch({ type: 'DELETE_SERIES_FROM', seriesId: instance.seriesId!, fromDate: instance.date }),
+          },
+          { text: t('common.cancel'), style: 'cancel' },
+        ]);
+        return;
+      }
       Alert.alert(t('calendar.week.deleteShiftTitle'), t('calendar.week.deleteShiftMessage', { name: instance.name }), [
         { text: t('common.cancel'), style: 'cancel' },
         {
@@ -1710,14 +1851,46 @@ export default function WeekView() {
       ]);
     };
 
+    const startRepeatSeries = (intervalWeeks: 1 | 2) => {
+      const seriesId = instance.seriesId ?? `series-${Date.now()}-${Math.random()}`;
+      const { occurrences, skippedOverlaps } = buildSeriesOccurrences(
+        instance,
+        intervalWeeks,
+        seriesId,
+        state.instances
+      );
+
+      if (occurrences.length === 0) {
+        Alert.alert(t('calendar.week.repeatTitle'), t('calendar.week.seriesAllSkipped'));
+        return;
+      }
+
+      dispatch({ type: 'ADD_SERIES', instances: occurrences, sourceInstanceId: instance.id, seriesId });
+      Alert.alert(
+        t('calendar.week.repeatTitle'),
+        skippedOverlaps > 0
+          ? t('calendar.week.seriesCreatedSkipped', { count: occurrences.length, skipped: skippedOverlaps })
+          : t('calendar.week.seriesCreated', { count: occurrences.length })
+      );
+    };
+
+    const showRepeatOptions = () => {
+      Alert.alert(t('calendar.week.repeatTitle'), t('calendar.week.repeatMessage', { name: instance.name }), [
+        { text: t('calendar.week.repeatWeekly'), onPress: () => startRepeatSeries(1) },
+        { text: t('calendar.week.repeatBiweekly'), onPress: () => startRepeatSeries(2) },
+        { text: t('common.cancel'), style: 'cancel' },
+      ]);
+    };
+
     const openTimePicker = () => {
       setTimePickerInstance(instance);
       setSelectedTime(parse(instance.startTime, 'HH:mm', new Date()));
       setShowTimePicker(true);
     };
 
-    Alert.alert(t('calendar.week.shiftOptions'), instance.name, [
+    showOptionsAlert(t('calendar.week.shiftOptions'), instance.name, [
       { text: t('calendar.week.editStartTime'), onPress: openTimePicker },
+      { text: t('calendar.week.repeatShift'), onPress: showRepeatOptions },
       { text: t('common.delete'), style: 'destructive', onPress: showDeleteConfirm },
       { text: t('common.cancel'), style: 'cancel' },
     ]);
@@ -1876,13 +2049,15 @@ export default function WeekView() {
           onScrollBeginDrag={handleHorizontalScrollBeginDrag}
           onScrollEndDrag={handleHorizontalScrollEndDrag}
           onContentSizeChange={handleContentSizeChange}
+          onTouchStart={handleGridTouchStart}
+          onTouchEnd={handleGridTouchEnd}
           scrollEventThrottle={16}
           bounces={true}
           decelerationRate="fast"
         >
           <View>
             <View style={styles.headerRow}>
-              <View style={styles.timeColumnHeader} />
+              <View style={[styles.timeColumnHeader, { width: gutterWidth }]} />
             {weekDays.map((day, index) => {
               const dateKey = formatDateKey(day);
               const isConfirmed = state.confirmedDates.has(dateKey);
@@ -1965,7 +2140,7 @@ export default function WeekView() {
               style={styles.gridRow}
               {...(Platform.OS === 'android' && androidPinchResponder ? androidPinchResponder.panHandlers : {})}
             >
-              <View style={styles.timeColumn}>
+              <View style={[styles.timeColumn, { width: gutterWidth }]}>
                 {hourMarkers.map((hour, index) => {
                   const interval = getHourMarkerInterval(currentScale);
                   const showLabel = index % interval === 0;
@@ -1984,7 +2159,19 @@ export default function WeekView() {
                 const trackingRecords = getTrackingForDate(dateKey);
                 const absences = getAbsencesForDateKey(dateKey);
                 return (
-                  <View key={dateKey} style={[styles.dayColumn, { width: dayWidth }]} testID={`week-day-column-${dateKey}`}>
+                  <View
+                    key={dateKey}
+                    // The column that owns an open tracking edit panel (break panel spills
+                    // into the neighbouring column) must sort above its siblings — for
+                    // drawing AND for Android touch resolution, which walks siblings in
+                    // z-order and would otherwise hand the tap to the neighbour's block.
+                    style={[
+                      styles.dayColumn,
+                      { width: dayWidth },
+                      activeTracking?.clickedDateKey === dateKey && styles.dayColumnActive,
+                    ]}
+                    testID={`week-day-column-${dateKey}`}
+                  >
                     {Array.from({ length: 24 }).map((_, hourIndex) => (
                       <Pressable
                         key={hourIndex}
@@ -2009,7 +2196,7 @@ export default function WeekView() {
                       />
                     ))}
                     {/* Render shifts with dimming if overlapped by absence */}
-                    {current.map((instance) => {
+                    {state.showPlanned && current.map((instance) => {
                       const isDimmed = shiftHasAbsenceOverlap(instance, state.absenceInstances);
                       return (
                         <InstanceCard
@@ -2022,7 +2209,7 @@ export default function WeekView() {
                         />
                       );
                     })}
-                    {fromPrevious.map((instance) => {
+                    {state.showPlanned && fromPrevious.map((instance) => {
                       const startMinutes = timeToMinutes(instance.startTime);
                       const overflowMinutes = startMinutes + instance.duration - 24 * 60;
                       const height = Math.max(20, (overflowMinutes / 60) * hourHeight);
@@ -2091,6 +2278,7 @@ export default function WeekView() {
                           showStartGrabber={true}
                           showEndGrabber={isLastDay}
                           showBreakPanel={isThisDateClicked}
+                          breakPanelSide={dayIndex === weekDays.length - 1 ? 'left' : 'right'}
                           currentTime={currentTime}
                           hourHeight={hourHeight}
                           isToday={dateKey === todayKey}
@@ -2158,6 +2346,7 @@ export default function WeekView() {
                               showStartGrabber={false}
                               showEndGrabber={isLastDay}
                               showBreakPanel={isThisDateClicked}
+                              breakPanelSide={dayIndex === weekDays.length - 1 ? 'left' : 'right'}
                               currentTime={currentTime}
                               hourHeight={hourHeight}
                               isToday={dateKey === todayKey}
@@ -2174,6 +2363,22 @@ export default function WeekView() {
               })}
             </View>
           </ScrollView>
+
+          {/* Pinned Σ row: tracked minutes per day (breaks subtracted, overnight
+              records split per day — same helper as the month cells). Scrolls
+              horizontally with the columns, never vertically. */}
+          {state.reviewMode && weekSummary && (
+            <WeekTotalsRow
+              weekDays={weekDays}
+              dayWidth={dayWidth}
+              gutterWidth={gutterWidth}
+              expanded={totalsExpanded}
+              onToggleExpanded={() => setTotalsExpanded((e) => !e)}
+              summary={weekSummary}
+              trackingRecords={state.trackingRecords}
+              onInfoPress={onInfoPress}
+            />
+          )}
         </View>
       </ScrollView>
       </Animated.View>
@@ -2249,6 +2454,8 @@ export default function WeekView() {
         body={t('calendar.week.submitTooltipBody')}
         dismissLabel={t('calendar.week.submitTooltipDismiss')}
         onDismiss={handleSubmitTooltipDismiss}
+        secondaryLabel={t('calendar.week.submitTooltipCancel')}
+        onSecondary={handleSubmitTooltipCancel}
         testIDPrefix="submit-tooltip"
       />
 
@@ -2330,7 +2537,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,
     borderRadius: borderRadius.md,
-    backgroundColor: colors.error.light,
+    backgroundColor: colors.warning.light,
   },
   confirmButtonDisabled: {
     backgroundColor: colors.grey[200],
@@ -2338,7 +2545,7 @@ const styles = StyleSheet.create({
   },
   confirmButtonText: {
     fontSize: 10,
-    color: colors.error.dark,
+    color: colors.warning.dark,
     fontWeight: fontWeight.semibold,
   },
   confirmButtonTextDisabled: {
@@ -2390,6 +2597,10 @@ const styles = StyleSheet.create({
     borderRightWidth: 1,
     borderRightColor: colors.grey[100],
     position: 'relative',
+  },
+  dayColumnActive: {
+    zIndex: 10,
+    elevation: 10,
   },
   noteIconHeader: {
     position: 'absolute',
@@ -2563,7 +2774,6 @@ const styles = StyleSheet.create({
   },
   breakPanel: {
     position: 'absolute',
-    left: '105%',
     top: 0,
     width: 100,
     backgroundColor: colors.background.paper,
@@ -2573,6 +2783,12 @@ const styles = StyleSheet.create({
     borderColor: colors.border.default,
     ...shadows.md,
     zIndex: 300,
+  },
+  breakPanelRight: {
+    left: '105%',
+  },
+  breakPanelLeft: {
+    right: '105%',
   },
   breakTitle: {
     fontSize: 9,

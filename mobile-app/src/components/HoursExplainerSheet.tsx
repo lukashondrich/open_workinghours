@@ -59,6 +59,7 @@ export default function HoursExplainerSheet({ visible, onClose }: Props) {
     { title: t('hoursExplainer.trackedTitle'), body: t('hoursExplainer.trackedBody') },
     { title: t('hoursExplainer.overtimeTitle'), body: t('hoursExplainer.overtimeBody') },
     { title: t('hoursExplainer.confirmedTitle'), body: t('hoursExplainer.confirmedBody') },
+    { title: t('hoursExplainer.contributionTitle'), body: t('hoursExplainer.contributionBody') },
     { title: t('hoursExplainer.futureMonthsTitle'), body: t('hoursExplainer.futureMonthsBody') },
   ];
 

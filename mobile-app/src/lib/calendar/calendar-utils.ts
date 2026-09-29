@@ -1,4 +1,4 @@
-import { addDays, startOfMonth, endOfMonth, eachDayOfInterval, format } from 'date-fns';
+import { addDays, startOfMonth, endOfMonth, eachDayOfInterval, format, startOfWeek } from 'date-fns';
 import type { ShiftColor, ShiftInstance, TrackingRecord, AbsenceInstance } from './types';
 import {
   getDayBounds as _getDayBounds,
@@ -6,6 +6,7 @@ import {
   getTrackedMinutesForDate as _getTrackedMinutesForDate,
   getInstanceWindow as _getInstanceWindow,
   computeEffectivePlannedMinutesForDate,
+  sessionRecordId,
 } from './time-calculations';
 
 export function getWeekDays(weekStart: Date): Date[] {
@@ -190,7 +191,27 @@ export function findOverlappingShift(
 }
 
 /**
- * Load real tracking records from geofencing sessions in workinghours.db
+ * Carry user-entered break minutes over from stored calendar tracking records
+ * onto freshly rebuilt ones. Sessions know nothing about breaks (they live in
+ * the calendar's tracking_records table), so a rebuild without this step
+ * silently drops every break — and the persist effect then writes the zeros
+ * back (found 2026-09-27 while adding the week Σ row).
+ */
+export function mergeStoredBreaks(
+  rebuilt: Record<string, TrackingRecord>,
+  stored: Record<string, Pick<TrackingRecord, 'breakMinutes'>>,
+): Record<string, TrackingRecord> {
+  const merged: Record<string, TrackingRecord> = {};
+  for (const [id, record] of Object.entries(rebuilt)) {
+    const storedBreak = stored[id]?.breakMinutes ?? 0;
+    merged[id] = storedBreak > 0 ? { ...record, breakMinutes: storedBreak } : record;
+  }
+  return merged;
+}
+
+/**
+ * Load real tracking records from geofencing sessions in workinghours.db,
+ * merged with the breaks stored in the calendar DB.
  *
  * @param startDate - Start date of range (YYYY-MM-DD)
  * @param endDate - End date of range (YYYY-MM-DD)
@@ -228,7 +249,7 @@ export async function loadRealTrackingRecords(startDate: string, endDate: string
     const duration = Math.round(durationMs / 60000); // Convert ms to minutes
 
     // Create tracking record
-    const trackingId = `tracking-session-${session.id}`;
+    const trackingId = sessionRecordId(session.id);
     trackingRecords[trackingId] = {
       id: trackingId,
       date,
@@ -238,7 +259,16 @@ export async function loadRealTrackingRecords(startDate: string, endDate: string
     };
   });
 
-  return trackingRecords;
+  // Breaks are user data stored in the calendar DB — never rebuild without them.
+  try {
+    const { getCalendarStorage } = await import('@/modules/calendar/services/CalendarStorage');
+    const storage = await getCalendarStorage();
+    const stored = await storage.loadTrackingRecords();
+    return mergeStoredBreaks(trackingRecords, stored);
+  } catch (error) {
+    console.error('[calendar-utils] Failed to merge stored breaks into tracking records:', error);
+    return trackingRecords;
+  }
 }
 
 export function generateSimulatedTracking(instances: Record<string, ShiftInstance>): Record<string, TrackingRecord> {
@@ -557,12 +587,65 @@ export function getMonthSummary(
   todayKey: string,
   accountStartKey?: string,
 ): MonthSummary {
-  const start = startOfMonth(month);
-  const end = endOfMonth(month);
+  return getRangeSummary(
+    startOfMonth(month),
+    endOfMonth(month),
+    instances,
+    trackingRecords,
+    absenceInstances,
+    confirmedDates,
+    todayKey,
+    accountStartKey,
+  );
+}
 
-  // Prefilter to the month ±1 day (overnight shifts spill across the month
-  // boundary in both directions) so the per-day scans below touch ~30 items
-  // instead of a user's full multi-year history.
+/**
+ * Same figures for a calendar week (Monday start) — the week footer must never
+ * disagree with the month footer, so both go through getRangeSummary.
+ */
+export function getWeekSummary(
+  dateInWeek: Date,
+  instances: Record<string, ShiftInstance>,
+  trackingRecords: Record<string, TrackingRecord>,
+  absenceInstances: Record<string, AbsenceInstance>,
+  confirmedDates: Set<string>,
+  todayKey: string,
+  accountStartKey?: string,
+): MonthSummary {
+  // `state.currentWeekStart` is any date inside the week (the header and the
+  // context normalise it the same way) — never assume it is the Monday.
+  const weekStart = startOfWeek(dateInWeek, { weekStartsOn: 1 });
+  return getRangeSummary(
+    weekStart,
+    addDays(weekStart, 6),
+    instances,
+    trackingRecords,
+    absenceInstances,
+    confirmedDates,
+    todayKey,
+    accountStartKey,
+  );
+}
+
+/**
+ * Summary over an inclusive day range. `monthPlannedMinutes` is the planned
+ * total of the WHOLE range (incl. today/future) regardless of the name — kept
+ * for the month footer's plan-mode display and reused by the week footer.
+ */
+export function getRangeSummary(
+  start: Date,
+  end: Date,
+  instances: Record<string, ShiftInstance>,
+  trackingRecords: Record<string, TrackingRecord>,
+  absenceInstances: Record<string, AbsenceInstance>,
+  confirmedDates: Set<string>,
+  todayKey: string,
+  accountStartKey?: string,
+): MonthSummary {
+
+  // Prefilter to the range ±1 day (overnight shifts spill across the range
+  // boundary in both directions) so the per-day scans below touch a few dozen
+  // items instead of a user's full multi-year history.
   const { monthInstances, monthAbsences, absencesByDate } = sliceMonthData(
     start,
     end,
@@ -578,7 +661,7 @@ export function getMonthSummary(
   let eligibleDayCount = 0;
   let confirmedDayCount = 0;
 
-  // Iterate through each day of the month
+  // Iterate through each day of the range
   let current = start;
   while (current <= end) {
     const dateKey = formatDateKey(current);

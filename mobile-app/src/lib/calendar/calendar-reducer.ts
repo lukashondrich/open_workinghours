@@ -1,5 +1,5 @@
 import { addWeeks, subWeeks, format } from 'date-fns';
-import type { CalendarState, CalendarAction, ShiftInstance, ConfirmedDayStatus, AbsenceTemplate, AbsenceInstance, DayNote } from './types';
+import type { CalendarState, CalendarAction, ShiftInstance, ConfirmedDayStatus, AbsenceTemplate, AbsenceInstance, DayNote, TrackingRecord } from './types';
 import { generateSimulatedTracking } from './calendar-utils';
 
 function computeEndTime(startTime: string, duration: number): string {
@@ -44,6 +44,7 @@ export const initialState: CalendarState = {
   currentMonth: new Date(),
   templatePanelOpen: false,
   reviewMode: false,
+  showPlanned: true,
   trackingRecords: {},
   confirmedDates: new Set(),
   confirmedDayStatus: {},
@@ -72,6 +73,27 @@ export const initialState: CalendarState = {
   noteEditorOpen: false,
   noteEditorDate: null,
 };
+
+/**
+ * Rebuilt tracking records may arrive WITHOUT breakMinutes (undefined); keep
+ * what the user already entered for the same record. An explicit 0 wins —
+ * the clear-break path is intentional. Second line of defence behind
+ * loadRealTrackingRecords' merge with stored breaks.
+ */
+function keepKnownBreaks(
+  previous: Record<string, TrackingRecord>,
+  incoming: Record<string, TrackingRecord>,
+): Record<string, TrackingRecord> {
+  const merged: Record<string, TrackingRecord> = {};
+  for (const [id, record] of Object.entries(incoming)) {
+    const previousBreak = previous[id]?.breakMinutes ?? 0;
+    merged[id] =
+      record.breakMinutes === undefined && previousBreak > 0
+        ? { ...record, breakMinutes: previousBreak }
+        : record;
+  }
+  return merged;
+}
 
 export function calendarReducer(state: CalendarState, action: CalendarAction): CalendarState {
   switch (action.type) {
@@ -154,7 +176,8 @@ export function calendarReducer(state: CalendarState, action: CalendarAction): C
       };
     }
     case 'ARM_SHIFT':
-      return { ...state, mode: 'shift-armed', armedTemplateId: action.templateId };
+      // Re-show the planned layer — placing a shift while it's hidden would land invisibly
+      return { ...state, mode: 'shift-armed', armedTemplateId: action.templateId, showPlanned: true };
     case 'DISARM_SHIFT':
       return { ...state, mode: 'viewing', armedTemplateId: null };
     case 'ADD_INSTANCE': {
@@ -300,6 +323,36 @@ export function calendarReducer(state: CalendarState, action: CalendarAction): C
         };
       }
       return { ...state, reviewMode: false };
+    }
+    case 'TOGGLE_PLANNED_VISIBILITY':
+      return { ...state, showPlanned: !state.showPlanned };
+    case 'ADD_SERIES': {
+      const nextInstances = { ...state.instances };
+      for (const instance of action.instances) {
+        if (isDateEditLocked(state, instance.date)) continue;
+        nextInstances[instance.id] = {
+          ...instance,
+          endTime: instance.endTime ?? computeEndTime(instance.startTime, instance.duration),
+          seriesId: action.seriesId,
+        };
+      }
+      // Tag the source shift so series-scoped deletion includes it — but never
+      // re-tag a shift that already belongs to another series.
+      const source = nextInstances[action.sourceInstanceId];
+      if (source && !source.seriesId) {
+        nextInstances[action.sourceInstanceId] = { ...source, seriesId: action.seriesId };
+      }
+      return { ...state, instances: nextInstances };
+    }
+    case 'DELETE_SERIES_FROM': {
+      const remaining = { ...state.instances };
+      for (const instance of Object.values(state.instances)) {
+        if (instance.seriesId !== action.seriesId) continue;
+        if (instance.date < action.fromDate) continue;
+        if (isDateEditLocked(state, instance.date)) continue;
+        delete remaining[instance.id];
+      }
+      return { ...state, instances: remaining };
     }
     case 'UPDATE_TRACKING_START': {
       const record = state.trackingRecords[action.id];
@@ -447,8 +500,23 @@ export function calendarReducer(state: CalendarState, action: CalendarAction): C
     case 'UPDATE_TRACKING_RECORDS':
       return {
         ...state,
-        trackingRecords: action.trackingRecords,
+        trackingRecords: keepKnownBreaks(state.trackingRecords, action.trackingRecords),
       };
+
+    case 'SET_REVIEW_MODE': {
+      // Idempotent counterpart of TOGGLE_REVIEW_MODE for callers that don't
+      // know the current state (e.g. the mount effect racing a user tap).
+      if (!action.on) return { ...state, reviewMode: false };
+      return {
+        ...state,
+        reviewMode: true,
+        trackingRecords: action.trackingRecords
+          ? keepKnownBreaks(state.trackingRecords, action.trackingRecords)
+          : state.trackingRecords,
+        mode: 'viewing',
+        armedTemplateId: null,
+      };
+    }
 
     // ========================================
     // Absence Actions

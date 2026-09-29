@@ -34,6 +34,16 @@ class MockDatabase {
       if (tableName) {
         const table = this.tables.get(tableName) || [];
 
+        // Upsert on a key column (app_preferences: INSERT … ON CONFLICT(key) DO UPDATE)
+        if (sql.includes('ON CONFLICT(key)')) {
+          const existing = table.find((r: any) => r.key === params[0]);
+          if (existing) {
+            existing.value = params[1];
+            existing.updated_at = params[2];
+            return { changes: 1 };
+          }
+        }
+
         // Check for duplicate primary key
         const columns = sql.match(/\(([^)]+)\)/)?.[1].split(',').map(c => c.trim());
         if (columns && columns[0] === 'id') {
@@ -141,6 +151,12 @@ class MockDatabase {
       if (/\bid\s*=\s*\?/.test(sql) && params.length > 0) {
         const id = params[0];
         const found = table.find((r: any) => r.id === id);
+        return found || null;
+      }
+
+      // key = ? (app_preferences)
+      if (/\bkey\s*=\s*\?/.test(sql) && params.length > 0) {
+        const found = table.find((r: any) => r.key === params[0]);
         return found || null;
       }
 

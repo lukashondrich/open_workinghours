@@ -33,6 +33,18 @@ export class GeofenceRegistrationService {
       }
     }
 
+    // Android fires an INITIAL-TRIGGER enter/exit for every fence right after
+    // registration (expo-location sets INITIAL_TRIGGER_ENTER | EXIT). The Android
+    // tracking core reads this timestamp to treat those callbacks as a fix, not
+    // as a transition (TrackingManagerAndroid rule 6/7).
+    if (registeredCount > 0) {
+      try {
+        await db.setPreference('geofences_registered_at', new Date().toISOString());
+      } catch (error) {
+        console.warn('[GeofenceRegistrationService] Failed to record registration time:', error);
+      }
+    }
+
     return { registeredCount };
   }
 }

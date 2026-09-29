@@ -9,8 +9,31 @@ import {
   AccuracySource,
   ReportsWeekQueueRecord,
   ReportsWeekQueueStatus,
+  ExitEvidence,
 } from '../types';
 import * as Crypto from 'expo-crypto';
+
+/**
+ * Clock-out never precedes clock-in. Returns the (possibly clamped) clock-out
+ * ISO string and the non-negative duration in minutes.
+ */
+export function clampClockOut(
+  clockIn: string,
+  clockOut: string
+): { clockOut: string; durationMinutes: number } {
+  const clockInTime = new Date(clockIn).getTime();
+  const clockOutTime = new Date(clockOut).getTime();
+  if (clockOutTime < clockInTime) {
+    console.warn(
+      `[Database] clock_out ${clockOut} precedes clock_in ${clockIn} - clamping to clock_in`
+    );
+    return { clockOut: clockIn, durationMinutes: 0 };
+  }
+  return {
+    clockOut,
+    durationMinutes: Math.round((clockOutTime - clockInTime) / 1000 / 60),
+  };
+}
 
 export class Database {
   private db: SQLite.SQLiteDatabase | null = null;
@@ -373,6 +396,34 @@ export class Database {
 
       console.log('[Database] Migration to version 8 complete');
     }
+
+    // Migration v9: rule 5 exit evidence ('outside' | 'uncertain') on pending exits
+    if (version < 9) {
+      console.log('[Database] Running migration to version 9 (exit_evidence)');
+      const cols = await this.db.getAllAsync<{ name: string }>('PRAGMA table_info(tracking_sessions)');
+      if (!cols.some((c) => c.name === 'exit_evidence')) {
+        await this.db.execAsync('ALTER TABLE tracking_sessions ADD COLUMN exit_evidence TEXT');
+      }
+      await this.db.runAsync(
+        `INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (?, datetime('now'))`,
+        9
+      );
+      console.log('[Database] Migration to version 9 complete');
+    }
+
+    // Migration v10: last inside evidence per session (Android core gap rule)
+    if (version < 10) {
+      console.log('[Database] Running migration to version 10 (last_inside_at)');
+      const cols = await this.db.getAllAsync<{ name: string }>('PRAGMA table_info(tracking_sessions)');
+      if (!cols.some((c) => c.name === 'last_inside_at')) {
+        await this.db.execAsync('ALTER TABLE tracking_sessions ADD COLUMN last_inside_at TEXT');
+      }
+      await this.db.runAsync(
+        `INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (?, datetime('now'))`,
+        10
+      );
+      console.log('[Database] Migration to version 10 complete');
+    }
   }
 
   // Schema introspection
@@ -450,6 +501,13 @@ export class Database {
     return result ? this.mapLocation(result) : null;
   }
 
+  /** Every saved location, active or not — for diagnostics name lookups only. */
+  async getAllLocations(): Promise<UserLocation[]> {
+    if (!this.db) throw new Error('Database not initialized');
+    const results = await this.db.getAllAsync<any>('SELECT * FROM user_locations ORDER BY created_at ASC');
+    return results.map((row) => this.mapLocation(row));
+  }
+
   async getActiveLocations(): Promise<UserLocation[]> {
     if (!this.db) throw new Error('Database not initialized');
 
@@ -509,14 +567,15 @@ export class Database {
 
     await this.db.runAsync(
       `INSERT INTO tracking_sessions
-       (id, location_id, clock_in, tracking_method, state, checkin_accuracy, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+       (id, location_id, clock_in, tracking_method, state, checkin_accuracy, last_inside_at, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       id,
       locationId,
       clockIn,
       trackingMethod,
       'active',
       checkinAccuracy,
+      clockIn, // clocking in is the first inside evidence
       now,
       now
     );
@@ -531,6 +590,8 @@ export class Database {
       state: 'active',
       pendingExitAt: null,
       exitAccuracy: null,
+      exitEvidence: null,
+      lastInsideAt: clockIn,
       checkinAccuracy,
       createdAt: now,
       updatedAt: now,
@@ -544,15 +605,14 @@ export class Database {
     const session = await this.getSession(sessionId);
     if (!session) throw new Error('Session not found');
 
-    const clockInTime = new Date(session.clockIn).getTime();
-    const clockOutTime = new Date(clockOut).getTime();
-    const durationMinutes = Math.round((clockOutTime - clockInTime) / 1000 / 60);
+    // Invariant: clock_out is never before clock_in (a negative duration is never stored).
+    const { clockOut: safeClockOut, durationMinutes } = clampClockOut(session.clockIn, clockOut);
 
     await this.db.runAsync(
       `UPDATE tracking_sessions
        SET clock_out = ?, duration_minutes = ?, state = ?, updated_at = ?
        WHERE id = ?`,
-      clockOut,
+      safeClockOut,
       durationMinutes,
       'completed',
       new Date().toISOString(),
@@ -602,24 +662,28 @@ export class Database {
     const newClockIn = updates.clockIn ?? session.clockIn;
     const newClockOut = updates.clockOut ?? session.clockOut;
 
+    // Same invariant as every other write: clock_out never precedes clock_in.
     let durationMinutes = session.durationMinutes;
+    let safeClockOut = newClockOut;
     if (newClockOut) {
-      const clockInTime = new Date(newClockIn).getTime();
-      const clockOutTime = new Date(newClockOut).getTime();
-      durationMinutes = Math.round((clockOutTime - clockInTime) / 1000 / 60);
+      const clamped = clampClockOut(newClockIn, newClockOut);
+      safeClockOut = clamped.clockOut;
+      durationMinutes = clamped.durationMinutes;
     }
 
-    // Set state based on whether session has clockOut
-    const newState = newClockOut ? 'completed' : 'active';
+    // Set state based on whether session has clockOut; a completed row keeps no
+    // pending-exit leftovers.
+    const newState = safeClockOut ? 'completed' : 'active';
 
     await this.db.runAsync(
       `UPDATE tracking_sessions
-       SET clock_in = ?, clock_out = ?, duration_minutes = ?, state = ?, updated_at = ?
+       SET clock_in = ?, clock_out = ?, duration_minutes = ?, state = ?, pending_exit_at = ?, updated_at = ?
        WHERE id = ?`,
       newClockIn,
-      newClockOut,
+      safeClockOut,
       durationMinutes,
       newState,
+      safeClockOut ? null : session.pendingExitAt ?? null,
       new Date().toISOString(),
       sessionId
     );
@@ -661,6 +725,46 @@ export class Database {
     );
 
     return Boolean(result);
+  }
+
+  /**
+   * All open sessions (active or pending_exit) across locations.
+   */
+  async getOpenSessions(): Promise<TrackingSession[]> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const results = await this.db.getAllAsync<any>(
+      `SELECT * FROM tracking_sessions
+       WHERE state IN ('active', 'pending_exit') AND clock_out IS NULL`
+    );
+
+    return results.map((row) => this.mapSession(row));
+  }
+
+  /**
+   * Latest clock-out of any completed session at a location (ISO), or null.
+   * Rule 2's boundary when no session is open: a fix at or before it belongs
+   * to a session that is already closed.
+   */
+  async getLastClockOut(locationId: string): Promise<string | null> {
+    const recent = await this.getSessionHistory(locationId, 50);
+    let last: string | null = null;
+    for (const s of recent) {
+      if (s.state === 'completed' && s.clockOut && (last === null || s.clockOut > last)) last = s.clockOut;
+    }
+    return last;
+  }
+
+  /**
+   * Newest sessions across all locations, bounded — for diagnostics payloads.
+   */
+  async getRecentSessions(limit: number): Promise<TrackingSession[]> {
+    if (!this.db) throw new Error('Database not initialized');
+    const results = await this.db.getAllAsync<any>(
+      `SELECT * FROM tracking_sessions ORDER BY clock_in DESC LIMIT ?`,
+      limit
+    );
+    return results.map((row) => this.mapSession(row));
   }
 
   async getSessionHistory(locationId: string, limit: number): Promise<TrackingSession[]> {
@@ -789,6 +893,8 @@ export class Database {
       state: 'completed',
       pendingExitAt: null,
       exitAccuracy: null,
+      exitEvidence: null,
+      lastInsideAt: null,
       checkinAccuracy: null,
       createdAt: now,
       updatedAt: now,
@@ -914,6 +1020,11 @@ export class Database {
   /**
    * Auto-confirm stale pending exits older than the specified hours.
    * Returns the number of sessions confirmed.
+   *
+   * iOS core ONLY (TrackingManagerIOS = the shipped code): its "verification
+   * never ran" fallback. It bypasses rule 1 and the clock-out clamp on purpose —
+   * the iOS core is frozen. The Android core resolves pending exits row by row in
+   * `processPendingExits` and must never call this.
    */
   async confirmStalePendingExits(maxAgeHours: number = 24): Promise<number> {
     if (!this.db) throw new Error('Database not initialized');
@@ -944,19 +1055,61 @@ export class Database {
   /**
    * Mark a session as pending exit (start hysteresis countdown)
    */
-  async markPendingExit(sessionId: string, exitTimestamp: string, exitAccuracy: number | null): Promise<void> {
+  async markPendingExit(
+    sessionId: string,
+    exitTimestamp: string,
+    exitAccuracy: number | null,
+    exitEvidence: ExitEvidence = 'uncertain'
+  ): Promise<void> {
     if (!this.db) throw new Error('Database not initialized');
 
     await this.db.runAsync(
       `UPDATE tracking_sessions
-       SET state = ?, pending_exit_at = ?, exit_accuracy = ?, updated_at = ?
+       SET state = ?, pending_exit_at = ?, exit_accuracy = ?, exit_evidence = ?, updated_at = ?
        WHERE id = ?`,
       'pending_exit',
       exitTimestamp,
       exitAccuracy,
+      exitEvidence,
       new Date().toISOString(),
       sessionId
     );
+  }
+
+  /** Latest inside evidence (Android core); never moves backwards. */
+  async updateLastInsideAt(sessionId: string, fixIso: string): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized');
+    const session = await this.getSession(sessionId);
+    if (!session) return;
+    if (session.lastInsideAt && session.lastInsideAt >= fixIso) return;
+    await this.db.runAsync(
+      `UPDATE tracking_sessions SET last_inside_at = ?, updated_at = ? WHERE id = ?`,
+      fixIso,
+      new Date().toISOString(),
+      sessionId
+    );
+  }
+
+  /**
+   * A later fix proved the user is outside: record that on the pending exit
+   * WITHOUT moving pending_exit_at (the departure time stays the original exit).
+   * No-op unless the row is still pending.
+   */
+  async upgradePendingExitEvidence(sessionId: string, exitAccuracy: number | null): Promise<boolean> {
+    if (!this.db) throw new Error('Database not initialized');
+    const session = await this.getSession(sessionId);
+    if (!session || session.state !== 'pending_exit') return false;
+    if (session.exitEvidence === 'outside') return true;
+    await this.db.runAsync(
+      `UPDATE tracking_sessions
+       SET exit_evidence = ?, exit_accuracy = ?, updated_at = ?
+       WHERE id = ?`,
+      'outside',
+      exitAccuracy ?? session.exitAccuracy ?? null,
+      new Date().toISOString(),
+      sessionId
+    );
+    return true;
   }
 
   /**
@@ -970,16 +1123,15 @@ export class Database {
       throw new Error('Session not found or not in pending_exit state');
     }
 
-    const clockInTime = new Date(session.clockIn).getTime();
-    const clockOutTime = new Date(session.pendingExitAt).getTime();
-    const durationMinutes = Math.round((clockOutTime - clockInTime) / 1000 / 60);
+    // Invariant: clock_out is never before clock_in (a negative duration is never stored).
+    const { clockOut, durationMinutes } = clampClockOut(session.clockIn, session.pendingExitAt);
 
     await this.db.runAsync(
       `UPDATE tracking_sessions
        SET state = ?, clock_out = ?, duration_minutes = ?, updated_at = ?
        WHERE id = ?`,
       'completed',
-      session.pendingExitAt,
+      clockOut,
       durationMinutes,
       new Date().toISOString(),
       sessionId
@@ -994,9 +1146,10 @@ export class Database {
 
     await this.db.runAsync(
       `UPDATE tracking_sessions
-       SET state = ?, pending_exit_at = ?, exit_accuracy = ?, updated_at = ?
+       SET state = ?, pending_exit_at = ?, exit_accuracy = ?, exit_evidence = ?, updated_at = ?
        WHERE id = ?`,
       'active',
+      null,
       null,
       null,
       new Date().toISOString(),
@@ -1007,10 +1160,18 @@ export class Database {
   /**
    * Get sessions in pending_exit state that have exceeded the hysteresis threshold
    */
-  async getExpiredPendingExits(thresholdMinutes: number): Promise<(TrackingSession & { locationName?: string })[]> {
+  /**
+   * Pending exits whose exit time is more than `thresholdMinutes` before `asOfMs`
+   * (default: now). The Android core passes the FIX time as `asOfMs`, so a late
+   * batch is judged as of its fixes, not as of its delivery.
+   */
+  async getExpiredPendingExits(
+    thresholdMinutes: number,
+    asOfMs: number = Date.now()
+  ): Promise<(TrackingSession & { locationName?: string })[]> {
     if (!this.db) throw new Error('Database not initialized');
 
-    const cutoffTime = new Date(Date.now() - thresholdMinutes * 60 * 1000).toISOString();
+    const cutoffTime = new Date(asOfMs - thresholdMinutes * 60 * 1000).toISOString();
 
     const results = await this.db.getAllAsync<any>(
       `SELECT ts.*, ul.name as location_name
@@ -1067,6 +1228,8 @@ export class Database {
       state: row.state ?? 'active',
       pendingExitAt: row.pending_exit_at,
       exitAccuracy: row.exit_accuracy,
+      exitEvidence: row.exit_evidence ?? null,
+      lastInsideAt: row.last_inside_at ?? null,
       checkinAccuracy: row.checkin_accuracy,
       createdAt: row.created_at,
       updatedAt: row.updated_at,

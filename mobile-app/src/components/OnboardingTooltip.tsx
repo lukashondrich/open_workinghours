@@ -18,6 +18,12 @@ interface Props {
   body: string;
   dismissLabel?: string;
   onDismiss: () => void;
+  /** Optional secondary (cancel) button — turns the tooltip into a real choice */
+  secondaryLabel?: string;
+  onSecondary?: () => void;
+  /** Optional underlined text link below the body (e.g. "Learn more") */
+  linkLabel?: string;
+  onLink?: () => void;
   testIDPrefix?: string;
 }
 
@@ -27,6 +33,10 @@ export default function OnboardingTooltip({
   body,
   dismissLabel = t('onboardingTooltips.gotIt'),
   onDismiss,
+  secondaryLabel,
+  onSecondary,
+  linkLabel,
+  onLink,
   testIDPrefix = 'onboarding-tooltip',
 }: Props) {
   const opacity = useRef(new Animated.Value(0)).current;
@@ -96,17 +106,45 @@ export default function OnboardingTooltip({
         >
           {body}
         </Text>
-        <TouchableOpacity
-          style={styles.dismissButton}
-          onPress={onDismiss}
-          activeOpacity={0.8}
-          testID={`${testIDPrefix}-dismiss`}
-          accessible={true}
-          accessibilityRole="button"
-          accessibilityLabel={dismissLabel}
-        >
-          <Text style={styles.dismissText}>{dismissLabel}</Text>
-        </TouchableOpacity>
+        {linkLabel && onLink && (
+          <TouchableOpacity
+            onPress={onLink}
+            activeOpacity={0.7}
+            style={styles.linkButton}
+            testID={`${testIDPrefix}-link`}
+            accessible={true}
+            accessibilityRole="link"
+            accessibilityLabel={linkLabel}
+          >
+            <Text style={styles.linkText}>{linkLabel}</Text>
+          </TouchableOpacity>
+        )}
+        <View style={styles.buttonRow} accessible={false} collapsable={false}>
+          {secondaryLabel && onSecondary && (
+            <TouchableOpacity
+              style={styles.secondaryButton}
+              onPress={onSecondary}
+              activeOpacity={0.8}
+              testID={`${testIDPrefix}-cancel`}
+              accessible={true}
+              accessibilityRole="button"
+              accessibilityLabel={secondaryLabel}
+            >
+              <Text style={styles.secondaryText}>{secondaryLabel}</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            style={styles.dismissButton}
+            onPress={onDismiss}
+            activeOpacity={0.8}
+            testID={`${testIDPrefix}-dismiss`}
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel={dismissLabel}
+          >
+            <Text style={styles.dismissText}>{dismissLabel}</Text>
+          </TouchableOpacity>
+        </View>
       </Animated.View>
     </View>
   );
@@ -153,12 +191,40 @@ const styles = StyleSheet.create({
     color: colors.text.secondary,
     marginBottom: spacing.lg,
   },
+  linkButton: {
+    alignSelf: 'flex-start',
+    marginBottom: spacing.lg,
+  },
+  linkText: {
+    fontSize: fontSize.sm,
+    color: colors.primary[600],
+    textDecorationLine: 'underline',
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
   dismissButton: {
     alignSelf: 'flex-start',
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.lg,
     borderRadius: borderRadius.sm,
     backgroundColor: colors.primary[500],
+  },
+  secondaryButton: {
+    alignSelf: 'flex-start',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    borderRadius: borderRadius.sm,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    backgroundColor: colors.background.paper,
+  },
+  secondaryText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    color: colors.text.secondary,
   },
   dismissText: {
     fontSize: fontSize.sm,

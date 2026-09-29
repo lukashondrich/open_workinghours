@@ -3,7 +3,7 @@ import { getDatabase } from '@/modules/geofencing/services/Database';
 import { getCalendarStorage } from '@/modules/calendar/services/CalendarStorage';
 import type { ShiftInstance, ShiftColor, AbsenceInstance } from '@/lib/calendar/types';
 import { getAbsencesForDate } from '@/lib/calendar/calendar-utils';
-import { computeEffectivePlannedMinutesForDate, getDayBounds, computeOverlapMinutes } from '@/lib/calendar/time-calculations';
+import { computeEffectivePlannedMinutesForDate, computeActualMinutesFromSessions } from '@/lib/calendar/time-calculations';
 
 export interface DailyHoursData {
   date: string; // YYYY-MM-DD
@@ -54,11 +54,15 @@ export async function loadDashboardData(accountCreatedAt?: string): Promise<Dash
   const storage = await getCalendarStorage();
 
   // Load all data sources
-  const [instances, confirmedDays, locations, absenceInstances] = await Promise.all([
+  const [instances, confirmedDays, locations, absenceInstances, breaksById] = await Promise.all([
     storage.loadInstances(),
     storage.loadConfirmedDays(),
     db.getActiveLocations(),
     storage.loadAbsenceInstances(),
+    // User-entered breaks live in the calendar DB; sessions know nothing about
+    // them. Without this the widget reported gross hours while the calendar
+    // reported net (found 2026-09-27).
+    storage.loadTrackingBreaks(),
   ]);
 
   // Calculate date range: last 14 days including today
@@ -96,7 +100,6 @@ export async function loadDashboardData(accountCreatedAt?: string): Promise<Dash
     const dayDate = subDays(today, i);
     const dateKey = format(dayDate, 'yyyy-MM-dd');
     const isToday = dateKey === todayKey;
-    const { start: dayStart, end: dayEnd } = getDayBounds(dateKey);
 
     // Check if this day is before account was created
     const isPreAccount = accountStartDate ? isBefore(dayDate, accountStartDate) : false;
@@ -124,25 +127,10 @@ export async function loadDashboardData(accountCreatedAt?: string): Promise<Dash
     // Calculate planned minutes (accounting for absences + overnight shifts)
     const plannedMinutes = computeEffectivePlannedMinutesForDate(instances, absenceInstances, dateKey);
 
-    // Calculate actual minutes from sessions
-    let actualMinutes = 0;
-    for (const session of sessions) {
-      const sessionStart = new Date(session.clockIn);
-      let sessionEnd: Date;
-
-      if (session.clockOut) {
-        sessionEnd = new Date(session.clockOut);
-      } else if (isToday) {
-        // Active session: use current time
-        sessionEnd = new Date();
-      } else {
-        // Skip incomplete sessions for past days
-        continue;
-      }
-
-      const overlap = computeOverlapMinutes(sessionStart, sessionEnd, dayStart, dayEnd);
-      actualMinutes += overlap;
-    }
+    // Actual minutes from sessions, net of breaks (active session counts only today)
+    const actualMinutes = computeActualMinutesFromSessions(dateKey, sessions, breaksById, {
+      includeActive: isToday,
+    });
 
     // Check if day is confirmed — 'locked' is confirmed-and-submitted, so it
     // counts too (the calendar month footer already counts both; see

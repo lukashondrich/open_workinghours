@@ -13,6 +13,7 @@ import {
   Keyboard,
   ScrollView,
   Animated,
+  AppState,
 } from 'react-native';
 import MapView, { Circle, Marker, MapPressEvent, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
@@ -123,6 +124,10 @@ export default function SetupScreen({ navigation, route }: Props) {
   const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
   const latestDeviceLocationRef = useRef<Location.LocationObject | null>(null);
   const backgroundGrantedForSaveRef = useRef(false);
+  const savedLocationIdRef = useRef<string | null>(null);
+  const backgroundRequestInFlightRef = useRef(false);
+  const finishBackgroundRequestRef = useRef<() => Promise<void>>(async () => {});
+  const prevAppStateRef = useRef(AppState.currentState);
   const { state: authState } = useAuth();
 
   // Edit mode and view-only mode
@@ -504,7 +509,7 @@ export default function SetupScreen({ navigation, route }: Props) {
   };
 
   const decreaseRadius = () => {
-    setRadius((prev) => Math.max(prev - 50, 100));
+    setRadius((prev) => Math.max(prev - 50, 50));
   };
 
   const handleContinue = () => {
@@ -551,6 +556,14 @@ export default function SetupScreen({ navigation, route }: Props) {
       return;
     }
 
+    // Persist the location BEFORE any permission flow: on Android the
+    // "Always" request sends the user to system Settings, and the process
+    // may be killed while they're there — the DB row must already exist.
+    const persisted = await persistLocation();
+    if (!persisted) {
+      return;
+    }
+
     try {
       const backgroundGranted = await getGeofenceService().hasBackgroundPermissions();
       if (backgroundGranted) {
@@ -564,6 +577,48 @@ export default function SetupScreen({ navigation, route }: Props) {
       console.warn('[SetupScreen] Failed to check background permission:', error);
       backgroundGrantedForSaveRef.current = false;
       setPermissionFlowStep('background');
+    }
+  };
+
+  const persistLocation = async (): Promise<boolean> => {
+    if (!pinCoordinate) {
+      return false;
+    }
+    setSaving(true);
+
+    try {
+      const db = await getDatabase();
+
+      if (isEditMode && editLocation) {
+        await db.updateLocation(editLocation.id, {
+          name: name.trim(),
+          latitude: pinCoordinate.latitude,
+          longitude: pinCoordinate.longitude,
+          radiusMeters: radius,
+        });
+        savedLocationIdRef.current = editLocation.id;
+      } else {
+        const location: UserLocation = {
+          id: Crypto.randomUUID(),
+          name: name.trim(),
+          latitude: pinCoordinate.latitude,
+          longitude: pinCoordinate.longitude,
+          radiusMeters: radius,
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        await db.insertLocation(location);
+        savedLocationIdRef.current = location.id;
+      }
+
+      setSaving(false);
+      return true;
+    } catch (error) {
+      console.error('Error saving location:', error);
+      Alert.alert(t('common.error'), t('setup.saveFailed'));
+      setSaving(false);
+      return false;
     }
   };
 
@@ -587,12 +642,62 @@ export default function SetupScreen({ navigation, route }: Props) {
       return;
     }
 
-    await saveLocation(backgroundGranted);
+    await finalizeSave(backgroundGranted);
   };
+
+  // Single continuation for the background-permission request, guarded by an
+  // in-flight ref so it runs exactly once — whether the request promise
+  // resolves normally or the AppState recovery below fires first.
+  const finishBackgroundRequest = async () => {
+    if (!backgroundRequestInFlightRef.current) {
+      return;
+    }
+    backgroundRequestInFlightRef.current = false;
+
+    let backgroundGranted = false;
+    try {
+      backgroundGranted = await getGeofenceService().hasBackgroundPermissions();
+    } catch (error) {
+      console.warn('[SetupScreen] Failed to check background permission:', error);
+    }
+
+    setPermissionActionLoading(false);
+    await maybePromptForNotificationsOrSave(backgroundGranted);
+  };
+  finishBackgroundRequestRef.current = finishBackgroundRequest;
+
+  // Recovery for the Android Settings roundtrip: requestBackgroundPermissions
+  // backgrounds the app, and its promise may never resolve if the activity was
+  // recreated. When the app returns from BACKGROUND (not 'inactive' — iOS
+  // permission dialogs pass through that) with the request still in flight,
+  // finish the flow after giving the pending promise a moment to win.
+  useEffect(() => {
+    let recoveryTimer: ReturnType<typeof setTimeout> | null = null;
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      const cameFromBackground = prevAppStateRef.current === 'background';
+      prevAppStateRef.current = nextAppState;
+
+      if (nextAppState === 'active' && cameFromBackground && backgroundRequestInFlightRef.current) {
+        if (recoveryTimer) {
+          clearTimeout(recoveryTimer);
+        }
+        recoveryTimer = setTimeout(() => {
+          recoveryTimer = null;
+          finishBackgroundRequestRef.current();
+        }, 1500);
+      }
+    });
+    return () => {
+      subscription.remove();
+      if (recoveryTimer) {
+        clearTimeout(recoveryTimer);
+      }
+    };
+  }, []);
 
   const handleEnableBackgroundPermission = async () => {
     setPermissionActionLoading(true);
-    let backgroundGranted = false;
+    backgroundRequestInFlightRef.current = true;
 
     try {
       await OnboardingPreferences.setBackgroundPermissionPromptSeen(true);
@@ -603,6 +708,7 @@ export default function SetupScreen({ navigation, route }: Props) {
         setHasForegroundPermission(foregroundGranted);
         if (!foregroundGranted) {
           await OnboardingPreferences.setUserDeclinedLocationPermission(true);
+          backgroundRequestInFlightRef.current = false;
           setPermissionActionLoading(false);
           await maybePromptForNotificationsOrSave(false);
           return;
@@ -611,13 +717,11 @@ export default function SetupScreen({ navigation, route }: Props) {
       }
 
       await geofenceService.requestBackgroundPermissions();
-      backgroundGranted = await geofenceService.hasBackgroundPermissions();
     } catch (error) {
       console.warn('[SetupScreen] Background permission request failed:', error);
     }
 
-    setPermissionActionLoading(false);
-    await maybePromptForNotificationsOrSave(backgroundGranted);
+    await finishBackgroundRequest();
   };
 
   const handleSkipBackgroundPermission = async () => {
@@ -636,94 +740,54 @@ export default function SetupScreen({ navigation, route }: Props) {
     }
 
     setPermissionActionLoading(false);
-    await saveLocation(backgroundGrantedForSaveRef.current);
+    await finalizeSave(backgroundGrantedForSaveRef.current);
   };
 
   const handleSkipNotifications = async () => {
     await OnboardingPreferences.setNotificationPermissionPromptSeen(true);
-    await saveLocation(backgroundGrantedForSaveRef.current);
+    await finalizeSave(backgroundGrantedForSaveRef.current);
   };
 
-  const saveLocation = async (backgroundGranted: boolean) => {
+  // Post-persist housekeeping: geofence registration, keepalive, auto
+  // check-in, navigation. The location row itself was already written by
+  // persistLocation() before the permission flow started — failures here
+  // must not be reported as a failed save, and App.tsx re-runs geofence
+  // registration + keepalive sync on launch/foreground anyway.
+  const finalizeSave = async (backgroundGranted: boolean) => {
     setSaving(true);
     setPermissionFlowStep(null);
 
     try {
-      const coordinate = pinCoordinate;
-      if (!coordinate) {
-        Alert.alert(t('common.error'), t('setup.selectLocationPrompt'));
-        setSaving(false);
-        return;
-      }
-
       const db = await getDatabase();
       const trackingManager = new TrackingManager(db);
 
-      if (isEditMode && editLocation) {
-        // Update existing location
-        await db.updateLocation(editLocation.id, {
-          name: name.trim(),
-          latitude: coordinate.latitude,
-          longitude: coordinate.longitude,
-          radiusMeters: radius,
-        });
-
-        if (backgroundGranted) {
-          try {
-            await GeofenceRegistrationService.ensureRegisteredGeofences();
-            console.log('[SetupScreen] Geofence updated successfully');
-          } catch (error) {
-            console.warn('[SetupScreen] Failed to update geofence:', error);
-          }
-        }
-
+      if (backgroundGranted) {
         try {
-          await syncKeepaliveState();
+          await GeofenceRegistrationService.ensureRegisteredGeofences();
+          console.log('[SetupScreen] Geofence registered successfully');
         } catch (error) {
-          console.warn('[SetupScreen] Failed to sync keepalive after update:', error);
+          console.warn('[SetupScreen] Failed to register geofence:', error);
         }
+      }
 
-        const updatedLocation = await db.getLocation(editLocation.id);
-        if (updatedLocation) {
-          await tryImmediateAutoCheckIn(updatedLocation, trackingManager);
-        }
+      try {
+        await syncKeepaliveState();
+      } catch (error) {
+        console.warn('[SetupScreen] Failed to sync keepalive after save:', error);
+      }
 
-        setSaving(false);
+      const savedLocation = savedLocationIdRef.current
+        ? await db.getLocation(savedLocationIdRef.current)
+        : null;
+      if (savedLocation) {
+        await tryImmediateAutoCheckIn(savedLocation, trackingManager);
+      }
+
+      setSaving(false);
+
+      if (isEditMode) {
         navigation.navigate('LocationsList');
       } else {
-        // Create new location
-        const location: UserLocation = {
-          id: Crypto.randomUUID(),
-          name: name.trim(),
-          latitude: coordinate.latitude,
-          longitude: coordinate.longitude,
-          radiusMeters: radius,
-          isActive: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-
-        await db.insertLocation(location);
-
-        if (backgroundGranted) {
-          try {
-            await GeofenceRegistrationService.ensureRegisteredGeofences();
-            console.log('[SetupScreen] Geofence registered successfully');
-          } catch (error) {
-            console.warn('[SetupScreen] Failed to register geofence:', error);
-          }
-        }
-
-        try {
-          await syncKeepaliveState();
-        } catch (error) {
-          console.warn('[SetupScreen] Failed to sync keepalive after save:', error);
-        }
-
-        await tryImmediateAutoCheckIn(location, trackingManager);
-
-        setSaving(false);
-
         const locations = await db.getActiveLocations();
         if (locations.length > 1) {
           navigation.navigate('LocationsList');
@@ -732,9 +796,9 @@ export default function SetupScreen({ navigation, route }: Props) {
         }
       }
     } catch (error) {
-      console.error('Error saving location:', error);
-      Alert.alert(t('common.error'), t('setup.saveFailed'));
+      console.error('Error finalizing location save:', error);
       setSaving(false);
+      navigation.navigate(isEditMode ? 'LocationsList' : 'MainTabs');
     }
   };
 
@@ -994,7 +1058,7 @@ export default function SetupScreen({ navigation, route }: Props) {
                   <Button
                     variant="secondary"
                     onPress={decreaseRadius}
-                    disabled={radius <= 100}
+                    disabled={radius <= 50}
                     icon={<Minus size={20} color={colors.text.primary} />}
                     style={styles.radiusButton}
                     testID="setup-radius-decrease"

@@ -1,4 +1,4 @@
-import { TrackingManager } from '../services/TrackingManager';
+import { TrackingManagerAndroid as TrackingManager } from '../services/TrackingManagerAndroid';
 import { Database } from '../services/Database';
 import { GeofenceEventData } from '../types';
 import * as Notifications from 'expo-notifications';
@@ -156,9 +156,12 @@ describe('TrackingManager', () => {
 
       await manager.handleGeofenceExit(event);
 
-      // Hysteresis path: no user-facing notification is sent (only silent verification scheduled)
-      // The scheduleNotificationAsync should NOT be called with a user-visible alert
-      expect(Notifications.scheduleNotificationAsync).not.toHaveBeenCalled();
+      // Hysteresis path: no user-facing notification is sent (only the silent
+      // exit-verification checks are scheduled)
+      const userVisibleCalls = (Notifications.scheduleNotificationAsync as jest.Mock).mock.calls.filter(
+        ([req]) => req?.content?.data?.type !== 'exit-verification'
+      );
+      expect(userVisibleCalls).toHaveLength(0);
 
       // Session should be in pending_exit state
       const session = await db.getActiveSession(testLocationId);
@@ -184,8 +187,8 @@ describe('TrackingManager', () => {
     });
 
     it('should cancel pending exit on re-enter', async () => {
-      // Clock in
-      await db.clockIn(testLocationId, new Date().toISOString(), 'geofence_auto');
+      // Clock in (before the exit fix below — an exit older than clock-in is stale)
+      await db.clockIn(testLocationId, new Date(Date.now() - 60000).toISOString(), 'geofence_auto');
 
       // Exit (creates pending exit) — use timestamp >10s ago to avoid debounce
       const exitTime = new Date(Date.now() - 15000).toISOString();
@@ -250,8 +253,9 @@ describe('TrackingManager', () => {
 
       expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledWith({
         content: {
-          title: 'Clocked In',
-          body: expect.stringContaining('Manually'),
+          title: 'Open Working Hours',
+          // Must tell the user the session ends only by manual clock-out
+          body: expect.stringMatching(/Manually clocked in .* clock out yourself/),
           data: expect.any(Object),
         },
         trigger: null,

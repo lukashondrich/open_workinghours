@@ -47,6 +47,7 @@ export interface ShiftInstance {
   endTime: string // HH:mm
   color: ShiftColor
   name: string
+  seriesId?: string // set when this instance belongs to a repeating series
 }
 
 export interface TrackingRecord {
@@ -87,6 +88,7 @@ export interface CalendarState {
   currentMonth: Date
   templatePanelOpen: boolean
   reviewMode: boolean
+  showPlanned: boolean
   trackingRecords: Record<string, TrackingRecord>
   confirmedDates: Set<string>
   confirmedDayStatus: Record<string, ConfirmedDayStatus>
@@ -143,6 +145,10 @@ export type CalendarAction =
   | { type: "SET_MONTH"; date: Date }
   | { type: "TOGGLE_TEMPLATE_PANEL" }
   | { type: "TOGGLE_REVIEW_MODE"; trackingRecords?: Record<string, TrackingRecord> }
+  | { type: "SET_REVIEW_MODE"; on: boolean; trackingRecords?: Record<string, TrackingRecord> }
+  | { type: "TOGGLE_PLANNED_VISIBILITY" }
+  | { type: "ADD_SERIES"; instances: ShiftInstance[]; sourceInstanceId: string; seriesId: string }
+  | { type: "DELETE_SERIES_FROM"; seriesId: string; fromDate: string }
   | { type: "UPDATE_TRACKING_RECORDS"; trackingRecords: Record<string, TrackingRecord> }
   | { type: "UPDATE_TRACKING_START"; id: string; startTime: string }
   | { type: "UPDATE_TRACKING_END"; id: string; newDuration: number }

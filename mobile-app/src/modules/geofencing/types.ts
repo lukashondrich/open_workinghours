@@ -13,6 +13,8 @@ export interface UserLocation {
 
 export type SessionState = 'active' | 'pending_exit' | 'completed';
 
+export type ExitEvidence = 'outside' | 'uncertain';
+
 export interface TrackingSession {
   id: string;
   locationId: string;
@@ -23,14 +25,33 @@ export interface TrackingSession {
   state: SessionState;
   pendingExitAt: string | null; // ISO8601 - when exit was triggered
   exitAccuracy: number | null;  // GPS accuracy at exit event (meters)
+  /** Rule 5: 'outside' = a fix placed the phone confidently outside the fence
+   *  (the exit may be confirmed); 'uncertain' = no usable fix yet (confirm only
+   *  after positive evidence, else cancel). null on legacy/non-pending rows. */
+  exitEvidence: ExitEvidence | null;
+  /** Android core: the latest fix time that placed the phone inside the fence
+   *  (clock-in, inside pings, OS enters). Drives the gap rule. null on legacy rows. */
+  lastInsideAt: string | null;
   checkinAccuracy: number | null; // GPS accuracy at check-in (meters)
   createdAt: string;
   updatedAt: string;
 }
 
-export type IgnoreReason = 'poor_accuracy' | 'signal_degradation' | 'no_session' | 'debounced' | null;
+export type IgnoreReason =
+  | 'poor_accuracy'
+  | 'signal_degradation'
+  | 'no_session'
+  | 'debounced'
+  | 'manual_session' // location signal ignored: session is user-owned
+  | 'stale_timestamp' // fix predates the latest session boundary
+  | 'phantom_exit' // OS said exit, but the fetched fix is confidently inside the fence
+  | 'auto_enter_suppressed' // initial-trigger enter after a manual clock-out (rule 7)
+  | null;
 
-export type AccuracySource = 'event' | 'active_fetch' | null;
+// 'event': fix delivered with the OS callback; 'active_fetch': fetched by the app
+// after an OS callback; 'keepalive': a background location ping (a SINGLE signal —
+// no OS transition behind it — so exits from it always take the hysteresis path).
+export type AccuracySource = 'event' | 'active_fetch' | 'keepalive' | null;
 
 export interface GeofenceEvent {
   id: string;
@@ -60,7 +81,7 @@ export interface GeofenceEventData {
 }
 
 export interface GeofenceConfig {
-  minRadius: number;            // 100m
+  minRadius: number;            // 50m
   maxRadius: number;            // 1000m
   defaultRadius: number;        // 200m
   notifyOnEnter: boolean;

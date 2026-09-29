@@ -17,6 +17,7 @@ import * as ExitVerificationService from '@/modules/geofencing/services/ExitVeri
 import { GEOFENCE_TASK_NAME, LOCATION_KEEPALIVE_TASK_NAME } from '@/modules/geofencing/constants';
 import { syncKeepaliveState } from '@/modules/geofencing/services/ForegroundKeepaliveService';
 import { handleKeepaliveTaskPayload } from '@/modules/geofencing/services/KeepaliveHealthCheckService';
+import { classifyFix } from '@/modules/geofencing/services/geo';
 import { AccuracySource, GeofenceEventData } from '@/modules/geofencing/types';
 import { seedTestDeviceDataIfEnabled } from '@/test-utils/deviceDbSeed';
 import { seedDashboardTestData } from '@/test-utils/seedDashboardData';
@@ -33,27 +34,6 @@ console.log('SUBMISSION URL', process.env.EXPO_PUBLIC_SUBMISSION_BASE_URL);
 let globalTrackingManager: TrackingManager | null = null;
 let geofenceTaskQueue: Promise<void> = Promise.resolve();
 const GEOFENCE_ACTIVE_FETCH_TIMEOUT_MS = 8_000;
-const DEFAULT_LOCATION_ACCURACY_METERS = 100;
-
-function calculateDistanceMeters(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number
-): number {
-  const earthRadiusMeters = 6371e3;
-  const phi1 = (lat1 * Math.PI) / 180;
-  const phi2 = (lat2 * Math.PI) / 180;
-  const deltaPhi = ((lat2 - lat1) * Math.PI) / 180;
-  const deltaLambda = ((lon2 - lon1) * Math.PI) / 180;
-
-  const a =
-    Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
-    Math.cos(phi1) * Math.cos(phi2) * Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-  return earthRadiusMeters * c;
-}
 
 async function getCurrentPositionWithTimeout(
   accuracy: Location.Accuracy,
@@ -125,19 +105,14 @@ TaskManager.defineTask(GEOFENCE_TASK_NAME, async ({ data, error }) => {
           return;
         }
 
-        const distanceMeters = calculateDistanceMeters(
-          gpsReading.coords.latitude,
-          gpsReading.coords.longitude,
-          region.latitude,
-          region.longitude
+        // Same geometry as every other fix judgement (services/geo.ts)
+        const fixClass = classifyFix(
+          { latitude: gpsReading.coords.latitude, longitude: gpsReading.coords.longitude, accuracy: gpsReading.coords.accuracy },
+          { latitude: region.latitude, longitude: region.longitude, radiusMeters: region.radius ?? 100 }
         );
-        const accuracyMeters = gpsReading.coords.accuracy ?? DEFAULT_LOCATION_ACCURACY_METERS;
-        const radiusMeters = region.radius ?? 100;
-        const confidentlyOutside = distanceMeters - accuracyMeters > radiusMeters;
-
-        if (confidentlyOutside) {
+        if (fixClass === 'outside') {
           console.warn(
-            `[GeofenceTask] Ignoring enter for ${region.identifier} - confidently outside (${distanceMeters.toFixed(0)}m from center, accuracy ${accuracyMeters.toFixed(0)}m, radius ${radiusMeters}m)`
+            `[GeofenceTask] Ignoring enter for ${region.identifier} - fix confidently outside (accuracy ${gpsReading.coords.accuracy ?? 'N/A'}m, radius ${region.radius ?? 100}m)`
           );
           return;
         }
@@ -340,14 +315,15 @@ export default function App() {
         console.warn('[App] Failed to sync keepalive state:', error);
       }
 
-      // Process any pending exits that may have expired while app was backgrounded
+      // Process any pending exits that may have expired while app was backgrounded.
+      // Not awaited: on Android the pass may make one bounded location fetch
+      // (up to 8 s) and must not hold the splash screen; it emits
+      // 'tracking-changed' when it resolves something.
       console.log('[App] Processing pending exits...');
-      try {
-        await trackingManager.processPendingExits();
-        console.log('[App] Pending exits processed');
-      } catch (error) {
-        console.warn('[App] Error processing pending exits:', error);
-      }
+      trackingManager
+        .processPendingExits()
+        .then(() => console.log('[App] Pending exits processed'))
+        .catch((error) => console.warn('[App] Error processing pending exits:', error));
 
       console.log('[App] Initialization complete');
       setIsReady(true);

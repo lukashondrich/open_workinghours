@@ -311,6 +311,24 @@ export class CalendarStorage {
     });
   }
 
+  /**
+   * User-entered breaks only (record id → minutes). The one query every
+   * session-summing surface uses; sessions themselves know nothing of breaks.
+   */
+  async loadTrackingBreaks(): Promise<Record<string, number>> {
+    return this.enqueueOperation(async () => {
+      const db = this.getDb();
+      const rows = await db.getAllAsync<{ id: string; break_minutes: number }>(
+        'SELECT id, break_minutes FROM tracking_records WHERE break_minutes > 0'
+      );
+      const breaks: Record<string, number> = {};
+      rows.forEach((row) => {
+        breaks[row.id] = row.break_minutes;
+      });
+      return breaks;
+    });
+  }
+
   async loadTrackingRecords(): Promise<Record<string, TrackingRecord>> {
     return this.enqueueOperation(async () => {
       const db = this.getDb();

@@ -175,9 +175,81 @@ export function computeActualMinutesFromRecords(
     const overlap = computeOverlapMinutes(recordStart, recordEnd, dayStart, dayEnd);
     if (overlap <= 0) return sum;
 
-    const breakMinutes = record.breakMinutes || 0;
-    const breakRatio = record.duration > 0 ? overlap / record.duration : 0;
-    const proportionalBreak = Math.round(breakMinutes * breakRatio);
+    const proportionalBreak = breakShareForDay(record.breakMinutes || 0, recordStart, recordEnd, dayStart, dayEnd);
+    return sum + Math.max(0, overlap - proportionalBreak);
+  }, 0);
+}
+
+/**
+ * The part of a break that belongs to one day of a session that may cross
+ * midnight. The day shares telescope (round(cumEnd) − round(cumStart)), so the
+ * per-day deductions add up to exactly the break — rounding each day's ratio
+ * on its own could deduct one minute too many (45 → 23 + 23).
+ */
+export function breakShareForDay(
+  breakMinutes: number,
+  sessionStart: Date,
+  sessionEnd: Date,
+  dayStart: Date,
+  dayEnd: Date,
+): number {
+  if (breakMinutes <= 0) return 0;
+  const totalMs = sessionEnd.getTime() - sessionStart.getTime();
+  if (totalMs <= 0) return 0;
+  const clampMs = (t: number) => Math.min(Math.max(t, sessionStart.getTime()), sessionEnd.getTime());
+  const cumStart = (clampMs(dayStart.getTime()) - sessionStart.getTime()) / totalMs;
+  const cumEnd = (clampMs(dayEnd.getTime()) - sessionStart.getTime()) / totalMs;
+  return Math.round(breakMinutes * cumEnd) - Math.round(breakMinutes * cumStart);
+}
+
+/** Calendar tracking-record id under which the user's break for a session is stored. */
+export function sessionRecordId(sessionId: string): string {
+  return `tracking-session-${sessionId}`;
+}
+
+export interface SessionLike {
+  id: string;
+  clockIn: string;
+  clockOut: string | null;
+}
+
+/**
+ * Actual minutes for a day from raw tracking SESSIONS, net of the breaks the
+ * user entered in the calendar (`breaksById`: calendar record id → minutes).
+ * Mirrors computeActualMinutesFromRecords: overlap with the day, break spread
+ * proportionally over a session that crosses midnight. Every surface that sums
+ * sessions directly (Status widget, history, daily submission fallback) must
+ * use this so it agrees with the calendar.
+ *
+ * Open sessions (no clock-out) count up to `now` only when `includeActive` is
+ * set; otherwise they are skipped.
+ */
+export function computeActualMinutesFromSessions(
+  dateKey: string,
+  sessions: SessionLike[],
+  breaksById: Record<string, number> = {},
+  options: { includeActive?: boolean; now?: Date } = {},
+): number {
+  if (sessions.length === 0) return 0;
+  const { start: dayStart, end: dayEnd } = getDayBounds(dateKey);
+  const now = options.now ?? new Date();
+
+  return sessions.reduce((sum, session) => {
+    const sessionStart = new Date(session.clockIn);
+    let sessionEnd: Date;
+    if (session.clockOut) {
+      sessionEnd = new Date(session.clockOut);
+    } else if (options.includeActive) {
+      sessionEnd = now;
+    } else {
+      return sum;
+    }
+
+    const overlap = computeOverlapMinutes(sessionStart, sessionEnd, dayStart, dayEnd);
+    if (overlap <= 0) return sum;
+
+    const breakMinutes = breaksById[sessionRecordId(session.id)] ?? 0;
+    const proportionalBreak = breakShareForDay(breakMinutes, sessionStart, sessionEnd, dayStart, dayEnd);
     return sum + Math.max(0, overlap - proportionalBreak);
   }, 0);
 }

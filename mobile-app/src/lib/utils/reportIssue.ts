@@ -29,7 +29,36 @@ interface GpsTelemetry {
   ignored_events_count: number;
   signal_degradation_count: number;
   debounced_events_count: number;
+  manual_session_count: number;
+  stale_timestamp_count: number;
 }
+
+/**
+ * Session telemetry: the tracking sessions themselves (no coordinates).
+ * Needed to diagnose duplicate/overlapping sessions, negative durations and
+ * unexpected clock-outs — the geofence event log alone cannot show those.
+ */
+interface SessionTelemetryEntry {
+  clock_in: string;
+  clock_out: string | null;
+  duration_minutes: number | null;
+  tracking_method: 'geofence_auto' | 'manual';
+  state: string;
+  pending_exit_at: string | null;
+  checkin_accuracy: number | null;
+  exit_accuracy: number | null;
+  /** When the row was written/updated — a late replay is visible as created_at ≫ clock_in. */
+  created_at: string;
+  updated_at: string;
+  /** Per-report opaque index so sessions of the same workplace can be grouped without naming it. */
+  location_index: number;
+  location_name?: string | null;
+}
+
+// Data minimisation: only what a tracking bug report needs — recent sessions,
+// bounded by count AND by age (about two weeks covers every tester story so far).
+const SESSION_TELEMETRY_LIMIT = 50;
+const SESSION_TELEMETRY_MAX_AGE_DAYS = 14;
 
 interface AppStateSnapshot {
   user: User | null;
@@ -50,6 +79,7 @@ interface AppStateSnapshot {
     osVersion: string | null;
   };
   gps_telemetry: GpsTelemetry;
+  session_telemetry: SessionTelemetryEntry[];
 }
 
 interface ReportIssueOptions {
@@ -109,7 +139,51 @@ async function collectGpsTelemetry(includeLocationDiagnostics: boolean): Promise
     ignored_events_count: recentEvents.filter(e => e.ignored).length,
     signal_degradation_count: recentEvents.filter(e => e.ignoreReason === 'signal_degradation').length,
     debounced_events_count: recentEvents.filter(e => e.ignoreReason === 'debounced').length,
+    manual_session_count: recentEvents.filter(e => e.ignoreReason === 'manual_session').length,
+    stale_timestamp_count: recentEvents.filter(e => e.ignoreReason === 'stale_timestamp').length,
   };
+}
+
+/**
+ * Collect the most recent tracking sessions (newest first, no coordinates).
+ */
+async function collectSessionTelemetry(includeLocationDiagnostics: boolean): Promise<SessionTelemetryEntry[]> {
+  const db = await getDatabase();
+  const cutoff = new Date(Date.now() - SESSION_TELEMETRY_MAX_AGE_DAYS * 24 * 60 * 60 * 1000).toISOString();
+  const sessions = (await db.getRecentSessions(SESSION_TELEMETRY_LIMIT)).filter((s) => s.clockIn >= cutoff);
+
+  // Opaque per-report index (stable within the report only)
+  const locationIndex = new Map<string, number>();
+  for (const s of sessions) {
+    if (!locationIndex.has(s.locationId)) locationIndex.set(s.locationId, locationIndex.size);
+  }
+
+  const locationNames = new Map<string, string>();
+  if (includeLocationDiagnostics) {
+    for (const loc of await db.getAllLocations()) {
+      locationNames.set(loc.id, loc.name);
+    }
+  }
+
+  return sessions.map((s) => {
+    const entry: SessionTelemetryEntry = {
+      clock_in: s.clockIn,
+      clock_out: s.clockOut,
+      duration_minutes: s.durationMinutes,
+      tracking_method: s.trackingMethod,
+      state: s.state,
+      pending_exit_at: s.pendingExitAt ?? null,
+      checkin_accuracy: s.checkinAccuracy ?? null,
+      exit_accuracy: s.exitAccuracy ?? null,
+      created_at: s.createdAt,
+      updated_at: s.updatedAt,
+      location_index: locationIndex.get(s.locationId) ?? 0,
+    };
+    if (includeLocationDiagnostics) {
+      entry.location_name = locationNames.get(s.locationId) ?? 'Unknown';
+    }
+    return entry;
+  });
 }
 
 /**
@@ -129,6 +203,7 @@ export async function collectAppState(
 
   // Collect GPS telemetry for parameter tuning
   const gpsTelemetry = await collectGpsTelemetry(includeLocationDiagnostics);
+  const sessionTelemetry = await collectSessionTelemetry(includeLocationDiagnostics);
 
   return {
     user,
@@ -155,6 +230,7 @@ export async function collectAppState(
       osVersion: Device.osVersion,
     },
     gps_telemetry: gpsTelemetry,
+    session_telemetry: sessionTelemetry,
   };
 }
 
@@ -197,6 +273,8 @@ export async function reportIssue(
 
       // GPS telemetry for parameter tuning
       gps_telemetry: appState.gps_telemetry,
+      // Tracking sessions (no coordinates) for session-integrity debugging
+      session_telemetry: appState.session_telemetry,
 
       description: options.description || null,
     };

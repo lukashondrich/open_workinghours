@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, View, Text, TouchableOpacity, StyleSheet, Switch } from 'react-native';
+import { Alert, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { addDays, format, startOfWeek, startOfMonth, addMonths, subMonths, getISOWeek } from 'date-fns';
 import { de as deLocale } from 'date-fns/locale/de';
-import { ArrowRight, ChevronLeft, ChevronRight, Eye, EyeOff } from 'lucide-react-native';
+import { ArrowRight, CalendarDays, ChevronLeft, ChevronRight, Info, MapPin } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 
@@ -18,7 +18,13 @@ import type { ReportsWeekQueueRecord } from '@/modules/geofencing/types';
 
 type CalendarNavigationProp = BottomTabNavigationProp<MainTabParamList, 'Calendar'>;
 
-export default function CalendarHeader() {
+interface CalendarHeaderProps {
+  onInfoPress?: () => void;
+  /** Tap on the confirm-hint line — lighter entry point than the full explainer */
+  onHintPress?: () => void;
+}
+
+export default function CalendarHeader({ onInfoPress, onHintPress }: CalendarHeaderProps) {
   const { state, dispatch } = useCalendar();
   const { signOut } = useAuth();
   const navigation = useNavigation<CalendarNavigationProp>();
@@ -202,8 +208,12 @@ export default function CalendarHeader() {
     }
   };
 
-  const handleReviewToggle = (value: boolean) => {
+  const handleTrackedToggle = () => {
     dispatch({ type: 'TOGGLE_REVIEW_MODE' });
+  };
+
+  const handlePlannedToggle = () => {
+    dispatch({ type: 'TOGGLE_PLANNED_VISIBILITY' });
   };
 
   const setView = (view: 'week' | 'month') => {
@@ -273,23 +283,48 @@ export default function CalendarHeader() {
         </View>
 
         {state.view === 'week' && (
-          <View style={styles.gpsToggle}>
-            <View style={[styles.gpsIndicator, state.reviewMode && styles.gpsIndicatorActive]}>
-              {state.reviewMode ? (
-                <Eye size={14} color={colors.error.main} />
-              ) : (
-                <EyeOff size={14} color={colors.grey[400]} />
-              )}
-              <Text style={[styles.gpsText, state.reviewMode && styles.gpsTextActive]}>GPS</Text>
-            </View>
-            <Switch
-              value={state.reviewMode}
-              onValueChange={handleReviewToggle}
-              trackColor={{ false: colors.grey[300], true: colors.error.light }}
-              thumbColor={state.reviewMode ? colors.error.main : colors.grey[100]}
-              ios_backgroundColor={colors.grey[300]}
+          <View style={styles.layerToggles} accessible={false} collapsable={false}>
+            <TouchableOpacity
+              style={[styles.layerChip, state.reviewMode && styles.layerChipActive]}
+              onPress={handleTrackedToggle}
               testID="toggle-review"
-            />
+              accessible={true}
+              accessibilityRole="button"
+              accessibilityState={{ selected: state.reviewMode }}
+              accessibilityLabel={t('calendar.header.tracked')}
+            >
+              <MapPin size={13} color={state.reviewMode ? colors.primary[600] : colors.grey[400]} />
+              <Text style={[styles.layerChipText, state.reviewMode && styles.layerChipTextActive]}>
+                {t('calendar.header.tracked')}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.layerChip, state.showPlanned && styles.layerChipActive]}
+              onPress={handlePlannedToggle}
+              testID="toggle-planned"
+              accessible={true}
+              accessibilityRole="button"
+              accessibilityState={{ selected: state.showPlanned }}
+              accessibilityLabel={t('calendar.header.planned')}
+            >
+              <CalendarDays size={13} color={state.showPlanned ? colors.primary[600] : colors.grey[400]} />
+              <Text style={[styles.layerChipText, state.showPlanned && styles.layerChipTextActive]}>
+                {t('calendar.header.planned')}
+              </Text>
+            </TouchableOpacity>
+            {onInfoPress && (
+              <TouchableOpacity
+                style={styles.infoButton}
+                onPress={onInfoPress}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                testID="week-header-info"
+                accessible={true}
+                accessibilityRole="button"
+                accessibilityLabel={t('calendar.header.infoA11y')}
+              >
+                <Info size={16} color={colors.text.tertiary} />
+              </TouchableOpacity>
+            )}
           </View>
         )}
       </View>
@@ -347,15 +382,24 @@ export default function CalendarHeader() {
             <ArrowRight size={14} color={colors.success.dark} />
           </TouchableOpacity>
         ) : (
-          <Text
-            style={styles.submitHint}
-            numberOfLines={1}
-            adjustsFontSizeToFit
-            minimumFontScale={0.85}
+          <TouchableOpacity
+            onPress={onHintPress ?? onInfoPress}
+            disabled={!onHintPress && !onInfoPress}
+            style={styles.submitHintRow}
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel={t('calendar.header.submitHint')}
             testID="calendar-header-submit-hint"
           >
-            {t('calendar.header.submitHint')}
-          </Text>
+            <Text
+              style={[styles.submitHint, (onHintPress ?? onInfoPress) != null && styles.submitHintLink]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.85}
+            >
+              {t('calendar.header.submitHint')}
+            </Text>
+          </TouchableOpacity>
         )
       )}
     </View>
@@ -450,36 +494,48 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  gpsToggle: {
+  layerToggles: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
   },
-  gpsIndicator: {
+  layerChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
+    paddingVertical: 6,
     borderRadius: borderRadius.sm,
+    borderWidth: 1,
+    borderColor: colors.grey[200],
     backgroundColor: colors.grey[100],
   },
-  gpsIndicatorActive: {
-    backgroundColor: colors.error.light,
+  layerChipActive: {
+    backgroundColor: colors.primary[50],
+    borderColor: colors.primary[200],
   },
-  gpsText: {
+  layerChipText: {
     fontSize: fontSize.xs,
     fontWeight: fontWeight.semibold,
     color: colors.grey[500],
   },
-  gpsTextActive: {
-    color: colors.error.dark,
+  layerChipTextActive: {
+    color: colors.primary[700],
+  },
+  infoButton: {
+    padding: 2,
+  },
+  submitHintRow: {
+    marginTop: spacing.sm,
+    alignItems: 'center',
   },
   submitHint: {
     fontSize: fontSize.xs,
     color: colors.text.tertiary,
-    marginTop: spacing.sm,
     textAlign: 'center',
+  },
+  submitHintLink: {
+    textDecorationLine: 'underline',
   },
   confirmationMessage: {
     fontSize: fontSize.xs,

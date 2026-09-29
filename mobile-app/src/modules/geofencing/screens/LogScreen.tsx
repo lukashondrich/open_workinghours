@@ -23,6 +23,8 @@ import { getCalendarStorage } from '@/modules/calendar/services/CalendarStorage'
 import { exportSessionsToCSV } from '@/modules/geofencing/utils/exportHistory';
 import type { UserLocation, TrackingSession } from '@/modules/geofencing/types';
 import type { ConfirmedDayStatus } from '@/lib/calendar/types';
+import { startOfWeek, startOfMonth, endOfDay, format, eachDayOfInterval } from 'date-fns';
+import { computeActualMinutesFromSessions, sessionRecordId } from '@/lib/calendar/time-calculations';
 
 type LogScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Log'>;
 type LogScreenRouteProp = RouteProp<RootStackParamList, 'Log'>;
@@ -42,8 +44,18 @@ interface DayGroup {
 }
 
 // Helper functions
+/** Local calendar date (yyyy-MM-dd) of an ISO timestamp — the calendar's notion of "day". */
 function formatDate(isoString: string): string {
-  return isoString.split('T')[0];
+  return format(new Date(isoString), 'yyyy-MM-dd');
+}
+
+/** One session's minutes net of the break the user entered in the calendar (for the entry card). */
+function netMinutes(session: TrackingSession, breaks: Record<string, number>): number {
+  const gross =
+    session.state === 'active' || session.state === 'pending_exit'
+      ? computeLiveDuration(session.clockIn)
+      : session.durationMinutes ?? 0;
+  return Math.max(0, gross - (breaks[sessionRecordId(session.id)] ?? 0));
 }
 
 function formatDateTitle(dateStr: string): string {
@@ -81,21 +93,23 @@ function formatTotalHours(minutes: number): string {
   return `${mins}m`;
 }
 
-function getDateBounds(preset: DatePreset): { start: string | null; end: string } {
-  const today = new Date();
-  const end = formatDate(today.toISOString());
+/**
+ * Window bounds. "Week" and "month" are the CALENDAR week (Monday start, like
+ * the calendar tab) and calendar month — not rolling 7/30-day windows. The
+ * total below is summed per calendar day over the window, net of breaks, with
+ * the same helper the calendar and the Status widget use; it still differs
+ * from the calendar's Σ "tracked" line in one deliberate way: this screen
+ * includes today and a running session.
+ */
+function getDateBounds(preset: DatePreset): { start: Date | null; end: Date } {
+  const now = new Date();
+  const end = endOfDay(now);
 
   switch (preset) {
-    case 'week': {
-      const weekAgo = new Date(today);
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      return { start: formatDate(weekAgo.toISOString()), end };
-    }
-    case 'month': {
-      const monthAgo = new Date(today);
-      monthAgo.setMonth(monthAgo.getMonth() - 1);
-      return { start: formatDate(monthAgo.toISOString()), end };
-    }
+    case 'week':
+      return { start: startOfWeek(now, { weekStartsOn: 1 }), end };
+    case 'month':
+      return { start: startOfMonth(now), end };
     case 'all':
       return { start: null, end };
   }
@@ -143,11 +157,9 @@ function computeLiveDuration(clockIn: string): number {
 }
 
 // Inline components
-function SessionCard({ session }: { session: TrackingSession }) {
+function SessionCard({ session, breaks }: { session: TrackingSession; breaks: Record<string, number> }) {
   const isActive = session.state === 'active' || session.state === 'pending_exit';
-  const duration = isActive
-    ? computeLiveDuration(session.clockIn)
-    : session.durationMinutes;
+  const duration = netMinutes(session, breaks);
 
   return (
     <View style={[styles.sessionCard, isActive && styles.sessionCardActive]}>
@@ -280,6 +292,10 @@ export default function LogScreen({ navigation, route }: Props) {
   const [sessions, setSessions] = useState<TrackingSession[]>([]);
   const [confirmedDays, setConfirmedDays] = useState<Record<string, ConfirmedDayStatus>>({});
   const [preset, setPreset] = useState<DatePreset>('week');
+  const [breaks, setBreaks] = useState<Record<string, number>>({});
+  // For the window total: every session overlapping the window + the window's days
+  const [windowSessions, setWindowSessions] = useState<TrackingSession[]>([]);
+  const [windowDays, setWindowDays] = useState<string[] | null>(null);
   const [exporting, setExporting] = useState(false);
 
   // Use ref to track current preset/locationId for focus effect
@@ -304,15 +320,29 @@ export default function LogScreen({ navigation, route }: Props) {
         return;
       }
 
-      // Load sessions for current date range
+      // Sessions that START in the window, this location (a Sunday-night session
+      // belongs to last week's list; its Monday tail still counts in the total below)
       const { start, end } = getDateBounds(currentPresetRef.current);
-      const sessionData = await db.getSessionsInRange(currentLocationIdRef.current, start, end);
+      const startIso = start?.toISOString() ?? null;
+      const inWindow = startIso
+        ? await db.getSessionsBetween(startIso, end.toISOString())
+        : await db.getSessionsInRange(currentLocationIdRef.current, null, null);
+      const sessionData = inWindow
+        .filter((s) => s.locationId === currentLocationIdRef.current)
+        .filter((s) => startIso === null || s.clockIn >= startIso)
+        .sort((a, b) => (a.clockIn < b.clockIn ? 1 : -1));
       setSessions(sessionData);
+      setWindowSessions(inWindow.filter((s) => s.locationId === currentLocationIdRef.current));
+      setWindowDays(start ? eachDayOfInterval({ start, end }).map((d) => format(d, 'yyyy-MM-dd')) : null);
 
-      // Load confirmed days from calendar storage
+      // Confirmed days + user-entered breaks from calendar storage
       const calendarStorage = await getCalendarStorage();
-      const confirmed = await calendarStorage.loadConfirmedDays();
+      const [confirmed, breakMap] = await Promise.all([
+        calendarStorage.loadConfirmedDays(),
+        calendarStorage.loadTrackingBreaks(),
+      ]);
       setConfirmedDays(confirmed);
+      setBreaks(breakMap);
     } catch (error) {
       console.error('[LogScreen] Failed to load data:', error);
       Alert.alert(t('common.error'), t('log.loadFailed'));
@@ -372,16 +402,16 @@ export default function LogScreen({ navigation, route }: Props) {
 
   // Derived data
   const sections = useMemo(() => groupSessionsByDate(sessions, confirmedDays), [sessions, confirmedDays]);
-  const totalMinutes = useMemo(
-    () =>
-      sessions.reduce((sum, s) => {
-        if (s.state === 'active' || s.state === 'pending_exit') {
-          return sum + computeLiveDuration(s.clockIn);
-        }
-        return sum + (s.durationMinutes ?? 0);
-      }, 0),
-    [sessions]
-  );
+  const totalMinutes = useMemo(() => {
+    if (windowDays === null) {
+      // "All": no window to clip against — sum the entries
+      return sessions.reduce((sum, s) => sum + netMinutes(s, breaks), 0);
+    }
+    return windowDays.reduce(
+      (sum, dateKey) => sum + computeActualMinutesFromSessions(dateKey, windowSessions, breaks, { includeActive: true }),
+      0
+    );
+  }, [sessions, windowSessions, windowDays, breaks]);
 
   if (loading) {
     return (
@@ -423,7 +453,7 @@ export default function LogScreen({ navigation, route }: Props) {
           <SectionList
             sections={sections}
             keyExtractor={(item) => item.id}
-            renderItem={({ item }) => <SessionCard session={item} />}
+            renderItem={({ item }) => <SessionCard session={item} breaks={breaks} />}
             renderSectionHeader={({ section }) => (
               <DateHeader
                 title={section.title}

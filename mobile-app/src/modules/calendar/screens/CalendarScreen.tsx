@@ -14,6 +14,7 @@ import InlinePicker from '../components/InlinePicker';
 import NoteEditor from '../components/NoteEditor';
 import type { MainTabParamList } from '@/navigation/AppNavigator';
 import OnboardingTooltip from '@/components/OnboardingTooltip';
+import HoursExplainerSheet from '@/components/HoursExplainerSheet';
 import { OnboardingPreferences } from '@/lib/storage/OnboardingPreferences';
 import { t } from '@/lib/i18n';
 
@@ -23,6 +24,8 @@ function CalendarLayout({ targetDate }: { targetDate?: string }) {
   const { state, dispatch } = useCalendar();
   const lastProcessedTargetDate = useRef<string | undefined>(undefined);
   const [showCalendarTooltip, setShowCalendarTooltip] = useState(false);
+  const [showHoursExplainer, setShowHoursExplainer] = useState(false);
+  const [showWhyConfirm, setShowWhyConfirm] = useState(false);
 
   // Navigate to target date's week if provided
   useEffect(() => {
@@ -66,8 +69,11 @@ function CalendarLayout({ targetDate }: { targetDate?: string }) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        <CalendarHeader />
-        {state.view === 'week' ? <WeekView /> : <MonthView />}
+        <CalendarHeader
+          onInfoPress={() => setShowHoursExplainer(true)}
+          onHintPress={() => setShowWhyConfirm(true)}
+        />
+        {state.view === 'week' ? <WeekView onInfoPress={() => setShowHoursExplainer(true)} /> : <MonthView />}
         <TemplatePanel />
         <CalendarFAB />
         <InlinePicker
@@ -79,6 +85,23 @@ function CalendarLayout({ targetDate }: { targetDate?: string }) {
           visible={state.noteEditorOpen}
           date={state.noteEditorDate}
           onClose={() => dispatch({ type: 'CLOSE_NOTE_EDITOR' })}
+        />
+        <HoursExplainerSheet
+          visible={showHoursExplainer}
+          onClose={() => setShowHoursExplainer(false)}
+        />
+        <OnboardingTooltip
+          visible={showWhyConfirm}
+          title={t('calendar.header.whyConfirmTitle')}
+          body={t('calendar.header.whyConfirmBody')}
+          dismissLabel={t('calendar.header.whyConfirmDismiss')}
+          onDismiss={() => setShowWhyConfirm(false)}
+          linkLabel={t('calendar.header.whyConfirmLink')}
+          onLink={() => {
+            setShowWhyConfirm(false);
+            setShowHoursExplainer(true);
+          }}
+          testIDPrefix="why-confirm"
         />
         <OnboardingTooltip
           visible={showCalendarTooltip}

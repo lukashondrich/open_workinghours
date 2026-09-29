@@ -246,6 +246,8 @@ export default function TrackingScreen({ navigation, route }: Props) {
             <Text style={styles.hint}>
               {isPendingTransition
                 ? t('tracking.locationTransitionPending')
+                : isTracking && activeSession?.trackingMethod === 'manual'
+                ? t('tracking.hintManual')
                 : isTracking
                 ? t('tracking.hintTracking')
                 : t('tracking.hintNotTracking')}

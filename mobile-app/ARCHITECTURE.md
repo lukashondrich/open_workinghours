@@ -113,7 +113,24 @@ Automatic clock-in/out based on GPS location with robust hysteresis.
 
 **Key Files:**
 - `GeofenceService.ts` - Manages geofence regions, extracts GPS accuracy
-- `TrackingManager.ts` - Handles clock-in/out logic with hysteresis
+- `TrackingManager.ts` - **Platform selector** (2026-09-28): iOS → `TrackingManagerIOS.ts`,
+  Android → `TrackingManagerAndroid.ts`. Same public surface, same Database/verification service.
+  - **`TrackingManagerIOS` = the shipped iOS core** (v2.1.0 … v2.1.4), frozen by owner decision: ~30 live
+    iOS users, no reported problems, no keepalive on iOS. Its known limits are LOCKED by
+    the iOS profile of the scenario suite (`__tests__/scenarios.ios.test.ts`): a no-fix
+    exit is clocked out after 10 min (SQL bulk-confirm `confirmStalePendingExits`, iOS-only),
+    manual sessions are closed by location exits, no stale-fix rule, no queue, no 24 h cap.
+    Tests are labelled "AS SHIPPED (Android core fixes this)".
+    These are NOT accepted limits — they wait until iOS moves to the Android core once it is
+    proven with the testers; then the iOS profile is replaced. Do not fix the iOS core in place.
+  - **`TrackingManagerAndroid` = the Android core** (rules 1–7 below), rebuilt 2026-09-28 from
+    the Android tester's stories and two adversarial review rounds; the keepalive heartbeat
+    (Android-only) is its primary signal. Spec = the Android profile
+    (`scenarios.android.test.ts`, `scenarios.tester-evening.test.ts`).
+  - Shared, platform-neutral changes of the 2026-09 batch that iOS DOES get: the
+    `clampClockOut` invariant (no negative durations), the verification service's queued
+    re-read before it writes, `classifyFix` geometry (a fix without accuracy is uncertain),
+    migrations v9/v10 (`exit_evidence`, `last_inside_at` columns, unused by the iOS core).
 - `ExitVerificationService.ts` - Scheduled GPS checks to verify exits (1/3/5 min)
 - `Database.ts` - SQLite operations, pending exit state management
 
@@ -123,20 +140,101 @@ Automatic clock-in/out based on GPS location with robust hysteresis.
 - Sessions < 5 min are kept (not deleted) with visual indicator
 - Manual clock-in/out available as fallback
 - GPS telemetry logged for parameter tuning (via Report Issue)
+
 - StatusScreen and TrackingScreen show "location transition pending" for `pending_exit` sessions
 
-**Enter Validation (Build #52):**
-On geofence enter callbacks, the app fetches a GPS reading and validates the device is actually near the geofence center. If `distance - accuracy > radius` (confidently outside), the enter is silently ignored. This prevents phantom clock-ins from stale/false OS callbacks, which are common on Android OEMs with aggressive battery optimization.
+**Android core rules (`TrackingManagerAndroid.ts`, rebuilt 2026-09-28 — the file header is
+authoritative):**
 
-**Exit Protection (3 layers):**
-1. **Signal degradation**: Ignore exit if GPS accuracy is 3x worse than check-in accuracy (relative, not absolute). Only applied to non-`active_fetch` readings.
-2. **Pending exit state**: Wait 5 min before confirming exit (hysteresis)
-3. **Re-entry cancellation**: Cancel pending exit if user returns within hysteresis window
+Every signal is one fix (coordinates, accuracy, fix time) classified by `classifyFix`
+(`geo.ts`) as inside / outside / uncertain. Exit judgements use the fence radius **+ 50 m
+margin** (`EXIT_MARGIN_METERS`), so a jump just past the edge is uncertain, not a departure.
+Decisions are made **as of the fix time**, so a batch delivered late and the same fixes
+delivered live give the same record. Two verified platform facts shape the rules: the
+foreground keepalive is a **heartbeat** (one fix every ~5 min, moving or not; silence = the
+stream is dead, never "the user left"), and the exit-verification notifications only run
+while the UI process is alive (a bonus fix source, never something a decision waits for).
+
+1. **Manual = manual.** No location signal closes or converts a manual session; only the
+   manual button or the cap ends it.
+2. **Stale fixes are ignored** (`'stale_timestamp'`): older than the open session's
+   clock-in / pending exit, than the last completed clock-out, or — for an outside fix on
+   an active session — than the session's `last_inside_at`. 30 s clock-skew tolerance.
+   `clampClockOut` in `Database.ts` guarantees `clock_out ≥ clock_in` on every write.
+3. **One serialized queue** (`SessionQueue.ts`) for every handler and every verification
+   write; keepalive payloads are chained, never dropped.
+4. **24 h cap**, run FIRST in every handler (so a stuck session never swallows today's
+   arrival), closing at a pending-exit time that stands, else at clock-in + 24 h, with a
+   notice. Applies to the manual button too (a 30 h session is recorded as 24 h).
+5. **"No fix, no exit."** An OS exit with an outside fix opens a **proven** pending exit
+   (immediate clock-out only if the fix is < 50 m); an OS exit without a usable fix, or a
+   single outside heartbeat ping, opens an **unproven** one at the fix time. A pending exit
+   at T is resolved by the next fix at F: inside within 5 min → blip, cancelled; inside on
+   an unproven exit within 4 h → phantom, cancelled; inside otherwise → confirmed at T and a
+   new session from F; outside within 20 min → proven; outside later while the stream was
+   alive after T+20 → the exit at T was a phantom, the departure is F; outside later with a
+   dead stream → proven at T. A proven exit is confirmed once 5 min have passed. An unproven
+   one is cancelled by the next pass once the stream is known alive past T+20 with no
+   outside fix, confirmed at T once 4 h have passed with a dead stream, otherwise left for
+   the next fix. Liveness = `keepalive_last_ping_at` (app_preferences), written after the
+   fix is judged (`keepalive_stream_since` marks the start of the current uninterrupted run;
+   a gap > 35 min = the stream was dead in between).
+6. **Dead-stream rules.** When nothing has been heard (no inside fix, no heartbeat ping)
+   for longer than 4 h, an OS enter closes the old session at its `last_inside_at` and starts
+   a new one (overnight must not merge two days). When the heartbeat ran during the session
+   but has been silent for > 35 min, an outside fix — a heartbeat ping, or the
+   **initial-trigger OS exit** that Android fires when the app re-registers its fences on
+   every foreground (`geofences_registered_at`, 2-min window) — closes the session at
+   `last_inside_at` with a "closed at last seen" notice, and so does the 24 h cap. A headless
+   OS exit outside that window is a real transition and is trusted at its time. With the
+   heartbeat alive, hours of uncertain fixes (basement) are just that: no split, no early end.
+7. **After a manual clock-out**, neither heartbeat pings nor the initial-trigger enter of an
+   app open start a session at that location, until an outside fix (with margin) or an OS
+   exit has been seen there or 4 h have passed (staying for dinner is not a new shift). A
+   headless OS enter — a real arrival — is never suppressed.
+
+The exit margin is asymmetric: "inside" needs the whole error circle within the plain
+fence; "outside" needs it beyond fence + 50 m; anything else is uncertain and never
+evidence. Cost: someone who lingers 0–50 m past the edge (plus fix accuracy) is
+"uncertain" there — set a smaller radius.
+
+`scripts/tracking-matrix.sh` runs every timeline against both cores and writes
+`project-mgmt/tracking-scenario-matrix.md` (scenario × core, ✅ / wrong record).
+Scenario tests are the spec: `__tests__/scenarios.android.test.ts` (every known story; the
+"review round 1" block holds the twelve wrong records the previous core wrote, R1–R12; the
+"review round 2" block the six of the first rebuild, S1–S6),
+`scenarios.tester-evening.test.ts`, `SessionInvariants.test.ts`,
+`KeepaliveHealthCheckService.test.ts`, `ExitVerificationService.test.ts`. Harness:
+`src/test-utils/tracking-replay.ts` (write a bug report's event rows as a timeline; shift the
+dates, no location names — reports are personal data) + `tracking-scenario.ts`. Background
+and the tester's stories (local-only ticket):
+`project-mgmt/ticket-user-feedback-2026-09-android-tracking.md`.
+
+**iOS core, as shipped (`TrackingManagerIOS.ts`, frozen):** exit with a fix < 50 m →
+immediate clock-out; otherwise a pending exit with the 1/3/5-min verification checks; a
+pending exit older than 10 min is bulk-confirmed by SQL (`confirmStalePendingExits`) on
+the next pass; a re-entry after 5 min confirms, within 5 min cancels; signal-degradation
+layer (exit accuracy 3× worse than check-in → hysteresis instead of immediate); 10 s event
+debounce; no manual-session protection, no stale-fix rule, no cap. Locked by
+`__tests__/scenarios.ios.test.ts`.
+
+**Enter Validation (shared, App.tsx geofence task):**
+On geofence enter callbacks, the app fetches a GPS reading and drops the enter if
+`classifyFix` says the phone is confidently outside the region. This prevents phantom
+clock-ins from stale/false OS callbacks, which are common on Android OEMs with aggressive
+battery optimization.
+
+**Initial triggers (Android):** `App.tsx` re-registers every fence on each foreground
+(`GeofenceRegistrationService.ensureRegisteredGeofences`, stop + start), and expo-location
+registers with `INITIAL_TRIGGER_ENTER | EXIT`, so **every app open fires an OS enter (if
+inside) or exit (if outside)**. The registration time is stored (`geofences_registered_at`)
+and the Android core treats callbacks within 2 min of it as a fix, not a transition
+(rules 6/7). The iOS core never sees this (no re-registration triggers on iOS).
 
 **Android Reliability — Foreground Keepalive (Build #48+):**
 Android OEMs (Samsung, Xiaomi, Huawei) aggressively kill background processes. Samsung is rated 5/5 severity on dontkillmyapp.com. Without a foreground service, the OS stops delivering geofence PendingIntents entirely after killing the app process.
 
-Solution: `ForegroundKeepaliveService.ts` runs `expo-location`'s `startLocationUpdatesAsync` with the `foregroundService` option. This creates a persistent notification that gives the app elevated process priority. The foreground service acts purely as a keep-alive — actual geofence detection continues via `startGeofencingAsync`. A `KeepaliveHealthCheckService.ts` periodically verifies the service is alive and restarts it if needed.
+Solution: `ForegroundKeepaliveService.ts` runs `expo-location`'s `startLocationUpdatesAsync` with the `foregroundService` option (persistent notification, elevated process priority) — `Accuracy.Balanced`, `timeInterval` 5 min, **`distanceInterval` 0**. The last one matters: expo-location maps `distanceInterval` to the fused provider's minimum update distance, a hard filter, so with the earlier 200 m a stationary phone produced no fixes at all. Now the service is a **heartbeat**: a fix every ~5 min (batched up to 5 min in the background), and `KeepaliveHealthCheckService.ts` hands every fix, in fix-time order, to `TrackingManagerAndroid.handleFix` — the Android core's primary signal. Geofence detection itself continues via `startGeofencingAsync`.
 
 **iOS: no `UIBackgroundModes: location` — and why (Build #65):**
 iOS does **not** declare `location` in `UIBackgroundModes`. The app uses only Core Location region monitoring (`startGeofencingAsync`), which iOS delivers to suspended/terminated apps without that declaration; continuous background location (`startLocationUpdatesAsync`) is Android-only here. Declaring the background mode with no continuous-location feature triggered an App Store **Guideline 2.5.4** rejection (misread as employee tracking).
@@ -149,8 +247,10 @@ Removing the declaration requires a **patch to expo-location** (`patches/expo-lo
 
 **Session States:**
 - `active` - User is clocked in
-- `pending_exit` - Exit detected, waiting for hysteresis period
+- `pending_exit` - Exit detected, waiting for hysteresis period (`exit_evidence` 'outside' |
+  'uncertain', migration v9)
 - `completed` - Session finalized
+- `last_inside_at` (migration v10, Android core): latest fix time that placed the phone inside
 
 **State Invariant:** `clockOut` and `state` must be consistent:
 - If `clockOut` is NULL → `state` must be `'active'` or `'pending_exit'`
@@ -160,22 +260,29 @@ All methods that modify sessions (`clockOut()`, `updateSession()`) enforce this 
 
 **Constants (tunable):**
 ```typescript
-EXIT_HYSTERESIS_MINUTES = 5     // Wait before confirming clock-out
-DEGRADATION_FACTOR = 3          // Ignore if accuracy 3x worse than check-in
-EVENT_COOLDOWN_MS = 10000       // Debounce rapid geofence events (10s)
-IMMEDIATE_EXIT_ACCURACY_THRESHOLD = 50  // Skip hysteresis if accuracy < 50m
+// Android core (TrackingManagerAndroid.ts)
+EXIT_HYSTERESIS_MINUTES = 5       // a proven exit is confirmed after this
+EXIT_MARGIN_METERS = 50           // exit judgements use radius + margin
+IMMEDIATE_EXIT_ACCURACY_THRESHOLD = 50  // OS exit, outside, tighter than this → immediate
+CORROBORATION_WINDOW_MS = 20 min  // an outside fix within this proves an unproven exit
+GAP_HOURS = 4                     // phantom-cancel limit; gap rule; dead-stream confirm; rule 7 expiry
+STREAM_GAP_MS = 35 min            // heartbeat silence longer than this = dead stream (doze-tolerant)
+MAX_SESSION_HOURS = 24            // the cap
+// iOS core (TrackingManagerIOS.ts): EXIT_HYSTERESIS_MINUTES 5, DEGRADATION_FACTOR 3,
+// EVENT_COOLDOWN_MS 10 s, IMMEDIATE_EXIT_ACCURACY_THRESHOLD 50, STALE_PENDING_EXIT_MINUTES 10
 ```
 
 **Exit Verification Service (`ExitVerificationService.ts`):**
-- On geofence exit → schedules 3 silent notifications at 1, 3, 5 minutes
-- Each notification triggers a quick GPS check (`Location.Accuracy.Balanced`, 5s timeout)
-- Confidence-based distance logic (Haversine): `isConfidentlyInside` / `isConfidentlyOutside` / `isUncertain`
-- Confidently inside → cancel pending exit (false alarm)
-- Confidently outside at 5 min → confirm clock-out + send notification
-- Uncertain at 5 min → leave pending, let fallback handle it
-- State persisted in SecureStore (survives app termination)
-- Integrated into TrackingManager: scheduled on exit, cancelled on re-entry/manual clock-out
-- Fallback: `processPendingExitsIfNeeded()` on StatusScreen focus
+- On a pending exit → schedules 3 silent notifications at 1, 3, 5 minutes; state in SecureStore
+- Each notification triggers a quick GPS check (`Location.Accuracy.Balanced`, 5 s timeout)
+- **Android** (`state.core === 'android'`): the fix is handed to `TrackingManagerAndroid.handleFix`
+  and decided by rule 5 like any other fix; the service itself writes nothing
+- **iOS** (no `core`): confidently inside → restore the session; confidently outside at the final
+  check → confirm the clock-out; uncertain → leave pending for the 10-min bulk confirm.
+  Writes re-read the row inside the queue and compare `pendingExitTime`, so a stale check
+  cannot act on a newer pending exit
+- Only runs while the UI process is alive (listener registered in `initializeApp`); may be
+  doze-delayed — a bonus fix source, never something a decision waits for
 
 **GPS Telemetry & Accuracy:**
 - Active GPS fetch when geofence events lack location data (common on both platforms)

@@ -1,6 +1,6 @@
 # Claude Context: Open Working Hours
 
-**Last Updated:** 2026-08-13
+**Last Updated:** 2026-09-27
 **Current Build:** #72 / v2.1.4 — SUBMITTED for App Review 2026-08-13 (confirmation-counting release: locked days count as confirmed, fraction counts every elapsed day, live Status refresh, month-cell spacing) **with the new panoramic screenshots** (first store use). v2.1.3 (#69) remains LIVE until approval. Lawyer's HWG/GDPR description pass still outstanding — next metadata update.
 ---
 
@@ -29,10 +29,11 @@
 | Component | Status | Location |
 |-----------|--------|----------|
 | **React Native Mobile App (iOS)** | Live on the App Store (v2.1.0) | `mobile-app/` |
-| **React Native Mobile App (Android)** | **In Google Play review** (Closed Test submitted 2026-08-12, vc6/v2.1.3) | `mobile-app/` |
+| **React Native Mobile App (Android)** | **Closed Test (Alpha) LIVE on Google Play, vc7/v2.1.4** (parity with iOS; swipe fix + SHA-1/OAuth/icon all done, A14-verified 2026-08-23) — next: 12+ testers × 14 days → production access | `mobile-app/` |
 | **FastAPI Backend** | Production (Hetzner) | `backend/` |
 | **Astro Website** | Live (openworkinghours.org) | `website/` |
 | **Next.js Dashboard** | Deprecated | Root (unused) |
+| **Video Lab (ad creatives)** | Two 15–19 s Reels ads rendered from code (Remotion); first paid IG test running 2026-09-05→09 | `video-lab/` (see its README; campaign brief is local-only) |
 
 ### Production URLs
 
@@ -98,6 +99,8 @@ See `docs/DOCUMENTATION_STRUCTURE.md` for full documentation guidelines.
 | **`docs/WORKFLOW_PATTERNS.md`** | **How to do work: subagents, testing workflows** → `docs/testing/` |
 | `mobile-app/store-assets/README.md` | App Store screenshot pipeline (see `app-store-metadata.md` next to it for submission payload) |
 | `archive/ISSUE_PLANNING_2026-02-05.md` | Archived: UX feedback issues (Groups A/B/C complete, D dropped) |
+| `project-mgmt/WORKSTREAMS.md` §9 | Paid social / marketing: the Meta-without-SDK recipe, pitfalls, read-out plan |
+| `video-lab/README.md` | Ad video pipeline: motion kit, render-final, pre-flight, sound/licensing |
 
 ### Document Lifecycle
 
@@ -125,8 +128,10 @@ Start feature → Create *_PLAN.md → Complete → Extract to ARCHITECTURE.md �
 - Don't commit secrets - use environment variables
 - Don't edit web dashboard - it's deprecated
 - Don't submit today or future dates - backend rejects them
+- Don't point a Meta Traffic ad (or any redirect/script forward) at the App Store — Meta rejects it (#1487810); use a plain landing page on a fresh path (`WORKSTREAMS.md` §9)
 - Don't use `react-native-reanimated` - crashes with Expo SDK 51
 - Don't use `<Modal>` for new UI — invisible to XCUITest E2E tests on iOS (use inline animated Views instead)
+- Don't pass more than 3 buttons to `Alert.alert` — Android silently drops the rest (usually Cancel) and the dialog is not dismissable by Back; use `showOptionsAlert` (`src/lib/utils/optionsAlert.ts`) for option menus
 - Don't use `accessibilityRole="menu"` or `accessibilityViewIsModal` on containers — causes XCUITest to aggregate children into one element
 
 ### E2E-Compatible UI Patterns
@@ -179,7 +184,7 @@ All new UI **must** be testable by Appium (XCUITest on iOS, UiAutomator2 on Andr
 
 ### Technical
 
-- **Geofencing**: Works on device only, 5-min exit hysteresis, GPS accuracy filtering (see `mobile-app/ARCHITECTURE.md`)
+- **Geofencing**: Works on device only. Two cores since 2026-09-28: iOS = shipped logic (5-min hysteresis, 10-min fallback), Android = heartbeat-based rules 1–7 (see `mobile-app/ARCHITECTURE.md` → Module 1)
 - **Zoom**: Ref-based (not reanimated) - "acceptable" but not 60fps
 - **iOS 18**: Week arrows fixed with PREV_WEEK/NEXT_WEEK actions
 
@@ -198,6 +203,109 @@ All new UI **must** be testable by Appium (XCUITest on iOS, UiAutomator2 on Andr
 ---
 
 ## Recent Updates (Last 7 Days)
+
+### 2026-09-27: Week totals, break-loss fix, review pass (code only, not released)
+
+- **Week view Σ row** (`WeekTotalsRow.tsx`, tester request): tracked minutes per day under
+  the grid; tapping the gutter cell widens the gutter and stacks the week's overtime /
+  tracked / planned / confirmed inside that column (owner's design; a separate footer was
+  rejected for space). **Tracked layer now ON by default** on calendar mount
+  (`SET_REVIEW_MODE`, idempotent). Month footer extracted to `SummaryFooter`; figures from
+  `getRangeSummary` (`getWeekSummary` normalises `currentWeekStart`, which is any date in
+  the week). Month weekly total deliberately not built.
+- **Break-loss bug fixed** (pre-existing): every reload of calendar tracking records
+  dropped user-entered breaks and persisted the zeros. Now merged from CalendarStorage on
+  every load + reducer guard. **All session-summing surfaces are net of breaks** via
+  `computeActualMinutesFromSessions` (telescoping split across midnight): Status widget,
+  daily-submission fallback, workplace history. History screen uses calendar week/month
+  windows and local dates.
+- **Three review agents** (tracking / calendar / backend+docs) → fixes the same day: 24 h
+  cap respects a pending exit, silent SQL bulk-confirm removed, hysteresis judged in fix
+  time + no expiry pass on replayed events (the tester's "two clock-outs"), verification writes
+  guarded by session id, session telemetry minimised to 14 days + disclosure strings,
+  tolerant backend schema. Owner decisions 09-28: 24 h cap stays; Σ row unchanged; **submission
+  now counts a night shift's after-midnight tail on the following day** (overlap-based records,
+  honest source label) — days confirmed before this under-counted night tails and are locked.
+  Remaining open items in the (local-only) ticket, incl. the privacy-policy pages.
+- **2026-09-28: tester's bug report read → rule 5 "no fix, no exit"** (an exit without a
+  usable fix is confirmed only by an outside verification, else cancelled; a fix inside the
+  fence = phantom exit; keepalive exits always via hysteresis). His false clock-outs were
+  all no-fix exits confirmed by the old 10-min fallback. **Realistic replay tests** from
+  report event rows: `src/test-utils/tracking-replay.ts` + `scenarios.tester-evening.test.ts`
+  (dates shifted, no names, FAKE clock per step). Submission fix: night-shift tails now count
+  on the following day (overlap-based records). A second review of rule 5 found evidence was
+  judged by accuracy alone → now geometric (`classifyFix`, one geometry for every fix
+  judgement), `exit_evidence` stored on the row (DB migration v9), later evidence upgrades a
+  pending exit, the expiry pass fetches once before deciding (iOS), re-entry after an
+  unproven exit cancels it within 90 min, confirms it beyond. A Fable holistic review then
+  judged the layered result **too complex** and found an iOS regression (no keepalive → an
+  overnight no-fix exit was never closed) — fixed the same evening; the other findings and a
+  concrete simpler model are in **`project-mgmt/HANDOFF-tracking-2026-09-28.md`** (READ FIRST
+  next session). Owner's plan: comprehensive replay/scenario suite first, then walk-test,
+  commit, then decide on the simpler model against the suite. Unit suite 345/345.
+- Unit suite 326/326, backend feedback tests 9/9, **E2E 71/71 on BOTH platforms** on the
+  final post-review code (fresh TEST_MODE builds, 2026-09-27 evening).
+- **2026-09-28 (second session): iOS/Android split, scenario suite, Android core rebuilt.**
+  Owner decision: **iOS stays on the shipped tracking core** (~30 live users, no complaints)
+  until the Android core is proven with the testers. `TrackingManager.ts` = platform selector:
+  `TrackingManagerIOS.ts` (= HEAD, frozen, locked by `scenarios.ios.test.ts` incl. "AS SHIPPED"
+  tests — not accepted limits) and `TrackingManagerAndroid.ts`. An adversarial review (Opus,
+  ran its timelines) confirmed 11 wrong records in the layered rework, and two platform facts
+  were verified in expo-location's Android source: **the keepalive delivered nothing while the
+  phone stood still** (`distanceInterval` 200 m = hard filter) and verification notifications
+  only run in the UI process. → Android core **rebuilt** around 7 rules (file header), keepalive
+  turned into a **5-min heartbeat** (`distanceInterval: 0`), liveness in app_preferences,
+  `last_inside_at` (migration v10), exit margin 50 m, decisions in fix time, verification fixes
+  routed through the core. A **second review round** found 6 more (incl. the platform fact
+  that every app open fires an initial-trigger OS enter/exit because App.tsx re-registers the
+  fences) → dead-stream rules, "closed at last seen" notice, asymmetric exit margin, rule-7
+  expiry. All 18 review timelines in the suite (R1–R12, S1–S6). **400/400.** **E2E on this
+  code: iOS 71/71; Android 66/71 + 68/71 (non-overlapping harness flakes, no crash)** — the
+  first Android run caught a real regression: 4-button `Alert.alert` menus lose Cancel on
+  Android and trap the user → `showOptionsAlert` helper (see Don'ts). Handoff
+  `project-mgmt/HANDOFF-tracking-2026-09-28.md` has the plain-language summary and next steps
+  (E2E → commit → Android build for the tester).
+
+### 2026-09-26: Tracking-integrity rework from Android tester feedback (code only, not released)
+
+- Four tester emails extracted + clustered in the local-only ticket
+  `project-mgmt/ticket-user-feedback-2026-09-android-tracking.md` (git-excluded: it names a
+  real tester's habits). Two KO clusters reproduced as failing scenario tests on HEAD, then
+  fixed: **manual sessions were auto-closed by the Android keepalive** (home office =
+  "outside the fence"), and **stale/late fixes** produced negative durations and backdated
+  overlapping sessions.
+- `TrackingManager` rewritten around four session rules (manual = user-owned; stale-fix
+  rejection; one serialized queue `SessionQueue.ts`; 24 h cap) — see
+  `mobile-app/ARCHITECTURE.md` → Module 1 → Session rules. `SessionInvariants.test.ts` +
+  `ExitVerificationService.test.ts`. **E2E 71/71 on BOTH platforms** (fresh TEST_MODE builds).
+- Bug report now carries recent sessions (`session_telemetry`, no coordinates); backend
+  schema/router updated — **needs deploy**. Jest now transforms `i18n-js` + `make-plural` so
+  services can call `t()`.
+- **"Pause anpassen" bug reproduced + fixed** on the Android emulator: the break panel
+  opened in the column to the right of the badge; on Sunday (last column) that is outside
+  the horizontal scroll content, so nothing visible happened. `TrackingBadge` now opens the
+  panel on the left for the last column (`breakPanelSide`). Emulator recipe for ad-hoc
+  repros: debug APK + `TEST_MODE=true npx expo start`, inject rows into the app's SQLite via
+  `adb shell run-as` (no root needed on the Play image) — see the ticket.
+- Open: device walk-test, tester's event log (B2/B5), lawyer's HWG pass. Ad-copy note
+  ("Nur für dich") in `WORKSTREAMS.md` §9; reply draft to the tester in the private drafts file.
+
+### 2026-09-05: First paid Instagram test live + `video-lab/` (code-rendered ad videos)
+
+- **`video-lab/`** (new, Remotion): a small motion kit + two finished 9:16 ads (overtime 15 s,
+  collective 19 s, DE+EN), `render-final.sh`, a Reels pre-flight script (spec, loudness,
+  safe-zone pixel scan), synthesised/real-recording sound pipeline. Anti-slop rule: nothing in
+  the frame is generated; illustrative charts carry a "Beispieldaten" tag.
+- **Campaign `ig-test-2026-09-collective`** published 2026-09-05 (€5/day → 09-09, Reels/Stories,
+  iOS DE, medical/nursing education interests). New: Instagram @openworkinghours, Facebook Page,
+  Business Portfolio, ad account. Destination = website landing page `/go/ig2` → Apple campaign
+  link (App Analytics attribution, no SDK). Recipe + pitfalls (Meta rejects App Store
+  destinations, follows redirects, renders JS, caches per path): `project-mgmt/WORKSTREAMS.md` §9.
+- Caption changed to UWG-safe tense ("sobald genug Kolleg*innen mitmachen") — add to the lawyer's
+  HWG pass. Read-out 09-10.
+- `video-lab/campaigns/` and `video-lab/audio-selected/` are gitignored (IDs, budgets, licence
+  PDFs, music); the rest of `video-lab/` is uncommitted as of 2026-09-05.
+
 
 ### 2026-08-13: v2.1.4 confirmation-counting release (TestFlight #72) + panoramic screenshots
 
@@ -232,9 +340,11 @@ All new UI **must** be testable by Appium (XCUITest on iOS, UiAutomator2 on Andr
   post-PermissionPrimingScreen re-run). New unit tests: DashboardDataService (red/green
   verified), account-window month-summary case (259 total).
 
-### 2026-08-12: Android SUBMITTED to Google Play review (Closed Test / Alpha)
+### 2026-08-12: Android APPROVED — Closed Test (Alpha) live on Google Play
 
-**First Android store submission.** versionCode 6 / v2.1.3 AAB (EAS production
+**First Android store submission — approved in ~68 minutes** (sent 12:06,
+published 13:14; verified in Play Console 2026-08-15). All declarations incl.
+background-location passed on the first attempt. versionCode 6 / v2.1.3 AAB (EAS production
 build, binary-verified) sent for review with the complete App-content package:
 data safety form, demo-account app access, store listing (DE), category/tags,
 deletion URLs, and the background-location + foreground-service (Geofencing)
