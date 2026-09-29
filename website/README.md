@@ -23,6 +23,7 @@ Every route has a German counterpart under `/de/…`.
 | `/imprint` | German Impressum (legal) |
 | `/privacy-policy`, `/app-privacy-policy` | GDPR privacy policy |
 | `/dashboard` | Public dashboard - coverage map, progress, contact form |
+| `/go/*` | Ad landing hops (no `/de/` twin, `noindex`). Meta refuses ad destinations that resolve into the App Store and caches its verdict per path, so each paid campaign gets a fresh plain page here whose badge carries Apple's campaign link. No redirects, no auto-forward. See `project-mgmt/WORKSTREAMS.md` §9. |
 
 ## Development
 

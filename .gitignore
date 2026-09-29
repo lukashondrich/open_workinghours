@@ -67,3 +67,10 @@ transferable-workflow-patterns/
 !.claude/skills/
 backend/test.db
 test.db
+
+# video-lab: campaign briefs (ad account IDs, budgets, targeting) and licensed music stay local
+video-lab/campaigns/
+video-lab/audio-selected/
+
+# NLnet prompt provenance log (contains verbatim session text)
+project-mgmt/nlnet-prompt-log*.md

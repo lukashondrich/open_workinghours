@@ -56,6 +56,10 @@ CLAUDE.md (Entry Point)
 │
 ├─► blueprint.md (deep architecture)
 │
+├─► project-mgmt/WORKSTREAMS.md (strategic workstreams; §9 = paid social recipe + pitfalls)
+│
+├─► video-lab/README.md (ad-video pipeline module doc; campaign briefs stay local/gitignored)
+│
 └─► archive/ (historical planning docs)
 
 README.md (User Entry Point)
