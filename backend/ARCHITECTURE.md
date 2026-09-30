@@ -110,17 +110,24 @@ backend/
 - Migration: `j0k1l2m3n4o5_add_social_auth_columns.py`
 - All three endpoints rate-limited at 5 req/60s
 
-### Work Events (`/work-events`)
+### Finalized Weeks (`/finalized-weeks`) — the live upload path
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/work-events` | Submit confirmed day |
+| POST | `/finalized-weeks` | Upload one confirmed week (client-computed planned/actual totals) |
+| GET | `/finalized-weeks` | Get user's finalized weeks |
+
+**Validation:** week must have ended; one row per user × week (409 on repeat, which the app treats as success). The row snapshots the user's profile (state, specialty, department_group, hospital) at upload time. This is what the app sends since 2026-04-29 — and only when the user has opted in (Auto-send or per-week toggle on the Reports tab; **default off**). See `mobile-app/ARCHITECTURE.md` → Reports Module.
+
+### Work Events (`/work-events`) — legacy, no current app writes here
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/work-events` | Submit confirmed day (app builds before 2026-04-29 only) |
 | GET | `/work-events` | Get user's work events |
 | DELETE | `/work-events/{id}` | Delete work event |
 
-**Validation:**
-- Cannot submit future dates
-- Today and past days can be confirmed
+Kept for backward compatibility and the Art. 20 export. Contribution activity is represented by `finalized_user_weeks`, not this table.
 
 ### Stats (`/stats`)
 
@@ -152,9 +159,9 @@ backend/
 Requires `ADMIN_PASSWORD` authentication (HTTP Basic Auth).
 
 **Dashboard Features:**
-- Total users, work events, last 24h activity
+- Total users, work events, last 24h activity — ⚠️ counts the legacy `work_events` table, which no current app writes; says nothing about weekly uploads (follow-up: show `finalized_user_weeks` instead)
 - K-anonymous aggregated groups count
-- Recent 10 work event submissions
+- Recent 10 work event submissions (legacy table)
 - Auto-refresh every 30 seconds
 - Mobile-friendly
 
@@ -189,16 +196,16 @@ See `website/src/components/InteractiveMap/` and `docs/INTERACTIVE_MAP_PLAN.md`.
 
 **Operational tables:**
 - `users` — pseudonymous (email hashed), GDPR consent tracking
-- `work_events` — daily submissions, cascading delete with user
+- `work_events` — daily submissions from app builds before 2026-04-29 (legacy, no longer written), cascading delete with user
 - `verification_requests` — email verification codes (hashed)
-- `finalized_user_weeks` — materialized weekly summaries for aggregation (UNIQUE user_id + week_start)
+- `finalized_user_weeks` — **the live contribution table**: one row per confirmed + opted-in user-week (UNIQUE user_id + week_start), input to aggregation
 - `feedback_reports` — user feedback
 - `institution_inquiries` — public dashboard contact form
 
 **Analytics tables:**
 - `stats_by_state_specialty` — aggregated stats with DP noise, publication_status column
 - `stats_by_hospital` — aggregated stats by hospital (with publication_status)
-- `state_specialty_release_cells` — configured cells eligible for publication
+- `state_specialty_release_cells` — configured cells eligible for publication. **Only enabled cells publish**; with no rows configured the aggregation computes and discards everything
 
 **Privacy accounting tables:**
 - `state_specialty_privacy_ledger` — per-cell ε spend per period (planned_sum_epsilon, actual_sum_epsilon)

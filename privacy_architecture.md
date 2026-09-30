@@ -97,7 +97,7 @@ Provide **aggregated, privacy-preserving statistics** for unions, hospitals, the
 
 **Aggregation job (conceptual):**
 
-1. Read from `users` + `work_events`.
+1. Read from `finalized_user_weeks` (one row per confirmed, opted-in user-week; `work_events` is the retired daily path, unused by app builds since 2026-04-29).
 2. Group by release family dimensions:
    - `state_code × department_group × period`
    - `hospital_ref_id × profession × period`

@@ -1,6 +1,6 @@
 # Claude Context: Open Working Hours
 
-**Last Updated:** 2026-09-27
+**Last Updated:** 2026-09-30
 **Current Build:** #72 / v2.1.4 — SUBMITTED for App Review 2026-08-13 (confirmation-counting release: locked days count as confirmed, fraction counts every elapsed day, live Status refresh, month-cell spacing) **with the new panoramic screenshots** (first store use). v2.1.3 (#69) remains LIVE until approval. Lawyer's HWG/GDPR description pass still outstanding — next metadata update.
 ---
 
@@ -52,7 +52,7 @@ All core features complete. User test feedback (Clusters A-F) fully implemented.
 - Geofencing with automatic clock-in/out
 - Calendar with shift templates, overlap detection, absences
 - 14-day dashboard with hours overview
-- Authentication and daily submission to backend
+- Authentication and weekly upload to backend (`POST /finalized-weeks`; opt-in via Reports tab, default off)
 - Photon geocoding for location search
 - Social auth: Sign in with Apple (iOS) + Google (Android)
 - Full German translation (i18n)
@@ -126,6 +126,7 @@ Start feature → Create *_PLAN.md → Complete → Extract to ARCHITECTURE.md �
 - **Never use planning mode** — discuss designs interactively with the user instead
 - **Don't rely on the auto-memory system** (`~/.claude/projects/.../memory/`) — its contents may be out of date. Verify any recalled context against the current codebase, git history, or by asking the user. Do not cite memory as authoritative.
 - Don't commit secrets - use environment variables
+- **`project-mgmt/` is gitignored** — planning notes stay local; never `git add -f` it
 - Don't edit web dashboard - it's deprecated
 - Don't submit today or future dates - backend rejects them
 - Don't point a Meta Traffic ad (or any redirect/script forward) at the App Store — Meta rejects it (#1487810); use a plain landing page on a fresh path (`WORKSTREAMS.md` §9)
@@ -203,6 +204,15 @@ All new UI **must** be testable by Appium (XCUITest on iOS, UiAutomator2 on Andr
 ---
 
 ## Recent Updates (Last 7 Days)
+
+### 2026-09-30: Docs — upload path corrected (docs only)
+
+- Docs still described the daily `POST /work-events` path (removed from the app 2026-04-29) as
+  live. Corrected in `backend/ARCHITECTURE.md`, `mobile-app/ARCHITECTURE.md`,
+  `privacy_architecture.md`, `blueprint.md`: the app uploads **weekly** via
+  `POST /finalized-weeks`, and only after 7/7 confirmed days **and** an explicit opt-in on the
+  Reports tab (Auto-send **default off**). Release cells must be configured
+  (`state_specialty_release_cells`) before the aggregation publishes anything.
 
 ### 2026-09-27: Week totals, break-loss fix, review pass (code only, not released)
 

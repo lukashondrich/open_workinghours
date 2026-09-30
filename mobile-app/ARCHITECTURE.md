@@ -305,7 +305,7 @@ MAX_SESSION_HOURS = 24            // the cap
 
 ### Module 2: Authentication & Submission
 
-Email-based passwordless auth + social auth (Apple/Google), with daily data submission, biometric unlock, and lock screen.
+Email-based passwordless auth + social auth (Apple/Google), biometric unlock, and lock screen. Data upload lives in the Reports module (weekly, opt-in) — the daily submission path was removed 2026-04-29.
 
 **Key Files:**
 - `AuthService.ts` - Login, registration, social auth, token management
@@ -315,7 +315,6 @@ Email-based passwordless auth + social auth (Apple/Google), with daily data subm
 - `SocialRegistrationScreen.tsx` - First-time social user registration
 - `ProfileForm.tsx` - Shared registration form (used by both email and social registration)
 - `GoogleLogo.tsx` - Official multi-color G SVG for custom Google button
-- `DailySubmissionService.ts` - Submits confirmed days to backend
 - `ConsentBottomSheet.tsx` - GDPR consent modal
 - `ConsentStorage.ts` - Local consent record persistence
 - `consent-types.ts` - Consent types and version constants
@@ -495,7 +494,7 @@ Weekly reports with auto-finalization and collective insights from the backend.
 **Key Files:**
 - `ReportsScreen.tsx` - Main reports view with week cards and collective insights
 - `WeekStateService.ts` - Week lifecycle state machine (open → ready → finalized → submitted)
-- `WeekFinalizationService.ts` - Auto-finalizes completed weeks, syncs with calendar confirmations
+- `WeekFinalizationService.ts` - Sends queued weeks to `POST /finalized-weeks`, locks the calendar week on success, stores `lastError` on failure
 - `CollectiveInsightsService.ts` - Fetches published group statistics from backend
 
 **Week State Machine:**
@@ -504,7 +503,13 @@ Weekly reports with auto-finalization and collective insights from the backend.
 - `finalized` — Locked for submission, no further edits
 - `submitted` — Sent to backend
 
-**Auto-finalization:** When all 7 days of a past week are confirmed in the calendar, `WeekFinalizationService` automatically transitions the week to `finalized` state. Same-day confirmations and finalizations are allowed.
+**When does data actually leave the phone?** All of:
+1. All 7 days of the week confirmed in Week view (each confirm writes a `daily_actuals` row; empty days count).
+2. The week has ended (past week, or current week on Sunday ≥ 18:00).
+3. The user opted in: **Auto-send** on in Reports (`WeekStateService.getAutoSend()`, **default OFF**, nothing sets it on automatically) *or* the per-week send toggle in Reports.
+4. The app is foregrounded afterwards (`AppNavigator.runQueuedFinalization` → `sendEligibleQueuedWeeks()`; also on Reports focus).
+
+Nothing is uploaded otherwise, and the user sees no hint outside the Reports tab. Silent-drop edge: a queued week with <7 `daily_actuals` rows (un-confirmed after queueing) is deleted from the queue without a `lastError`. Same-day confirmations and finalizations are allowed.
 
 **Database:** `reports_week_queue` table (migration v6) tracks week state. `app_preferences` table stores UI state like last-viewed week.
 

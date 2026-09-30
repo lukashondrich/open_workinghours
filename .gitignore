@@ -74,3 +74,6 @@ video-lab/audio-selected/
 
 # NLnet prompt provenance log (contains verbatim session text)
 project-mgmt/nlnet-prompt-log*.md
+
+# Local planning notes
+project-mgmt/

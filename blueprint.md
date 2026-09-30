@@ -96,7 +96,7 @@ Shift planning with reusable templates and unified picker UI.
 ### Key Endpoints
 - `POST /auth/request-code` - Email verification
 - `POST /auth/verify` - Get JWT token
-- `POST /work-events` - Submit daily work event
+- `POST /work-events` - Submit daily work event (⚠️ legacy since 2026-04-29 — the app uploads weekly via `POST /finalized-weeks`, opt-in; see `backend/ARCHITECTURE.md`)
 - `GET /stats/by-state-specialty` - K-anonymous stats
 - `GET /admin` - Admin dashboard
 
