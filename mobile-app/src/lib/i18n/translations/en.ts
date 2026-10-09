@@ -129,7 +129,7 @@ export const en = {
       deleteEmpty: 'This template has no future shifts scheduled.',
       shiftsTab: 'Shifts',
       absencesTab: 'Absences',
-      gpsTab: 'GPS',
+      gpsTab: 'Log',
       createNew: 'Create new shift...',
       createAndAdd: 'Create & Add',
       createAndArm: 'Create & Select',
@@ -264,7 +264,7 @@ export const en = {
       explainerA11yLabel: 'How hours are calculated',
     },
     gps: {
-      hint: 'Log hours manually when GPS tracking failed',
+      hint: 'Enter working time by hand, for example in a home office or when a shift was not detected',
       logHours: 'Log Hours',
     },
   },

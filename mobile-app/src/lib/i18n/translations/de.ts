@@ -129,7 +129,7 @@ export const de = {
       deleteEmpty: 'Diese Vorlage hat keine geplanten Schichten.',
       shiftsTab: 'Dienste',
       absencesTab: 'Abwesend',
-      gpsTab: 'GPS',
+      gpsTab: 'Erfassen',
       createNew: 'Neuen Dienst erstellen...',
       createAndAdd: 'Erstellen & Hinzufügen',
       createAndArm: 'Erstellen & Auswählen',
@@ -264,7 +264,7 @@ export const de = {
       explainerA11yLabel: 'Wie Stunden berechnet werden',
     },
     gps: {
-      hint: 'Arbeitszeit manuell erfassen, wenn GPS nicht funktioniert hat',
+      hint: 'Arbeitszeit von Hand eintragen, zum Beispiel im Homeoffice oder wenn eine Schicht nicht erkannt wurde',
       logHours: 'Zeit erfassen',
     },
   },
