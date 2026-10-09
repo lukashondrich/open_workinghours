@@ -1,7 +1,7 @@
 # Claude Context: Open Working Hours
 
-**Last Updated:** 2026-09-30
-**Current Build:** #72 / v2.1.4 — SUBMITTED for App Review 2026-08-13 (confirmation-counting release: locked days count as confirmed, fraction counts every elapsed day, live Status refresh, month-cell spacing) **with the new panoramic screenshots** (first store use). v2.1.3 (#69) remains LIVE until approval. Lawyer's HWG/GDPR description pass still outstanding — next metadata update.
+**Last Updated:** 2026-10-09
+**Current Build:** iOS #75 / v2.1.5 — uploaded to TestFlight 2026-10-09 for owner dogfooding (calendar batch + shared tracking pieces, iOS core unchanged, picker tab "Erfassen/Log"); Android vc9 / v2.1.5 live in the Play closed test since 2026-09-29 (tester confirmed all his issues fixed), production access granted 2026-10-07, production release deliberately waits for the iOS dogfooding. Previously: #72 / v2.1.4 — SUBMITTED for App Review 2026-08-13 (confirmation-counting release: locked days count as confirmed, fraction counts every elapsed day, live Status refresh, month-cell spacing) **with the new panoramic screenshots** (first store use). v2.1.3 (#69) remains LIVE until approval. Lawyer's HWG/GDPR description pass still outstanding — next metadata update.
 ---
 
 ## Project Overview
