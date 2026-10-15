@@ -30,6 +30,12 @@ async function featureGraphic(teal) {
   const icon = await sharp(ICON).resize(iconSize, iconSize).png().toBuffer();
   await sharp(Buffer.from(svg))
     .composite([{ input: icon, left: 95, top: (H - iconSize) / 2 }])
+    // Ship plain RGB: the icon fix (2026-08-22) showed Play flattens alpha onto black.
+    // Note sharp applies flatten() BEFORE composite() regardless of call order, so the
+    // base SVG (already opaque) is what gets flattened; removeAlpha() after the composite
+    // is the call that actually drops the channel.
+    .flatten({ background: teal })
+    .removeAlpha()
     .png()
     .toFile('play/feature-graphic-1024x500.png');
   console.log('  feature graphic -> play/feature-graphic-1024x500.png');

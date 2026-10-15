@@ -6,7 +6,7 @@ import Layout from '../layouts/Layout.astro';
   <div class="max-w-4xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
     <header class="mb-8">
       <h1 class="text-stone-900">Privacy Policy</h1>
-      <p class="text-stone-500 text-sm mt-2">Last reviewed: May 2026</p>
+      <p class="text-stone-500 text-sm mt-2">Last reviewed: October 2026</p>
       <p class="text-stone-500 text-sm mt-1">
         <a href="/de/app-privacy-policy" class="text-teal-600 hover:text-teal-700">Deutsche Version</a>
       </p>
@@ -52,7 +52,7 @@ import Layout from '../layouts/Layout.astro';
             <li>A hash of your email (email sign-in) — derived with a secret key</li>
             <li>Your Apple or Google identifier (only if social sign-in)</li>
             <li>Confirmed weekly hours: planned + actual totals only (no daily breakdown)</li>
-            <li>Optional: device model, OS version, recent location events — only when you tap "Report Issue"</li>
+            <li>Optional: device model, OS version, recent location events and tracked sessions — only when you tap "Report Issue"</li>
           </ul>
           <p class="text-amber-700 text-xs mt-3">→ Details and code: §2</p>
         </div>
@@ -61,7 +61,7 @@ import Layout from '../layouts/Layout.astro';
           <h3 class="text-red-900 font-semibold mb-3">Not collected</h3>
           <ul class="space-y-2 text-red-900 text-sm">
             <li>Your name or address</li>
-            <li>Your daily schedule (we only ever see weekly totals)</li>
+            <li>Your daily schedule (we only ever see weekly totals — unless you send a bug report, see §2.5)</li>
             <li>GPS coordinates (geofence runs on your device; coordinates never reach our backend)</li>
             <li>Sick days (stay on your device)</li>
             <li>Free-text employer names (you can only pick from the list)</li>
@@ -164,10 +164,11 @@ import Layout from '../layouts/Layout.astro';
           <li>App version and build number</li>
           <li>Counts of saved work locations and work events</li>
           <li>The last ~100 geofence events on your device — timestamps, event type, GPS accuracy in meters, ignored flag/reason, and aggregate accuracy counts. By default, this does <strong>not</strong> include saved workplace names or coordinates.</li>
+          <li>Your tracked sessions of the last 14 days (at most 50) — clock-in and clock-out times, duration, whether the session was automatic or manual, its status, the GPS accuracy at clock-in/out, a pending clock-out time if any, and when the entry was written and last updated. Sessions at the same workplace share an anonymous number within the report; by default, this does <strong>not</strong> include workplace names or coordinates.</li>
           <li>If you're signed in: your user ID, so we can correlate the report with your account and delete it if you delete your account. We do not store hospital affiliation, specialty, role, or state with bug reports.</li>
         </ul>
-        <p><strong>Optional location diagnostics:</strong> The confirmation sheet has an unchecked "Include location diagnostics" checkbox. If you enable it, the report also includes saved workplace names, approximate saved workplace coordinates rounded to 3 decimals (about 100 m precision), and recent geofence events with workplace names.</p>
-        <p><strong>What the backend enforces:</strong> If location diagnostics are not explicitly enabled, the backend strips saved workplace details and geofence location names even if an older app version sends them.</p>
+        <p><strong>Optional location diagnostics:</strong> The confirmation sheet has an unchecked "Include location diagnostics" checkbox. If you enable it, the report also includes saved workplace names, approximate saved workplace coordinates rounded to 3 decimals (about 100 m precision), and recent geofence events and tracked sessions with workplace names.</p>
+        <p><strong>What the backend enforces:</strong> If location diagnostics are not explicitly enabled, the backend strips saved workplace details, geofence location names, and workplace names on tracked sessions even if an older app version sends them.</p>
         <p><strong>Why:</strong> To diagnose technical problems — especially geofencing reliability on Android, where we depend on real-world telemetry to find and fix bugs.</p>
         <p><strong>When:</strong> Only when you tap "Report Issue" in Settings and confirm submission.</p>
         <p><strong>Retention:</strong> Bug reports are kept for 90 days, then automatically purged. Reports are also deleted immediately when you delete your account.</p>
@@ -199,7 +200,7 @@ import Layout from '../layouts/Layout.astro';
     <!-- §3 What stays on device -->
     <section id="device" class="mb-12 scroll-mt-8">
       <h2 class="text-2xl font-semibold text-stone-900 mb-6">3. What stays on your device</h2>
-      <p class="text-stone-700 mb-4">These categories of data are processed on your device only and never reach our backend.</p>
+      <p class="text-stone-700 mb-4">These categories of data are processed on your device only and never reach our backend — except in a bug report you choose to send (§2.5).</p>
       <div class="overflow-x-auto">
         <table class="w-full text-sm border-collapse">
           <thead>
@@ -222,7 +223,7 @@ import Layout from '../layouts/Layout.astro';
             </tr>
             <tr>
               <td class="p-3 border border-stone-200">Tracking records (unconfirmed sessions)</td>
-              <td class="p-3 border border-stone-200">Local SQLite (<code>tracking_records</code>) — only weekly totals are submitted after you confirm</td>
+              <td class="p-3 border border-stone-200">Local SQLite (<code>tracking_records</code>) — only weekly totals are submitted after you confirm (recent sessions are included only in a bug report you send, §2.5)</td>
               <td class="p-3 border border-stone-200"><a href="https://github.com/lukashondrich/open_workinghours/blob/49ea57b/mobile-app/src/modules/calendar/services/CalendarStorage.ts" class="text-teal-600 hover:text-teal-700"><code>CalendarStorage.ts</code></a></td>
             </tr>
             <tr>
@@ -294,6 +295,16 @@ import Layout from '../layouts/Layout.astro';
               <td class="p-3 border border-stone-200">Searching for a workplace in setup</td>
               <td class="p-3 border border-stone-200">
                 <a href="https://github.com/lukashondrich/open_workinghours/blob/49ea57b/mobile-app/src/modules/geofencing/services/GeocodingService.ts#L105" class="text-teal-600 hover:text-teal-700"><code>GeocodingService.ts</code> L105</a>
+              </td>
+            </tr>
+            <tr>
+              <td class="p-3 border border-stone-200">Map display</td>
+              <td class="p-3 border border-stone-200">Always (only on screens with a map)</td>
+              <td class="p-3 border border-stone-200">Apple Inc. (Apple Maps, iOS) · Google LLC (Google Maps, Android)</td>
+              <td class="p-3 border border-stone-200">USA (EU-US Data Privacy Framework)</td>
+              <td class="p-3 border border-stone-200">Opening workplace setup or the tracking screen — the map SDK built into your phone's OS fetches tiles for the area shown and sees your IP address; we attach no user identifier</td>
+              <td class="p-3 border border-stone-200">
+                <a href="https://github.com/lukashondrich/open_workinghours/blob/49ea57b/mobile-app/src/modules/geofencing/screens/SetupScreen.tsx" class="text-teal-600 hover:text-teal-700"><code>SetupScreen.tsx</code></a>
               </td>
             </tr>
             <tr>
@@ -419,12 +430,13 @@ import Layout from '../layouts/Layout.astro';
     <section id="transfers" class="mb-12 scroll-mt-8">
       <h2 class="text-2xl font-semibold text-stone-900 mb-6">7. Where your data goes</h2>
       <p class="text-stone-700 mb-4">
-        <strong>Your account, your hours, and our analytics — all in Germany.</strong> Backend, database, and backups run on Hetzner servers in Germany. Email codes route through Brevo (EU). Workplace search uses Komoot (Germany). See §4 for the full recipients matrix.
+        <strong>Your account, your hours, and our analytics — all in Germany.</strong> Backend, database, and backups run on Hetzner servers in Germany. Email codes route through Brevo (EU). Workplace search uses Komoot (Germany). Map tiles come from Apple Maps (iOS) or Google Maps (Android). See §4 for the full recipients matrix.
       </p>
-      <p class="text-stone-700 mb-2"><strong>Two situations involve transfers to countries outside the EU/EEA — both are optional and triggered by your choices:</strong></p>
+      <p class="text-stone-700 mb-2"><strong>Three situations involve transfers to countries outside the EU/EEA — all are triggered by your use of a feature, none involve your hours:</strong></p>
       <ul class="list-disc list-outside ml-5 space-y-3 text-stone-700 text-sm mb-4">
         <li><strong>If you choose Apple Sign-In or Google Sign-In:</strong> identity verification involves Apple Inc. (USA) or Google LLC (USA). These transfers occur under the EU-US Data Privacy Framework adequacy decision. The data sent during sign-in is what Apple/Google use to confirm the identity token is valid; we receive only an opaque identifier in return. Your email is not retained by us for social-auth users.</li>
         <li><strong>If you enable Calendar Export and your device's calendar syncs to iCloud or Google Calendar:</strong> the calendar entries follow your device's sync configuration, which may include US servers. This is between you and your calendar provider; we don't see or control it.</li>
+        <li><strong>When you open a screen with a map</strong> (workplace setup, tracking screen): the map is drawn by the map SDK built into your phone's OS — Apple Maps on iOS, Google Maps on Android. The provider fetches map tiles for the area shown and sees your IP address, under the EU-US Data Privacy Framework. We attach no user identifier, and your hours are never involved.</li>
       </ul>
       <p class="text-stone-700 text-sm">
         <strong>About hosting-layer IP addresses:</strong> like every web server on the internet, Hetzner's infrastructure briefly sees and logs your IP address when your device makes a request. Our application database does not store IPs. Hetzner is based in Germany; their infrastructure logs stay in Germany.

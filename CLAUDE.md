@@ -1,7 +1,7 @@
 # Claude Context: Open Working Hours
 
-**Last Updated:** 2026-10-09
-**Current Build:** iOS #75 / v2.1.5 — uploaded to TestFlight 2026-10-09 for owner dogfooding (calendar batch + shared tracking pieces, iOS core unchanged, picker tab "Erfassen/Log"); Android vc9 / v2.1.5 live in the Play closed test since 2026-09-29 (tester confirmed all his issues fixed), production access granted 2026-10-07, production release deliberately waits for the iOS dogfooding. Previously: #72 / v2.1.4 — SUBMITTED for App Review 2026-08-13 (confirmation-counting release: locked days count as confirmed, fraction counts every elapsed day, live Status refresh, month-cell spacing) **with the new panoramic screenshots** (first store use). v2.1.3 (#69) remains LIVE until approval. Lawyer's HWG/GDPR description pass still outstanding — next metadata update.
+**Last Updated:** 2026-10-15
+**Current Build:** iOS #75 / v2.1.5 — uploaded to TestFlight 2026-10-09 for owner dogfooding (calendar batch + shared tracking pieces, iOS core unchanged, picker tab "Erfassen/Log"); Android vc9 / v2.1.5 live in the Play closed test since 2026-09-29 (tester confirmed all his issues fixed), production access granted 2026-10-07, production release deliberately waits for the iOS dogfooding. **Play production prep done 2026-10-15** (policy, feature graphic, screenshots, EN listing draft — see Recent Updates); remaining steps are Console work, listed in `project-mgmt/android-launch-checklist.md` → STATUS. Previously: #72 / v2.1.4 — SUBMITTED for App Review 2026-08-13 (confirmation-counting release: locked days count as confirmed, fraction counts every elapsed day, live Status refresh, month-cell spacing) **with the new panoramic screenshots** (first store use). v2.1.3 (#69) remains LIVE until approval. Lawyer's HWG/GDPR description pass still outstanding — next metadata update.
 ---
 
 ## Project Overview
@@ -47,6 +47,8 @@
 All core features complete. User test feedback (Clusters A-F) fully implemented. v2.1.0 is public on the iOS App Store as of 2026-07-08.
 
 **App Store: LIVE.** v2.1.0 build #65 approved and public on 2026-07-08 (tag `v2.1.0-build65`) — the first public iOS release. Cleared a Guideline 2.5.4 rejection by removing `UIBackgroundModes: location` and patching expo-location so geofencing still works (`patches/expo-location+19.0.8.patch`). Full history: `archive/app-store-guideline-2-5-4-2026-07.md`; the technical trap is captured in `mobile-app/ARCHITECTURE.md` (Geofencing) and `docs/debugging.md`. ⚠️ The patch is version-pinned to expo-location 19.0.8 — regenerate on upgrade. Non-blocking follow-up: lawyer's HWG/GDPR pass on the description copy (task #31), appliable as a live-version metadata update.
+
+**Funding (2026-10-15):** the `dp-group-stats` library (separate repo, `~/dp-group-stats`) is funded by NLnet's NGI Zero Commons Fund (project 2026-04-357). The grant covers the library only — never describe the app or the platform as funded. Attribution lives on `/team` (EN+DE), in both site footers, and in the library README; logos in `website/public/logos/`. Details: `project-mgmt/nlnet-second-round-prep.md`.
 
 **What's working:**
 - Geofencing with automatic clock-in/out
@@ -204,6 +206,28 @@ All new UI **must** be testable by Appium (XCUITest on iOS, UiAutomator2 on Andr
 ---
 
 ## Recent Updates (Last 7 Days)
+
+### 2026-10-15: Google Play production prep (website + store assets, no app change)
+
+- **App privacy policy (EN+DE)** now discloses the bug-report **session telemetry**
+  (14 days / ≤50 rows, field by field, no coordinates; backend strips workplace names on
+  sessions unless location diagnostics are on) and qualifies every "never leaves the
+  device" claim with "except in a bug report you send" (summary box, "Not collected", §3).
+  **Map provider added as a processor** — Apple Maps (iOS) / Google Maps (Android) fetch
+  tiles for the shown area + see the IP; was undisclosed on both platforms. §7 lists three
+  transfer situations. Verified against `reportIssue.ts` + `feedback.py` by an Opus review.
+  Deploys with the next website push.
+- **Play assets:** feature graphic re-rendered as plain RGB (the on-disk file was never
+  black — re-upload it); all 12 screenshots recaptured on a fresh seed build (month view,
+  week Σ row, "Erfassen/Log" tab current) and padded for Play via `play-assets.mjs`.
+  **Flow 04 fixed:** verifies the month switch and re-taps when the toggle tap is
+  swallowed (it was, on the DE run). EN listing draft in `store-assets/play/listing-en.md`
+  (gitignored) — the "only US touchpoint" sentence is rewritten; the **live DE Play and iOS
+  descriptions still carry that overclaim** → fix in the Console / next metadata update.
+- **Still open** (checklist STATUS): Console uploads + EN listing, data-safety re-check,
+  promote vc9 to production after the iOS dogfooding; the in-app "Include location
+  diagnostics" text must also mention sessions (needs a build); re-pin the policy's code
+  links after commit.
 
 ### 2026-09-30: Docs — upload path corrected (docs only)
 

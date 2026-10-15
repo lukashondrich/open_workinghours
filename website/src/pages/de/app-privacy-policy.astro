@@ -6,7 +6,7 @@ import LayoutDE from '../../layouts/LayoutDE.astro';
   <div class="max-w-4xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
     <header class="mb-8">
       <h1 class="text-stone-900">Datenschutzerklärung</h1>
-      <p class="text-stone-500 text-sm mt-2">Stand: Mai 2026</p>
+      <p class="text-stone-500 text-sm mt-2">Stand: Oktober 2026</p>
       <p class="text-stone-500 text-sm mt-1">
         <a href="/app-privacy-policy" class="text-teal-600 hover:text-teal-700">English version</a>
       </p>
@@ -52,7 +52,7 @@ import LayoutDE from '../../layouts/LayoutDE.astro';
             <li>Ein Hash Ihrer E-Mail (bei E-Mail-Anmeldung) — mit einem geheimen Schlüssel berechnet</li>
             <li>Ihre Apple- oder Google-Kennung (nur bei Social Login)</li>
             <li>Bestätigte Wochenstunden: nur geplante + tatsächliche Summen (keine Tagesdetails)</li>
-            <li>Optional: Gerätemodell, OS-Version, letzte Standortereignisse — nur wenn Sie „Problem melden" antippen</li>
+            <li>Optional: Gerätemodell, OS-Version, letzte Standortereignisse und erfasste Zeiten — nur wenn Sie „Problem melden" antippen</li>
           </ul>
           <p class="text-amber-700 text-xs mt-3">→ Details und Code: §2</p>
         </div>
@@ -61,7 +61,7 @@ import LayoutDE from '../../layouts/LayoutDE.astro';
           <h3 class="text-red-900 font-semibold mb-3">Nicht erfasst</h3>
           <ul class="space-y-2 text-red-900 text-sm">
             <li>Ihr Name oder Ihre Adresse</li>
-            <li>Ihr Tagesplan (wir sehen nur Wochensummen)</li>
+            <li>Ihr Tagesplan (wir sehen nur Wochensummen — außer Sie senden einen Fehlerbericht, siehe §2.5)</li>
             <li>GPS-Koordinaten (Geofence läuft auf Ihrem Gerät; Koordinaten erreichen unser Backend nie)</li>
             <li>Krankheitstage (bleiben auf Ihrem Gerät)</li>
             <li>Frei eingegebene Arbeitgebernamen (Auswahl nur aus der Liste)</li>
@@ -164,10 +164,11 @@ import LayoutDE from '../../layouts/LayoutDE.astro';
           <li>App-Version und Build-Nummer</li>
           <li>Anzahl der gespeicherten Arbeitsorte und Arbeitsereignisse</li>
           <li>Die letzten ~100 Geofence-Ereignisse auf Ihrem Gerät — Zeitstempel, Ereignistyp, GPS-Genauigkeit in Metern, Ignoriert-Status/-Grund und aggregierte Genauigkeitswerte. Standardmäßig enthält dies <strong>keine</strong> Namen oder Koordinaten gespeicherter Arbeitsorte.</li>
+          <li>Ihre erfassten Zeiten der letzten 14 Tage (höchstens 50) — Beginn und Ende, Dauer, ob automatisch oder manuell erfasst, Status, GPS-Genauigkeit beim Ein-/Ausstempeln, ggf. ein ausstehender Ausstempel-Zeitpunkt sowie die Zeitpunkte, zu denen der Eintrag geschrieben und zuletzt aktualisiert wurde. Zeiten am selben Arbeitsort teilen sich innerhalb des Berichts eine anonyme Nummer; standardmäßig enthält dies <strong>keine</strong> Namen oder Koordinaten von Arbeitsorten.</li>
           <li>Wenn Sie angemeldet sind: Ihre Nutzer-ID, damit wir den Bericht Ihrem Konto zuordnen und bei Kontolöschung ebenfalls löschen können. Krankenhauszugehörigkeit, Fachgebiet, Rolle und Bundesland speichern wir nicht mit Fehlerberichten.</li>
         </ul>
-        <p><strong>Optionale Standortdiagnose:</strong> Der Bestätigungsdialog enthält ein nicht vorausgewähltes Kontrollkästchen „Standortdiagnose einschließen". Wenn Sie es aktivieren, enthält der Bericht zusätzlich Namen gespeicherter Arbeitsorte, ungefähre gespeicherte Koordinaten auf 3 Dezimalstellen gerundet (etwa 100 m Genauigkeit) und aktuelle Geofence-Ereignisse mit Namen der Arbeitsorte.</p>
-        <p><strong>Was das Backend erzwingt:</strong> Wenn Standortdiagnosen nicht ausdrücklich aktiviert sind, entfernt das Backend gespeicherte Arbeitsortdetails und Geofence-Standortnamen auch dann, wenn eine ältere App-Version sie sendet.</p>
+        <p><strong>Optionale Standortdiagnose:</strong> Der Bestätigungsdialog enthält ein nicht vorausgewähltes Kontrollkästchen „Standortdiagnose einschließen". Wenn Sie es aktivieren, enthält der Bericht zusätzlich Namen gespeicherter Arbeitsorte, ungefähre gespeicherte Koordinaten auf 3 Dezimalstellen gerundet (etwa 100 m Genauigkeit) sowie aktuelle Geofence-Ereignisse und erfasste Zeiten mit Namen der Arbeitsorte.</p>
+        <p><strong>Was das Backend erzwingt:</strong> Wenn Standortdiagnosen nicht ausdrücklich aktiviert sind, entfernt das Backend gespeicherte Arbeitsortdetails, Geofence-Standortnamen und Arbeitsortnamen an erfassten Zeiten auch dann, wenn eine ältere App-Version sie sendet.</p>
         <p><strong>Warum:</strong> Zur Diagnose technischer Probleme — besonders der Geofencing-Zuverlässigkeit auf Android, wo wir auf reale Telemetriedaten angewiesen sind, um Fehler zu finden und zu beheben.</p>
         <p><strong>Wann:</strong> Nur wenn Sie in den Einstellungen „Problem melden" antippen und die Übermittlung bestätigen.</p>
         <p><strong>Aufbewahrung:</strong> Fehlerberichte werden 90 Tage aufbewahrt und danach automatisch gelöscht. Fehlerberichte werden außerdem sofort gelöscht, wenn Sie Ihr Konto löschen.</p>
@@ -199,7 +200,7 @@ import LayoutDE from '../../layouts/LayoutDE.astro';
     <!-- §3 Was auf dem Gerät bleibt -->
     <section id="device" class="mb-12 scroll-mt-8">
       <h2 class="text-2xl font-semibold text-stone-900 mb-6">3. Was auf Ihrem Gerät bleibt</h2>
-      <p class="text-stone-700 mb-4">Diese Datenkategorien werden ausschließlich auf Ihrem Gerät verarbeitet und erreichen unser Backend nie.</p>
+      <p class="text-stone-700 mb-4">Diese Datenkategorien werden ausschließlich auf Ihrem Gerät verarbeitet und erreichen unser Backend nie — außer in einem Fehlerbericht, den Sie selbst senden (§2.5).</p>
       <div class="overflow-x-auto">
         <table class="w-full text-sm border-collapse">
           <thead>
@@ -222,7 +223,7 @@ import LayoutDE from '../../layouts/LayoutDE.astro';
             </tr>
             <tr>
               <td class="p-3 border border-stone-200">Tracking-Datensätze (unbestätigte Sitzungen)</td>
-              <td class="p-3 border border-stone-200">Lokale SQLite (<code>tracking_records</code>) — nach Ihrer Bestätigung werden nur Wochensummen übermittelt</td>
+              <td class="p-3 border border-stone-200">Lokale SQLite (<code>tracking_records</code>) — nach Ihrer Bestätigung werden nur Wochensummen übermittelt (die letzten Zeiten nur in einem von Ihnen gesendeten Fehlerbericht, §2.5)</td>
               <td class="p-3 border border-stone-200"><a href="https://github.com/lukashondrich/open_workinghours/blob/49ea57b/mobile-app/src/modules/calendar/services/CalendarStorage.ts" class="text-teal-600 hover:text-teal-700"><code>CalendarStorage.ts</code></a></td>
             </tr>
             <tr>
@@ -294,6 +295,16 @@ import LayoutDE from '../../layouts/LayoutDE.astro';
               <td class="p-3 border border-stone-200">Suche eines Arbeitsplatzes im Setup</td>
               <td class="p-3 border border-stone-200">
                 <a href="https://github.com/lukashondrich/open_workinghours/blob/49ea57b/mobile-app/src/modules/geofencing/services/GeocodingService.ts#L105" class="text-teal-600 hover:text-teal-700"><code>GeocodingService.ts</code> Z. 105</a>
+              </td>
+            </tr>
+            <tr>
+              <td class="p-3 border border-stone-200">Kartenanzeige</td>
+              <td class="p-3 border border-stone-200">Immer (nur auf Bildschirmen mit Karte)</td>
+              <td class="p-3 border border-stone-200">Apple Inc. (Apple Maps, iOS) · Google LLC (Google Maps, Android)</td>
+              <td class="p-3 border border-stone-200">USA (EU-US-Datenschutzrahmen)</td>
+              <td class="p-3 border border-stone-200">Öffnen des Arbeitsplatz-Setups oder des Tracking-Bildschirms — das Karten-SDK des Betriebssystems lädt Kacheln für den gezeigten Ausschnitt und sieht Ihre IP-Adresse; wir übergeben keine Nutzerkennung</td>
+              <td class="p-3 border border-stone-200">
+                <a href="https://github.com/lukashondrich/open_workinghours/blob/49ea57b/mobile-app/src/modules/geofencing/screens/SetupScreen.tsx" class="text-teal-600 hover:text-teal-700"><code>SetupScreen.tsx</code></a>
               </td>
             </tr>
             <tr>
@@ -419,12 +430,13 @@ import LayoutDE from '../../layouts/LayoutDE.astro';
     <section id="transfers" class="mb-12 scroll-mt-8">
       <h2 class="text-2xl font-semibold text-stone-900 mb-6">7. Wohin Ihre Daten gehen</h2>
       <p class="text-stone-700 mb-4">
-        <strong>Ihr Konto, Ihre Stunden, unsere Analytik — alles in Deutschland.</strong> Backend, Datenbank und Backups laufen auf Hetzner-Servern in Deutschland. E-Mail-Codes laufen über Brevo (EU). Arbeitsplatzsuche nutzt Komoot (Deutschland). Siehe §4 für die vollständige Empfängermatrix.
+        <strong>Ihr Konto, Ihre Stunden, unsere Analytik — alles in Deutschland.</strong> Backend, Datenbank und Backups laufen auf Hetzner-Servern in Deutschland. E-Mail-Codes laufen über Brevo (EU). Arbeitsplatzsuche nutzt Komoot (Deutschland). Kartenkacheln kommen von Apple Maps (iOS) bzw. Google Maps (Android). Siehe §4 für die vollständige Empfängermatrix.
       </p>
-      <p class="text-stone-700 mb-2"><strong>Zwei Situationen beinhalten Übermittlungen in Länder außerhalb des EU/EWR — beide sind optional und durch Ihre Wahl ausgelöst:</strong></p>
+      <p class="text-stone-700 mb-2"><strong>Drei Situationen beinhalten Übermittlungen in Länder außerhalb des EU/EWR — alle werden durch die Nutzung einer Funktion ausgelöst, keine betrifft Ihre Arbeitszeiten:</strong></p>
       <ul class="list-disc list-outside ml-5 space-y-3 text-stone-700 text-sm mb-4">
         <li><strong>Wenn Sie Apple- oder Google-Anmeldung wählen:</strong> Die Identitätsprüfung beteiligt Apple Inc. (USA) oder Google LLC (USA). Diese Übermittlungen erfolgen unter dem EU-US-Datenschutzrahmen (Angemessenheitsbeschluss). Die bei der Anmeldung gesendeten Daten dienen Apple/Google zur Überprüfung des Identitäts-Tokens; wir erhalten im Gegenzug nur eine undurchsichtige Kennung. Ihre E-Mail wird bei Social Login von uns nicht gespeichert.</li>
         <li><strong>Wenn Sie Kalenderexport aktivieren und Ihr Gerätekalender mit iCloud oder Google Calendar synchronisiert:</strong> Die Kalendereinträge folgen der Sync-Konfiguration Ihres Geräts, was US-Server einschließen kann. Das liegt zwischen Ihnen und Ihrem Kalender-Anbieter; wir sehen und steuern das nicht.</li>
+        <li><strong>Wenn Sie einen Bildschirm mit Karte öffnen</strong> (Arbeitsplatz-Setup, Tracking-Bildschirm): Die Karte zeichnet das Karten-SDK des Betriebssystems — Apple Maps auf iOS, Google Maps auf Android. Der Anbieter lädt Kartenkacheln für den gezeigten Ausschnitt und sieht Ihre IP-Adresse, unter dem EU-US-Datenschutzrahmen. Wir übergeben keine Nutzerkennung, und Ihre Arbeitszeiten sind nie beteiligt.</li>
       </ul>
       <p class="text-stone-700 text-sm">
         <strong>Zu Hosting-Logs / IP-Adressen:</strong> Wie bei jedem Webserver sieht die Infrastruktur von Hetzner Ihre IP-Adresse kurz, wenn Ihr Gerät eine Anfrage stellt, und protokolliert sie. Unsere Anwendungs-Datenbank speichert keine IPs. Hetzner sitzt in Deutschland; deren Infrastruktur-Logs bleiben in Deutschland.
