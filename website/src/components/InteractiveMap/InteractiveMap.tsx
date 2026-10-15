@@ -16,6 +16,8 @@ interface Hospital {
 
 interface Props {
   locale?: 'en' | 'de';
+  /** Optional per-state status override (GeoJSON ids, e.g. 'DE-BE'): 0 none, 1 building, 2 threshold reached. */
+  coverage?: CoverageData;
 }
 
 const labels = {
@@ -62,8 +64,8 @@ const colors = {
   noData: '#D6D3D1',     // Stone-300
   building: '#FBBF24',   // Amber-400
   available: '#0D9488',  // Teal-600
-  hospitalDot: '#0F766E', // Teal-700
-  hospitalHover: '#14B8A6', // Teal-500
+  hospitalDot: '#44403C',  // Stone-700 — neutral, distinct from the teal "threshold reached" fill
+  hospitalHover: '#1C1917', // Stone-900
   border: '#A8A29E',     // Stone-400
 };
 
@@ -75,7 +77,7 @@ function getStateColor(status: number): string {
   }
 }
 
-export default function InteractiveMap({ locale = 'en' }: Props) {
+export default function InteractiveMap({ locale = 'en', coverage: coverageProp }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [tooltip, setTooltip] = useState<{ x: number; y: number; name: string } | null>(null);
@@ -89,7 +91,7 @@ export default function InteractiveMap({ locale = 'en' }: Props) {
       data[code] = 0; // No data
     });
     data['DE-BE'] = 1; // Berlin = building (1-10)
-    return data;
+    return { ...data, ...(coverageProp ?? {}) };
   });
 
   useEffect(() => {
@@ -137,8 +139,8 @@ export default function InteractiveMap({ locale = 'en' }: Props) {
 
     // Draw hospital dots
     const hospitals = hospitalsData as Hospital[];
-    const baseRadius = 3;
-    const hoverRadius = 5;
+    const baseRadius = 2;
+    const hoverRadius = 4;
 
     const circles = g.selectAll('circle')
       .data(hospitals)
@@ -153,7 +155,9 @@ export default function InteractiveMap({ locale = 'en' }: Props) {
       })
       .attr('r', baseRadius)
       .attr('fill', colors.hospitalDot)
-      .attr('opacity', 0.7)
+      .attr('stroke', '#FFFFFF')
+      .attr('stroke-width', 0.75)
+      .attr('opacity', 0.8)
       .attr('cursor', 'pointer')
       .on('mouseenter', (event, d) => {
         const currentScale = d3.zoomTransform(svg.node()!).k;

@@ -4,6 +4,22 @@ import InteractiveMap from '../components/InteractiveMap/InteractiveMap.tsx';
 
 // API base URL - use environment variable in production
 const API_BASE = import.meta.env.PUBLIC_API_URL || 'https://api.openworkinghours.org';
+
+// Snapshot of real production counts as of 2026-10-15 (demo account excluded), hardcoded
+// until the dashboard endpoints are rewritten. Keep in sync with de/dashboard.astro.
+const stats = {
+  contributors: '30+',
+  statesRepresented: 7,
+  hospitals: 8,
+  hoursBand: '1,400+',
+  statsPublished: 0,
+  since: 'January 2026',
+  // GeoJSON ids → 0 none, 1 building (1–4), 2 threshold reached (5+)
+  coverage: {
+    'DE-BE': 2,
+    'DE-BY': 1, 'DE-HE': 1, 'DE-SN': 1, 'DE-BW': 1, 'DE-HB': 1, 'DE-RP': 1,
+  },
+};
 ---
 
 <Layout
@@ -14,7 +30,7 @@ const API_BASE = import.meta.env.PUBLIC_API_URL || 'https://api.openworkinghours
   <section class="bg-gradient-to-b from-teal-50 to-white py-12 sm:py-16">
     <div class="max-w-5xl mx-auto px-4 sm:px-6 text-center">
       <span class="inline-block px-3 py-1 text-xs font-medium text-teal-700 bg-teal-100 rounded-full mb-4">
-        Live Coverage
+        Collection phase · since {stats.since}
       </span>
       <h1 class="text-stone-900 mb-4">
         Mapping Healthcare Working Hours<br class="hidden sm:block" /> Across Germany
@@ -39,38 +55,48 @@ const API_BASE = import.meta.env.PUBLIC_API_URL || 'https://api.openworkinghours
     <div class="max-w-5xl mx-auto px-4 sm:px-6">
       <h2 class="text-stone-900 mb-2">Coverage Status</h2>
       <p class="text-stone-600 mb-8">
-        See which regions are building toward the privacy threshold.
+        Where contributors are, and how close each region is to the first published statistic.
       </p>
 
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <!-- Map Container -->
         <div class="lg:col-span-2 bg-stone-50 rounded-xl p-6 min-h-[400px]" id="map-container">
-          <InteractiveMap client:load />
+          <InteractiveMap client:load coverage={stats.coverage} />
         </div>
 
         <!-- Stats Sidebar -->
         <div class="space-y-4">
-          <div class="bg-white border border-stone-200 rounded-xl p-6">
-            <h3 class="text-sm font-medium text-stone-500 uppercase tracking-wide mb-1">Contributors</h3>
-            <p class="text-3xl font-semibold text-stone-900" id="contributors-count">--</p>
-            <p class="text-sm text-stone-500">in the last 30 days</p>
+          <div class="grid grid-cols-2 gap-4">
+            <div class="bg-white border border-stone-200 rounded-xl p-5">
+              <h3 class="text-xs font-medium text-stone-500 uppercase tracking-wide mb-1">Contributors</h3>
+              <p class="text-3xl font-semibold text-stone-900">{stats.contributors}</p>
+              <p class="text-xs text-stone-500">registered</p>
+            </div>
+            <div class="bg-white border border-stone-200 rounded-xl p-5">
+              <h3 class="text-xs font-medium text-stone-500 uppercase tracking-wide mb-1">States</h3>
+              <p class="text-3xl font-semibold text-stone-900">{stats.statesRepresented}<span class="text-lg text-stone-400 font-normal"> / 16</span></p>
+              <p class="text-xs text-stone-500">represented</p>
+            </div>
+            <div class="bg-white border border-stone-200 rounded-xl p-5">
+              <h3 class="text-xs font-medium text-stone-500 uppercase tracking-wide mb-1">Hospitals</h3>
+              <p class="text-3xl font-semibold text-stone-900">{stats.hospitals}</p>
+              <p class="text-xs text-stone-500">represented</p>
+            </div>
+            <div class="bg-white border border-stone-200 rounded-xl p-5">
+              <h3 class="text-xs font-medium text-stone-500 uppercase tracking-wide mb-1">Hours</h3>
+              <p class="text-3xl font-semibold text-stone-900">{stats.hoursBand}</p>
+              <p class="text-xs text-stone-500">documented</p>
+            </div>
           </div>
 
           <div class="bg-white border border-stone-200 rounded-xl p-6">
-            <h3 class="text-sm font-medium text-stone-500 uppercase tracking-wide mb-1">Shifts Confirmed</h3>
-            <p class="text-3xl font-semibold text-stone-900" id="shifts-count">--</p>
-            <p class="text-sm text-stone-500">in the last 30 days</p>
-          </div>
-
-          <div class="bg-white border border-stone-200 rounded-xl p-6">
-            <h3 class="text-sm font-medium text-stone-500 uppercase tracking-wide mb-1">States Nearing Threshold</h3>
-            <p class="text-3xl font-semibold text-stone-900" id="states-count">--</p>
-            <p class="text-sm text-stone-500">not yet unlocked (1–4)</p>
-          </div>
-
-          <div class="bg-teal-50 border border-teal-200 rounded-xl p-4">
-            <p class="text-sm text-teal-800">
-              <strong>Privacy threshold:</strong> Statistics only shown when 5+ contributors are in a group.
+            <div class="flex items-baseline justify-between mb-1">
+              <h3 class="text-sm font-medium text-stone-500 uppercase tracking-wide">Statistics published</h3>
+              <p class="text-3xl font-semibold text-stone-900">{stats.statsPublished}</p>
+            </div>
+            <p class="text-sm text-stone-600">
+              Group statistics are published only when a group meets the minimum size of 5 and the further
+              privacy conditions described under <a href="#method" class="underline">How We Protect Your Data</a>.
             </p>
           </div>
         </div>
@@ -81,9 +107,9 @@ const API_BASE = import.meta.env.PUBLIC_API_URL || 'https://api.openworkinghours
   <!-- What Becomes Possible Section -->
   <section class="py-12 sm:py-16 bg-stone-50" id="insights">
     <div class="max-w-5xl mx-auto px-4 sm:px-6">
-      <h2 class="text-stone-900 mb-2">What We'll Reveal</h2>
+      <h2 class="text-stone-900 mb-2">Planned Statistics</h2>
       <p class="text-stone-600 mb-8">
-        When regions reach the privacy threshold, we can publish these insights.
+        Three aggregate figures, published per state and profession once a group meets the threshold.
       </p>
 
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -94,13 +120,13 @@ const API_BASE = import.meta.env.PUBLIC_API_URL || 'https://api.openworkinghours
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
             </svg>
           </div>
-          <h3 class="font-semibold text-stone-900 mb-2">Overtime Trends</h3>
-          <p class="text-sm text-stone-600 mb-4">Average weekly overtime by region and specialty.</p>
+          <h3 class="font-semibold text-stone-900 mb-2">Weekly Overtime</h3>
+          <p class="text-sm text-stone-600 mb-4">Average hours worked beyond the schedule, per group and week.</p>
           <span class="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-100 px-2 py-1 rounded-full">
             <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
               <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
             </svg>
-            Unlocks at 5+ contributors
+            Requires 5+ contributors per group
           </span>
         </div>
 
@@ -111,13 +137,13 @@ const API_BASE = import.meta.env.PUBLIC_API_URL || 'https://api.openworkinghours
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
           </div>
-          <h3 class="font-semibold text-stone-900 mb-2">Planned vs. Actual</h3>
-          <p class="text-sm text-stone-600 mb-4">Compare scheduled hours against reality.</p>
+          <h3 class="font-semibold text-stone-900 mb-2">Planned vs. Actual Hours</h3>
+          <p class="text-sm text-stone-600 mb-4">Scheduled and recorded weekly hours, side by side.</p>
           <span class="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-100 px-2 py-1 rounded-full">
             <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
               <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
             </svg>
-            Unlocks at 5+ contributors
+            Requires 5+ contributors per group
           </span>
         </div>
 
@@ -129,12 +155,12 @@ const API_BASE = import.meta.env.PUBLIC_API_URL || 'https://api.openworkinghours
             </svg>
           </div>
           <h3 class="font-semibold text-stone-900 mb-2">Regional Comparison</h3>
-          <p class="text-sm text-stone-600 mb-4">See how your region compares nationally.</p>
+          <p class="text-sm text-stone-600 mb-4">The same figures across states, with confidence intervals.</p>
           <span class="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-100 px-2 py-1 rounded-full">
             <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
               <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
             </svg>
-            Unlocks at 5+ contributors
+            Requires 5+ contributors per group
           </span>
         </div>
       </div>
@@ -587,10 +613,8 @@ const API_BASE = import.meta.env.PUBLIC_API_URL || 'https://api.openworkinghours
       if (!response.ok) throw new Error('Failed to fetch activity data');
       const data = await response.json();
 
-      // Update stats display
-      document.getElementById('contributors-count').textContent = data.contributors_range;
-      document.getElementById('shifts-count').textContent = data.shifts_confirmed.toString();
-      document.getElementById('states-count').textContent = `${data.states_building + data.states_available}/16`;
+      // Stats are a hardcoded snapshot (see frontmatter); nothing to update here.
+      void data;
     } catch (error) {
       console.error('Error loading activity data:', error);
     }
