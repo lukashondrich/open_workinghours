@@ -521,7 +521,7 @@ export const de = {
     reportIssueDefaultDataTitle: 'Standardmäßig gesendet',
     reportIssueDefaultDataBody: 'App-Version, Build-Nummer, Gerätemodell, Betriebssystem-Version, Anzahl der Arbeitsorte, aktuelle Geofence-Genauigkeits-/Ignorieren-Telemetrie sowie deine erfassten Zeiten der letzten 14 Tage (Beginn, Ende, Dauer, manuell oder automatisch) – ohne Namen oder Koordinaten von Arbeitsorten.',
     reportIssueLocationDiagnostics: 'Standortdiagnose einschließen',
-    reportIssueLocationDiagnosticsBody: 'Ergänzt gespeicherte Namen von Arbeitsorten, ungefähre Koordinaten auf etwa 100 m gerundet und aktuelle Geofence-Ereignisse mit Namen der Arbeitsorte.',
+    reportIssueLocationDiagnosticsBody: 'Ergänzt gespeicherte Namen von Arbeitsorten, ungefähre Koordinaten auf etwa 100 m gerundet sowie den Namen des Arbeitsorts an aktuellen Geofence-Ereignissen und erfassten Zeiten.',
     reportIssueRetention: 'Fehlerberichte werden nach 90 Tagen gelöscht oder früher, wenn du dein Konto löschst.',
     reportIssueSend: 'Bericht senden',
     reportSent: 'Bericht gesendet',

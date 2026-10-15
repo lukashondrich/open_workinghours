@@ -521,7 +521,7 @@ export const en = {
     reportIssueDefaultDataTitle: 'Sent by default',
     reportIssueDefaultDataBody: 'App version, build number, device model, OS version, work-location count, recent geofence accuracy/ignore telemetry, and your tracked sessions of the last 14 days (start and end times, duration, manual or automatic) — without workplace names or coordinates.',
     reportIssueLocationDiagnostics: 'Include location diagnostics',
-    reportIssueLocationDiagnosticsBody: 'Adds saved workplace names, approximate coordinates rounded to about 100 m, and recent geofence events with workplace names.',
+    reportIssueLocationDiagnosticsBody: 'Adds saved workplace names, approximate coordinates rounded to about 100 m, and the workplace name on recent geofence events and tracked sessions.',
     reportIssueRetention: 'Bug reports are deleted after 90 days, or sooner if your account is deleted.',
     reportIssueSend: 'Send report',
     reportSent: 'Report Sent',

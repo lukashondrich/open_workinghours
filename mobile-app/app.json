@@ -104,10 +104,11 @@
     },
     "android": {
       "package": "com.openworkinghours.mobileapp",
-      "versionCode": 9,
+      "versionCode": 10,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundImage": "./assets/adaptive-icon-background.png",
+        "backgroundColor": "#2e8b6b"
       },
       "edgeToEdgeEnabled": false,
       "predictiveBackGestureEnabled": false,
