@@ -94,11 +94,11 @@ Official store badges live in `website/public/badges/` and are used on `/` (hero
 | File | Store | Locale | State |
 |------|-------|--------|-------|
 | `app-store-en.svg` / `app-store-de.svg` | Apple App Store | EN / DE | **Live** (linked) |
-| `google-play-en.png` / `google-play-de.png` | Google Play | EN / DE | Dimmed + "Coming soon" (Android still internal) |
+| `google-play-en.png` / `google-play-de.png` | Google Play | EN / DE | Live since 2026-10-16, linked with UTM (see below) |
 
 **Use the official artwork only — do not recreate the badges as custom SVG/CSS.** Apple and Google both require their official badge assets and forbid modification (clear space, no recoloring). Sources: Apple's marketing-tools API (`toolbox.marketingtools.apple.com/api/v2/badges/download-on-the-app-store/black/<locale>`) and Google's Play brand page (`play.google.com/intl/<locale>/badges/`). Regenerate from those sources if a locale is added.
 
-**App Store link:** `https://apps.apple.com/app/open-working-hours/id6755491395` (app id `6755491395`). Use this canonical slug form everywhere. Activate the Google Play badge (add `href`, drop the dimming and "Coming soon") once Android goes public.
+**App Store link:** `https://apps.apple.com/app/open-working-hours/id6755491395` (app id `6755491395`). Use this canonical slug form everywhere. Google Play link: `https://play.google.com/store/apps/details?id=com.openworkinghours.mobileapp` plus `&utm_source=openworkinghours.org&utm_medium=<placement>` where placement is `download-page`, `homepage` or `dashboard` — Play Console attributes installs per placement (Statistiken → Akquisition). No tracker on the site; the parameter is only read by Google's store page. Keep the three placements distinct, don't add campaign/content fields.
 
 ## Design System
 
@@ -167,4 +167,4 @@ The dashboard fetches data from these backend endpoints:
 ### Pending Items
 - Contact form email notification to admin (not yet implemented)
 - `contact@openworkinghours.org` email setup
-- Google Play badge activation (Android still internal testing) — iOS App Store link is live as of 2026-07-08
+- ~~Google Play badge activation~~ — done 2026-10-16 (Android production live); iOS App Store link live since 2026-07-08

@@ -1,7 +1,7 @@
 # Claude Context: Open Working Hours
 
-**Last Updated:** 2026-10-15
-**Current Build:** iOS #75 / v2.1.5 — uploaded to TestFlight 2026-10-09 for owner dogfooding (calendar batch + shared tracking pieces, iOS core unchanged, picker tab "Erfassen/Log"); Android vc9 / v2.1.5 live in the Play closed test since 2026-09-29 (tester confirmed all his issues fixed), production access granted 2026-10-07, production release deliberately waits for the iOS dogfooding. **Play production prep done 2026-10-15** (policy, feature graphic, screenshots, EN listing draft — see Recent Updates); remaining steps are Console work, listed in `project-mgmt/android-launch-checklist.md` → STATUS. Previously: #72 / v2.1.4 — SUBMITTED for App Review 2026-08-13 (confirmation-counting release: locked days count as confirmed, fraction counts every elapsed day, live Status refresh, month-cell spacing) **with the new panoramic screenshots** (first store use). v2.1.3 (#69) remains LIVE until approval. Lawyer's HWG/GDPR description pass still outstanding — next metadata update.
+**Last Updated:** 2026-10-16
+**Current Build:** iOS #75 / v2.1.5 — uploaded to TestFlight 2026-10-09 for owner dogfooding (calendar batch + shared tracking pieces, iOS core unchanged, picker tab "Erfassen/Log"); **Android vc10 / v2.1.5 LIVE on Google Play (production, Germany) since 2026-10-16** — first public Android release (listing DE+EN, green adaptive icon, consent text names sessions). Store link: `https://play.google.com/store/apps/details?id=com.openworkinghours.mobileapp`. Post-launch follow-ups in `project-mgmt/android-launch-checklist.md` → STATUS (R8 by Feb 2027, other countries → `ticket-countries-beyond-germany.md`). Previously: #72 / v2.1.4 — SUBMITTED for App Review 2026-08-13 (confirmation-counting release: locked days count as confirmed, fraction counts every elapsed day, live Status refresh, month-cell spacing) **with the new panoramic screenshots** (first store use). v2.1.3 (#69) remains LIVE until approval. Lawyer's HWG/GDPR description pass still outstanding — next metadata update.
 ---
 
 ## Project Overview
@@ -28,8 +28,8 @@
 
 | Component | Status | Location |
 |-----------|--------|----------|
-| **React Native Mobile App (iOS)** | Live on the App Store (v2.1.0) | `mobile-app/` |
-| **React Native Mobile App (Android)** | **Closed Test (Alpha) LIVE on Google Play, vc7/v2.1.4** (parity with iOS; swipe fix + SHA-1/OAuth/icon all done, A14-verified 2026-08-23) — next: 12+ testers × 14 days → production access | `mobile-app/` |
+| **React Native Mobile App (iOS)** | Live on the App Store (v2.1.4 build 72; 2.1.5 (75) on TestFlight) | `mobile-app/` |
+| **React Native Mobile App (Android)** | **Live on Google Play (production, Germany) since 2026-10-16, vc10/v2.1.5** — Android tracking core = heartbeat model (differs from iOS by design); closed-test track stays as the pre-release channel | `mobile-app/` |
 | **FastAPI Backend** | Production (Hetzner) | `backend/` |
 | **Astro Website** | Live (openworkinghours.org) | `website/` |
 | **Next.js Dashboard** | Deprecated | Root (unused) |
@@ -206,6 +206,28 @@ All new UI **must** be testable by Appium (XCUITest on iOS, UiAutomator2 on Andr
 ---
 
 ## Recent Updates (Last 7 Days)
+
+### 2026-10-16: Android LIVE on Google Play — first public Android release (vc10 / 2.1.5)
+
+- **Timeline:** vc10 built 10-15 (brand-green adaptive icon, "Include location diagnostics"
+  text names sessions, versionCode 10) → closed-test release sent by the owner 10-16 morning,
+  published within the hour → store listing updated via Chrome automation (DE description
+  sentence, **the green icon finally applied** — it had sat unused in the asset library since
+  08-22 —, 6 new DE screenshots, **EN listing added** with 6 EN screenshots) → 4 changes
+  approved by midday → **production release (Germany only, full roll-out) submitted and
+  approved the same afternoon.** Owner decision: no waiting for the iOS 2.1.5 dogfooding
+  (production ≠ announcement).
+- **Data safety form** reviewed, unchanged: bug-report session telemetry is covered by the
+  declared "Diagnosedaten" + "Andere von Nutzern erstellte Inhalte" (both optional).
+- **Website:** Play badge live on `/download`, both homepages, `/dashboard` (EN+DE) with a
+  UTM-tagged link (`utm_source=openworkinghours.org&utm_medium=download-page|homepage|dashboard`
+  — read in Play Console → Statistiken → Akquisition; no tracker on the site); JSON-LD
+  `operatingSystem` now "iOS, Android"; `/product` and `/team` status lines updated.
+- **Open after launch:** R8/DEX optimisation ("Erfordert Aktion", deadline **Feb 2027**, needs
+  its own E2E pass); edge-to-edge API + large-screen-resize recommendations (non-blocking);
+  other countries → `project-mgmt/ticket-countries-beyond-germany.md` (app change first:
+  honest registration outside Germany); iOS description's "only US touchpoint" sentence with
+  the lawyer's HWG pass. Local AABs deleted. Console quirks recorded in the checklist.
 
 ### 2026-10-15: Google Play production prep (website + store assets, no app change)
 
@@ -435,7 +457,7 @@ Earlier in the pipeline (2026-07-30/31): react-native-maps 1.20.1→1.29.0
 
 **What shipped:**
 - Homepage reoriented to **dual-audience** (Option C): official App Store badge as the primary hero CTA, institutional pilot-partner path preserved. "Closed Beta"/"TestFlight" copy replaced with truthful launch status across `/`, `/download`, `/dashboard`, `/product`, `/team` (EN+DE).
-- **Official** Apple + Google store badges (`website/public/badges/`) with the live canonical App Store link. Google Play stays "Coming soon" (Android internal). Badges must stay official — see `website/README.md` → "Store Badges".
+- **Official** Apple + Google store badges (`website/public/badges/`) with the live canonical App Store link. Google Play stayed "Coming soon" until the Android production release (badge activated 2026-10-16 with a UTM-tagged link). Badges must stay official — see `website/README.md` → "Store Badges".
 - GPS privacy wording harmonized with the policy docs (precise location stays on-device; workplace search optional, approximate ~1 km to Komoot/Photon).
 - **SEO basics + Apple Smart App Banner** (`app-id=6755491395`): sitemap, `robots.txt`, canonical URLs, global OG/Twitter tags, JSON-LD, stronger homepage titles. Deferred: hreflang, analytics.
 - Deployed from `main` via Vercel. Source plan archived at `archive/share-app-2026-04.md`; workstream + open follow-ups in `project-mgmt/WORKSTREAMS.md` §8.

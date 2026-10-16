@@ -32,7 +32,7 @@ This document provides a high-level architectural overview of the Open Working H
 
 | Component | Purpose | Status | Documentation |
 |-----------|---------|--------|---------------|
-| **Mobile App** | iOS + Android app for healthcare workers to track hours | Production (TestFlight) + Android internal testing | [`mobile-app/ARCHITECTURE.md`](mobile-app/ARCHITECTURE.md) |
+| **Mobile App** | iOS + Android app for healthcare workers to track hours | Live on the App Store (since 2026-07-08) and Google Play (since 2026-10-16, Germany) | [`mobile-app/ARCHITECTURE.md`](mobile-app/ARCHITECTURE.md) |
 | **Backend** | FastAPI server with auth, storage, aggregation | Production (Hetzner) | [`backend/ARCHITECTURE.md`](backend/ARCHITECTURE.md) |
 | **Website** | Astro dossier site for outreach | Live | [`website/README.md`](website/README.md) |
 | **Next.js Dashboard** | Web analytics dashboard | Deprecated | — |

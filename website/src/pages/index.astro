@@ -5,19 +5,19 @@ const jsonLd = {
   '@context': 'https://schema.org',
   '@type': 'SoftwareApplication',
   name: 'Open Working Hours',
-  operatingSystem: 'iOS',
+  operatingSystem: 'iOS, Android',
   applicationCategory: 'BusinessApplication',
   offers: { '@type': 'Offer', price: '0', priceCurrency: 'EUR' },
   url: 'https://openworkinghours.org',
   downloadUrl: 'https://apps.apple.com/app/open-working-hours/id6755491395',
-  description: 'Privacy-first iOS app for healthcare workers to automatically track working hours and make overtime visible. Geofencing clock-in/out, GDPR-compliant, data stays on the device.',
+  description: 'Privacy-first app (iOS and Android) for healthcare workers to automatically track working hours and make overtime visible. Geofencing clock-in/out, GDPR-compliant, data stays on the device.',
   publisher: { '@type': 'Organization', name: 'Open Working Hours', url: 'https://openworkinghours.org' },
 };
 ---
 
 <Layout
   title="Automatic working-hours tracking for healthcare workers"
-  description="Free, privacy-first iOS app for healthcare workers to track working hours automatically. Geofencing clock-in/out, GDPR-compliant, your data stays on your device."
+  description="Free, privacy-first app (iOS and Android) for healthcare workers to track working hours automatically. Geofencing clock-in/out, GDPR-compliant, your data stays on your device."
 >
   <Fragment slot="head">
     <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
@@ -28,7 +28,7 @@ const jsonLd = {
       <div class="signal-hero-grid">
         <!-- Left: Text and CTAs -->
         <div class="signal-hero-content">
-          <span class="signal-badge">Now on the App Store</span>
+          <span class="signal-badge">Now on the App Store and Google Play</span>
 
           <h1 class="signal-headline">
             Track hours automatically. Improve working conditions.
@@ -41,6 +41,9 @@ const jsonLd = {
           <div class="signal-cta-group" style="align-items: center;">
             <a href="https://apps.apple.com/app/open-working-hours/id6755491395" target="_blank" rel="noopener" aria-label="Download on the App Store">
               <img src="/badges/app-store-en.svg" alt="Download on the App Store" class="h-12 w-auto" />
+            </a>
+            <a href="https://play.google.com/store/apps/details?id=com.openworkinghours.mobileapp&utm_source=openworkinghours.org&utm_medium=homepage" target="_blank" rel="noopener" aria-label="Get it on Google Play">
+              <img src="/badges/google-play-en.png" alt="Get it on Google Play" class="h-12 w-auto" />
             </a>
             <a href="/dashboard#institutions" class="signal-btn-secondary">
               For clinics &amp; unions →
@@ -446,7 +449,7 @@ const jsonLd = {
             </svg>
           </div>
           <h4>Status</h4>
-          <p>Live on the iOS App Store. Android coming soon.</p>
+          <p>Live on the App Store and Google Play.</p>
         </div>
       </div>
     </div>
