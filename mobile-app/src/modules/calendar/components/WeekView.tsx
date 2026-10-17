@@ -35,6 +35,7 @@ import {
   calculateMinZoom,
   HEADER_HEIGHT,
   TIME_COLUMN_WIDTH,
+  GUTTER_LABEL_FONT_SIZE,
 } from '@/lib/calendar/zoom-context';
 import {
   calculateShiftDisplay,
@@ -2589,7 +2590,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xs,
   },
   timeCellText: {
-    fontSize: 10,
+    fontSize: GUTTER_LABEL_FONT_SIZE,
     color: colors.text.tertiary,
   },
   dayColumn: {

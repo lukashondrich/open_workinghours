@@ -23,10 +23,17 @@ import {
   type MonthSummary,
 } from '@/lib/calendar/calendar-utils';
 import type { TrackingRecord } from '@/lib/calendar/types';
+import { GUTTER_LABEL_FONT_SIZE } from '@/lib/calendar/zoom-context';
 import { t } from '@/lib/i18n';
 
 /** Collapsed height; the parent subtracts it from the zoom-to-fit budget. */
-export const WEEK_TOTALS_ROW_HEIGHT = 36;
+export const WEEK_TOTALS_ROW_HEIGHT = 32;
+
+/**
+ * Below this column width (pinch-zoomed out) the day sums drop to the gutter's
+ * hour-label size so "8h 30′" still fits in one line instead of truncating.
+ */
+const COMPACT_DAY_WIDTH = 64;
 
 interface WeekTotalsRowProps {
   weekDays: Date[];
@@ -55,6 +62,7 @@ export default function WeekTotalsRow({
   onInfoPress,
 }: WeekTotalsRowProps) {
   const planMode = !summary.hasElapsedDays;
+  const compactSums = dayWidth < COMPACT_DAY_WIDTH;
   const plannedShown = planMode ? summary.monthPlannedMinutes : summary.plannedMinutes;
   const overtimeColor =
     summary.overtimeMinutes > 0
@@ -76,7 +84,7 @@ export default function WeekTotalsRow({
         <Pressable
           onPress={onToggleExpanded}
           style={styles.totalsSigmaRow}
-          hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+          hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }} // 32 pt row + 6/6 = 44 pt target
           accessible={true}
           accessibilityRole="button"
           accessibilityState={{ expanded }}
@@ -158,7 +166,7 @@ export default function WeekTotalsRow({
         return (
           <View key={dateKey} style={[styles.totalsCell, { width: dayWidth }]} testID={`week-day-total-${dateKey}`}>
             {hasTracking && (
-              <Text style={styles.totalsText} numberOfLines={1}>
+              <Text style={[styles.totalsText, compactSums && styles.totalsTextCompact]} numberOfLines={1}>
                 {formatDuration(trackedMinutes)}
               </Text>
             )}
@@ -226,9 +234,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  // Secondary figure: one step under the in-block duration (xs/semibold) so
+  // the row reads as a quiet footer, not a second headline (owner, 2.1.5).
   totalsText: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.medium,
     color: colors.error.dark,
+  },
+  totalsTextCompact: {
+    fontSize: GUTTER_LABEL_FONT_SIZE, // same as the gutter's hour labels (WeekView.timeCellText)
   },
 });

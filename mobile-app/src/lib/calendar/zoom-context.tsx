@@ -98,6 +98,8 @@ export function getHourMarkerInterval(scale: number): number {
 
 // Layout constants for min zoom calculation
 export const TIME_COLUMN_WIDTH = 60;
+/** Font size of the gutter's hour labels; the Σ row's compact day sums use the same size. */
+export const GUTTER_LABEL_FONT_SIZE = 10;
 export const HEADER_HEIGHT = 50; // Day header row height
 
 // Calculate dynamic minimum zoom to fit calendar in viewport

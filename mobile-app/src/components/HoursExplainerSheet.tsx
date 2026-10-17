@@ -11,12 +11,15 @@ import {
 } from 'react-native';
 import { useSheetSlide } from '@/components/ui/useSheetSlide';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X } from 'lucide-react-native';
+import { X, MapPin, CalendarDays, Check } from 'lucide-react-native';
 
 import { AppText as Text } from '@/components/ui/AppText';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/theme';
 import { t } from '@/lib/i18n';
 import { isTestMode } from '@/lib/testing/mockApi';
+
+/** Matches the stroke weight of the 11–13px icons in the Σ cell at body size. */
+const ICON_SIZE = 14;
 
 interface Props {
   visible: boolean;
@@ -54,11 +57,35 @@ export default function HoursExplainerSheet({ visible, onClose }: Props) {
     return () => sub.remove();
   }, [visible, onClose]);
 
-  const bullets = [
-    { title: t('hoursExplainer.plannedTitle'), body: t('hoursExplainer.plannedBody') },
-    { title: t('hoursExplainer.trackedTitle'), body: t('hoursExplainer.trackedBody') },
-    { title: t('hoursExplainer.overtimeTitle'), body: t('hoursExplainer.overtimeBody') },
-    { title: t('hoursExplainer.confirmedTitle'), body: t('hoursExplainer.confirmedBody') },
+  // Symbols are the same ones the week view's Σ cell (WeekTotalsRow) puts
+  // next to each figure, so the explainer and the stack match one-to-one:
+  // CalendarDays = planned, MapPin = tracked, ± = overtime, Check = confirmed.
+  const iconColor = colors.text.tertiary;
+  const bullets: { title: string; body: string; icon?: React.ReactNode }[] = [
+    {
+      title: t('hoursExplainer.plannedTitle'),
+      body: t('hoursExplainer.plannedBody'),
+      icon: <CalendarDays size={ICON_SIZE} color={iconColor} />,
+    },
+    {
+      title: t('hoursExplainer.trackedTitle'),
+      body: t('hoursExplainer.trackedBody'),
+      icon: <MapPin size={ICON_SIZE} color={iconColor} />,
+    },
+    {
+      title: t('hoursExplainer.overtimeTitle'),
+      body: t('hoursExplainer.overtimeBody'),
+      icon: (
+        <Text style={styles.bulletGlyph} maxFontSizeMultiplier={1}>
+          ±
+        </Text>
+      ),
+    },
+    {
+      title: t('hoursExplainer.confirmedTitle'),
+      body: t('hoursExplainer.confirmedBody'),
+      icon: <Check size={ICON_SIZE} color={iconColor} />,
+    },
     { title: t('hoursExplainer.contributionTitle'), body: t('hoursExplainer.contributionBody') },
     { title: t('hoursExplainer.futureMonthsTitle'), body: t('hoursExplainer.futureMonthsBody') },
   ];
@@ -106,7 +133,10 @@ export default function HoursExplainerSheet({ visible, onClose }: Props) {
         <ScrollView style={styles.bulletScroll} bounces={false}>
           {bullets.map((b) => (
             <View key={b.title} style={styles.bullet}>
-              <Text style={styles.bulletTitle}>{b.title}</Text>
+              <View style={styles.bulletTitleRow}>
+                <Text style={styles.bulletTitle}>{b.title}</Text>
+                {b.icon && <View style={styles.bulletIcon}>{b.icon}</View>}
+              </View>
               <Text style={styles.bulletBody}>{b.body}</Text>
             </View>
           ))}
@@ -164,11 +194,31 @@ const styles = StyleSheet.create({
   bullet: {
     marginBottom: spacing.md,
   },
+  bulletTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 2,
+  },
+  // Symbol trails the title (owner's call, 2026-10-17). Fixed width only; no
+  // fixed height, so the ± glyph can't be clipped by Android's font padding /
+  // default overflow clipping.
+  bulletIcon: {
+    width: ICON_SIZE,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bulletGlyph: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.regular, // same weight as the Σ stack's ± (totalsStackIconText)
+    color: colors.text.tertiary,
+    textAlign: 'center',
+  },
   bulletTitle: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.semibold,
     color: colors.text.primary,
-    marginBottom: 2,
+    flexShrink: 1,
   },
   bulletBody: {
     fontSize: fontSize.sm,
