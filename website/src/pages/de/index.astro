@@ -38,7 +38,7 @@ const jsonLd = {
             Open Working Hours hilft Beschäftigten im Gesundheitswesen, reale Arbeitszeiten einfach zu dokumentieren – und strukturelle Probleme greifbar zu machen.
           </p>
 
-          <div class="signal-cta-group" style="align-items: center;">
+          <div class="signal-cta-group">
             <a href="https://apps.apple.com/app/open-working-hours/id6755491395" target="_blank" rel="noopener" aria-label="Im App Store laden">
               <img src="/badges/app-store-de.svg" alt="Im App Store laden" class="h-12 w-auto" />
             </a>
@@ -56,6 +56,7 @@ const jsonLd = {
           <div class="signal-phone">
             <img
               src="/screenshots/status-dashboard.png"
+              width="1290" height="2796" fetchpriority="high" decoding="async"
               alt="Status Dashboard mit 14-Tage-Übersicht"
             />
           </div>
@@ -96,17 +97,17 @@ const jsonLd = {
               <style>
                 .geofence-circle {
                   fill: none;
-                  stroke: #0d9488;
+                  stroke: var(--color-teal-500);
                   stroke-width: 2;
                   stroke-dasharray: 8 4;
                   opacity: 0.6;
                 }
                 .geofence-fill {
-                  fill: #0d9488;
+                  fill: var(--color-teal-500);
                   opacity: 0;
                 }
                 .location-pin {
-                  fill: #0d9488;
+                  fill: var(--color-teal-500);
                 }
                 .person-dot {
                   fill: #44403c;
@@ -114,14 +115,14 @@ const jsonLd = {
                 }
                 .pulse-ring {
                   fill: none;
-                  stroke: #0d9488;
+                  stroke: var(--color-teal-500);
                   stroke-width: 2;
                   opacity: 0;
                   animation: pulseRing 3s ease-out infinite;
                 }
                 .check-icon {
                   fill: none;
-                  stroke: #0d9488;
+                  stroke: var(--color-teal-500);
                   stroke-width: 3;
                   stroke-linecap: round;
                   stroke-linejoin: round;
@@ -137,7 +138,7 @@ const jsonLd = {
                   font-family: system-ui, -apple-system, sans-serif;
                   font-size: 11px;
                   font-weight: 600;
-                  fill: #0d9488;
+                  fill: var(--color-teal-500);
                 }
                 @keyframes movePerson {
                   0% { transform: translate(-40px, -40px); opacity: 0; }
@@ -159,6 +160,11 @@ const jsonLd = {
                 @keyframes showTime {
                   0%, 60% { opacity: 0; transform: translateY(5px); }
                   70%, 100% { opacity: 1; transform: translateY(0); }
+                }
+                @media (prefers-reduced-motion: reduce) {
+                  .person-dot { opacity: 1; transform: none; }
+                  .check-icon { stroke-dashoffset: 0; opacity: 1; }
+                  .time-badge { opacity: 1; transform: none; }
                 }
               </style>
               <circle class="geofence-circle" cx="120" cy="120" r="65" />
@@ -199,7 +205,7 @@ const jsonLd = {
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240">
               <style>
                 .bar {
-                  fill: #0d9488;
+                  fill: var(--color-teal-500);
                   transform-origin: bottom;
                 }
                 .bar-1 { animation: growBar1 4s ease-out infinite; }
@@ -336,12 +342,12 @@ const jsonLd = {
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240">
               <style>
                 .shield-fill {
-                  fill: #0d9488;
+                  fill: var(--color-teal-500);
                   opacity: 0.15;
                 }
                 .shield-outline {
                   fill: none;
-                  stroke: #0d9488;
+                  stroke: var(--color-teal-500);
                   stroke-width: 3;
                   stroke-linecap: round;
                   stroke-linejoin: round;
@@ -355,13 +361,19 @@ const jsonLd = {
                 }
                 .glow-ring {
                   fill: none;
-                  stroke: #0d9488;
+                  stroke: var(--color-teal-500);
                   stroke-width: 2;
                   opacity: 0;
                   animation: pulseGlow 2s ease-out infinite;
                 }
                 .lock-icon {
-                  fill: #0d9488;
+                  fill: var(--color-teal-500);
+                }
+                .lock-shackle {
+                  fill: none;
+                  stroke: var(--color-teal-500);
+                  stroke-width: 2;
+                  stroke-linecap: round;
                 }
                 .protected-dots {
                   fill: #e7e5e4;
@@ -397,7 +409,7 @@ const jsonLd = {
               <path class="checkmark" d="M95 120 L112 137 L145 104" />
               <g class="lock-icon" transform="translate(110, 200)">
                 <rect x="2" y="8" width="16" height="12" rx="2" />
-                <path d="M5 8 L5 5 C5 2 7 0 10 0 C13 0 15 2 15 5 L15 8" fill="none" stroke="#0d9488" stroke-width="2" stroke-linecap="round" />
+                <path d="M5 8 L5 5 C5 2 7 0 10 0 C13 0 15 2 15 5 L15 8" class="lock-shackle" />
               </g>
             </svg>
           </div>
@@ -462,7 +474,7 @@ const jsonLd = {
       <p class="signal-body">
         Wir suchen Pilotpartner*innen: Stationen, Kliniken oder Teams, die dabei sein wollen.
       </p>
-      <div class="signal-cta-group signal-cta-group-center" style="align-items: center;">
+      <div class="signal-cta-group signal-cta-group-center">
         <a href="/de/team" class="signal-btn-primary">
           Kontakt aufnehmen
         </a>
@@ -470,8 +482,8 @@ const jsonLd = {
           Live-Dashboard ansehen
         </a>
       </div>
-      <p class="signal-body" style="margin-top: 24px;">Nur deine eigenen Stunden erfassen?</p>
-      <div class="signal-cta-group signal-cta-group-center" style="margin-top: 12px;">
+      <p class="signal-body signal-body-spaced">Nur deine eigenen Stunden erfassen?</p>
+      <div class="signal-cta-group signal-cta-group-center signal-cta-group-tight">
         <a href="https://apps.apple.com/app/open-working-hours/id6755491395" target="_blank" rel="noopener" aria-label="Im App Store laden">
           <img src="/badges/app-store-de.svg" alt="Im App Store laden" class="h-12 w-auto" />
         </a>
@@ -495,8 +507,14 @@ const jsonLd = {
 
   /* Hero Section */
   .signal-hero {
-    padding: 64px 0 48px;
+    padding: 48px 0 40px;
     background: #ffffff;
+  }
+
+  @media (min-width: 768px) {
+    .signal-hero {
+      padding: 72px 0 56px;
+    }
   }
 
   .signal-hero-grid {
@@ -526,8 +544,8 @@ const jsonLd = {
   .signal-badge {
     display: inline-block;
     padding: 5px 12px;
-    background: #f0fdfa;
-    color: #0d9488;
+    background: var(--color-teal-50);
+    color: var(--color-teal-600);
     font-size: 12px;
     font-weight: 600;
     border-radius: 16px;
@@ -536,7 +554,8 @@ const jsonLd = {
   }
 
   .signal-headline {
-    font-size: clamp(1.75rem, 4vw, 2.5rem);
+    text-wrap: balance;
+    font-size: clamp(1.875rem, 4vw, 2.75rem);
     font-weight: 700;
     line-height: 1.2;
     color: #1c1917;
@@ -562,8 +581,17 @@ const jsonLd = {
   .signal-cta-group {
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
+    align-items: center;
+    gap: 12px;
     justify-content: center;
+  }
+
+  .signal-cta-group-tight {
+    margin-top: 12px;
+  }
+
+  .signal-body-spaced {
+    margin-top: 24px;
   }
 
   @media (min-width: 768px) {
@@ -580,8 +608,9 @@ const jsonLd = {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    min-height: 48px;
     padding: 12px 24px;
-    background: #0d9488;
+    background: var(--color-teal-500);
     color: #ffffff;
     font-size: 15px;
     font-weight: 500;
@@ -591,13 +620,14 @@ const jsonLd = {
   }
 
   .signal-btn-primary:hover {
-    background: #0f766e;
+    background: var(--color-teal-600);
   }
 
   .signal-btn-secondary {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    min-height: 48px;
     padding: 12px 24px;
     background: #ffffff;
     color: #44403c;
@@ -630,7 +660,9 @@ const jsonLd = {
     background: #1c1917;
     border-radius: 32px;
     padding: 8px;
-    box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.2);
+    box-shadow:
+      0 24px 48px -16px rgba(28, 25, 23, 0.35),
+      0 0 0 1px rgba(255, 255, 255, 0.08) inset;
   }
 
   @media (min-width: 768px) {
@@ -655,7 +687,13 @@ const jsonLd = {
 
   /* Sections */
   .signal-section {
-    padding: 56px 0;
+    padding: 48px 0;
+  }
+
+  @media (min-width: 768px) {
+    .signal-section {
+      padding: 64px 0;
+    }
   }
 
   .signal-section-gray {
@@ -725,19 +763,20 @@ const jsonLd = {
     align-items: center;
     font-size: 0.9375rem;
     font-weight: 500;
-    color: #0d9488;
+    color: var(--color-teal-600);
     text-decoration: none;
     transition: color 0.15s ease;
   }
 
   .signal-feature-link:hover {
-    color: #0f766e;
+    color: var(--color-teal-700);
     text-decoration: underline;
+    text-underline-offset: 3px;
   }
 
   .signal-feature-highlight {
     font-weight: 600;
-    color: #0d9488;
+    color: var(--color-teal-600);
     font-style: italic;
   }
 
@@ -802,7 +841,7 @@ const jsonLd = {
   .signal-info-icon {
     width: 20px;
     height: 20px;
-    color: #0d9488;
+    color: var(--color-teal-500);
     margin: 0 auto 8px;
   }
 

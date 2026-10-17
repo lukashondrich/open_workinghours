@@ -63,7 +63,7 @@ const stateNameToCode: { [name: string]: string } = {
 const colors = {
   noData: '#D6D3D1',     // Stone-300
   building: '#FBBF24',   // Amber-400
-  available: '#0D9488',  // Teal-600
+  available: '#2E8B6B',  // brand teal-500 (matches --color-teal-500)
   hospitalDot: '#44403C',  // Stone-700 — neutral, distinct from the teal "threshold reached" fill
   hospitalHover: '#1C1917', // Stone-900
   border: '#A8A29E',     // Stone-400
@@ -271,21 +271,21 @@ export default function InteractiveMap({ locale = 'en', coverage: coverageProp }
       )}
 
       {/* Legend */}
-      <div className="flex items-center justify-center gap-6 mt-4 text-sm text-stone-600">
+      <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 mt-4 text-sm text-stone-600">
         <div className="flex items-center gap-2">
-          <span className="w-3 h-3 rounded-full" style={{ backgroundColor: colors.hospitalDot }} />
+          <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: colors.hospitalDot }} />
           <span>{t.hospital}</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="w-4 h-3 rounded-sm" style={{ backgroundColor: colors.noData }} />
+          <span className="w-4 h-3 rounded-sm shrink-0" style={{ backgroundColor: colors.noData }} />
           <span>{t.noData}</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="w-4 h-3 rounded-sm" style={{ backgroundColor: colors.building }} />
+          <span className="w-4 h-3 rounded-sm shrink-0" style={{ backgroundColor: colors.building }} />
           <span>{t.building}</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="w-4 h-3 rounded-sm" style={{ backgroundColor: colors.available }} />
+          <span className="w-4 h-3 rounded-sm shrink-0" style={{ backgroundColor: colors.available }} />
           <span>{t.available}</span>
         </div>
       </div>

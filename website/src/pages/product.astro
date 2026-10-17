@@ -7,7 +7,7 @@ import Layout from '../layouts/Layout.astro';
     <!-- Header -->
     <header class="mb-12">
       <h1 class="text-stone-900 mb-4">Product</h1>
-      <p class="text-xl text-stone-600 max-w-2xl">
+      <p class="text-lg sm:text-xl text-stone-600 max-w-2xl">
         An app designed for the realities of healthcare work: long shifts, unpredictable schedules, and limited time for administrative tasks.
       </p>
     </header>
@@ -19,8 +19,8 @@ import Layout from '../layouts/Layout.astro';
         <!-- Step 1 -->
         <div class="flex flex-col items-center text-center">
           <div class="w-12 h-12 rounded-full bg-teal-600 text-white flex items-center justify-center text-xl font-bold mb-4">1</div>
-          <div class="bg-stone-50 rounded-xl overflow-hidden shadow-sm mb-3 w-full max-w-[200px]">
-            <img src="/screenshots/location-setup.png" alt="Set up geofencing" class="w-full h-auto" />
+          <div class="bg-white rounded-2xl overflow-hidden border border-stone-200 shadow-sm mb-4 w-full max-w-[200px]">
+            <img loading="lazy" decoding="async" src="/screenshots/location-setup.png" alt="Set up geofencing" class="w-full h-auto" />
           </div>
           <h3 class="font-semibold text-stone-900 mb-1">Set up your location</h3>
           <p class="text-sm text-stone-600">Define a geofencing zone around your workplace.</p>
@@ -28,8 +28,8 @@ import Layout from '../layouts/Layout.astro';
         <!-- Step 2 -->
         <div class="flex flex-col items-center text-center">
           <div class="w-12 h-12 rounded-full bg-teal-600 text-white flex items-center justify-center text-xl font-bold mb-4">2</div>
-          <div class="bg-stone-50 rounded-xl overflow-hidden shadow-sm mb-3 w-full max-w-[200px]">
-            <img src="/screenshots/calendar-week.png" alt="Enter shifts" class="w-full h-auto" />
+          <div class="bg-white rounded-2xl overflow-hidden border border-stone-200 shadow-sm mb-4 w-full max-w-[200px]">
+            <img loading="lazy" decoding="async" src="/screenshots/calendar-week.png" alt="Enter shifts" class="w-full h-auto" />
           </div>
           <h3 class="font-semibold text-stone-900 mb-1">Enter your shifts</h3>
           <p class="text-sm text-stone-600">Add planned shifts to your calendar.</p>
@@ -37,8 +37,8 @@ import Layout from '../layouts/Layout.astro';
         <!-- Step 3 -->
         <div class="flex flex-col items-center text-center">
           <div class="w-12 h-12 rounded-full bg-teal-600 text-white flex items-center justify-center text-xl font-bold mb-4">3</div>
-          <div class="bg-stone-50 rounded-xl overflow-hidden shadow-sm mb-3 w-full max-w-[200px]">
-            <img src="/screenshots/status-dashboard.png" alt="See results" class="w-full h-auto" />
+          <div class="bg-white rounded-2xl overflow-hidden border border-stone-200 shadow-sm mb-4 w-full max-w-[200px]">
+            <img loading="lazy" decoding="async" src="/screenshots/status-dashboard.png" alt="See results" class="w-full h-auto" />
           </div>
           <h3 class="font-semibold text-stone-900 mb-1">See your results</h3>
           <p class="text-sm text-stone-600">Working hours and overtime are calculated automatically.</p>
@@ -49,15 +49,15 @@ import Layout from '../layouts/Layout.astro';
     <!-- UX Callouts -->
     <section class="mb-16">
       <div class="grid sm:grid-cols-3 gap-6">
-        <div class="p-6 bg-stone-50 rounded-lg border border-stone-200">
+        <div class="p-6 bg-white rounded-xl border border-stone-200">
           <div class="text-2xl font-semibold text-stone-900 mb-1">&lt; 1 min</div>
           <div class="text-stone-600">Daily time investment</div>
         </div>
-        <div class="p-6 bg-stone-50 rounded-lg border border-stone-200">
+        <div class="p-6 bg-white rounded-xl border border-stone-200">
           <div class="text-2xl font-semibold text-stone-900 mb-1">Automatic</div>
           <div class="text-stone-600">Geofence-based tracking</div>
         </div>
-        <div class="p-6 bg-stone-50 rounded-lg border border-stone-200">
+        <div class="p-6 bg-white rounded-xl border border-stone-200">
           <div class="text-2xl font-semibold text-stone-900 mb-1">Offline-first</div>
           <div class="text-stone-600">Local data storage</div>
         </div>

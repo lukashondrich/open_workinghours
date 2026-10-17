@@ -13,12 +13,15 @@ const fullTitle = `${title} | Open Working Hours`;
 const canonical = new URL(currentPath, Astro.site);
 const ogImage = new URL('/og-download.png', Astro.site);
 
+const normalized = currentPath.replace(/\/+$/, '') || '/';
+const isActive = (match: string) => (match === '/' || match === '/de') ? normalized === match : normalized.startsWith(match);
+
 const navItems = [
-  { href: '/', label: 'Dossier' },
-  { href: '/product', label: 'Product' },
-  { href: '/dashboard', label: 'Dashboard', badge: 'Live' },
-  { href: '/privacy', label: 'Privacy' },
-  { href: '/team', label: 'Team' },
+  { href: '/', match: '/', label: 'Dossier' },
+  { href: '/product', match: '/product', label: 'Product' },
+  { href: '/dashboard', match: '/dashboard', label: 'Dashboard', badge: 'Live' },
+  { href: '/app-privacy-policy#summary', match: '/app-privacy-policy', label: 'Privacy' },
+  { href: '/team', match: '/team', label: 'Team' },
 ];
 ---
 
@@ -57,10 +60,10 @@ const navItems = [
   </head>
   <body class="min-h-screen flex flex-col">
     <!-- Navigation -->
-    <header class="sticky top-0 z-50 bg-stone-50/95 backdrop-blur border-b border-stone-200">
-      <nav class="max-w-5xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-        <a href="/" class="flex items-center gap-2 font-semibold text-stone-900 hover:text-teal-700 transition-colors">
-          <svg class="w-6 h-6" viewBox="0 0 512 512" fill="none">
+    <header class="site-header sticky top-0 z-50 bg-stone-50/95 backdrop-blur border-b border-stone-200">
+      <nav class="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4" aria-label="Main">
+        <a href="/" class="flex items-center gap-2 font-semibold text-stone-900 hover:text-teal-700 transition-colors shrink-0">
+          <svg class="w-6 h-6" viewBox="0 0 512 512" fill="none" aria-hidden="true">
             <path d="M256,56 A200,200 0 1,1 115,397 L175,336 A113,113 0 1,0 256,143 Z" fill="#C0E6DD" opacity="0.7"/>
             <path d="M115,397 A200,200 0 0,1 256,56 L256,143 A113,113 0 0,0 175,336 Z" fill="#F5F0EB" opacity="0.6"/>
             <circle cx="256" cy="256" r="113" fill="#2E8B6B"/>
@@ -68,17 +71,20 @@ const navItems = [
             <line x1="256" y1="256" x2="199" y2="313" stroke="#F5F0EB" stroke-width="15" stroke-linecap="round"/>
             <circle cx="256" cy="256" r="13" fill="#F5F0EB"/>
           </svg>
-          Open Working Hours
+          <span class="whitespace-nowrap">Open Working Hours</span>
         </a>
-        <div class="flex items-center gap-4">
-          <ul class="flex items-center gap-1 sm:gap-2">
+
+        <div class="flex items-center gap-2 sm:gap-4">
+          <!-- Desktop nav -->
+          <ul class="hidden md:flex items-center gap-1">
             {navItems.map((item) => (
               <li>
                 <a
                   href={item.href}
+                  aria-current={isActive(item.match) ? 'page' : undefined}
                   class:list={[
-                    'px-3 py-1.5 rounded-md text-sm font-medium transition-colors inline-flex items-center gap-1.5',
-                    currentPath === item.href
+                    'px-3 py-1.5 rounded-md text-sm font-medium transition-colors inline-flex items-center gap-1.5 whitespace-nowrap',
+                    isActive(item.match)
                       ? 'bg-teal-50 text-teal-700'
                       : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'
                   ]}
@@ -93,13 +99,81 @@ const navItems = [
               </li>
             ))}
           </ul>
-          <!-- Language Switcher -->
-          <a href="/de" class="text-xs font-medium text-stone-400 hover:text-teal-600 border-l border-stone-200 pl-4 transition-colors">
+
+          <!-- Language switcher -->
+          <a href="/de" hreflang="de" lang="de" aria-label="Deutsche Version" class="text-xs font-medium text-stone-500 hover:text-teal-600 md:border-l md:border-stone-200 md:pl-4 px-2 py-1.5 rounded-md hover:bg-stone-100 md:hover:bg-transparent transition-colors">
             DE
           </a>
+
+          <!-- Mobile menu button -->
+          <button
+            type="button"
+            class="nav-toggle md:hidden inline-flex items-center justify-center w-10 h-10 -mr-2 rounded-md text-stone-700 hover:bg-stone-100 transition-colors"
+            aria-controls="mobile-nav"
+            aria-expanded="false"
+            aria-label="Menu"
+            data-label-open="Menu"
+            data-label-close="Close menu"
+          >
+            <svg class="nav-icon-open w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+              <path d="M4 7h16M4 12h16M4 17h16" />
+            </svg>
+            <svg class="nav-icon-close w-6 h-6 hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
         </div>
       </nav>
+
+      <!-- Mobile nav panel -->
+      <nav id="mobile-nav" class="mobile-nav md:hidden" aria-label="Main" hidden>
+        <ul class="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex flex-col gap-1 border-t border-stone-200">
+          {navItems.map((item) => (
+            <li>
+              <a
+                href={item.href}
+                aria-current={isActive(item.match) ? 'page' : undefined}
+                class:list={[
+                  'flex items-center justify-between gap-3 px-3 py-3 rounded-md text-base font-medium transition-colors',
+                  isActive(item.match)
+                    ? 'bg-teal-50 text-teal-700'
+                    : 'text-stone-700 hover:bg-stone-100'
+                ]}
+              >
+                {item.label}
+                {item.badge && (
+                  <span class="text-[10px] font-semibold uppercase tracking-wide text-teal-600 bg-teal-50 px-1.5 py-0.5 rounded">
+                    {item.badge}
+                  </span>
+                )}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </nav>
     </header>
+
+    <script>
+      const header = document.querySelector('.site-header');
+      const toggle = header?.querySelector<HTMLButtonElement>('.nav-toggle');
+      const panel = header?.querySelector<HTMLElement>('#mobile-nav');
+      if (toggle && panel) {
+        const setOpen = (open: boolean) => {
+          toggle.setAttribute('aria-expanded', String(open));
+          toggle.setAttribute('aria-label', open ? toggle.dataset.labelClose! : toggle.dataset.labelOpen!);
+          toggle.querySelector('.nav-icon-open')?.classList.toggle('hidden', open);
+          toggle.querySelector('.nav-icon-close')?.classList.toggle('hidden', !open);
+          panel.hidden = !open;
+        };
+        toggle.addEventListener('click', () => setOpen(panel.hidden));
+        panel.addEventListener('click', (e) => { if ((e.target as HTMLElement).closest('a')) setOpen(false); });
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !panel.hidden) setOpen(false); });
+        document.addEventListener('click', (e) => {
+          if (!panel.hidden && !header!.contains(e.target as Node)) setOpen(false);
+        });
+        window.matchMedia('(min-width: 768px)').addEventListener('change', (e) => { if (e.matches) setOpen(false); });
+      }
+    </script>
 
     <!-- Main content -->
     <main class="flex-1">
@@ -107,13 +181,13 @@ const navItems = [
     </main>
 
     <!-- Footer -->
-    <footer class="border-t border-stone-200 bg-white mt-16">
+    <footer class="border-t border-stone-200 bg-white">
       <div class="max-w-5xl mx-auto px-4 sm:px-6 py-10">
         <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-8">
           <!-- Left: Logo and tagline -->
           <div class="max-w-xs">
             <div class="flex items-center gap-2 font-semibold text-stone-900 mb-2">
-              <svg class="w-5 h-5" viewBox="0 0 512 512" fill="none">
+              <svg class="w-5 h-5" viewBox="0 0 512 512" fill="none" aria-hidden="true">
                 <path d="M256,56 A200,200 0 1,1 115,397 L175,336 A113,113 0 1,0 256,143 Z" fill="#C0E6DD" opacity="0.7"/>
                 <path d="M115,397 A200,200 0 0,1 256,56 L256,143 A113,113 0 0,0 175,336 Z" fill="#F5F0EB" opacity="0.6"/>
                 <circle cx="256" cy="256" r="113" fill="#2E8B6B"/>
@@ -126,13 +200,13 @@ const navItems = [
             <p class="text-sm text-stone-500 mb-4">
               Privacy-first infrastructure for healthcare working time documentation.
             </p>
-            <a href="mailto:contact@openworkinghours.org" class="text-sm text-teal-600 hover:text-teal-700">
+            <a href="mailto:contact@openworkinghours.org" class="text-sm text-teal-600 hover:text-teal-700 break-all">
               contact@openworkinghours.org
             </a>
           </div>
 
           <!-- Right: Links -->
-          <div class="flex gap-12">
+          <div class="flex flex-wrap gap-x-12 gap-y-6">
             <div>
               <h4 class="text-xs font-semibold text-stone-400 uppercase tracking-wide mb-3">Project</h4>
               <nav class="flex flex-col gap-2 text-sm">
