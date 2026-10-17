@@ -14,10 +14,10 @@ const canonical = new URL(currentPath, Astro.site);
 const ogImage = new URL('/og-download.png', Astro.site);
 
 const normalized = currentPath.replace(/\/+$/, '') || '/';
-const isActive = (match: string) => (match === '/' || match === '/de') ? normalized === match : normalized.startsWith(match);
+const isActive = (match: string) => normalized === match || normalized.startsWith(match + '/');
 
 const navItems = [
-  { href: '/de', match: '/de', label: 'Dossier' },
+  { href: '/de/dossier', match: '/de/dossier', label: 'Dossier' },
   { href: '/de/product', match: '/de/product', label: 'Produkt' },
   { href: '/de/dashboard', match: '/de/dashboard', label: 'Dashboard', badge: 'Live' },
   { href: '/de/app-privacy-policy#summary', match: '/de/app-privacy-policy', label: 'Datenschutz' },
