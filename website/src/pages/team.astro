@@ -113,14 +113,19 @@ import Layout from '../layouts/Layout.astro';
         in October 2026. The fund is run by the NLnet Foundation with financial support from the European Commission's Next Generation Internet programme.
         The grant pays for tighter privacy accounting, simulation-based parameter validation, a public threat model, and an independent security review of the library — not for the app.
       </p>
-      <div class="flex items-center gap-6">
+      <div class="flex flex-wrap items-center gap-x-8 gap-y-4">
         <a href="https://nlnet.nl" target="_blank" rel="noopener noreferrer" aria-label="NLnet Foundation">
           <img src="/logos/nlnet.svg" alt="NLnet Foundation" class="h-10 w-auto" />
         </a>
         <a href="https://nlnet.nl/commonsfund" target="_blank" rel="noopener noreferrer" aria-label="NGI Zero Commons Fund">
           <img src="/logos/ngi0.svg" alt="NGI Zero" class="h-10 w-auto" />
         </a>
+        <!-- EU emblem: official "Funded by" lockup; the flag itself must be at least as tall as the largest other logo -->
+        <img src="/logos/eu-funded-en.png" alt="Funded by the European Union" width="720" height="160" class="h-12 w-auto" />
       </div>
+      <p class="mt-4 text-xs text-stone-500 max-w-2xl">
+        dp-group-stats is funded by the European Union. Views and opinions expressed are however those of the author(s) only and do not necessarily reflect those of the European Union or the European Commission. Neither the European Union nor the granting authority can be held responsible for them.
+      </p>
     </section>
 
     <!-- Contact -->
